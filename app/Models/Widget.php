@@ -1,0 +1,36 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\{BelongsTo, HasMany};
+use App\Traits\WebhookEnabled;
+
+class Widget extends Model
+{
+    use WebhookEnabled;
+    use HasFactory;
+
+    protected $fillable = [
+        'name', 'type', 'component', 'category', 'icon', 'description',
+        'default_config', 'data_source', 'default_width', 'default_height',
+        'is_resizable', 'is_active'
+    ];
+
+    protected $casts = [
+        'default_config' => 'array',
+        'is_resizable' => 'boolean',
+        'is_active' => 'boolean'
+    ];
+
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(WidgetCategory::class, 'category', 'slug');
+    }
+
+    public function dashboardWidgets(): HasMany
+    {
+        return $this->hasMany(DashboardWidget::class);
+    }
+}

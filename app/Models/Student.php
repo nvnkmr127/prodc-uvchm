@@ -1,0 +1,472 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Activitylog\LogOptions;
+use App\Traits\StudentPhotoHelper;
+use Illuminate\Support\Facades\Schema;
+use App\Traits\WebhookEnabled;
+class Student extends Model
+{
+    use WebhookEnabled;
+    use HasFactory, LogsActivity, StudentPhotoHelper;
+
+    protected $fillable = [
+        'name',
+        'email',
+        'enrollment_number',
+        'gender',
+        'father_name',
+        'student_mobile',
+        'father_mobile',
+        'village',
+        'source',                // New field: source of admission
+        'referral_name',         // New field: referral person name
+        'admission_date',
+        'batch_id',
+        'status',
+        'photo',
+        'payment_terms'
+    ];
+
+    protected $casts = [
+        'admission_date' => 'date',
+        'payment_terms' => 'integer'
+    ];
+
+    protected $dates = [
+        'admission_date',
+        'created_at',
+        'updated_at'
+    ];
+
+    // Relationships
+    public function batch()
+    {
+        return $this->belongsTo(Batch::class);
+    }
+
+    public function invoices()
+    {
+        return $this->hasMany(Invoice::class);
+    }
+
+    public function payments()
+    {
+        // Check if payments table has student_id column
+        if (Schema::hasColumn('payments', 'student_id')) {
+            return $this->hasMany(Payment::class, 'student_id');
+        } else {
+            // If no student_id, get payments through invoices
+            return $this->hasManyThrough(
+                Payment::class,
+                Invoice::class,
+                'student_id', // Foreign key on invoices table
+                'invoice_id', // Foreign key on payments table
+                'id', // Local key on students table
+                'id' // Local key on invoices table
+            );
+        }
+    }
+
+    public function attendances()
+    {
+        return $this->hasMany(Attendance::class);
+    }
+
+    public function admission()
+    {
+        // Check if the admissions table has student_id column, otherwise use a different relationship
+        try {
+            return $this->hasOne(Admission::class, 'student_id');
+        } catch (\Exception $e) {
+            // If student_id column doesn't exist, try other possible column names
+            if (Schema::hasColumn('admissions', 'user_id')) {
+                return $this->hasOne(Admission::class, 'user_id');
+            }
+            // Return empty relation if no suitable column found
+            return $this->hasOne(Admission::class)->whereRaw('1 = 0');
+        }
+    }
+
+    public function labGroup()
+    {
+        return $this->belongsTo(LabGroup::class);
+    }
+
+    // Accessor for photo URL with automatic dummy fallback
+    public function getPhotoUrlAttribute(): string
+    {
+        return self::getStudentPhotoUrl($this);
+    }
+
+    // Accessor for small circular photo
+    public function getSmallPhotoAttribute(): string
+    {
+        return self::getStudentCircularPhoto($this);
+    }
+
+    // Accessor for medium photo
+    public function getMediumPhotoAttribute(): string
+    {
+        return self::getStudentMediumPhoto($this);
+    }
+
+    // Accessor for large photo
+    public function getLargePhotoAttribute(): string
+    {
+        return self::getStudentLargePhoto($this);
+    }
+
+    // Check if student has real photo
+    public function getHasRealPhotoAttribute(): bool
+    {
+        return self::hasRealPhoto($this);
+    }
+
+    // Get course through batch relationship
+    public function getCourseAttribute()
+    {
+        return $this->batch ? $this->batch->course : null;
+    }
+
+    // Get course name
+    public function getCourseNameAttribute(): string
+    {
+        return $this->course ? $this->course->name : 'N/A';
+    }
+    
+/**
+ * Get all payment reminders for this student
+ */
+public function paymentReminders()
+{
+    return $this->hasMany(PaymentReminder::class);
+}
+
+/**
+ * Get the payment defaulter record for this student
+ */
+public function paymentDefaulter()
+{
+    return $this->hasOne(PaymentDefaulter::class);
+}
+
+/**
+ * Get pending payment reminders
+ */
+public function pendingReminders()
+{
+    return $this->paymentReminders()->where('status', 'pending');
+}
+
+/**
+ * Get recent payment reminders (last 30 days)
+ */
+public function recentReminders()
+{
+    return $this->paymentReminders()
+        ->where('created_at', '>=', now()->subDays(30))
+        ->latest();
+}
+
+/**
+ * Check if student is a defaulter
+ */
+public function isDefaulter(): bool
+{
+    return $this->paymentDefaulter()
+        ->where('current_status', '!=', 'resolved')
+        ->exists();
+}
+
+/**
+ * Get total overdue amount for this student
+ */
+public function getTotalOverdueAmount(): float
+{
+    return $this->invoices()
+        ->where('due_date', '<', now())
+        ->where('status', '!=', 'paid')
+        ->sum('total_amount');
+}
+
+/**
+ * Get overdue invoices count
+ */
+public function getOverdueInvoicesCount(): int
+{
+    return $this->invoices()
+        ->where('due_date', '<', now())
+        ->where('status', '!=', 'paid')
+        ->count();
+}
+
+/**
+ * Get days since first overdue invoice
+ */
+public function getDaysOverdue(): int
+{
+    $oldestOverdue = $this->invoices()
+        ->where('due_date', '<', now())
+        ->where('status', '!=', 'paid')
+        ->orderBy('due_date')
+        ->first();
+
+    return $oldestOverdue ? 
+        \Carbon\Carbon::parse($oldestOverdue->due_date)->diffInDays(now()) : 
+        0;
+}
+
+/**
+ * Check if student has any overdue payments
+ */
+public function hasOverduePayments(): bool
+{
+    return $this->invoices()
+        ->where('due_date', '<', now())
+        ->where('status', '!=', 'paid')
+        ->exists();
+}
+    // Get batch name
+    public function getBatchNameAttribute(): string
+    {
+        return $this->batch ? $this->batch->name : 'N/A';
+    }
+
+    // Get full mobile info
+    public function getFullMobileInfoAttribute(): string
+    {
+        $mobiles = array_filter([
+            $this->student_mobile ? "Student: {$this->student_mobile}" : null,
+            $this->father_mobile ? "Father: {$this->father_mobile}" : null
+        ]);
+        return implode(', ', $mobiles) ?: 'N/A';
+    }
+
+    // Get total fees owed
+    public function getTotalFeesOwedAttribute(): float
+    {
+        return $this->invoices()->sum('due_amount');
+    }
+
+    // Get total fees paid
+    public function getTotalFeesPaidAttribute(): float
+    {
+        return $this->payments()->sum('amount');
+    }
+
+    // Get current fee status
+    public function getFeeStatusAttribute(): string
+    {
+        $totalOwed = $this->total_fees_owed;
+        
+        if ($totalOwed <= 0) {
+            return 'paid';
+        } elseif ($this->total_fees_paid > 0) {
+            return 'partial';
+        } else {
+            return 'unpaid';
+        }
+    }
+
+    // Get attendance percentage for current month
+    public function getCurrentMonthAttendanceAttribute(): array
+    {
+        $startOfMonth = now()->startOfMonth();
+        $endOfMonth = now()->endOfMonth();
+        
+        $attendances = $this->attendances()
+            ->whereBetween('attendance_date', [$startOfMonth, $endOfMonth])
+            ->get();
+            
+        $present = $attendances->where('status', 'present')->count();
+        $absent = $attendances->where('status', 'absent')->count();
+        $total = $present + $absent;
+        
+        return [
+            'present' => $present,
+            'absent' => $absent,
+            'total' => $total,
+            'percentage' => $total > 0 ? round(($present / $total) * 100, 1) : 0
+        ];
+    }
+
+    // Scopes
+    public function scopeActive($query)
+    {
+        return $query->where('status', 'active');
+    }
+
+    public function scopeGraduated($query)
+    {
+        return $query->where('status', 'graduated');
+    }
+
+    public function scopeDropout($query)
+    {
+        return $query->where('status', 'dropout');
+    }
+
+    public function scopeInBatch($query, $batchId)
+    {
+        return $query->where('batch_id', $batchId);
+    }
+
+    public function scopeInCourse($query, $courseId)
+    {
+        return $query->whereHas('batch', function ($q) use ($courseId) {
+            $q->where('course_id', $courseId);
+        });
+    }
+
+    public function scopeWithUnpaidFees($query)
+    {
+        return $query->whereHas('invoices', function ($q) {
+            $q->where('due_amount', '>', 0);
+        });
+    }
+
+    public function scopeSearch($query, $term)
+    {
+        return $query->where(function ($q) use ($term) {
+            $q->where('name', 'LIKE', "%{$term}%")
+              ->orWhere('enrollment_number', 'LIKE', "%{$term}%")
+              ->orWhere('email', 'LIKE', "%{$term}%")
+              ->orWhere('student_mobile', 'LIKE', "%{$term}%")
+              ->orWhere('father_mobile', 'LIKE', "%{$term}%");
+        });
+    }
+
+    // Activity logging
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly([
+                'name',
+                'email', 
+                'enrollment_number',
+                'gender',
+                'father_name',
+                'student_mobile',
+                'father_mobile',
+                'village',
+                'admission_date',
+                'batch_id',
+                'status'
+            ])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs();
+    }
+
+    // Custom methods
+    public function hasUnpaidFees(): bool
+    {
+        return $this->total_fees_owed > 0;
+    }
+
+    public function getLatestInvoice()
+    {
+        return $this->invoices()->latest()->first();
+    }
+
+    public function getOverdueInvoices()
+    {
+        return $this->invoices()
+            ->where('due_date', '<', now())
+            ->where('due_amount', '>', 0)
+            ->get();
+    }
+    
+    /**
+ * Get all student fees for this student
+ */
+public function studentFees()
+{
+    return $this->hasMany(StudentFee::class);
+}
+
+/**
+ * Get unpaid student fees
+ */
+public function unpaidFees()
+{
+    return $this->studentFees()->where('status', 'unpaid');
+}
+
+/**
+ * Get paid student fees
+ */
+public function paidFees()
+{
+    return $this->studentFees()->where('status', 'paid');
+}
+
+/**
+ * Get student fees by category
+ */
+public function feesByCategory($categoryId)
+{
+    return $this->studentFees()->where('fee_category_id', $categoryId);
+}
+
+/**
+ * Get total unpaid amount for this student
+ */
+public function getTotalUnpaidAmount()
+{
+    return $this->unpaidFees()->sum('amount');
+}
+
+/**
+ * Get total paid amount for this student
+ */
+public function getTotalPaidAmount()
+{
+    return $this->paidFees()->sum('amount');
+}
+
+    public function calculateAttendancePercentage($startDate = null, $endDate = null): float
+    {
+        $query = $this->attendances();
+        
+        if ($startDate) {
+            $query->where('attendance_date', '>=', $startDate);
+        }
+        if ($endDate) {
+            $query->where('attendance_date', '<=', $endDate);
+        }
+        
+        $attendances = $query->get();
+        $present = $attendances->where('status', 'present')->count();
+        $total = $attendances->count();
+        
+        return $total > 0 ? round(($present / $total) * 100, 1) : 0;
+    }
+
+    public function isEligibleForDiscount(): bool
+    {
+        return $this->gender === 'Female';
+    }
+
+    public function generateNewEnrollmentNumber(): string
+    {
+        if (!$this->batch) {
+            return 'UNASSIGNED-' . time();
+        }
+
+        $settings = Setting::all()->keyBy('key');
+        $collegePrefix = $settings['enrollment_prefix']->value ?? 'UV';
+        $coursePrefix = $this->batch->course->enrollment_prefix ?? strtoupper(substr($this->batch->course->name, 0, 4));
+        $batchYear = \Carbon\Carbon::parse($this->batch->created_at)->format('y');
+        
+        $studentCount = self::where('batch_id', $this->batch->id)->count();
+        $nextRollNo = $studentCount + 1;
+        $paddedRollNo = str_pad($nextRollNo, 3, '0', STR_PAD_LEFT);
+        
+        return "{$collegePrefix}-{$coursePrefix}-{$batchYear}{$paddedRollNo}";
+    }
+}

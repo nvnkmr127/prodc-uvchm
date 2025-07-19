@@ -1,0 +1,87 @@
+<?php
+// 1. Replace the content of app/Helpers/view_helpers.php
+
+if (!function_exists('safeDisplay')) {
+    function safeDisplay($value): string
+    {
+        // Handle null or empty values
+        if ($value === null || $value === '') {
+            return '';
+        }
+        
+        // Handle arrays - NEVER try to convert to string
+        if (is_array($value)) {
+            \Log::warning('safeDisplay called with array', [
+                'array' => $value,
+                'trace' => debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)
+            ]);
+            return '';
+        }
+        
+        // Handle objects - NEVER try to convert to string
+        if (is_object($value)) {
+            \Log::warning('safeDisplay called with object', [
+                'class' => get_class($value),
+                'trace' => debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)
+            ]);
+            return '';
+        }
+        
+        // Handle booleans
+        if (is_bool($value)) {
+            return $value ? 'true' : 'false';
+        }
+        
+        // Convert to string safely
+        try {
+            $stringValue = (string)$value;
+            return htmlspecialchars($stringValue, ENT_QUOTES, 'UTF-8');
+        } catch (\Exception $e) {
+            \Log::error('safeDisplay conversion error', [
+                'value' => $value,
+                'error' => $e->getMessage()
+            ]);
+            return '';
+        }
+    }
+}
+
+if (!function_exists('safeDisplayUrl')) {
+    function safeDisplayUrl($url): string
+    {
+        // Handle null or empty values
+        if ($url === null || $url === '') {
+            return '';
+        }
+        
+        // Handle arrays - NEVER try to convert to string
+        if (is_array($url)) {
+            \Log::warning('safeDisplayUrl called with array', [
+                'array' => $url,
+                'trace' => debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)
+            ]);
+            return '';
+        }
+        
+        // Handle objects
+        if (is_object($url)) {
+            \Log::warning('safeDisplayUrl called with object', [
+                'class' => get_class($url),
+                'trace' => debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2)
+            ]);
+            return '';
+        }
+        
+        // Convert to string safely
+        try {
+            $stringValue = (string)$url;
+            return htmlspecialchars($stringValue, ENT_QUOTES, 'UTF-8');
+        } catch (\Exception $e) {
+            \Log::error('safeDisplayUrl conversion error', [
+                'url' => $url,
+                'error' => $e->getMessage()
+            ]);
+            return '';
+        }
+    }
+}

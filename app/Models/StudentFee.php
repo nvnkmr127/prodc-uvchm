@@ -1,0 +1,111 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use App\Traits\WebhookEnabled;
+
+class StudentFee extends Model
+{
+    use WebhookEnabled;
+    use HasFactory;
+
+    protected $fillable = [
+        'student_id',
+        'fee_structure_id',
+        'fee_category_id',
+        'invoice_id',
+        'amount',
+        'due_date',
+        'paid_date',
+        'status',
+        'payment_method',
+        'transaction_id',
+        'remarks'
+    ];
+
+    protected $casts = [
+        'due_date' => 'date',
+        'paid_date' => 'date',
+        'amount' => 'decimal:2'
+    ];
+
+    /**
+     * Get the student
+     */
+    public function student()
+    {
+        return $this->belongsTo(Student::class);
+    }
+
+    /**
+     * Get the invoice
+     */
+    public function invoice()
+    {
+        return $this->belongsTo(Invoice::class);
+    }
+
+    /**
+     * Get the fee structure
+     */
+    public function feeStructure()
+    {
+        return $this->belongsTo(FeeStructure::class);
+    }
+
+    /**
+     * Get the fee category
+     */
+    public function feeCategory()
+    {
+        return $this->belongsTo(FeeCategory::class);
+    }
+
+    /**
+     * Scope for unpaid fees
+     */
+    public function scopeUnpaid($query)
+    {
+        return $query->where('status', 'unpaid');
+    }
+
+    /**
+     * Scope for paid fees
+     */
+    public function scopePaid($query)
+    {
+        return $query->where('status', 'paid');
+    }
+
+    /**
+     * Scope for overdue fees
+     */
+    public function scopeOverdue($query)
+    {
+        return $query->where('status', 'unpaid')
+                     ->where('due_date', '<', now());
+    }
+
+    /**
+     * Check if fee is overdue
+     */
+    public function isOverdue()
+    {
+        return $this->status === 'unpaid' && $this->due_date < now();
+    }
+
+    /**
+     * Mark as paid
+     */
+    public function markAsPaid($paymentMethod = 'cash', $transactionId = null)
+    {
+        $this->update([
+            'status' => 'paid',
+            'paid_date' => now(),
+            'payment_method' => $paymentMethod,
+            'transaction_id' => $transactionId
+        ]);
+    }
+}

@@ -1,0 +1,57 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Dashboard Builder Styles */
+.dashboard-builder {
+    min-height: 100vh;
+    background: #f9fafb;
+}
+
+.btn {
+    @apply px-4 py-2 rounded-md font-medium transition-colors cursor-pointer;
+}
+
+.btn-primary {
+    @apply bg-blue-600 text-white hover:bg-blue-700;
+}
+
+.btn-secondary {
+    @apply bg-gray-600 text-white hover:bg-gray-700;
+}
+
+.btn-success {
+    @apply bg-green-600 text-white hover:bg-green-700;
+}
+
+.btn:disabled {
+    @apply opacity-50 cursor-not-allowed;
+}
+
+.widget-item {
+    @apply p-3 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-400 cursor-grab transition-all duration-200;
+}
+
+.widget-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.grid-canvas {
+    min-height: 600px;
+    position: relative;
+    background-image: 
+        linear-gradient(rgba(0,0,0,0.1) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,0,0,0.1) 1px, transparent 1px);
+    background-size: 20px 20px;
+}
+
+.dashboard-widget {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    transition: all 0.2s ease;
+}

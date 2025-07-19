@@ -1,0 +1,11 @@
+
+{
+  "resources/js/dashboard-builder.js": {
+    "file": "assets/dashboard-builder.js",
+    "isEntry": true
+  },
+  "resources/css/app.css": {
+    "file": "resources/css/app.css",
+    "isEntry": true
+  }
+}

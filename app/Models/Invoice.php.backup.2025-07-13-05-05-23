@@ -1,0 +1,72 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
+class Invoice extends Model
+{
+protected $fillable = [
+    'student_id',
+    'term_number',
+    'invoice_number',
+    'issue_date',
+    'due_date',
+    'total_amount',
+    'concession_amount',
+    'concession_notes',
+    'paid_amount',
+    'due_amount',
+    'status',
+    'token',
+    'description',
+    'payment_method',
+    'transaction_id',
+    'paid_at'  // Add this
+];
+
+protected $casts = [
+    'issue_date' => 'date',
+    'due_date' => 'date',
+    'paid_at' => 'datetime',  // Add this
+    'total_amount' => 'decimal:2',
+    'concession_amount' => 'decimal:2',
+    'paid_amount' => 'decimal:2',
+    'due_amount' => 'decimal:2',
+];
+
+    // Automatically calculate due_amount when creating/updating
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($invoice) {
+            if (!isset($invoice->due_amount) || $invoice->due_amount === null) {
+                $invoice->due_amount = $invoice->total_amount - ($invoice->concession_amount ?? 0) - ($invoice->paid_amount ?? 0);
+            }
+        });
+
+        static::updating(function ($invoice) {
+            if ($invoice->isDirty(['total_amount', 'concession_amount', 'paid_amount'])) {
+                $invoice->due_amount = $invoice->total_amount - ($invoice->concession_amount ?? 0) - ($invoice->paid_amount ?? 0);
+            }
+        });
+    }
+
+    public function student(): BelongsTo
+    {
+        return $this->belongsTo(Student::class);
+    }
+
+    public function items(): HasMany
+    {
+        return $this->hasMany(InvoiceItem::class);
+    }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class);
+    }
+}

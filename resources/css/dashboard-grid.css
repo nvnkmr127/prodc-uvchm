@@ -1,0 +1,36 @@
+/* resources/css/dashboard-grid.css */
+.dashboard-grid {
+  display: grid;
+  gap: var(--grid-gap, 8px);
+  grid-template-columns: repeat(var(--grid-columns, 12), 1fr);
+  min-height: 100vh;
+  padding: 1rem;
+}
+
+/* Responsive breakpoints */
+@media (max-width: 768px) {
+  .dashboard-grid {
+    --grid-columns: 4;
+    --grid-gap: 4px;
+  }
+  
+  .widget-controls {
+    transform: scale(1.2);
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-grid {
+    --grid-columns: 2;
+    gap: 4px;
+  }
+}
+
+/* Touch-friendly interactions */
+@media (hover: none) {
+  .widget-controls {
+    opacity: 1;
+    position: relative;
+    margin-top: 0.5rem;
+  }
+}

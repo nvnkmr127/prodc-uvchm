@@ -1,0 +1,867 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "School Management System API",
+        "description": "API documentation for School Management System - Complete student management, attendance tracking, and administrative operations.",
+        "contact": {
+            "name": "API Support",
+            "email": "admin@uvchm.com"
+        },
+        "license": {
+            "name": "MIT",
+            "url": "https://opensource.org/licenses/MIT"
+        },
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "https://uvchm.digicloudify.com",
+            "description": "Production Server"
+        },
+        {
+            "url": "http://localhost:8000",
+            "description": "Development Server"
+        }
+    ],
+    "paths": {
+        "/api/v1/test": {
+            "get": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Test API connection",
+                "description": "Simple endpoint to test if API is working and authentication is successful",
+                "operationId": "testApi",
+                "responses": {
+                    "200": {
+                        "description": "API is working correctly",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "API is working!"
+                                        },
+                                        "user": {
+                                            "type": "string",
+                                            "example": "John Doe"
+                                        },
+                                        "timestamp": {
+                                            "type": "string",
+                                            "example": "2025-01-01T12:00:00Z"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Unauthenticated."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/students/search": {
+            "get": {
+                "tags": [
+                    "Students"
+                ],
+                "summary": "Search for students",
+                "description": "Search for students by name, enrollment number, or mobile number",
+                "operationId": "searchStudents",
+                "parameters": [
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "description": "Search query (name, enrollment number, or mobile)",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "john"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Students found successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "properties": {
+                                                    "id": {
+                                                        "type": "integer",
+                                                        "example": 1
+                                                    },
+                                                    "name": {
+                                                        "type": "string",
+                                                        "example": "John Doe"
+                                                    },
+                                                    "enrollment_number": {
+                                                        "type": "string",
+                                                        "example": "ENR-12345678"
+                                                    },
+                                                    "course": {
+                                                        "type": "string",
+                                                        "example": "Hotel Management"
+                                                    },
+                                                    "batch": {
+                                                        "type": "string",
+                                                        "example": "2024-2025 Batch"
+                                                    }
+                                                },
+                                                "type": "object"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/attendance": {
+            "post": {
+                "tags": [
+                    "Attendance"
+                ],
+                "summary": "Submit attendance record",
+                "description": "Submit attendance record from biometric device or manual entry",
+                "operationId": "submitAttendance",
+                "parameters": [
+                    {
+                        "name": "X-API-KEY",
+                        "in": "header",
+                        "description": "Biometric device API key",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "enrollment_number"
+                                ],
+                                "properties": {
+                                    "enrollment_number": {
+                                        "type": "string",
+                                        "example": "ENR-12345678"
+                                    },
+                                    "timestamp": {
+                                        "description": "Unix timestamp (optional)",
+                                        "type": "integer",
+                                        "example": 1672531200
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Attendance recorded successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Attendance recorded for John Doe"
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "student_id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "attendance_date": {
+                                                    "type": "string",
+                                                    "format": "date",
+                                                    "example": "2025-01-15"
+                                                },
+                                                "status": {
+                                                    "type": "string",
+                                                    "example": "present"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized - Invalid API key",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "error"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Unauthorized"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "Student": {
+                "title": "Student",
+                "description": "Student model",
+                "properties": {
+                    "id": {
+                        "description": "Student ID",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "name": {
+                        "description": "Student full name",
+                        "type": "string",
+                        "example": "John Doe"
+                    },
+                    "email": {
+                        "description": "Student email address",
+                        "type": "string",
+                        "format": "email",
+                        "example": "john@example.com"
+                    },
+                    "enrollment_number": {
+                        "description": "Unique enrollment number",
+                        "type": "string",
+                        "example": "ENR-12345678"
+                    },
+                    "gender": {
+                        "description": "Student gender",
+                        "type": "string",
+                        "enum": [
+                            "Male",
+                            "Female",
+                            "Other"
+                        ],
+                        "example": "Male"
+                    },
+                    "student_mobile": {
+                        "description": "Student mobile number",
+                        "type": "string",
+                        "example": "9876543210"
+                    },
+                    "father_name": {
+                        "description": "Father's name",
+                        "type": "string",
+                        "example": "John Doe Sr."
+                    },
+                    "father_mobile": {
+                        "description": "Father's mobile number",
+                        "type": "string",
+                        "example": "9876543211"
+                    },
+                    "village": {
+                        "description": "Student's village/city",
+                        "type": "string",
+                        "example": "New York"
+                    },
+                    "admission_date": {
+                        "description": "Date of admission",
+                        "type": "string",
+                        "format": "date",
+                        "example": "2024-01-15"
+                    },
+                    "status": {
+                        "description": "Student status",
+                        "type": "string",
+                        "enum": [
+                            "active",
+                            "graduated",
+                            "dropout"
+                        ],
+                        "example": "active"
+                    },
+                    "batch_id": {
+                        "description": "Batch ID",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "photo": {
+                        "description": "Student photo path",
+                        "type": "string",
+                        "example": "photos/student1.jpg",
+                        "nullable": true
+                    },
+                    "current_employer": {
+                        "description": "Current employer (for alumni)",
+                        "type": "string",
+                        "example": "ABC Hotel",
+                        "nullable": true
+                    },
+                    "job_title": {
+                        "description": "Current job title (for alumni)",
+                        "type": "string",
+                        "example": "Manager",
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2024-01-15T10:30:00Z"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2024-01-15T10:30:00Z"
+                    }
+                },
+                "type": "object"
+            },
+            "Attendance": {
+                "title": "Attendance",
+                "description": "Attendance record model",
+                "properties": {
+                    "id": {
+                        "description": "Attendance record ID",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "student_id": {
+                        "description": "Student ID",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "batch_id": {
+                        "description": "Batch ID",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "faculty_id": {
+                        "description": "Faculty ID who marked attendance",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "attendance_date": {
+                        "description": "Date of attendance",
+                        "type": "string",
+                        "format": "date",
+                        "example": "2025-01-15"
+                    },
+                    "status": {
+                        "description": "Attendance status",
+                        "type": "string",
+                        "enum": [
+                            "present",
+                            "absent",
+                            "late",
+                            "excused"
+                        ],
+                        "example": "present"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2025-01-15T10:30:00Z"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2025-01-15T10:30:00Z"
+                    }
+                },
+                "type": "object"
+            },
+            "Invoice": {
+                "title": "Invoice",
+                "description": "Invoice model",
+                "properties": {
+                    "id": {
+                        "description": "Invoice ID",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "student_id": {
+                        "description": "Student ID",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "invoice_number": {
+                        "description": "Unique invoice number",
+                        "type": "string",
+                        "example": "INV-2025-001"
+                    },
+                    "issue_date": {
+                        "description": "Invoice issue date",
+                        "type": "string",
+                        "format": "date",
+                        "example": "2025-01-15"
+                    },
+                    "due_date": {
+                        "description": "Payment due date",
+                        "type": "string",
+                        "format": "date",
+                        "example": "2025-02-15"
+                    },
+                    "total_amount": {
+                        "description": "Total invoice amount",
+                        "type": "number",
+                        "format": "float",
+                        "example": 50000
+                    },
+                    "paid_amount": {
+                        "description": "Amount paid",
+                        "type": "number",
+                        "format": "float",
+                        "example": 30000
+                    },
+                    "due_amount": {
+                        "description": "Amount due",
+                        "type": "number",
+                        "format": "float",
+                        "example": 20000
+                    },
+                    "concession_amount": {
+                        "description": "Concession amount",
+                        "type": "number",
+                        "format": "float",
+                        "example": 0
+                    },
+                    "status": {
+                        "description": "Invoice status",
+                        "type": "string",
+                        "enum": [
+                            "unpaid",
+                            "partially_paid",
+                            "paid",
+                            "cancelled"
+                        ],
+                        "example": "partially_paid"
+                    },
+                    "term_number": {
+                        "description": "Payment term number",
+                        "type": "integer",
+                        "example": 1,
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2025-01-15T10:30:00Z"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2025-01-15T10:30:00Z"
+                    }
+                },
+                "type": "object"
+            },
+            "Course": {
+                "title": "Course",
+                "description": "Course model",
+                "properties": {
+                    "id": {
+                        "description": "Course ID",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "name": {
+                        "description": "Course name",
+                        "type": "string",
+                        "example": "Hotel Management"
+                    },
+                    "enrollment_prefix": {
+                        "description": "Enrollment number prefix",
+                        "type": "string",
+                        "example": "HM",
+                        "nullable": true
+                    },
+                    "duration_in_years": {
+                        "description": "Course duration in years",
+                        "type": "number",
+                        "format": "float",
+                        "example": 2
+                    },
+                    "max_batch_size": {
+                        "description": "Maximum students per batch",
+                        "type": "integer",
+                        "example": 30
+                    },
+                    "description": {
+                        "description": "Course description",
+                        "type": "string",
+                        "example": "Comprehensive hotel management course",
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2025-01-15T10:30:00Z"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2025-01-15T10:30:00Z"
+                    }
+                },
+                "type": "object"
+            },
+            "Batch": {
+                "title": "Batch",
+                "description": "Batch model",
+                "properties": {
+                    "id": {
+                        "description": "Batch ID",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "course_id": {
+                        "description": "Course ID",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "name": {
+                        "description": "Batch name",
+                        "type": "string",
+                        "example": "2024-2025 Batch"
+                    },
+                    "start_date": {
+                        "description": "Batch start date",
+                        "type": "string",
+                        "format": "date",
+                        "example": "2024-01-01"
+                    },
+                    "end_date": {
+                        "description": "Batch end date",
+                        "type": "string",
+                        "format": "date",
+                        "example": "2025-12-31"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2024-01-01T00:00:00Z"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2024-01-01T00:00:00Z"
+                    }
+                },
+                "type": "object"
+            },
+            "User": {
+                "title": "User",
+                "description": "User model",
+                "properties": {
+                    "id": {
+                        "description": "User ID",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "name": {
+                        "description": "User full name",
+                        "type": "string",
+                        "example": "John Doe"
+                    },
+                    "email": {
+                        "description": "User email address",
+                        "type": "string",
+                        "format": "email",
+                        "example": "john@example.com"
+                    },
+                    "email_verified_at": {
+                        "description": "Email verification timestamp",
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2024-01-15T10:30:00Z",
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2024-01-15T10:30:00Z"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2024-01-15T10:30:00Z"
+                    }
+                },
+                "type": "object"
+            },
+            "ApiResponse": {
+                "title": "Standard API Response",
+                "description": "Standard API response format",
+                "properties": {
+                    "success": {
+                        "description": "Indicates if the request was successful",
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "message": {
+                        "description": "Response message",
+                        "type": "string",
+                        "example": "Operation completed successfully"
+                    },
+                    "data": {
+                        "description": "Response data",
+                        "type": "object"
+                    },
+                    "timestamp": {
+                        "description": "Response timestamp",
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2025-01-15T10:30:00Z"
+                    }
+                },
+                "type": "object"
+            },
+            "PaginatedResponse": {
+                "title": "Paginated Response",
+                "description": "Paginated API response format",
+                "properties": {
+                    "data": {
+                        "description": "Array of data items",
+                        "type": "array",
+                        "items": {
+                            "type": "object"
+                        }
+                    },
+                    "links": {
+                        "properties": {
+                            "first": {
+                                "type": "string",
+                                "example": "https://example.com/api/resource?page=1"
+                            },
+                            "last": {
+                                "type": "string",
+                                "example": "https://example.com/api/resource?page=10"
+                            },
+                            "prev": {
+                                "type": "string",
+                                "example": "https://example.com/api/resource?page=1",
+                                "nullable": true
+                            },
+                            "next": {
+                                "type": "string",
+                                "example": "https://example.com/api/resource?page=3",
+                                "nullable": true
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "meta": {
+                        "properties": {
+                            "current_page": {
+                                "type": "integer",
+                                "example": 2
+                            },
+                            "from": {
+                                "type": "integer",
+                                "example": 11
+                            },
+                            "last_page": {
+                                "type": "integer",
+                                "example": 10
+                            },
+                            "per_page": {
+                                "type": "integer",
+                                "example": 10
+                            },
+                            "to": {
+                                "type": "integer",
+                                "example": 20
+                            },
+                            "total": {
+                                "type": "integer",
+                                "example": 95
+                            }
+                        },
+                        "type": "object"
+                    }
+                },
+                "type": "object"
+            }
+        },
+        "responses": {
+            "Unauthenticated": {
+                "description": "Authentication required",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "properties": {
+                                "message": {
+                                    "type": "string",
+                                    "example": "Unauthenticated."
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                }
+            },
+            "Forbidden": {
+                "description": "Insufficient permissions",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "properties": {
+                                "message": {
+                                    "type": "string",
+                                    "example": "This action is unauthorized."
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                }
+            },
+            "NotFound": {
+                "description": "Resource not found",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "properties": {
+                                "message": {
+                                    "type": "string",
+                                    "example": "No query results for model."
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                }
+            },
+            "ValidationError": {
+                "description": "Validation error",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "properties": {
+                                "message": {
+                                    "type": "string",
+                                    "example": "The given data was invalid."
+                                },
+                                "errors": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                }
+            },
+            "ServerError": {
+                "description": "Internal server error",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "properties": {
+                                "message": {
+                                    "type": "string",
+                                    "example": "Server Error"
+                                },
+                                "error": {
+                                    "type": "string",
+                                    "example": "Internal server error occurred"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT",
+                "description": "Enter your API token in the format: Bearer YOUR_TOKEN"
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "Authentication",
+            "description": "API authentication and testing endpoints"
+        },
+        {
+            "name": "Students",
+            "description": "Student management operations"
+        },
+        {
+            "name": "Attendance",
+            "description": "Attendance management operations"
+        }
+    ],
+    "security": [
+        {
+            "bearerAuth": []
+        }
+    ]
+}

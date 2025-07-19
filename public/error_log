@@ -1,0 +1,73 @@
+[15-Jul-2025 05:56:17 UTC] PHP Fatal error:  Cannot declare class App\Providers\SettingsServiceProvider, because the name is already in use in /home/digiclou/uvchm.digicloudify.com/app/Models/Setting.php on line 13
+[15-Jul-2025 05:56:17 UTC] PHP Fatal error:  Cannot declare class App\Providers\SettingsServiceProvider, because the name is already in use in /home/digiclou/uvchm.digicloudify.com/app/Models/Setting.php on line 13
+[15-Jul-2025 05:56:17 UTC] PHP Fatal error:  Cannot declare class App\Providers\SettingsServiceProvider, because the name is already in use in /home/digiclou/uvchm.digicloudify.com/app/Models/Setting.php on line 13
+[15-Jul-2025 05:56:17 UTC] PHP Fatal error:  Cannot declare class App\Providers\SettingsServiceProvider, because the name is already in use in /home/digiclou/uvchm.digicloudify.com/app/Models/Setting.php on line 13
+[15-Jul-2025 05:56:28 UTC] PHP Fatal error:  Cannot declare class App\Providers\SettingsServiceProvider, because the name is already in use in /home/digiclou/uvchm.digicloudify.com/app/Models/Setting.php on line 13
+[15-Jul-2025 05:56:28 UTC] PHP Fatal error:  Cannot declare class App\Providers\SettingsServiceProvider, because the name is already in use in /home/digiclou/uvchm.digicloudify.com/app/Models/Setting.php on line 13
+[15-Jul-2025 05:56:28 UTC] PHP Fatal error:  Cannot declare class App\Providers\SettingsServiceProvider, because the name is already in use in /home/digiclou/uvchm.digicloudify.com/app/Models/Setting.php on line 13
+[15-Jul-2025 05:56:28 UTC] PHP Fatal error:  Cannot declare class App\Providers\SettingsServiceProvider, because the name is already in use in /home/digiclou/uvchm.digicloudify.com/app/Models/Setting.php on line 13
+[15-Jul-2025 05:56:39 UTC] PHP Fatal error:  Cannot declare class App\Providers\SettingsServiceProvider, because the name is already in use in /home/digiclou/uvchm.digicloudify.com/app/Models/Setting.php on line 13
+[15-Jul-2025 05:56:39 UTC] PHP Fatal error:  Cannot declare class App\Providers\SettingsServiceProvider, because the name is already in use in /home/digiclou/uvchm.digicloudify.com/app/Models/Setting.php on line 13
+[15-Jul-2025 05:56:39 UTC] PHP Fatal error:  Cannot declare class App\Providers\SettingsServiceProvider, because the name is already in use in /home/digiclou/uvchm.digicloudify.com/app/Models/Setting.php on line 13
+[15-Jul-2025 05:56:39 UTC] PHP Fatal error:  Cannot declare class App\Providers\SettingsServiceProvider, because the name is already in use in /home/digiclou/uvchm.digicloudify.com/app/Models/Setting.php on line 13
+[15-Jul-2025 06:06:01 UTC] PHP Fatal error:  Cannot declare class App\Providers\SettingsServiceProvider, because the name is already in use in /home/digiclou/uvchm.digicloudify.com/app/Models/Setting.php on line 13
+[15-Jul-2025 06:06:01 UTC] PHP Fatal error:  Cannot declare class App\Providers\SettingsServiceProvider, because the name is already in use in /home/digiclou/uvchm.digicloudify.com/app/Models/Setting.php on line 13
+[15-Jul-2025 06:06:01 UTC] PHP Fatal error:  Cannot declare class App\Providers\SettingsServiceProvider, because the name is already in use in /home/digiclou/uvchm.digicloudify.com/app/Models/Setting.php on line 13
+[15-Jul-2025 06:06:01 UTC] PHP Fatal error:  Cannot declare class App\Providers\SettingsServiceProvider, because the name is already in use in /home/digiclou/uvchm.digicloudify.com/app/Models/Setting.php on line 13
+[15-Jul-2025 06:06:01 UTC] PHP Fatal error:  Cannot declare class App\Providers\SettingsServiceProvider, because the name is already in use in /home/digiclou/uvchm.digicloudify.com/app/Models/Setting.php on line 13
+[15-Jul-2025 06:09:19 UTC] PHP Fatal error:  Cannot declare class App\Providers\SettingsServiceProvider, because the name is already in use in /home/digiclou/uvchm.digicloudify.com/app/Models/Setting.php on line 13
+[15-Jul-2025 06:09:25 UTC] PHP Fatal error:  Cannot declare class App\Providers\SettingsServiceProvider, because the name is already in use in /home/digiclou/uvchm.digicloudify.com/app/Models/Setting.php on line 13
+[15-Jul-2025 15:23:34 UTC] PHP Fatal error:  Cannot declare class App\Http\Controllers\Admin\PaymentReminderSettingsController, because the name is already in use in /home/digiclou/uvchm.digicloudify.com/app/Http/Controllers/Admin/PaymentReminderController.php on line 14
+[15-Jul-2025 15:26:19 UTC] PHP Fatal error:  Cannot declare class App\Http\Controllers\Admin\PaymentReminderSettingsController, because the name is already in use in /home/digiclou/uvchm.digicloudify.com/app/Http/Controllers/Admin/PaymentReminderController.php on line 14
+[15-Jul-2025 15:29:15 UTC] PHP Fatal error:  Cannot declare class App\Http\Controllers\Admin\PaymentReminderSettingsController, because the name is already in use in /home/digiclou/uvchm.digicloudify.com/app/Http/Controllers/Admin/PaymentReminderController.php on line 14
+[16-Jul-2025 02:41:21 UTC] PHP Fatal error:  Cannot redeclare App\Models\PaymentReminder::markAsSent() in /home/digiclou/uvchm.digicloudify.com/app/Models/PaymentReminder.php on line 294
+[16-Jul-2025 04:08:24 UTC] PHP Fatal error:  Cannot use App\Http\Controllers\PaymentReminderController as PaymentReminderController because the name is already in use in /home/digiclou/uvchm.digicloudify.com/routes/web.php on line 86
+[16-Jul-2025 04:08:25 UTC] PHP Fatal error:  Cannot use App\Http\Controllers\PaymentReminderController as PaymentReminderController because the name is already in use in /home/digiclou/uvchm.digicloudify.com/routes/web.php on line 86
+[16-Jul-2025 04:08:25 UTC] PHP Fatal error:  Cannot use App\Http\Controllers\PaymentReminderController as PaymentReminderController because the name is already in use in /home/digiclou/uvchm.digicloudify.com/routes/web.php on line 86
+[16-Jul-2025 04:08:25 UTC] PHP Fatal error:  Cannot use App\Http\Controllers\PaymentReminderController as PaymentReminderController because the name is already in use in /home/digiclou/uvchm.digicloudify.com/routes/web.php on line 86
+[16-Jul-2025 04:08:35 UTC] PHP Fatal error:  Cannot use App\Http\Controllers\PaymentReminderController as PaymentReminderController because the name is already in use in /home/digiclou/uvchm.digicloudify.com/routes/web.php on line 86
+[16-Jul-2025 04:08:36 UTC] PHP Fatal error:  Cannot use App\Http\Controllers\PaymentReminderController as PaymentReminderController because the name is already in use in /home/digiclou/uvchm.digicloudify.com/routes/web.php on line 86
+[16-Jul-2025 04:08:36 UTC] PHP Fatal error:  Cannot use App\Http\Controllers\PaymentReminderController as PaymentReminderController because the name is already in use in /home/digiclou/uvchm.digicloudify.com/routes/web.php on line 86
+[16-Jul-2025 04:08:36 UTC] PHP Fatal error:  Cannot use App\Http\Controllers\PaymentReminderController as PaymentReminderController because the name is already in use in /home/digiclou/uvchm.digicloudify.com/routes/web.php on line 86
+[16-Jul-2025 04:13:02 UTC] PHP Fatal error:  Cannot use App\Http\Controllers\PaymentReminderController as PaymentReminderController because the name is already in use in /home/digiclou/uvchm.digicloudify.com/routes/web.php on line 86
+[17-Jul-2025 03:52:30 UTC] PHP Fatal error:  Cannot use Illuminate\Support\Facades\Schema as Schema because the name is already in use in /home/digiclou/uvchm.digicloudify.com/app/Models/Student.php on line 13
+[17-Jul-2025 09:08:32 UTC] PHP Fatal error:  Uncaught Error: Failed opening required '/home/digiclou/uvchm.digicloudify.com/vendor/composer/../myclabs/deep-copy/src/DeepCopy/deep_copy.php' (include_path='.:/opt/cpanel/ea-php82/root/usr/share/pear') in /home/digiclou/uvchm.digicloudify.com/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home/digiclou/uvchm.digicloudify.com/vendor/composer/autoload_real.php(45): {closure}('6124b4c8570aa39...', '/home/digiclou/...')
+#1 /home/digiclou/uvchm.digicloudify.com/vendor/autoload.php(25): ComposerAutoloaderInit626b9e7ddd47fb7eff9aaa53cce0c9ad::getLoader()
+#2 /home/digiclou/uvchm.digicloudify.com/public/index.php(18): require('/home/digiclou/...')
+#3 {main}
+  thrown in /home/digiclou/uvchm.digicloudify.com/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 09:08:32 UTC] PHP Fatal error:  Uncaught Error: Failed opening required '/home/digiclou/uvchm.digicloudify.com/vendor/composer/../myclabs/deep-copy/src/DeepCopy/deep_copy.php' (include_path='.:/opt/cpanel/ea-php82/root/usr/share/pear') in /home/digiclou/uvchm.digicloudify.com/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home/digiclou/uvchm.digicloudify.com/vendor/composer/autoload_real.php(45): {closure}('6124b4c8570aa39...', '/home/digiclou/...')
+#1 /home/digiclou/uvchm.digicloudify.com/vendor/autoload.php(25): ComposerAutoloaderInit626b9e7ddd47fb7eff9aaa53cce0c9ad::getLoader()
+#2 /home/digiclou/uvchm.digicloudify.com/public/index.php(18): require('/home/digiclou/...')
+#3 {main}
+  thrown in /home/digiclou/uvchm.digicloudify.com/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 09:08:32 UTC] PHP Fatal error:  Uncaught Error: Failed opening required '/home/digiclou/uvchm.digicloudify.com/vendor/composer/../myclabs/deep-copy/src/DeepCopy/deep_copy.php' (include_path='.:/opt/cpanel/ea-php82/root/usr/share/pear') in /home/digiclou/uvchm.digicloudify.com/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home/digiclou/uvchm.digicloudify.com/vendor/composer/autoload_real.php(45): {closure}('6124b4c8570aa39...', '/home/digiclou/...')
+#1 /home/digiclou/uvchm.digicloudify.com/vendor/autoload.php(25): ComposerAutoloaderInit626b9e7ddd47fb7eff9aaa53cce0c9ad::getLoader()
+#2 /home/digiclou/uvchm.digicloudify.com/public/index.php(18): require('/home/digiclou/...')
+#3 {main}
+  thrown in /home/digiclou/uvchm.digicloudify.com/vendor/composer/autoload_real.php on line 41
+[17-Jul-2025 09:08:32 UTC] PHP Fatal error:  Uncaught Error: Failed opening required '/home/digiclou/uvchm.digicloudify.com/vendor/composer/../myclabs/deep-copy/src/DeepCopy/deep_copy.php' (include_path='.:/opt/cpanel/ea-php82/root/usr/share/pear') in /home/digiclou/uvchm.digicloudify.com/vendor/composer/autoload_real.php:41
+Stack trace:
+#0 /home/digiclou/uvchm.digicloudify.com/vendor/composer/autoload_real.php(45): {closure}('6124b4c8570aa39...', '/home/digiclou/...')
+#1 /home/digiclou/uvchm.digicloudify.com/vendor/autoload.php(25): ComposerAutoloaderInit626b9e7ddd47fb7eff9aaa53cce0c9ad::getLoader()
+#2 /home/digiclou/uvchm.digicloudify.com/public/index.php(18): require('/home/digiclou/...')
+#3 {main}
+  thrown in /home/digiclou/uvchm.digicloudify.com/vendor/composer/autoload_real.php on line 41
+[18-Jul-2025 08:56:07 UTC] PHP Fatal error:  Cannot redeclare App\Http\Controllers\Admin\StudentController::store() in /home/digiclou/uvchm.digicloudify.com/app/Http/Controllers/Admin/StudentController.php on line 367
+[18-Jul-2025 08:58:04 UTC] PHP Fatal error:  Cannot redeclare App\Http\Controllers\Admin\StudentController::store() in /home/digiclou/uvchm.digicloudify.com/app/Http/Controllers/Admin/StudentController.php on line 369
+[18-Jul-2025 10:29:26 UTC] PHP Fatal error:  Cannot redeclare App\Http\Controllers\Admin\InvoiceController::show() in /home/digiclou/uvchm.digicloudify.com/app/Http/Controllers/Admin/InvoiceController.php on line 685
+[18-Jul-2025 10:37:27 UTC] PHP Fatal error:  Cannot redeclare App\Http\Controllers\Admin\InvoiceController::show() in /home/digiclou/uvchm.digicloudify.com/app/Http/Controllers/Admin/InvoiceController.php on line 685
+[19-Jul-2025 09:31:43 UTC] PHP Fatal error:  Cannot redeclare App\Models\Payment::editLogs() in /home/digiclou/portal.uvchm.com/app/Models/Payment.php on line 347
+[19-Jul-2025 09:34:46 UTC] PHP Fatal error:  Cannot redeclare App\Models\Payment::editLogs() in /home/digiclou/portal.uvchm.com/app/Models/Payment.php on line 348
+[19-Jul-2025 09:35:47 UTC] PHP Fatal error:  Cannot redeclare App\Models\Payment::editLogs() in /home/digiclou/portal.uvchm.com/app/Models/Payment.php on line 348
+[19-Jul-2025 09:35:50 UTC] PHP Fatal error:  Cannot redeclare App\Models\Payment::editLogs() in /home/digiclou/portal.uvchm.com/app/Models/Payment.php on line 348
+[19-Jul-2025 09:36:22 UTC] PHP Fatal error:  Cannot redeclare App\Models\Payment::editLogs() in /home/digiclou/portal.uvchm.com/app/Models/Payment.php on line 348
+[19-Jul-2025 09:37:19 UTC] PHP Fatal error:  Cannot redeclare App\Models\Payment::hasBeenEdited() in /home/digiclou/portal.uvchm.com/app/Models/Payment.php on line 350
+[19-Jul-2025 09:37:37 UTC] PHP Fatal error:  Cannot redeclare App\Models\Payment::getEditCountAttribute() in /home/digiclou/portal.uvchm.com/app/Models/Payment.php on line 349
+[19-Jul-2025 09:37:51 UTC] PHP Fatal error:  Cannot redeclare App\Models\Payment::canBeEdited() in /home/digiclou/portal.uvchm.com/app/Models/Payment.php on line 349
