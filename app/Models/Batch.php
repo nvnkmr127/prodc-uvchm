@@ -24,12 +24,15 @@ class Batch extends Model
         'start_date',
         'end_date',
         'status',
-        'is_on_internship'
+        'is_on_internship',
+        'internship_start_date'
     ];
-protected $casts = [
+
+    protected $casts = [
         'start_date' => 'date',
         'end_date' => 'date',
         'is_on_internship' => 'boolean', // [ADDED]
+        'internship_start_date' => 'date',
     ];
     /**
      * A Batch belongs to one Course.
@@ -62,7 +65,7 @@ protected $casts = [
     {
         return $this->hasMany(PracticalGroup::class);
     }
-    
+
     public function feeStructure(): HasOne
     {
         return $this->hasOne(FeeStructure::class);

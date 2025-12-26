@@ -26,11 +26,11 @@ class SendDailySummaryWebhook extends Command
     public function handle()
     {
         $this->info('🚀 Starting Daily Summary Webhook Process...');
-        
+
         try {
             // Determine report date
-            $reportDate = $this->option('date') 
-                ? Carbon::parse($this->option('date')) 
+            $reportDate = $this->option('date')
+                ? Carbon::parse($this->option('date'))
                 : Carbon::today();
 
             $this->info("📅 Report Date: {$reportDate->format('Y-m-d (l)')}");
@@ -47,7 +47,7 @@ class SendDailySummaryWebhook extends Command
 
             // Get active webhooks for daily summary
             $webhooks = $this->getActiveDailySummaryWebhooks();
-            
+
             if ($webhooks->isEmpty()) {
                 $this->warn('⚠️  No active daily summary webhooks found');
                 $this->info('💡 Create webhooks with event "daily.summary" to receive reports');
@@ -71,7 +71,7 @@ class SendDailySummaryWebhook extends Command
 
                 try {
                     $response = $this->sendWebhookRequest($webhook, $summaryData);
-                    
+
                     if ($response['success']) {
                         $this->info("  ✅ Success: HTTP {$response['status_code']}");
                         $successCount++;
@@ -107,7 +107,7 @@ class SendDailySummaryWebhook extends Command
         }
     }
 
-protected function generateDailySummary(Carbon $date): array
+    protected function generateDailySummary(Carbon $date): array
     {
         $this->info('📊 Collecting data...');
 
@@ -118,10 +118,10 @@ protected function generateDailySummary(Carbon $date): array
         // ===== ENHANCED PAYMENTS SUMMARY - USE CREATION DATE =====
         // Since logs have proper dates but payment_date field has issues,
         // use created_at date which reflects when payment was actually made
-        
+
         $paymentsQuery = Payment::whereDate('created_at', $date)
-                               ->where('status', '!=', 'cancelled');
-        
+            ->where('status', '!=', 'cancelled');
+
         $paymentsData = [
             'total_amount' => (float) $paymentsQuery->sum('amount') ?: 0.0,
             'total_payers' => $paymentsQuery->distinct('student_id')->count() ?: 0,
@@ -131,21 +131,21 @@ protected function generateDailySummary(Carbon $date): array
         // Debug information to show the difference
         if ($this->option('debug')) {
             $this->line("🔍 Payment Query Comparison:");
-            
+
             // Original method (by payment_date)
             $originalQuery = Payment::whereDate('payment_date', $date);
             $originalAmount = $originalQuery->sum('amount') ?: 0.0;
             $originalPayers = $originalQuery->distinct('student_id')->count() ?: 0;
             $originalCount = $originalQuery->count() ?: 0;
-            
+
             // New method (by created_at)
             $newAmount = $paymentsData['total_amount'];
             $newPayers = $paymentsData['total_payers'];
             $newCount = $paymentsQuery->count() ?: 0;
-            
+
             $this->line("  By payment_date: {$originalCount} payments, ₹{$originalAmount}, {$originalPayers} payers");
             $this->line("  By created_at: {$newCount} payments, ₹{$newAmount}, {$newPayers} payers");
-            
+
             // Show individual payments for today
             $todayPayments = Payment::whereDate('created_at', $date)->get();
             $this->line("  Today's Payments (by creation):");
@@ -155,21 +155,34 @@ protected function generateDailySummary(Carbon $date): array
         }
 
         // ===== ATTENDANCE SUMMARY (KEEP EXISTING LOGIC) =====
-        // Get all active students
-        $totalActiveStudents = Student::where('status', 'active')->count();
-        
+        // Get all active students (excluding those on internship)
+        $totalActiveStudents = Student::where('status', 'active')
+            ->whereHas('batch', function ($q) {
+                $q->where('is_on_internship', 0);
+            })
+            ->count();
+
         // Create separate queries to avoid conflict
         $presentCount = Attendance::whereDate('attendance_date', $date)
+            ->whereHas('student.batch', function ($q) {
+                $q->where('is_on_internship', 0);
+            })
             ->whereIn('status', ['present', 'late'])
             ->count() ?: 0;
-            
+
         $absentCount = Attendance::whereDate('attendance_date', $date)
+            ->whereHas('student.batch', function ($q) {
+                $q->where('is_on_internship', 0);
+            })
             ->where('status', 'absent')
             ->count() ?: 0;
-            
+
         $totalMarkedAttendance = Attendance::whereDate('attendance_date', $date)
+            ->whereHas('student.batch', function ($q) {
+                $q->where('is_on_internship', 0);
+            })
             ->count() ?: 0;
-        
+
         // Debug information for attendance
         if ($this->option('debug')) {
             $this->line("🔍 Attendance Debug Info:");
@@ -178,12 +191,12 @@ protected function generateDailySummary(Carbon $date): array
             $this->line("  - Present Count: {$presentCount}");
             $this->line("  - Absent Count: {$absentCount}");
             $this->line("  - Total Marked: {$totalMarkedAttendance}");
-            
+
             // Show available statuses in attendance table
             $availableStatuses = Attendance::distinct('status')->pluck('status');
             $this->line("  - Available Status Values: " . $availableStatuses->implode(', '));
         }
-        
+
         // Calculate attendance based on system behavior
         if ($totalMarkedAttendance === 0) {
             $attendanceData = [
@@ -195,17 +208,17 @@ protected function generateDailySummary(Carbon $date): array
             ];
         } elseif ($absentCount === 0 && $presentCount > 0 && $presentCount < $totalActiveStudents) {
             $calculatedAbsent = $totalActiveStudents - $presentCount;
-            
+
             if ($this->option('debug')) {
                 $this->line("  - Calculated Absent (unmarked): {$calculatedAbsent}");
             }
-            
+
             $attendanceData = [
                 'present' => $presentCount,
                 'absent' => $calculatedAbsent,
                 'total_students' => $totalActiveStudents,
-                'attendance_percentage' => $totalActiveStudents > 0 
-                    ? round(($presentCount / $totalActiveStudents) * 100, 1)
+                'attendance_percentage' => $totalActiveStudents > 0
+                    ? (float) number_format(($presentCount / $totalActiveStudents) * 100, 1)
                     : 0.0,
                 'calculation_method' => 'absent_calculated_from_missing_records'
             ];
@@ -219,13 +232,13 @@ protected function generateDailySummary(Carbon $date): array
             ];
         } else {
             $totalForCalculation = max($totalMarkedAttendance, $totalActiveStudents);
-            
+
             $attendanceData = [
                 'present' => $presentCount,
                 'absent' => $absentCount,
                 'total_students' => $totalForCalculation,
-                'attendance_percentage' => $totalForCalculation > 0 
-                    ? round(($presentCount / $totalForCalculation) * 100, 1)
+                'attendance_percentage' => $totalForCalculation > 0
+                    ? (float) number_format(($presentCount / $totalForCalculation) * 100, 1)
                     : 0.0,
                 'calculation_method' => 'explicit_marking'
             ];
@@ -261,7 +274,7 @@ protected function generateDailySummary(Carbon $date): array
         return Webhook::where('is_active', true)
             ->where(function ($query) {
                 $query->where('event_name', 'daily.summary')
-                      ->orWhere('event_name', '*'); // Catch-all webhooks
+                    ->orWhere('event_name', '*'); // Catch-all webhooks
             })
             ->get();
     }
@@ -343,16 +356,16 @@ protected function generateDailySummary(Carbon $date): array
     {
         $this->info('📋 Summary Preview:');
         $this->line("   💰 Payments: ₹{$data['payments']['total_amount']} from {$data['payments']['total_payers']} students");
-        
-        $attendanceNote = isset($data['attendance']['calculation_method']) 
-            ? " ({$data['attendance']['calculation_method']})" 
+
+        $attendanceNote = isset($data['attendance']['calculation_method'])
+            ? " ({$data['attendance']['calculation_method']})"
             : "";
         $this->line("   👥 Attendance: {$data['attendance']['present']}/{$data['attendance']['total_students']} present ({$data['attendance']['attendance_percentage']}%){$attendanceNote}");
-        
+
         if (isset($data['attendance']['notes'])) {
             $this->line("   ℹ️  Note: {$data['attendance']['notes']}");
         }
-        
+
         $this->line("   📅 Report Day: {$data['report_day']}");
         $this->newLine();
     }
@@ -364,54 +377,54 @@ protected function generateDailySummary(Carbon $date): array
     {
         $this->line("\n🔍 Debugging Attendance Data:");
         $this->line("================================");
-        
+
         // Check total students
         $totalStudents = Student::count();
         $activeStudents = Student::where('status', 'active')->count();
         $this->line("Total Students: {$totalStudents}");
         $this->line("Active Students: {$activeStudents}");
-        
+
         // Check attendance table structure
         $tableExists = DB::getSchemaBuilder()->hasTable('attendances');
         $this->line("Attendance Table Exists: " . ($tableExists ? 'Yes' : 'No'));
-        
+
         if ($tableExists) {
             // Check columns
             $columns = DB::getSchemaBuilder()->getColumnListing('attendances');
             $this->line("Attendance Columns: " . implode(', ', $columns));
-            
+
             // Check total attendance records
             $totalRecords = Attendance::count();
             $this->line("Total Attendance Records: {$totalRecords}");
-            
+
             // Check records for specific date
             $dateRecords = Attendance::whereDate('attendance_date', $date)->count();
             $this->line("Records for {$date->format('Y-m-d')}: {$dateRecords}");
-            
+
             // Check status distribution
             $statusCounts = Attendance::whereDate('attendance_date', $date)
                 ->selectRaw('status, COUNT(*) as count')
                 ->groupBy('status')
                 ->get();
-                
+
             $this->line("Status Distribution for {$date->format('Y-m-d')}:");
             foreach ($statusCounts as $status) {
                 $this->line("  - {$status->status}: {$status->count}");
             }
-            
+
             // Check recent dates with attendance
             $recentDates = Attendance::selectRaw('attendance_date, COUNT(*) as count')
                 ->groupBy('attendance_date')
                 ->orderBy('attendance_date', 'desc')
                 ->limit(5)
                 ->get();
-                
+
             $this->line("Recent Dates with Attendance:");
             foreach ($recentDates as $dateRecord) {
                 $this->line("  - {$dateRecord->attendance_date}: {$dateRecord->count} records");
             }
         }
-        
+
         $this->newLine();
     }
 }

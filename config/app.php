@@ -196,8 +196,8 @@ return [
         App\Providers\SettingsServiceProvider::class,
         //App\Providers\AutoWebhookServiceProvider::class,
         App\Providers\NotificationServiceProvider::class,
-       
-    
+
+
     ],
 
     /*
@@ -251,5 +251,14 @@ return [
         'Validator' => Illuminate\Support\Facades\Validator::class,
         'View' => Illuminate\Support\Facades\View::class,
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Academic Year Global Scope
+    |--------------------------------------------------------------------------
+    |
+    | Enable system-wide filtering based on selected academic year
+    */
+    'enable_academic_year_global_scope' => true,
 
 ];

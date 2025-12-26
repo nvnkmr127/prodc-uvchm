@@ -33,7 +33,9 @@ trait WebhookEnabled
      * Events that should trigger webhooks
      */
     protected array $webhookEvents = [
-        'created', 'updated', 'deleted'
+        'created',
+        'updated',
+        'deleted'
     ];
 
     /**
@@ -65,97 +67,97 @@ trait WebhookEnabled
         static::created(function ($model) {
             $model->handleWebhookEventSafely('created');
         });
-        
+
         static::updated(function ($model) {
             $model->handleWebhookEventSafely('updated');
         });
-        
+
         static::deleted(function ($model) {
             $model->handleWebhookEventSafely('deleted');
         });
     }
 
-/**
- * Handle a webhook event safely with loop prevention
- * FIXED VERSION - This method was not firing the actual event
- */
-protected function handleWebhookEventSafely(string $eventType): void
-{
-    // Add debug logging
-    \Log::info('WebhookEnabled trait - handleWebhookEventSafely called', [
-        'model' => get_class($this),
-        'model_id' => $this->getKey(),
-        'event_type' => $eventType,
-        'webhooks_enabled' => $this->areWebhooksEnabled(),
-    ]);
-
-    // Check if webhooks are enabled for this instance
-    if (!$this->areWebhooksEnabled()) {
-        \Log::info('Webhooks disabled for this model instance');
-        return;
-    }
-
-    // Check if this event type should trigger webhooks
-    if (!$this->shouldTriggerWebhook($eventType)) {
-        \Log::info('Event type should not trigger webhooks', ['event_type' => $eventType]);
-        return;
-    }
-
-    // Prevent infinite loops
-    $modelClass = get_class($this);
-    $modelId = $this->getKey() ?? 'new';
-    $eventKey = "{$modelClass}:{$modelId}:{$eventType}";
-
-    if (isset(static::$firingWebhooks[$eventKey])) {
-        \Log::warning('Webhook infinite loop prevented', [
-            'model' => $modelClass,
-            'id' => $modelId,
-            'event' => $eventType,
-        ]);
-        return;
-    }
-
-    try {
-        // Mark as firing
-        static::$firingWebhooks[$eventKey] = true;
-
-        // Set webhook event name if not already set
-        if (!$this->webhookEventName) {
-            $this->setWebhookEventName($eventType);
-        }
-        
-        \Log::info('About to fire EloquentWebhookEvent', [
-            'webhook_event_name' => $this->webhookEventName,
-            'model_class' => get_class($this),
-            'model_id' => $this->getKey(),
-        ]);
-        
-        // Create the synthetic webhook event
-        $syntheticEvent = new \App\Events\EloquentWebhookEvent(
-            $this, 
-            $eventType, 
-            class_basename(static::class),
-            $this->getWebhookData()
-        );
-        
-        // THIS IS THE KEY FIX: Actually fire the Laravel event
-        event($syntheticEvent);
-        
-        \Log::info('EloquentWebhookEvent fired successfully', [
-            'event_name' => $syntheticEvent->webhookEventName,
-        ]);
-
-    } catch (\Exception $e) {
-        \Log::error('Failed to fire webhook event', [
+    /**
+     * Handle a webhook event safely with loop prevention
+     * FIXED VERSION - This method was not firing the actual event
+     */
+    protected function handleWebhookEventSafely(string $eventType): void
+    {
+        // Add debug logging
+        \Log::channel('webhook-events')->debug('WebhookEnabled trait - handleWebhookEventSafely called', [
             'model' => get_class($this),
+            'model_id' => $this->getKey(),
             'event_type' => $eventType,
-            'error' => $e->getMessage(),
+            'webhooks_enabled' => $this->areWebhooksEnabled(),
         ]);
-    } finally {
-        // Always clean up
-        unset(static::$firingWebhooks[$eventKey]);
+
+        // Check if webhooks are enabled for this instance
+        if (!$this->areWebhooksEnabled()) {
+            \Log::channel('webhook-events')->debug('Webhooks disabled for this model instance');
+            return;
+        }
+
+        // Check if this event type should trigger webhooks
+        if (!$this->shouldTriggerWebhook($eventType)) {
+            \Log::channel('webhook-events')->debug('Event type should not trigger webhooks', ['event_type' => $eventType]);
+            return;
+        }
+
+        // Prevent infinite loops
+        $modelClass = get_class($this);
+        $modelId = $this->getKey() ?? 'new';
+        $eventKey = "{$modelClass}:{$modelId}:{$eventType}";
+
+        if (isset(static::$firingWebhooks[$eventKey])) {
+            \Log::channel('webhook-events')->warning('Webhook infinite loop prevented', [
+                'model' => $modelClass,
+                'id' => $modelId,
+                'event' => $eventType,
+            ]);
+            return;
+        }
+
+        try {
+            // Mark as firing
+            static::$firingWebhooks[$eventKey] = true;
+
+            // Set webhook event name if not already set
+            if (!$this->webhookEventName) {
+                $this->setWebhookEventName($eventType);
+            }
+
+            \Log::channel('webhook-events')->debug('About to fire EloquentWebhookEvent', [
+                'webhook_event_name' => $this->webhookEventName,
+                'model_class' => get_class($this),
+                'model_id' => $this->getKey(),
+            ]);
+
+            // Create the synthetic webhook event
+            $syntheticEvent = new \App\Events\EloquentWebhookEvent(
+                $this,
+                $eventType,
+                class_basename(static::class),
+                $this->getWebhookData()
+            );
+
+            // THIS IS THE KEY FIX: Actually fire the Laravel event
+            event($syntheticEvent);
+
+            \Log::channel('webhook-events')->debug('EloquentWebhookEvent fired successfully', [
+                'event_name' => $syntheticEvent->webhookEventName,
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::channel('webhook-events')->error('Failed to fire webhook event', [
+                'model' => get_class($this),
+                'event_type' => $eventType,
+                'error' => $e->getMessage(),
+            ]);
+        } finally {
+            // Always clean up
+            unset(static::$firingWebhooks[$eventKey]);
+        }
     }
-}
 
     /**
      * Check if this would create an infinite loop
@@ -186,15 +188,15 @@ protected function handleWebhookEventSafely(string $eventType): void
     protected function incrementRecursionDepth(string $eventType): void
     {
         $modelClass = get_class($this);
-        
+
         if (!isset(static::$recursionDepth[$modelClass])) {
             static::$recursionDepth[$modelClass] = [];
         }
-        
+
         if (!isset(static::$recursionDepth[$modelClass][$eventType])) {
             static::$recursionDepth[$modelClass][$eventType] = 0;
         }
-        
+
         static::$recursionDepth[$modelClass][$eventType]++;
     }
 
@@ -204,10 +206,10 @@ protected function handleWebhookEventSafely(string $eventType): void
     protected function decrementRecursionDepth(string $eventType): void
     {
         $modelClass = get_class($this);
-        
+
         if (isset(static::$recursionDepth[$modelClass][$eventType])) {
             static::$recursionDepth[$modelClass][$eventType]--;
-            
+
             if (static::$recursionDepth[$modelClass][$eventType] <= 0) {
                 unset(static::$recursionDepth[$modelClass][$eventType]);
             }
@@ -245,20 +247,20 @@ protected function handleWebhookEventSafely(string $eventType): void
             if (!$this->webhookEventName) {
                 $this->setWebhookEventName($action);
             }
-            
+
             // Create the synthetic webhook event
             $syntheticEvent = new EloquentWebhookEvent(
-                $this, 
-                $action, 
+                $this,
+                $action,
                 class_basename(static::class),
                 array_merge($this->webhookData, $additionalData)
             );
-            
+
             // Add any custom webhook data
             if (!empty($this->webhookData)) {
                 $syntheticEvent->setAdditionalData($this->webhookData);
             }
-            
+
             // Fire the event
             event($syntheticEvent);
 
@@ -312,53 +314,53 @@ protected function handleWebhookEventSafely(string $eventType): void
         return $data;
     }
 
-/**
- * Get computed data that should be included in webhooks.
- * This version filters changes to respect the model's $hidden property.
- */
-protected function getComputedWebhookData(): array
-{
-    $data = [];
+    /**
+     * Get computed data that should be included in webhooks.
+     * This version filters changes to respect the model's $hidden property.
+     */
+    protected function getComputedWebhookData(): array
+    {
+        $data = [];
 
-    // Add model state information
-    if (method_exists($this, 'wasRecentlyCreated')) {
-        $data['was_recently_created'] = $this->wasRecentlyCreated;
-    }
-
-    if (method_exists($this, 'isDirty')) {
-        $data['is_dirty'] = $this->isDirty();
-    }
-
-    // Only include changes if the model exists and has changes
-    if ($this->exists && method_exists($this, 'getChanges')) {
-        $changes = $this->getChanges();
-
-        // Get the array representation of the model. Calling toArray()
-        // automatically respects the $hidden and $visible properties.
-        $visibleAttributes = $this->toArray();
-
-        // Filter the changes to only include attributes that are visible.
-        // This prevents leaking sensitive data.
-        $safeChanges = array_intersect_key($changes, $visibleAttributes);
-
-        if (!empty($safeChanges)) {
-            $data['changes'] = $safeChanges;
+        // Add model state information
+        if (method_exists($this, 'wasRecentlyCreated')) {
+            $data['was_recently_created'] = $this->wasRecentlyCreated;
         }
-    }
 
-    // Add timestamp information
-    $data['webhook_triggered_at'] = now()->toIso8601String();
-
-    // Add model-specific computed data
-    if (method_exists($this, 'getCustomWebhookData')) {
-        $customData = $this->getCustomWebhookData();
-        if (is_array($customData)) {
-            $data = array_merge($data, $customData);
+        if (method_exists($this, 'isDirty')) {
+            $data['is_dirty'] = $this->isDirty();
         }
-    }
 
-    return $data;
-}
+        // Only include changes if the model exists and has changes
+        if ($this->exists && method_exists($this, 'getChanges')) {
+            $changes = $this->getChanges();
+
+            // Get the array representation of the model. Calling toArray()
+            // automatically respects the $hidden and $visible properties.
+            $visibleAttributes = $this->toArray();
+
+            // Filter the changes to only include attributes that are visible.
+            // This prevents leaking sensitive data.
+            $safeChanges = array_intersect_key($changes, $visibleAttributes);
+
+            if (!empty($safeChanges)) {
+                $data['changes'] = $safeChanges;
+            }
+        }
+
+        // Add timestamp information
+        $data['webhook_triggered_at'] = now()->toIso8601String();
+
+        // Add model-specific computed data
+        if (method_exists($this, 'getCustomWebhookData')) {
+            $customData = $this->getCustomWebhookData();
+            if (is_array($customData)) {
+                $data = array_merge($data, $customData);
+            }
+        }
+
+        return $data;
+    }
 
     /**
      * Check if webhooks are enabled for this model instance
@@ -393,7 +395,7 @@ protected function getComputedWebhookData(): array
     {
         $previousState = $this->webhooksEnabled;
         $this->webhooksEnabled = false;
-        
+
         try {
             return $callback($this);
         } finally {
@@ -420,8 +422,8 @@ protected function getComputedWebhookData(): array
      */
     public function getWebhookEvents(): array
     {
-        return property_exists($this, 'webhookEvents') 
-            ? $this->webhookEvents 
+        return property_exists($this, 'webhookEvents')
+            ? $this->webhookEvents
             : ['created', 'updated', 'deleted'];
     }
 
@@ -430,8 +432,8 @@ protected function getComputedWebhookData(): array
      */
     public function getWebhookExcludedEvents(): array
     {
-        return property_exists($this, 'webhookExcludedEvents') 
-            ? $this->webhookExcludedEvents 
+        return property_exists($this, 'webhookExcludedEvents')
+            ? $this->webhookExcludedEvents
             : [];
     }
 
@@ -451,7 +453,7 @@ protected function getComputedWebhookData(): array
     {
         $this->addWebhookData('business_event', $eventName);
         $this->addWebhookData('business_data', $data);
-        
+
         $this->fireWebhookEvent($eventName, [
             'business_event' => true,
             'custom_event_name' => $eventName,

@@ -21,18 +21,18 @@ if (!function_exists('setting')) {
             }
 
             $cacheKey = "setting_{$key}";
-            
+
             return Cache::remember($cacheKey, 3600, function () use ($key, $default) {
                 $setting = Setting::where('key', $key)->first();
-                
+
                 if (!$setting) {
                     return $default;
                 }
 
                 return $setting->getTypedValue();
             });
-            
-        } catch (\Exception $e) {
+
+        } catch (\Throwable $e) {
             \Log::warning("Settings helper error for key '{$key}': " . $e->getMessage());
             return $default;
         }
@@ -50,12 +50,12 @@ if (!function_exists('settings')) {
     function settings(array $keys, array $defaults = [])
     {
         $result = [];
-        
+
         foreach ($keys as $key) {
             $default = $defaults[$key] ?? null;
             $result[$key] = setting($key, $default);
         }
-        
+
         return $result;
     }
 }
@@ -100,7 +100,7 @@ if (!function_exists('update_setting')) {
             clear_settings_cache();
 
             return true;
-            
+
         } catch (\Exception $e) {
             \Log::error("Failed to update setting '{$key}': " . $e->getMessage());
             return false;
@@ -120,7 +120,7 @@ if (!function_exists('clear_settings_cache')) {
             // Clear main cache keys
             Cache::forget('all_settings');
             Cache::forget('public_settings');
-            
+
             // Clear individual setting caches if we can get them
             if (Schema::hasTable('settings')) {
                 $settings = Setting::pluck('key');
@@ -134,14 +134,14 @@ if (!function_exists('clear_settings_cache')) {
             foreach ($groups as $group) {
                 Cache::forget("settings_group_{$group}");
             }
-            
+
             // Clear tagged cache if supported
             try {
                 Cache::tags(['settings'])->flush();
             } catch (\Exception $e) {
                 // Cache driver might not support tags
             }
-            
+
         } catch (\Exception $e) {
             \Log::warning('Failed to clear settings cache: ' . $e->getMessage());
         }
@@ -166,7 +166,7 @@ if (!function_exists('public_settings')) {
                     ->pluck('value', 'key')
                     ->toArray();
             });
-            
+
         } catch (\Exception $e) {
             \Log::warning("Public settings error: " . $e->getMessage());
             return [];
@@ -193,7 +193,7 @@ if (!function_exists('get_settings_by_group')) {
                     ->pluck('value', 'key')
                     ->toArray();
             });
-            
+
         } catch (\Exception $e) {
             \Log::warning("Group settings error for '{$group}': " . $e->getMessage());
             return [];
@@ -216,7 +216,7 @@ if (!function_exists('setting_exists')) {
             }
 
             return Setting::where('key', $key)->exists();
-            
+
         } catch (\Exception $e) {
             return false;
         }
@@ -242,35 +242,35 @@ if (!function_exists('format_setting_value')) {
             case 'boolean':
             case 'toggle':
                 return $value ? '<span class="badge badge-success">Yes</span>' : '<span class="badge badge-secondary">No</span>';
-            
+
             case 'currency':
                 $symbol = setting('currency_symbol', '₹');
                 return $symbol . number_format($value, 2);
-            
+
             case 'percentage':
                 return $value . '%';
-            
+
             case 'array':
             case 'multiselect':
                 $array = is_string($value) ? json_decode($value, true) : $value;
                 return is_array($array) ? implode(', ', $array) : $value;
-            
+
             case 'date':
                 $format = setting('date_format', 'd-m-Y');
                 return \Carbon\Carbon::parse($value)->format($format);
-            
+
             case 'file':
                 return $value ? '<a href="' . asset('storage/' . $value) . '" target="_blank">View File</a>' : 'No file';
-            
+
             case 'password':
                 return str_repeat('•', min(8, strlen($value)));
-            
+
             case 'email':
                 return '<a href="mailto:' . $value . '">' . $value . '</a>';
-            
+
             case 'url':
                 return '<a href="' . $value . '" target="_blank">' . \Str::limit($value, 30) . '</a>';
-            
+
             default:
                 return (string) $value;
         }
@@ -294,19 +294,19 @@ if (!function_exists('validate_setting_value')) {
                     return ['valid' => false, 'message' => 'Invalid email format'];
                 }
                 break;
-            
+
             case 'url':
                 if (!filter_var($value, FILTER_VALIDATE_URL)) {
                     return ['valid' => false, 'message' => 'Invalid URL format'];
                 }
                 break;
-            
+
             case 'number':
             case 'integer':
                 if (!is_numeric($value)) {
                     return ['valid' => false, 'message' => 'Value must be numeric'];
                 }
-                
+
                 if (isset($options['min']) && $value < $options['min']) {
                     return ['valid' => false, 'message' => "Value must be at least {$options['min']}"];
                 }
@@ -314,13 +314,13 @@ if (!function_exists('validate_setting_value')) {
                     return ['valid' => false, 'message' => "Value must be at most {$options['max']}"];
                 }
                 break;
-            
+
             case 'select':
                 if (isset($options['allowed']) && !in_array($value, $options['allowed'])) {
                     return ['valid' => false, 'message' => 'Invalid option selected'];
                 }
                 break;
-            
+
             case 'boolean':
             case 'toggle':
                 if (!in_array($value, ['0', '1', 0, 1, true, false], true)) {
@@ -344,7 +344,7 @@ if (!function_exists('backup_settings')) {
         try {
             // Get all settings
             $settings = Setting::all();
-            
+
             $backupData = [
                 'version' => '1.0',
                 'created_at' => now()->toISOString(),

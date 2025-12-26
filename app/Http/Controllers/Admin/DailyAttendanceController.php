@@ -33,42 +33,42 @@ class DailyAttendanceController extends Controller
             $date = $request->get('date', Carbon::today()->format('Y-m-d'));
             $batchId = $request->get('batch_id');
             $type = $request->get('type', 'all');
-            
+
             // Build query with proper error handling
             $query = Attendance::with(['student', 'batch', 'subject'])
                 ->whereDate('attendance_date', $date);
-                
+
             // Apply filters
             if ($batchId) {
                 $query->where('batch_id', $batchId);
             }
-            
+
             if ($type === 'students') {
                 $query->whereNotNull('student_id');
             }
-            
+
             $attendances = $query->orderBy('created_at', 'desc')->paginate(50);
-            
+
             // Get filter options
             $batches = Batch::with('course')->orderBy('name')->get();
-            
+
             // Get statistics (Updated with Internship Logic)
             $stats = $this->getDayStatistics($date, $batchId, $type);
-            
+
             return view('admin.daily_attendance.index', compact(
-                'attendances', 
-                'batches', 
-                'date', 
-                'batchId', 
-                'type', 
+                'attendances',
+                'batches',
+                'date',
+                'batchId',
+                'type',
                 'stats'
             ));
-            
+
         } catch (\Exception $e) {
             Log::error('Daily attendance index error: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             // Return with safe defaults
             return view('admin.daily_attendance.index', [
                 'attendances' => collect()->paginate(),
@@ -90,41 +90,41 @@ class DailyAttendanceController extends Controller
             $date = $request->get('date', Carbon::today()->format('Y-m-d'));
             $batchId = $request->get('batch_id');
             $type = $request->get('type', 'all');
-            
+
             // Get attendance records for the day
             $query = Attendance::with(['student', 'subject', 'batch'])
                 ->whereDate('attendance_date', $date);
-                
+
             if ($batchId) {
                 $query->where('batch_id', $batchId);
             }
-            
+
             if ($type === 'students') {
                 $query->whereNotNull('student_id');
             }
-            
+
             $attendances = $query->orderBy('created_at', 'desc')->paginate(50);
-            
+
             // Get summary statistics
             $stats = $this->getDayStatistics($date, $batchId, $type);
-            
+
             // Get filter options
             $batches = Batch::with('course')->orderBy('name')->get();
-            
+
             return view('admin.daily_attendance.show', compact(
                 'attendances',
-                'batches', 
+                'batches',
                 'date',
                 'batchId',
                 'type',
                 'stats'
             ));
-            
+
         } catch (\Exception $e) {
             Log::error('Daily attendance show error: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             return view('admin.daily_attendance.show', [
                 'attendances' => collect()->paginate(),
                 'batches' => collect(),
@@ -139,33 +139,32 @@ class DailyAttendanceController extends Controller
     /**
      * Show create form
      */
-    public function create(Request $request): View
+    public function create(Request $request)
     {
         try {
             $date = $request->get('date', Carbon::today()->format('Y-m-d'));
             $batchId = $request->get('batch_id');
-            
+
             $batches = Batch::with('course')->orderBy('name')->get();
             $subjects = Subject::orderBy('name')->get();
-            
+
             // Get students if batch is selected
             $students = [];
             if ($batchId) {
                 $batch = Batch::with('students')->find($batchId);
                 $students = $batch ? $batch->students : [];
             }
-            
+
             return view('admin.daily_attendance.create', compact(
                 'batches',
-                'subjects', 
                 'students',
                 'date',
                 'batchId'
             ));
-            
+
         } catch (\Exception $e) {
             Log::error('Daily attendance create error: ' . $e->getMessage());
-            
+
             return back()->with('error', 'Unable to load attendance form. Error: ' . $e->getMessage());
         }
     }
@@ -193,7 +192,6 @@ class DailyAttendanceController extends Controller
                     'attendance_date' => $request->attendance_date,
                 ], [
                     'status' => $attendance['status'],
-                    'subject_id' => $request->subject_id,
                     'marked_by' => Auth::id(),
                     'remarks' => $attendance['remarks'] ?? null,
                 ]);
@@ -207,7 +205,7 @@ class DailyAttendanceController extends Controller
         } catch (\Exception $e) {
             DB::rollback();
             Log::error('Daily attendance store error: ' . $e->getMessage());
-            
+
             return back()
                 ->withInput()
                 ->with('error', 'Failed to save attendance. Error: ' . $e->getMessage());
@@ -222,15 +220,15 @@ class DailyAttendanceController extends Controller
         try {
             // 1. Base Metrics from Attendance Table
             $query = Attendance::whereDate('attendance_date', $date);
-            
+
             if ($batchId) {
                 $query->where('batch_id', $batchId);
             }
-            
+
             if ($type === 'students') {
                 $query->whereNotNull('student_id');
             }
-            
+
             $attendanceMetrics = $query->selectRaw('
                 COUNT(*) as total,
                 COUNT(CASE WHEN status = "present" THEN 1 END) as present,
@@ -238,21 +236,21 @@ class DailyAttendanceController extends Controller
                 COUNT(CASE WHEN status = "late" THEN 1 END) as late,
                 COUNT(CASE WHEN status = "excused" THEN 1 END) as excused
             ')->first();
-            
+
             // 2. Calculate Internship Students
             // Students in batches marked "is_on_internship" who have NOT marked attendance today
             $internshipQuery = Student::where('status', 'active')
-                ->whereHas('batch', function($q) {
+                ->whereHas('batch', function ($q) {
                     $q->where('is_on_internship', true);
                 })
-                ->whereDoesntHave('attendances', function($q) use ($date) {
+                ->whereDoesntHave('attendances', function ($q) use ($date) {
                     $q->whereDate('attendance_date', $date);
                 });
 
             if ($batchId) {
                 $internshipQuery->where('batch_id', $batchId);
             }
-            
+
             $internshipCount = $internshipQuery->count();
 
             // 3. Calculate Total Active Students (for Percentage)
@@ -268,11 +266,11 @@ class DailyAttendanceController extends Controller
             $excused = $attendanceMetrics->excused ?? 0;
 
             // Calculate attendance percentage based on Total Active Students
-            $percentage = $totalStudents > 0 ? 
+            $percentage = $totalStudents > 0 ?
                 round(($present / $totalStudents) * 100, 2) : 0;
-            
+
             return [
-                'total_students' => $totalStudents,
+                'total' => $totalStudents,
                 'present' => $present,
                 'absent' => $markedAbsent, // Only counts those explicitly marked absent
                 'internship' => $internshipCount, // New Metric
@@ -280,7 +278,7 @@ class DailyAttendanceController extends Controller
                 'excused' => $excused,
                 'percentage' => $percentage
             ];
-            
+
         } catch (\Exception $e) {
             Log::error('Error getting day statistics: ' . $e->getMessage());
             return $this->getDefaultStats();
@@ -293,7 +291,7 @@ class DailyAttendanceController extends Controller
     private function getDefaultStats()
     {
         return [
-            'total_students' => 0,
+            'total' => 0,
             'present' => 0,
             'absent' => 0,
             'internship' => 0, // Added
@@ -309,9 +307,11 @@ class DailyAttendanceController extends Controller
     public function getBatchStudents(Request $request, $batchId)
     {
         try {
-            $batch = Batch::with(['students' => function($query) {
-                $query->where('status', 'active')->orderBy('name');
-            }])->find($batchId);
+            $batch = Batch::with([
+                'students' => function ($query) {
+                    $query->where('status', 'active')->orderBy('name');
+                }
+            ])->find($batchId);
 
             if (!$batch) {
                 return response()->json([
@@ -328,10 +328,98 @@ class DailyAttendanceController extends Controller
 
         } catch (\Exception $e) {
             Log::error('Error getting batch students: ' . $e->getMessage());
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to load students'
+            ], 500);
+        }
+    }
+    /**
+     * Get student attendance for a specific month
+     */
+    public function getStudentMonthAttendance(Request $request, $studentId)
+    {
+        try {
+            $month = $request->get('month', Carbon::now()->format('Y-m'));
+            $batchId = $request->get('batch_id');
+
+            $startOfMonth = Carbon::parse($month)->startOfMonth();
+            $endOfMonth = Carbon::parse($month)->endOfMonth();
+
+            $query = Attendance::where('student_id', $studentId)
+                ->whereBetween('attendance_date', [$startOfMonth, $endOfMonth]);
+
+            if ($batchId) {
+                $query->where('batch_id', $batchId);
+            }
+
+            $attendances = $query->get(['attendance_date', 'status', 'remarks'])
+                ->keyBy('attendance_date');
+
+            return response()->json([
+                'success' => true,
+                'data' => $attendances
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error fetching student month attendance: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load attendance data'
+            ], 500);
+        }
+    }
+
+    /**
+     * Store bulk attendance for a student
+     */
+    public function storeStudentBulkAttendance(Request $request)
+    {
+        try {
+            $request->validate([
+                'student_id' => 'required|exists:students,id',
+                'batch_id' => 'required|exists:batches,id',
+                'attendances' => 'required|array',
+                'attendances.*.date' => 'required|date',
+                'attendances.*.status' => 'required|in:present,absent,late,excused'
+            ]);
+
+            DB::beginTransaction();
+
+            foreach ($request->attendances as $attendanceData) {
+                $data = [
+                    'status' => $attendanceData['status'],
+                    'marked_by' => Auth::id(),
+                    'remarks' => $attendanceData['remarks'] ?? null,
+                ];
+
+                // Only add subject_id if provided (kept for compatibility if select remains in other modes)
+                if ($request->has('subject_id')) {
+                    $data['subject_id'] = $request->subject_id;
+                }
+
+                Attendance::updateOrCreate([
+                    'student_id' => $request->student_id,
+                    'batch_id' => $request->batch_id,
+                    'attendance_date' => $attendanceData['date'],
+                ], $data);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Attendance updated successfully for ' . count($request->attendances) . ' days.'
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            Log::error('Student bulk attendance store error: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to save attendance: ' . $e->getMessage()
             ], 500);
         }
     }

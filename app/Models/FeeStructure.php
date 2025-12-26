@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\HasAcademicYear;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use App\Traits\WebhookEnabled;
@@ -11,7 +12,7 @@ use App\Traits\WebhookEnabled;
 class FeeStructure extends Model
 {
     use WebhookEnabled;
-    use HasFactory;
+    use HasFactory, HasAcademicYear;
 
     /**
      * The attributes that are mass assignable.
@@ -21,7 +22,7 @@ class FeeStructure extends Model
      *
      * @var array
      */
-protected $fillable = [
+    protected $fillable = [
         'batch_id',
         'total_amount',
         'amount', // Your existing workaround field
@@ -42,7 +43,7 @@ protected $fillable = [
     public function feeCategories(): BelongsToMany
     {
         return $this->belongsToMany(FeeCategory::class, 'fee_structure_fee_category')
-                    ->withPivot('amount')
-                    ->withTimestamps();
+            ->withPivot('amount')
+            ->withTimestamps();
     }
 }

@@ -15,6 +15,9 @@ class Payment extends Model
 {
     use HasFactory, WebhookEnabled, HasAcademicYear;
 
+    // Define the custom column name for academic year
+    public $academic_year_column = 'academic_year';
+
     /**
      * The attributes that are mass assignable.
      * Based on your database structure from DESCRIBE payments
@@ -55,7 +58,7 @@ class Payment extends Model
      */
     protected $hidden = [];
 
- /**
+    /**
      * Boot method to handle model events
      */
     protected static function boot()
@@ -102,7 +105,7 @@ class Payment extends Model
     /**
      * RELATIONSHIPS
      */
-    
+
     /**
      * Get the student that owns the payment
      */
@@ -133,10 +136,10 @@ class Payment extends Model
     public function studentFees(): BelongsToMany
     {
         return $this->belongsToMany(StudentFee::class, 'component_payment_items')
-                    ->withPivot('amount_paid', 'notes', 'created_at')
-                    ->withTimestamps();
+            ->withPivot('amount_paid', 'notes', 'created_at')
+            ->withTimestamps();
     }
-    
+
     /**
      * Get edit logs for this payment
      */
@@ -153,8 +156,8 @@ class Payment extends Model
     {
         return $this->belongsTo(User::class, 'created_by');
     }
-    
-    
+
+
     /**
      * Get the user who last updated this payment
      */
@@ -162,7 +165,7 @@ class Payment extends Model
     {
         return $this->belongsTo(User::class, 'updated_by');
     }
-    
+
     /**
      * Alternative method names for backward compatibility
      */
@@ -201,18 +204,18 @@ class Payment extends Model
         return $query->where('academic_year', $year);
     }
 
-/**
+    /**
      * Get edit history
      */
     public function getEditHistory()
     {
         return PaymentEditLog::where('payment_id', $this->id)
-                           ->with('user')
-                           ->orderBy('created_at', 'desc')
-                           ->get();
+            ->with('user')
+            ->orderBy('created_at', 'desc')
+            ->get();
     }
-    
-     /**
+
+    /**
      * Accessor for creator name
      */
     public function getCreatorNameAttribute(): string
@@ -235,8 +238,8 @@ class Payment extends Model
     {
         return $query->whereBetween('payment_date', [$startDate, $endDate]);
     }
-    
-   
+
+
 
     public function updater()
     {
@@ -278,11 +281,11 @@ class Payment extends Model
     public static function generateReceiptNumber(): string
     {
         $prefix = 'RCP-' . date('Y') . '-';
-        
+
         // Get the latest receipt number for this year
         $latest = static::where('receipt_number', 'LIKE', $prefix . '%')
-                       ->orderByRaw('CAST(SUBSTRING(receipt_number, ' . (strlen($prefix) + 1) . ') AS UNSIGNED) DESC')
-                       ->first();
+            ->orderByRaw('CAST(SUBSTRING(receipt_number, ' . (strlen($prefix) + 1) . ') AS UNSIGNED) DESC')
+            ->first();
 
         if ($latest) {
             // Extract the number part and increment
@@ -295,53 +298,53 @@ class Payment extends Model
         return $prefix . str_pad($newNumber, 6, '0', STR_PAD_LEFT);
     }
 
-/**
- * Check if this is a component-based payment
- */
-public function isComponentPayment(): bool
-{
-    return $this->payment_type === 'component';
-}
-
-/**
- * Force load component items with all necessary relationships
- */
-public function loadComponentsForWebhook()
-{
-    if ($this->isComponentPayment()) {
-        $this->load([
-            'componentItems.studentFee.feeCategory',
-            'student'
-        ]);
-    }
-    
-    return $this;
-}
-
-/**
- * Get components data formatted for webhooks
- */
-public function getComponentsForWebhook(): array
-{
-    if (!$this->isComponentPayment()) {
-        return [];
+    /**
+     * Check if this is a component-based payment
+     */
+    public function isComponentPayment(): bool
+    {
+        return $this->payment_type === 'component';
     }
 
-    // Ensure relationships are loaded
-    if (!$this->relationLoaded('componentItems')) {
-        $this->load('componentItems.studentFee.feeCategory');
+    /**
+     * Force load component items with all necessary relationships
+     */
+    public function loadComponentsForWebhook()
+    {
+        if ($this->isComponentPayment()) {
+            $this->load([
+                'componentItems.studentFee.feeCategory',
+                'student'
+            ]);
+        }
+
+        return $this;
     }
 
-    return $this->componentItems->map(function ($item) {
-        return [
-            'student_fee_id' => $item->student_fee_id,
-            'category_name' => $item->studentFee?->feeCategory?->name ?? 'Unknown Category',
-            'amount_paid' => (float) $item->amount_paid,
-            'fee_status_after_payment' => $item->studentFee?->status ?? null,
-            'notes' => $item->notes,
-        ];
-    })->toArray();
-}
+    /**
+     * Get components data formatted for webhooks
+     */
+    public function getComponentsForWebhook(): array
+    {
+        if (!$this->isComponentPayment()) {
+            return [];
+        }
+
+        // Ensure relationships are loaded
+        if (!$this->relationLoaded('componentItems')) {
+            $this->load('componentItems.studentFee.feeCategory');
+        }
+
+        return $this->componentItems->map(function ($item) {
+            return [
+                'student_fee_id' => $item->student_fee_id,
+                'category_name' => $item->studentFee?->feeCategory?->name ?? 'Unknown Category',
+                'amount_paid' => (float) $item->amount_paid,
+                'fee_status_after_payment' => $item->studentFee?->status ?? null,
+                'notes' => $item->notes,
+            ];
+        })->toArray();
+    }
 
 
 
@@ -361,12 +364,12 @@ public function getComponentsForWebhook(): array
         return '₹' . number_format($this->amount, 2);
     }
 
-   /**
+    /**
      * Get payment status badge class
      */
     public function getStatusBadgeClassAttribute(): string
     {
-        return match($this->status ?? 'completed') {
+        return match ($this->status ?? 'completed') {
             'completed' => 'success',
             'pending' => 'warning',
             'failed' => 'danger',
@@ -381,7 +384,7 @@ public function getComponentsForWebhook(): array
     public static function createComponentPayment($studentId, array $components, array $paymentData): self
     {
         $totalAmount = collect($components)->sum('amount');
-        
+
         return static::create([
             'student_id' => $studentId,
             'amount' => $totalAmount,
@@ -408,11 +411,11 @@ public function getComponentsForWebhook(): array
         if (isset($filters['student_id'])) {
             $query->where('student_id', $filters['student_id']);
         }
-        
+
         if (isset($filters['date_from'])) {
             $query->whereDate('payment_date', '>=', $filters['date_from']);
         }
-        
+
         if (isset($filters['date_to'])) {
             $query->whereDate('payment_date', '<=', $filters['date_to']);
         }
@@ -421,17 +424,17 @@ public function getComponentsForWebhook(): array
             'total_payments' => $query->count(),
             'total_amount' => $query->sum('amount'),
             'by_method' => $query->groupBy('payment_method')
-                                ->selectRaw('payment_method, COUNT(*) as count, SUM(amount) as total')
-                                ->get()
-                                ->keyBy('payment_method'),
+                ->selectRaw('payment_method, COUNT(*) as count, SUM(amount) as total')
+                ->get()
+                ->keyBy('payment_method'),
             'by_status' => $query->groupBy('status')
-                                ->selectRaw('status, COUNT(*) as count, SUM(amount) as total')
-                                ->get()
-                                ->keyBy('status'),
+                ->selectRaw('status, COUNT(*) as count, SUM(amount) as total')
+                ->get()
+                ->keyBy('status'),
             'recent_payments' => $query->with('student')
-                                     ->orderBy('payment_date', 'desc')
-                                     ->limit(10)
-                                     ->get(),
+                ->orderBy('payment_date', 'desc')
+                ->limit(10)
+                ->get(),
         ];
     }
 
@@ -440,62 +443,62 @@ public function getComponentsForWebhook(): array
      */
     public function canBeRefunded(): bool
     {
-        return $this->status === 'completed' && 
-               $this->payment_date >= now()->subDays(30);
+        return $this->status === 'completed' &&
+            $this->payment_date >= now()->subDays(30);
     }
-    
-/**
- * Check if payment can be edited
- */
-public function canBeEdited(): bool
-{
-    // Don't allow editing if payment is cancelled or refunded
-    if (in_array($this->status, ['cancelled', 'refunded'])) {
-        return false;
+
+    /**
+     * Check if payment can be edited
+     */
+    public function canBeEdited(): bool
+    {
+        // Don't allow editing if payment is cancelled or refunded
+        if (in_array($this->status, ['cancelled', 'refunded'])) {
+            return false;
+        }
+
+        // Don't allow editing very old payments (older than 90 days)
+        $daysSinceCreation = $this->created_at->diffInDays(now());
+        if ($daysSinceCreation > 90) {
+            return false;
+        }
+
+        // Check if user has permission
+        if (!auth()->check() || !auth()->user()->can('edit payments')) {
+            return false;
+        }
+
+        // Don't allow editing if payment has been reconciled (if you have this field)
+        if (isset($this->attributes['is_reconciled']) && $this->is_reconciled) {
+            return false;
+        }
+
+        return true;
     }
-    
-    // Don't allow editing very old payments (older than 90 days)
-    $daysSinceCreation = $this->created_at->diffInDays(now());
-    if ($daysSinceCreation > 90) {
-        return false;
-    }
-    
-    // Check if user has permission
-    if (!auth()->check() || !auth()->user()->can('edit payments')) {
-        return false;
-    }
-    
-    // Don't allow editing if payment has been reconciled (if you have this field)
-    if (isset($this->attributes['is_reconciled']) && $this->is_reconciled) {
-        return false;
-    }
-    
-    return true;
-}
 
 
-/**
- * Check if payment can be reverted
- * 
- * @return bool
- */
-public function canBeReverted(): bool
-{
-    // Only allow reverting if there are edit logs
-    $hasEditHistory = \App\Models\PaymentEditLog::where('payment_id', $this->id)->exists();
-    
-    return $hasEditHistory && 
-           $this->canBeEdited() && 
-           auth()->user() && 
-           auth()->user()->can('revert payments');
-}
+    /**
+     * Check if payment can be reverted
+     * 
+     * @return bool
+     */
+    public function canBeReverted(): bool
+    {
+        // Only allow reverting if there are edit logs
+        $hasEditHistory = \App\Models\PaymentEditLog::where('payment_id', $this->id)->exists();
+
+        return $hasEditHistory &&
+            $this->canBeEdited() &&
+            auth()->user() &&
+            auth()->user()->can('revert payments');
+    }
     /**
      * Check if this payment can have a receipt generated
      */
     public function canGenerateReceipt(): bool
     {
-        return $this->payment_type === 'component' && 
-               in_array($this->status ?? 'completed', ['completed', 'paid']);
+        return $this->payment_type === 'component' &&
+            in_array($this->status ?? 'completed', ['completed', 'paid']);
     }
 
     /**
@@ -528,21 +531,21 @@ public function canBeReverted(): bool
     }
 
     /**
- * Get payment method display name
- */
-public function getPaymentMethodDisplayAttribute(): string
-{
-    return match($this->payment_method) {
-        'cash' => 'Cash',
-        'card' => 'Card Payment',
-        'bank_transfer' => 'Bank Transfer',
-        'cheque' => 'Cheque',
-        'online' => 'Online Payment',
-        'upi' => 'UPI',
-        default => ucfirst(str_replace('_', ' ', $this->payment_method))
-    };
-}
-    
+     * Get payment method display name
+     */
+    public function getPaymentMethodDisplayAttribute(): string
+    {
+        return match ($this->payment_method) {
+            'cash' => 'Cash',
+            'card' => 'Card Payment',
+            'bank_transfer' => 'Bank Transfer',
+            'cheque' => 'Cheque',
+            'online' => 'Online Payment',
+            'upi' => 'UPI',
+            default => ucfirst(str_replace('_', ' ', $this->payment_method))
+        };
+    }
+
 
     /**
      * Get related fee categories through component items
@@ -550,11 +553,11 @@ public function getPaymentMethodDisplayAttribute(): string
     public function getFeeCategories()
     {
         return $this->componentItems()
-                    ->with('studentFee.feeCategory')
-                    ->get()
-                    ->pluck('studentFee.feeCategory')
-                    ->filter()
-                    ->unique('id');
+            ->with('studentFee.feeCategory')
+            ->get()
+            ->pluck('studentFee.feeCategory')
+            ->filter()
+            ->unique('id');
     }
 
     /**

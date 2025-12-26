@@ -43,13 +43,13 @@ class WebhookController extends Controller
             // Safely get available events
             $eventTypes = [];
             $categories = [];
-            
+
             try {
                 // Try to get events from the model, with fallback
                 if (method_exists(\App\Models\Webhook::class, 'getAvailableEvents')) {
                     $eventTypes = \App\Models\Webhook::getAvailableEvents();
                 }
-                
+
                 if (method_exists(\App\Models\Webhook::class, 'getEventCategories')) {
                     $categories = \App\Models\Webhook::getEventCategories();
                 }
@@ -62,9 +62,9 @@ class WebhookController extends Controller
                     'student.created' => ['name' => 'Student Created', 'description' => 'When a new student is added', 'category' => 'Student Management'],
                     'enquiry.created' => ['name' => 'Enquiry Created', 'description' => 'When a new enquiry is submitted', 'category' => 'Lead Management'],
                     'daily.summary' => ['name' => 'Daily Summary Report', 'description' => 'Automated daily report with payment totals and attendance summary. Sent at 5:00 PM on working days (Monday-Saturday)', 'category' => 'Automation'],
-              
+
                 ];
-                
+
                 $categories = [
                     'Financial' => '💰',
                     'Student Management' => '👨‍🎓',
@@ -73,10 +73,11 @@ class WebhookController extends Controller
                 ];
             }
 
-            // Get statistics safely
-            $stats = $this->getWebhookStats();
+            // Get statistics safely with date filter
+            $date = $request->get('date', now()->format('Y-m-d'));
+            $stats = $this->getWebhookStats($date);
 
-            return view('admin.webhooks.index', compact('webhooks', 'eventTypes', 'categories', 'stats'));
+            return view('admin.webhooks.index', compact('webhooks', 'eventTypes', 'categories', 'stats', 'date'));
 
         } catch (\Exception $e) {
             // Log the error
@@ -92,29 +93,39 @@ class WebhookController extends Controller
                 'total' => 0,
                 'active' => 0,
                 'failing' => 0,
-                'total_calls_today' => 0,
+                'calls_count' => 0,
+                'success_rate' => 0,
             ];
 
             return view('admin.webhooks.index', compact('webhooks', 'eventTypes', 'categories', 'stats'))
-                   ->with('error', 'There was an issue loading webhooks. Please check the logs.');
+                ->with('error', 'There was an issue loading webhooks. Please check the logs.');
         }
     }
 
-    protected function getWebhookStats(): array
+    protected function getWebhookStats($date = null): array
     {
         try {
+            $date = $date ?? now()->format('Y-m-d');
+
+            $callsQuery = \App\Models\WebhookCall::whereDate('created_at', $date);
+            $totalCalls = (clone $callsQuery)->count();
+            $successfulCalls = (clone $callsQuery)->where('success', true)->count();
+            $successRate = $totalCalls > 0 ? round(($successfulCalls / $totalCalls) * 100, 1) : 100;
+
             return [
                 'total' => \App\Models\Webhook::count(),
                 'active' => \App\Models\Webhook::where('is_active', true)->count(),
                 'failing' => \App\Models\Webhook::where('consecutive_failures', '>=', 3)->count(),
-                'total_calls_today' => \App\Models\WebhookCall::whereDate('created_at', today())->count(),
+                'calls_count' => $totalCalls,
+                'success_rate' => $successRate,
             ];
         } catch (\Exception $e) {
             return [
                 'total' => 0,
                 'active' => 0,
                 'failing' => 0,
-                'total_calls_today' => 0,
+                'calls_count' => 0,
+                'success_rate' => 0,
             ];
         }
     }
@@ -136,13 +147,13 @@ class WebhookController extends Controller
                 'student.created' => ['name' => 'Student Created', 'description' => 'When a new student is added', 'category' => 'Student Management'],
                 'enquiry.created' => ['name' => 'Enquiry Created', 'description' => 'When a new enquiry is submitted', 'category' => 'Lead Management'],
                 'attendance.daily_absent' => [
-        'name' => 'Daily Absent Report',
-        'description' => 'Triggers once daily after the "Present Cutoff Time". Sends a list of all students who have not marked attendance.',
-        'category' => 'Student Management'
-    ],
+                    'name' => 'Daily Absent Report',
+                    'description' => 'Triggers once daily after the "Present Cutoff Time". Sends a list of all students who have not marked attendance.',
+                    'category' => 'Student Management'
+                ],
                 'daily.summary' => ['name' => 'Daily Summary Report', 'description' => 'Automated daily report with payment totals and attendance summary. Sent at 5:00 PM on working days (Monday-Saturday)', 'category' => 'Automation'],
             ];
-            
+
             $categories = [
                 'Financial' => [
                     'icon' => '💰',
@@ -164,14 +175,14 @@ class WebhookController extends Controller
                         'enquiry.created' => $eventTypes['enquiry.created'],
                     ]
                 ],
-                
+
                 'Student Management' => [
-        'icon' => '👨‍🎓',
-        'events' => [
-            'student.created' => $eventTypes['student.created'],
-            'attendance.daily_absent' => $eventTypes['attendance.daily_absent'], // [ADD THIS LINE]
-        ]
-    ],
+                    'icon' => '👨‍🎓',
+                    'events' => [
+                        'student.created' => $eventTypes['student.created'],
+                        'attendance.daily_absent' => $eventTypes['attendance.daily_absent'], // [ADD THIS LINE]
+                    ]
+                ],
                 'Automation' => [
                     'icon' => '🤖',
                     'events' => [
@@ -180,7 +191,7 @@ class WebhookController extends Controller
                 ],
             ];
         }
-        
+
         return view('admin.webhooks.create', [
             'eventTypes' => $eventTypes ?? [],
             'eventCategories' => $categories ?? []
@@ -205,10 +216,10 @@ class WebhookController extends Controller
                 'student.created' => [],
                 'enquiry.created' => [],
                 'daily.summary' => [], // Include daily.summary in validation
-                
+
             ];
         }
-$availableEvents['attendance.daily_absent'] = [];
+        $availableEvents['attendance.daily_absent'] = [];
         $request->validate([
             'url' => 'required|url|unique:webhooks,url',
             'event_name' => [
@@ -228,9 +239,9 @@ $availableEvents['attendance.daily_absent'] = [];
             'is_active' => $request->boolean('is_active', true),
             'signing_secret' => Webhook::generateSecretKey(),
         ]);
-        
+
         return redirect()->route('admin.webhooks.index')
-                        ->with('success', 'Webhook created successfully! Secret key has been generated.');
+            ->with('success', 'Webhook created successfully! Secret key has been generated.');
     }
 
     /**
@@ -238,9 +249,11 @@ $availableEvents['attendance.daily_absent'] = [];
      */
     public function show(Webhook $webhook)
     {
-        $webhook->load(['calls' => function($query) {
-            $query->latest()->limit(50);
-        }]);
+        $webhook->load([
+            'calls' => function ($query) {
+                $query->latest()->limit(50);
+            }
+        ]);
 
         // Get health status safely
         try {
@@ -255,7 +268,7 @@ $availableEvents['attendance.daily_absent'] = [];
         // Get event info safely with fallback icon
         try {
             $eventInfo = $webhook->getEventInfo();
-            
+
             // Ensure eventInfo has all required keys with safe defaults
             $eventInfo = array_merge([
                 'name' => $webhook->event_name ?? 'Unknown Event',
@@ -263,7 +276,7 @@ $availableEvents['attendance.daily_absent'] = [];
                 'category' => 'General',
                 'icon' => 'fas fa-bell', // Default icon
             ], $eventInfo ?? []);
-            
+
         } catch (\Exception $e) {
             // Complete fallback if getEventInfo fails
             $eventInfo = [
@@ -273,7 +286,7 @@ $availableEvents['attendance.daily_absent'] = [];
                 'icon' => 'fas fa-bell',
             ];
         }
-        
+
         // Get call statistics safely
         try {
             $callStats = WebhookCall::where('webhook_id', $webhook->id)
@@ -298,17 +311,17 @@ $availableEvents['attendance.daily_absent'] = [];
         $webhook->url = is_string($webhook->url) ? $webhook->url : '';
         $webhook->event_name = is_string($webhook->event_name) ? $webhook->event_name : '';
         $webhook->description = is_string($webhook->description) ? $webhook->description : '';
-        
+
         try {
             $eventTypes = Webhook::getAvailableEvents();
             $eventCategories = Webhook::getEventCategories();
         } catch (\Exception $e) {
             \Log::error('Webhook edit error: ' . $e->getMessage());
-            
+
             // Fallback data - completely safe (COMPONENT-BASED) with daily.summary
             $eventTypes = [
                 'payment.created' => [
-                    'name' => 'Payment Created', 
+                    'name' => 'Payment Created',
                     'description' => 'When a component payment is made',
                     'category' => 'Financial'
                 ],
@@ -317,18 +330,18 @@ $availableEvents['attendance.daily_absent'] = [];
                     'description' => 'When a new fee component is assigned',
                     'category' => 'Financial'
                 ],
-                 'concession.applied' => [
+                'concession.applied' => [
                     'name' => 'Concession Applied',
                     'description' => 'When a concession is applied',
                     'category' => 'Financial'
                 ],
                 'student.created' => [
-                    'name' => 'Student Created', 
+                    'name' => 'Student Created',
                     'description' => 'When a new student is added',
                     'category' => 'Student Management'
                 ],
                 'enquiry.created' => [
-                    'name' => 'Enquiry Created', 
+                    'name' => 'Enquiry Created',
                     'description' => 'When an enquiry is submitted',
                     'category' => 'Lead Management'
                 ],
@@ -338,7 +351,7 @@ $availableEvents['attendance.daily_absent'] = [];
                     'category' => 'Automation'
                 ],
             ];
-            
+
             $eventCategories = [
                 'Financial' => [
                     'icon' => '💰',
@@ -368,13 +381,13 @@ $availableEvents['attendance.daily_absent'] = [];
                 ],
             ];
         }
-        
+
         // Get current event info safely
         $currentEventInfo = null;
         if ($webhook->event_name && is_array($eventTypes) && isset($eventTypes[$webhook->event_name])) {
             $currentEventInfo = $eventTypes[$webhook->event_name];
         }
-        
+
         // Get recent deliveries safely
         try {
             $recentDeliveries = $webhook->calls()
@@ -384,7 +397,7 @@ $availableEvents['attendance.daily_absent'] = [];
         } catch (\Exception $e) {
             $recentDeliveries = collect([]);
         }
-        
+
         // Ensure all data is safe before passing to view
         $viewData = [
             'webhook' => $webhook,
@@ -393,7 +406,7 @@ $availableEvents['attendance.daily_absent'] = [];
             'currentEventInfo' => is_array($currentEventInfo) ? $currentEventInfo : null,
             'recentDeliveries' => $recentDeliveries ?? collect([])
         ];
-        
+
         return view('admin.webhooks.edit', $viewData);
     }
 
@@ -438,12 +451,17 @@ $availableEvents['attendance.daily_absent'] = [];
         ]);
 
         $webhook->update($request->only([
-            'url', 'event_name', 'description', 'timeout_seconds', 'is_active',
-            'max_failures_before_disable', 'auto_disable_after_failures'
+            'url',
+            'event_name',
+            'description',
+            'timeout_seconds',
+            'is_active',
+            'max_failures_before_disable',
+            'auto_disable_after_failures'
         ]));
 
         return redirect()->route('admin.webhooks.index')
-                        ->with('success', 'Webhook updated successfully!');
+            ->with('success', 'Webhook updated successfully!');
     }
 
     /**
@@ -456,7 +474,7 @@ $availableEvents['attendance.daily_absent'] = [];
         $webhook->delete();
 
         return redirect()->route('admin.webhooks.index')
-                        ->with('success', 'Webhook deleted successfully!');
+            ->with('success', 'Webhook deleted successfully!');
     }
 
     /**
@@ -466,14 +484,14 @@ $availableEvents['attendance.daily_absent'] = [];
     {
         try {
             $webhook->update(['is_active' => !$webhook->is_active]);
-            
+
             // Reset failure count when reactivating
             if ($webhook->is_active && method_exists($webhook, 'resetFailures')) {
                 $webhook->resetFailures();
             }
-            
+
             $status = $webhook->is_active ? 'activated' : 'deactivated';
-            
+
             if (request()->wantsJson()) {
                 return response()->json([
                     'success' => true,
@@ -481,9 +499,9 @@ $availableEvents['attendance.daily_absent'] = [];
                     'is_active' => $webhook->is_active
                 ]);
             }
-            
+
             return redirect()->route('admin.webhooks.index')
-                            ->with('success', "Webhook has been {$status}.");
+                ->with('success', "Webhook has been {$status}.");
         } catch (\Exception $e) {
             if (request()->wantsJson()) {
                 return response()->json([
@@ -491,9 +509,9 @@ $availableEvents['attendance.daily_absent'] = [];
                     'error' => 'Failed to toggle webhook status'
                 ], 500);
             }
-            
+
             return redirect()->route('admin.webhooks.index')
-                            ->with('error', 'Failed to toggle webhook status.');
+                ->with('error', 'Failed to toggle webhook status.');
         }
     }
 
@@ -525,6 +543,41 @@ $availableEvents['attendance.daily_absent'] = [];
                     'attendance_percentage' => 90.0
                 ]
             ];
+        } elseif ($webhook->event_name === 'attendance.daily_absent') {
+            $payload = [
+                'event' => 'attendance.daily_absent',
+                'event_id' => 'evt_' . uniqid(),
+                'created_at' => now()->toIso8601String(),
+                'app_name' => config('app.name'),
+                'data' => [
+                    'date' => now()->toDateString(),
+                    'absent_count' => 3,
+                    'total_students' => 150,
+                    'students' => [
+                        [
+                            'id' => 101,
+                            'name' => 'John Doe',
+                            'enrollment_number' => 'STD-2024-001',
+                            'batch' => 'Class X-A',
+                            'parent_phone' => '9876543210'
+                        ],
+                        [
+                            'id' => 105,
+                            'name' => 'Jane Smith',
+                            'enrollment_number' => 'STD-2024-005',
+                            'batch' => 'Class X-B',
+                            'parent_phone' => '9123456780'
+                        ],
+                        [
+                            'id' => 112,
+                            'name' => 'Robert Johnson',
+                            'enrollment_number' => 'STD-2024-012',
+                            'batch' => 'Class X-A',
+                            'parent_phone' => '9988776655'
+                        ]
+                    ]
+                ]
+            ];
         } else {
             // Standard test payload for other events
             $payload = [
@@ -541,7 +594,7 @@ $availableEvents['attendance.daily_absent'] = [];
                         'formatted_amount' => '₹5,000.00',
                         'payment_method' => 'online',
                         'payment_date' => now()->toDateString(),
-                        'receipt_number' => 'RCP-2025-'.rand(100, 999),
+                        'receipt_number' => 'RCP-2025-' . rand(100, 999),
                         'status' => 'completed',
                         'payment_type' => 'component'
                     ],
@@ -627,28 +680,28 @@ $availableEvents['attendance.daily_absent'] = [];
     {
         try {
             $testDate = $request->get('date', now()->format('Y-m-d'));
-            
+
             // Run the artisan command in test mode
             \Artisan::call('webhook:daily-summary', [
                 '--test' => true,
                 '--date' => $testDate
             ]);
-            
+
             $output = \Artisan::output();
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Daily summary webhook test completed successfully',
                 'output' => $output,
                 'date' => $testDate
             ]);
-            
+
         } catch (\Exception $e) {
             \Log::error('Daily summary test failed', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             return response()->json([
                 'success' => false,
                 'error' => $e->getMessage()
@@ -663,28 +716,28 @@ $availableEvents['attendance.daily_absent'] = [];
     {
         try {
             $date = $request->get('date', now()->format('Y-m-d'));
-            
+
             // Run the artisan command with force flag for manual trigger
             \Artisan::call('webhook:daily-summary', [
                 '--date' => $date,
                 '--force' => true // Force run even on non-working days when manually triggered
             ]);
-            
+
             $output = \Artisan::output();
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Daily summary webhook sent successfully',
                 'output' => $output,
                 'date' => $date
             ]);
-            
+
         } catch (\Exception $e) {
             \Log::error('Daily summary send failed', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             return response()->json([
                 'success' => false,
                 'error' => $e->getMessage()
@@ -717,13 +770,13 @@ $availableEvents['attendance.daily_absent'] = [];
         }
 
         $logs = $query->paginate(20);
-        
+
         // Get summary statistics
         $stats = [
             'total_calls' => $webhook->calls()->count(),
             'successful_calls' => $webhook->calls()->where('success', true)->count(),
             'failed_calls' => $webhook->calls()->where('success', false)->count(),
-            'avg_response_time' => method_exists($webhook, 'getAverageResponseTime') ? 
+            'avg_response_time' => method_exists($webhook, 'getAverageResponseTime') ?
                 round($webhook->getAverageResponseTime(), 2) : 0,
         ];
 
@@ -768,7 +821,7 @@ $availableEvents['attendance.daily_absent'] = [];
                 foreach ($request->webhook_ids as $webhookId) {
                     $webhook = Webhook::find($webhookId);
                     if ($webhook) {
-                        dispatch(function() use ($webhook) {
+                        dispatch(function () use ($webhook) {
                             $this->test($webhook);
                         })->afterResponse();
                     }
@@ -785,14 +838,14 @@ $availableEvents['attendance.daily_absent'] = [];
     public function export()
     {
         $webhooks = Webhook::with('calls')->get();
-        
-        $exportData = $webhooks->map(function($webhook) {
+
+        $exportData = $webhooks->map(function ($webhook) {
             try {
                 $health = $webhook->getHealthStatus();
             } catch (\Exception $e) {
                 $health = ['status' => 'unknown', 'success_rate' => 0, 'total_calls' => 0];
             }
-            
+
             return [
                 'url' => $webhook->url,
                 'event_name' => $webhook->event_name,
@@ -807,7 +860,7 @@ $availableEvents['attendance.daily_absent'] = [];
         });
 
         $filename = 'webhooks-export-' . now()->format('Y-m-d-H-i-s') . '.json';
-        
+
         return response()->json($exportData, 200, [
             'Content-Type' => 'application/json',
             'Content-Disposition' => "attachment; filename={$filename}"
@@ -822,12 +875,12 @@ $availableEvents['attendance.daily_absent'] = [];
         $totalWebhooks = Webhook::count();
         $activeWebhooks = Webhook::where('is_active', true)->count();
         $failingWebhooks = Webhook::where('consecutive_failures', '>=', 3)->count();
-        
+
         $callsToday = WebhookCall::whereDate('created_at', today())->count();
         $successfulCallsToday = WebhookCall::whereDate('created_at', today())
-                                          ->where('success', true)->count();
-        
-        $successRateToday = $callsToday > 0 ? 
+            ->where('success', true)->count();
+
+        $successRateToday = $callsToday > 0 ?
             round(($successfulCallsToday / $callsToday) * 100, 1) : 0;
 
         // Get calls by day for the last 30 days
@@ -857,7 +910,7 @@ $availableEvents['attendance.daily_absent'] = [];
         try {
             $newSecret = 'whsec_' . bin2hex(random_bytes(32));
             $webhook->update(['secret_key' => $newSecret]);
-            
+
             if (request()->wantsJson()) {
                 return response()->json([
                     'success' => true,
@@ -865,10 +918,10 @@ $availableEvents['attendance.daily_absent'] = [];
                     'message' => 'Secret regenerated successfully'
                 ]);
             }
-            
+
             return redirect()->route('admin.webhooks.index')
-                            ->with('success', 'Webhook secret regenerated successfully!');
-                            
+                ->with('success', 'Webhook secret regenerated successfully!');
+
         } catch (\Exception $e) {
             if (request()->wantsJson()) {
                 return response()->json([
@@ -876,9 +929,9 @@ $availableEvents['attendance.daily_absent'] = [];
                     'error' => 'Failed to regenerate secret'
                 ], 500);
             }
-            
+
             return redirect()->route('admin.webhooks.index')
-                            ->with('error', 'Failed to regenerate webhook secret.');
+                ->with('error', 'Failed to regenerate webhook secret.');
         }
     }
 
@@ -889,7 +942,7 @@ $availableEvents['attendance.daily_absent'] = [];
     {
         $webhooks = Webhook::where('is_active', true)->get();
         $results = [];
-        
+
         foreach ($webhooks as $webhook) {
             try {
                 $isReachable = method_exists($webhook, 'isReachable') ? $webhook->isReachable() : false;
@@ -898,7 +951,7 @@ $availableEvents['attendance.daily_absent'] = [];
                 $isReachable = false;
                 $health = ['status' => 'error'];
             }
-            
+
             $results[] = [
                 'id' => $webhook->id,
                 'url' => $webhook->url,

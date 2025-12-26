@@ -23,27 +23,27 @@ class ETimeOfficeAutoSync extends Command
         $frequency = $this->option('frequency');
         $range = $this->option('range');
         $testMode = $this->option('test');
-        
+
         $this->info("Starting ETimeOffice Auto-Sync (every {$frequency} minutes)");
         $this->info("Date Range: {$range}");
         $this->info("Test Mode: " . ($testMode ? 'ON' : 'OFF'));
-        
+
         // Check if sync is enabled
         if (!$this->isSyncEnabled()) {
             $this->warn('ETimeOffice integration is disabled. Skipping sync.');
             return 0;
         }
-        
+
         // Perform the sync
         $result = $this->performSync($range, $testMode);
-        
+
         if ($result['success']) {
             $this->info("Sync completed successfully:");
             $this->info("- Total Records: {$result['data']['total_records']}");
             $this->info("- Created: {$result['data']['created_records']}");
             $this->info("- Updated: {$result['data']['updated_records']}");
             $this->info("- Skipped: {$result['data']['skipped_records']}");
-            
+
             if (!empty($result['data']['errors'])) {
                 $this->warn("Errors encountered: " . count($result['data']['errors']));
                 foreach ($result['data']['errors'] as $error) {
@@ -54,10 +54,10 @@ class ETimeOfficeAutoSync extends Command
             $this->error("Sync failed: {$result['message']}");
             return 1;
         }
-        
+
         return 0;
     }
-    
+
     private function isSyncEnabled(): bool
     {
         try {
@@ -68,7 +68,7 @@ class ETimeOfficeAutoSync extends Command
             return false;
         }
     }
-    
+
     private function performSync($range, $testMode): array
     {
         try {
@@ -78,28 +78,28 @@ class ETimeOfficeAutoSync extends Command
                 'test_mode' => $testMode ? 'on' : null,
                 'employee_codes' => null
             ]);
-            
+
             // Use the existing controller method
             $controller = new AttendanceSettingsController();
             $response = $controller->pullETimeOfficeData($request);
-            
+
             $responseData = json_decode($response->getContent(), true);
-            
+
             // Log the sync attempt
-            Log::info('Auto-sync completed', [
+            Log::channel('attendance-webhook')->info('Auto-sync completed', [
                 'range' => $range,
                 'test_mode' => $testMode,
                 'result' => $responseData
             ]);
-            
+
             return $responseData;
-            
+
         } catch (\Exception $e) {
             Log::error('Auto-sync failed', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             return [
                 'success' => false,
                 'message' => $e->getMessage(),

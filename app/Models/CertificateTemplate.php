@@ -11,5 +11,18 @@ class CertificateTemplate extends Model
     use WebhookEnabled;
     use HasFactory;
 
-    protected $fillable = ['name', 'body'];
+    protected $fillable = [
+        'name',
+        'body',
+        'description',
+        'paper_size',
+        'orientation',
+        'background_image',
+        'content_type',
+        'margin_top',
+        'margin_right',
+        'margin_bottom',
+        'margin_left',
+        'filename_format'
+    ];
 }

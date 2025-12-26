@@ -70,7 +70,7 @@ class StudentController extends Controller
         // Start with a query builder - DISABLE ALL global scopes to see all students
         $query = Student::withoutGlobalScopes()->with('batch.course');
 
-        // Only apply academic year filter if explicitly requested or if default is set
+        // 1. apply academic year filter (Global context)
         if ($request->filled('academic_year_id') || !$request->has('show_all')) {
             if (\Schema::hasTable('academic_years') && \Schema::hasColumn('batches', 'academic_year_id')) {
                 $selectedAcademicYearId = $request->get(
@@ -86,7 +86,7 @@ class StudentController extends Controller
             }
         }
 
-        // Apply filters if they exist in the request
+        // 2. Apply common filters (Course, Batch, Search)
         if ($request->filled('course_id')) {
             $query->whereHas('batch', function ($q) use ($request) {
                 $q->where('course_id', $request->course_id);
@@ -94,9 +94,6 @@ class StudentController extends Controller
         }
         if ($request->filled('batch_id')) {
             $query->where('batch_id', $request->batch_id);
-        }
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
         }
 
         // Search functionality
@@ -111,18 +108,39 @@ class StudentController extends Controller
             });
         }
 
-        // Get stats
+        // 3. Capture Query for Stats (Before applying status filter)
+        $statsQuery = clone $query;
         $stats = [
-            'total' => (clone $query)->count(),
-            'active' => (clone $query)->where('status', 'active')->count(),
-            'graduated' => (clone $query)->where('status', 'graduated')->count(),
-            'dropout' => (clone $query)->where('status', 'dropout')->count(),
+            'total' => (clone $statsQuery)->count(),
+            'active' => (clone $statsQuery)->where('status', 'active')->count(),
+            'graduated' => (clone $statsQuery)->where('status', 'graduated')->count(),
+            'dropout' => (clone $statsQuery)->where('status', 'dropout')->count(),
+            'on_internship' => (clone $statsQuery)->whereHas('batch', function ($q) {
+                $q->where('is_on_internship', true);
+            })->count(),
         ];
 
-        // Load ALL students - no pagination
+        // 4. Apply Status Filter to main query (Default to active, unless searching)
+        if (!$request->has('status') && !$request->has('show_all') && !$request->filled('search')) {
+            $query->where('status', 'active');
+        } elseif ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        // 5. Fetch Students
         $students = $query->latest()->get();
 
-        // Data for filter dropdowns (optimized)
+        // 6. Return response
+        if ($request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'html' => view('admin.students._table_body', compact('students'))->render(),
+                'stats' => $stats,
+                'count' => $students->count()
+            ]);
+        }
+
+        // Data for filter dropdowns
         $courses = Course::select('id', 'name')->orderBy('name')->get();
         $batches = Batch::with('course:id,name')->orderBy('name')->get();
 
@@ -246,7 +264,7 @@ class StudentController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'nullable|string|email|max:255|unique:students,email',
+            'dob' => 'nullable|date_format:Y-m-d',
             'father_name' => 'nullable|string|max:255',
             'student_mobile' => [
                 'nullable',
@@ -304,7 +322,7 @@ class StudentController extends Controller
             // Create student
             $student = Student::create([
                 'name' => $validated['name'],
-                'email' => $validated['email'],
+                'dob' => $validated['dob'] ?? null,
                 'father_name' => $validated['father_name'],
                 'student_mobile' => $validated['student_mobile'],
                 'father_mobile' => $validated['father_mobile'],
@@ -480,16 +498,17 @@ class StudentController extends Controller
             ->orderBy('created_at', 'desc')
             ->take($limit)
             ->get()
+            ->toBase()
             ->map(function ($activity) {
                 return [
-                    'type' => 'spatie_log',
-                    'icon' => $this->getActivityIcon($activity->description ?? 'unknown'),
-                    'title' => $activity->description ?? 'Activity',
-                    'description' => $this->formatActivityDescription($activity),
-                    'user' => optional($activity->causer)->name ?? 'System',
+                    'type' => 'system',
+                    'icon' => $this->getActivityIcon($activity->description),
+                    'title' => $activity->description,
+                    'description' => $activity->description,
+                    'user' => $activity->causer ? $activity->causer->name : 'System',
                     'timestamp' => $activity->created_at,
-                    'properties' => $activity->properties ? $activity->properties->toArray() : [],
-                    'color' => $this->getActivityColor($activity->description ?? 'unknown')
+                    'properties' => $activity->properties->toArray(),
+                    'color' => 'primary'
                 ];
             });
 
@@ -499,6 +518,7 @@ class StudentController extends Controller
             ->orderBy('created_at', 'desc')
             ->take($limit)
             ->get()
+            ->toBase()
             ->map(function ($payment) {
                 $amount = $payment->amount ?? 0;
                 $method = $payment->payment_method ?? 'Unknown';
@@ -528,6 +548,7 @@ class StudentController extends Controller
                 ->orderBy('created_at', 'desc')
                 ->take($limit)
                 ->get()
+                ->toBase()
                 ->map(function ($concession) {
                     $categoryName = 'Unknown';
                     if ($concession->studentFee && $concession->studentFee->feeCategory) {
@@ -801,6 +822,7 @@ class StudentController extends Controller
 
             // 5. Settings
             $isOnInternship = $student->batch && $student->batch->is_on_internship;
+            $internshipStartDate = $isOnInternship ? $student->batch->internship_start_date : null;
 
             // 6. Counters
             $present = 0;
@@ -840,8 +862,10 @@ class StudentController extends Controller
 
                 // "Not Started" Logic (Late Joiner)
                 $isBeforeProfile = $current->lt($profileStartDate);
-                $isBeforeBiometric = $biometricStartDate ? $current->lt($biometricStartDate) : true;
-                $shouldIgnoreForAbsent = ($isBeforeProfile || ($isPast && $isBeforeBiometric));
+                // "Not Started" Logic (Late Joiner)
+                $isBeforeProfile = $current->lt($profileStartDate);
+                // [FIX] If never punched (firstBiometricUse is null), treat as not started yet to hide auto-absent
+                $shouldIgnoreForAbsent = $isBeforeProfile || is_null($firstBiometricUse);
 
                 $status = 'none';
                 $checkIn = '-';
@@ -896,7 +920,18 @@ class StudentController extends Controller
                     } else {
                         // Working Day (Past/Today) where they SHOULD have been present
                         if ($isPast) {
-                            if ($isOnInternship) {
+                            // Check if student IS ON internship AND current date is AFTER or EQUAL to start date.
+                            // Note: $internshipStartDate might be null for legacy batches, in which case we assume ALWAYS on internship (per migration backfill).
+                            // But usually migration sets it. If it IS null, we should probably allow it? 
+                            // Migration sets to start_date, so it won't be null for active ones.
+                            // If user just toggled it ON (logic above sets it to now()), subsequent dates satisfy this.
+
+                            $isInternshipDay = $isOnInternship;
+                            if ($isOnInternship && $internshipStartDate) {
+                                $isInternshipDay = $current->gte($internshipStartDate);
+                            }
+
+                            if ($isInternshipDay) {
                                 $internship++;
                                 $status = 'internship';
                                 $checkIn = 'OJT';
@@ -1546,7 +1581,7 @@ class StudentController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'email' => ['nullable', 'string', 'email', 'max:255', Rule::unique('students')->ignore($student->id)],
+            'dob' => 'nullable|date_format:Y-m-d',
             'enrollment_number' => ['required', 'string', 'max:255', Rule::unique('students')->ignore($student->id)],
             'gender' => 'required|in:Male,Female,Other',
             'father_name' => 'nullable|string|max:255',
@@ -2396,89 +2431,56 @@ class StudentController extends Controller
         return \Excel::download(new \App\Exports\AttendanceExport($student, $data), $filename);
     }
 
+
+
     /**
-     * Inline edit student field (AJAX)
+     * Get suggestions for student source fields (AJAX)
      */
-    public function inlineUpdate(Request $request, Student $student)
+    public function getSuggestions(Request $request)
     {
-        try {
-            $field = $request->input('field');
-            $value = $request->input('value');
+        $search = $request->input('query');
+        $source = $request->input('source');
 
-            // Validate allowed fields for inline editing
-            $allowedFields = ['status', 'batch_id', 'student_mobile', 'father_mobile'];
-
-            if (!in_array($field, $allowedFields)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Field not allowed for inline editing'
-                ], 403);
-            }
-
-            // Validate based on field type
-            $rules = [
-                'status' => 'required|in:active,inactive,graduated,dropout',
-                'batch_id' => 'required|exists:batches,id',
-                'student_mobile' => 'nullable|string|max:15',
-                'father_mobile' => 'nullable|string|max:15'
-            ];
-
-            $validator = \Validator::make(
-                [$field => $value],
-                [$field => $rules[$field]]
-            );
-
-            if ($validator->fails()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => $validator->errors()->first()
-                ], 422);
-            }
-
-            // Update the field
-            $oldValue = $student->$field;
-            $student->$field = $value;
-            $student->save();
-
-            // Log the activity
-            activity()
-                ->performedOn($student)
-                ->causedBy(auth()->user())
-                ->withProperties([
-                    'field' => $field,
-                    'old_value' => $oldValue,
-                    'new_value' => $value
-                ])
-                ->log("Updated {$field} via inline edit");
-
-            // Return formatted value for display
-            $displayValue = $value;
-            if ($field === 'batch_id') {
-                $batch = Batch::find($value);
-                $displayValue = $batch ? $batch->name : $value;
-            } elseif ($field === 'status') {
-                $displayValue = ucfirst($value);
-            }
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Updated successfully',
-                'display_value' => $displayValue
-            ]);
-
-        } catch (\Exception $e) {
-            \Log::error('Inline update failed', [
-                'student_id' => $student->id,
-                'field' => $request->input('field'),
-                'error' => $e->getMessage()
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Update failed: ' . $e->getMessage()
-            ], 500);
+        if (empty($search) || strlen($search) < 2) {
+            return response()->json([]);
         }
+
+        $suggestions = [];
+
+        if ($source === 'Student Refer') {
+            // Suggest existing student names with context
+            // We want students whose own name matches the search
+            $suggestions = Student::where('name', 'like', "%{$search}%")
+                ->with('batch:id,name')
+                ->limit(10)
+                ->get(['name', 'enrollment_number', 'batch_id'])
+                ->map(function ($student) {
+                    return [
+                        'value' => $student->name,
+                        'label' => $student->name,
+                        'extra' => $student->enrollment_number . ' (' . ($student->batch->name ?? 'No Batch') . ')'
+                    ];
+                });
+        } elseif (in_array($source, ['Agent', 'Referrals', 'pro', 'list', 'Other'])) {
+            // Suggest previously used referral names for this source
+            // Group by referral_name to get unique names and their usage count
+            $suggestions = Student::where('source', $source)
+                ->where('referral_name', 'like', "%{$search}%")
+                ->whereNotNull('referral_name')
+                ->select('referral_name', \DB::raw('count(*) as total'))
+                ->groupBy('referral_name')
+                ->orderByDesc('total') // Suggest most frequent ones first
+                ->limit(10)
+                ->get()
+                ->map(function ($item) {
+                    return [
+                        'value' => $item->referral_name,
+                        'label' => $item->referral_name,
+                        'extra' => $item->total . ' Referral' . ($item->total !== 1 ? 's' : '')
+                    ];
+                });
+        }
+
+        return response()->json($suggestions);
     }
-
-
 }

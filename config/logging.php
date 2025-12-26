@@ -57,15 +57,25 @@ return [
             'channels' => explode(',', env('LOG_STACK', 'single')),
             'ignore_exceptions' => false,
         ],
-        
-        
- 'cron' => [
-        'driver' => 'single',
-        'path' => storage_path('logs/cron-jobs.log'),
-        'level' => 'info',
-        'replace_placeholders' => true,
-        'permission' => 0664,
-    ],
+        'attendance-webhook' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/attendance-webhook.log'),
+            'level' => env('LOG_ATTENDANCE_WEBHOOK_LEVEL', 'debug'),
+        ],
+
+        'webhook-events' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/webhook-events.log'),
+            'level' => env('LOG_WEBHOOK_EVENTS_LEVEL', 'info'),
+        ],
+
+        'cron' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/cron-jobs.log'),
+            'level' => 'info',
+            'replace_placeholders' => true,
+            'permission' => 0664,
+        ],
 
 
         'single' => [
@@ -99,7 +109,7 @@ return [
             'handler_with' => [
                 'host' => env('PAPERTRAIL_URL'),
                 'port' => env('PAPERTRAIL_PORT'),
-                'connectionString' => 'tls://'.env('PAPERTRAIL_URL').':'.env('PAPERTRAIL_PORT'),
+                'connectionString' => 'tls://' . env('PAPERTRAIL_URL') . ':' . env('PAPERTRAIL_PORT'),
             ],
             'processors' => [PsrLogMessageProcessor::class],
         ],
@@ -132,20 +142,20 @@ return [
             'driver' => 'monolog',
             'handler' => NullHandler::class,
         ],
-        
+
         'dashboard' => [
-        'driver' => 'daily',
-        'path' => storage_path('logs/dashboard.log'),
-        'level' => env('LOG_LEVEL', 'debug'),
-        'days' => 14,
-    ],
-    
-    'security' => [
-        'driver' => 'daily', 
-        'path' => storage_path('logs/security.log'),
-        'level' => 'warning',
-        'days' => 30,
-    ],
+            'driver' => 'daily',
+            'path' => storage_path('logs/dashboard.log'),
+            'level' => env('LOG_LEVEL', 'debug'),
+            'days' => 14,
+        ],
+
+        'security' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/security.log'),
+            'level' => 'warning',
+            'days' => 30,
+        ],
 
         'emergency' => [
             'path' => storage_path('logs/laravel.log'),

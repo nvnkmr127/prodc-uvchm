@@ -20,7 +20,7 @@ class PaymentReminderController extends Controller
     public function __construct(ComponentPaymentService $paymentService)
     {
         $this->paymentService = $paymentService;
-        
+
         // ✅ FIXED: Use ComponentPaymentReminderService instead of PaymentReminderService
         if (class_exists('\App\Services\ComponentPaymentReminderService')) {
             $this->reminderService = app(\App\Services\ComponentPaymentReminderService::class);
@@ -32,7 +32,7 @@ class PaymentReminderController extends Controller
     /**
      * Dashboard with reminder statistics (Component-based)
      */
-  public function dashboard()
+    public function dashboard()
     {
         $stats = [
             'total_reminders' => 0,
@@ -67,7 +67,7 @@ class PaymentReminderController extends Controller
     /**
      * Display a listing of payment reminders
      */
- public function index(Request $request)
+    public function index(Request $request)
     {
         // Initialize stats with ALL required keys
         $stats = [
@@ -84,7 +84,7 @@ class PaymentReminderController extends Controller
             // Get stats from service with fallback
             $serviceStats = $this->reminderService->getReminderStats();
             $stats = array_merge($stats, $serviceStats);
-            
+
             // Ensure 'total' key is set (alias for total_reminders)
             $stats['total'] = $stats['total_reminders'];
 
@@ -93,7 +93,7 @@ class PaymentReminderController extends Controller
         }
 
         $reminders = collect();
-        
+
         try {
             $remindersQuery = PaymentReminder::with(['student.batch.course', 'feeCategory'])
                 ->orderBy('created_at', 'desc');
@@ -125,11 +125,11 @@ class PaymentReminderController extends Controller
 
         return view('admin.payment-reminders.index', compact('reminders', 'stats', 'feeCategories'));
     }
-    
-     /**
+
+    /**
      * Show defaulters
      */
-  public function defaulters(Request $request)
+    public function defaulters(Request $request)
     {
         // Initialize stats with safe defaults
         $stats = [
@@ -162,19 +162,19 @@ class PaymentReminderController extends Controller
     {
         $students = Student::with('batch.course')->orderBy('name')->get();
         $feeCategories = FeeCategory::orderBy('name')->get();
-        
+
         // Pre-select student if provided in query parameter
         $selectedStudentId = $request->get('student_id');
         $selectedStudent = null;
-        
+
         if ($selectedStudentId) {
             $selectedStudent = Student::with(['studentFees.feeCategory'])
                 ->find($selectedStudentId);
         }
 
         return view('admin.payment-reminders.create', compact(
-            'students', 
-            'feeCategories', 
+            'students',
+            'feeCategories',
             'selectedStudentId',
             'selectedStudent'
         ));
@@ -197,7 +197,7 @@ class PaymentReminderController extends Controller
         ]);
 
         $student = Student::findOrFail($validated['student_id']);
-        
+
         // Generate recipient details
         $recipientDetails = [
             'email' => $student->email,
@@ -211,7 +211,7 @@ class PaymentReminderController extends Controller
         if ($validated['fee_category_id']) {
             $overdueAmount = $this->paymentService->getStudentOverdueAmount($student, $validated['fee_category_id']);
         } else {
-            $overdueAmount = method_exists($student, 'getTotalOverdueAmount') ? 
+            $overdueAmount = method_exists($student, 'getTotalOverdueAmount') ?
                 $student->getTotalOverdueAmount() : 0;
         }
 
@@ -224,18 +224,18 @@ class PaymentReminderController extends Controller
         // If send_now is requested, attempt to send immediately
         if ($request->has('send_now') && $this->reminderService) {
             $result = $this->reminderService->sendReminder($reminder);
-            
+
             if ($result['success']) {
                 return redirect()->route('admin.payment-reminders.index')
-                               ->with('success', 'Reminder created and sent successfully!');
+                    ->with('success', 'Reminder created and sent successfully!');
             } else {
                 return redirect()->route('admin.payment-reminders.index')
-                               ->with('warning', 'Reminder created but failed to send: ' . $result['error']);
+                    ->with('warning', 'Reminder created but failed to send: ' . $result['error']);
             }
         }
 
         return redirect()->route('admin.payment-reminders.index')
-                       ->with('success', 'Payment reminder created successfully!');
+            ->with('success', 'Payment reminder created successfully!');
     }
 
     /**
@@ -245,15 +245,15 @@ class PaymentReminderController extends Controller
     {
         $paymentReminder->load(['student.studentFees.feeCategory', 'feeCategory']);
         $feeCategories = FeeCategory::orderBy('name')->get();
-        
+
         // Get student's outstanding fees for context
         $outstandingFees = [];
         if (method_exists($this->paymentService, 'getStudentOutstandingFees')) {
             $outstandingFees = $this->paymentService->getStudentOutstandingFees($paymentReminder->student);
         }
-        
+
         return view('admin.payment-reminders.edit', compact(
-            'paymentReminder', 
+            'paymentReminder',
             'feeCategories',
             'outstandingFees'
         ))->with('reminder', $paymentReminder);
@@ -280,18 +280,18 @@ class PaymentReminderController extends Controller
         $action = $request->input('action');
         if ($action && $this->reminderService) {
             $result = $this->handleReminderAction($paymentReminder, $action);
-            
+
             if ($result['success']) {
                 return redirect()->route('admin.payment-reminders.show', $paymentReminder)
-                               ->with('success', "Reminder updated and {$action} successfully!");
+                    ->with('success', "Reminder updated and {$action} successfully!");
             } else {
                 return redirect()->route('admin.payment-reminders.show', $paymentReminder)
-                               ->with('warning', "Reminder updated but failed to {$action}: " . $result['error']);
+                    ->with('warning', "Reminder updated but failed to {$action}: " . $result['error']);
             }
         }
 
         return redirect()->route('admin.payment-reminders.show', $paymentReminder)
-                       ->with('success', 'Payment reminder updated successfully!');
+            ->with('success', 'Payment reminder updated successfully!');
     }
 
     /**
@@ -300,7 +300,7 @@ class PaymentReminderController extends Controller
     public function show(PaymentReminder $paymentReminder): View
     {
         $paymentReminder->load([
-            'student.batch.course', 
+            'student.batch.course',
             'student.studentFees.feeCategory',
             'feeCategory'
         ]);
@@ -316,25 +316,25 @@ class PaymentReminderController extends Controller
         $paymentReminder->delete();
 
         return redirect()->route('admin.payment-reminders.index')
-                       ->with('success', 'Payment reminder deleted successfully!');
+            ->with('success', 'Payment reminder deleted successfully!');
     }
-    
-     /**
+
+    /**
      * Send test reminder
      */
     public function sendTestReminder(Request $request)
     {
         $request->validate([
-            'type' => 'required|in:email,sms,whatsapp',
+            'channel' => 'required|in:email,sms,whatsapp',
             'recipient' => 'required|string',
-            'message' => 'required|string',
+            'test_message' => 'required|string',
         ]);
 
         try {
             $result = $this->reminderService->sendTestReminder(
-                $request->type,
+                $request->channel,
                 $request->recipient,
-                $request->message
+                $request->test_message
             );
 
             if ($result['success']) {
@@ -362,7 +362,7 @@ class PaymentReminderController extends Controller
 
         try {
             $result = $this->reminderService->sendReminder($paymentReminder);
-            
+
             return response()->json([
                 'success' => $result['success'],
                 'message' => $result['success'] ? 'Reminder sent successfully!' : $result['error']
@@ -382,7 +382,7 @@ class PaymentReminderController extends Controller
     {
         try {
             $paymentReminder->update(['status' => 'cancelled']);
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Reminder cancelled successfully!'
@@ -404,7 +404,7 @@ class PaymentReminderController extends Controller
             if (class_exists('\App\Jobs\SendPaymentReminder')) {
                 SendPaymentReminder::dispatch($paymentReminder);
                 $paymentReminder->update(['status' => 'processing']);
-                
+
                 return response()->json([
                     'success' => true,
                     'message' => 'Reminder queued successfully'
@@ -438,7 +438,7 @@ class PaymentReminderController extends Controller
         try {
             if (method_exists($this->reminderService, 'processPendingReminders')) {
                 $result = $this->reminderService->processPendingReminders();
-                
+
                 return response()->json([
                     'success' => true,
                     'message' => 'Processing completed',
@@ -467,7 +467,7 @@ class PaymentReminderController extends Controller
             if ($this->reminderService && method_exists($this->reminderService, 'getReminderStatistics')) {
                 return $this->reminderService->getReminderStatistics();
             }
-            
+
             // Fallback to basic stats
             return [
                 'total_reminders' => PaymentReminder::count(),
@@ -494,7 +494,7 @@ class PaymentReminderController extends Controller
             if ($this->reminderService && method_exists($this->reminderService, 'getCollectionEfficiency')) {
                 return $this->reminderService->getCollectionEfficiency();
             }
-            
+
             // Fallback calculation
             return [
                 'overall_rate' => 0,
@@ -534,7 +534,7 @@ class PaymentReminderController extends Controller
             if (method_exists($this->paymentService, 'getOverdueByComponent')) {
                 return $this->paymentService->getOverdueByComponent();
             }
-            
+
             // Fallback calculation
             return FeeCategory::with('studentFees')
                 ->get()
@@ -543,11 +543,11 @@ class PaymentReminderController extends Controller
                         ->where('due_date', '<', now())
                         ->whereIn('status', ['unpaid', 'partial', 'overdue'])
                         ->get();
-                    
+
                     return [
                         'category' => $category->name,
                         'count' => $overdueFees->count(),
-                        'amount' => $overdueFees->sum(function($fee) {
+                        'amount' => $overdueFees->sum(function ($fee) {
                             return ($fee->amount ?? 0) - ($fee->paid_amount ?? 0);
                         })
                     ];
@@ -567,13 +567,13 @@ class PaymentReminderController extends Controller
             // Calculate basic effectiveness metrics
             $totalSent = PaymentReminder::where('status', 'sent')->count();
             $totalResponses = PaymentReminder::where('status', 'sent')
-                ->whereHas('student.studentFees', function($q) {
+                ->whereHas('student.studentFees', function ($q) {
                     $q->where('paid_amount', '>', 0);
                 })
                 ->count();
-            
+
             $effectiveness = $totalSent > 0 ? ($totalResponses / $totalSent) * 100 : 0;
-            
+
             return [
                 'overall_effectiveness' => round($effectiveness, 2),
                 'total_sent' => $totalSent,
@@ -604,16 +604,18 @@ class PaymentReminderController extends Controller
                 ')
                 ->groupBy('channel')
                 ->get()
-                ->mapWithKeys(function($item) {
-                    $successRate = $item->total_sent > 0 ? 
+                ->mapWithKeys(function ($item) {
+                    $successRate = $item->total_sent > 0 ?
                         ($item->successful_sent / $item->total_sent) * 100 : 0;
-                    
-                    return [$item->channel => [
-                        'total_sent' => $item->total_sent,
-                        'successful_sent' => $item->successful_sent,
-                        'failed' => $item->failed,
-                        'success_rate' => round($successRate, 2)
-                    ]];
+
+                    return [
+                        $item->channel => [
+                            'total_sent' => $item->total_sent,
+                            'successful_sent' => $item->successful_sent,
+                            'failed' => $item->failed,
+                            'success_rate' => round($successRate, 2)
+                        ]
+                    ];
                 })
                 ->toArray();
         } catch (\Exception $e) {
@@ -648,7 +650,7 @@ class PaymentReminderController extends Controller
             if (method_exists($this->paymentService, 'getDefaulterTrends')) {
                 return $this->paymentService->getDefaulterTrends();
             }
-            
+
             // Fallback calculation
             return [
                 'this_month' => 0,
@@ -676,28 +678,28 @@ class PaymentReminderController extends Controller
                         return $this->reminderService->sendReminder($reminder);
                     }
                     break;
-                
+
                 case 'cancel':
                     $reminder->update(['status' => 'cancelled']);
                     return ['success' => true, 'message' => 'Reminder cancelled'];
-                
+
                 case 'reschedule':
                     $reminder->update([
                         'status' => 'scheduled',
                         'scheduled_date' => now()->addHours(24)
                     ]);
                     return ['success' => true, 'message' => 'Reminder rescheduled'];
-                
+
                 default:
                     return ['success' => false, 'error' => 'Unknown action'];
             }
-            
+
             return ['success' => false, 'error' => 'Action not available'];
         } catch (\Exception $e) {
             return ['success' => false, 'error' => $e->getMessage()];
         }
     }
-    
+
     /**
      * Reschedule a reminder
      */
@@ -790,7 +792,7 @@ class PaymentReminderController extends Controller
             ], 500);
         }
     }
-    
+
     /**
      * Update defaulters
      */
@@ -807,21 +809,21 @@ class PaymentReminderController extends Controller
 
         try {
             $result = $this->reminderService->updateDefaulters($request->all());
-            
+
             return back()->with('success', $result['message']);
         } catch (\Exception $e) {
             return back()->with('error', 'Failed to update defaulters: ' . $e->getMessage());
         }
     }
-    
- /**
+
+    /**
      * Health check
      */
     public function healthCheck()
     {
         try {
             $healthData = $this->reminderService->performHealthCheck();
-            
+
             return response()->json([
                 'success' => true,
                 'data' => $healthData
@@ -867,14 +869,22 @@ class PaymentReminderController extends Controller
                 'Content-Disposition' => "attachment; filename=\"{$filename}\"",
             ];
 
-            $callback = function() use ($reminders) {
+            $callback = function () use ($reminders) {
                 $file = fopen('php://output', 'w');
-                
+
                 // CSV headers
                 fputcsv($file, [
-                    'ID', 'Student Name', 'Enrollment Number', 'Fee Category',
-                    'Reminder Type', 'Channel', 'Status', 'Scheduled Date',
-                    'Sent Date', 'Overdue Amount', 'Message Content'
+                    'ID',
+                    'Student Name',
+                    'Enrollment Number',
+                    'Fee Category',
+                    'Reminder Type',
+                    'Channel',
+                    'Status',
+                    'Scheduled Date',
+                    'Sent Date',
+                    'Overdue Amount',
+                    'Message Content'
                 ]);
 
                 // CSV data

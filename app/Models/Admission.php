@@ -17,16 +17,25 @@ class Admission extends Model
     use HasAcademicYear;
 
     protected $fillable = [
-        'course_id', 'full_name', 'email', 'phone_number', 
-        'date_of_birth', 'address', 'education_qualification', 
-        'source', 'referral_name', 'status', 'gender', 'enquiry_id'
+        'course_id',
+        'full_name',
+        'email',
+        'phone_number',
+        'date_of_birth',
+        'address',
+        'education_qualification',
+        'source',
+        'referral_name',
+        'status',
+        'gender',
+        'enquiry_id'
     ];
 
     public function course(): BelongsTo
     {
         return $this->belongsTo(Course::class);
     }
-    
+
     public function enquiry(): BelongsTo
     {
         return $this->belongsTo(Enquiry::class);
@@ -43,5 +52,10 @@ class Admission extends Model
     public function followUps(): MorphMany
     {
         return $this->morphMany(\App\Models\FollowUp::class, 'followable');
+    }
+
+    public function student(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(Student::class);
     }
 }

@@ -17,28 +17,25 @@ class Student extends Model
     use HasFactory, LogsActivity, StudentPhotoHelper;
 
     /**
-     * Boot method to add global scope for academic year filtering
+     * Boot method 
      */
     protected static function boot()
     {
         parent::boot();
 
-        // Filter students by academic year through their batch
-        // Only apply if not in console and not in API
-        if (!app()->runningInConsole() && !request()->is('api/*')) {
+        // Apply Global Scope for Academic Year (via Batch)
+        if (config('app.enable_academic_year_global_scope', true) && !app()->runningInConsole() && !request()->is('api/*')) {
             static::addGlobalScope('academic_year', function (Builder $builder) {
-                // Get selected year from session, or default to current year
                 $selectedYearId = session('selected_academic_year_id');
-
+                // Default to current year if session not set (optional, consistent with HasAcademicYear)
                 if (!$selectedYearId) {
-                    $currentYear = AcademicYear::where('is_current', true)->first();
+                    $currentYear = \App\Models\AcademicYear::where('is_current', true)->first();
                     $selectedYearId = $currentYear?->id;
                 }
 
-                // Only apply filter if we have a year ID and batches table has academic_year_id
-                if ($selectedYearId && Schema::hasColumn('batches', 'academic_year_id')) {
-                    $builder->whereHas('batch', function ($query) use ($selectedYearId) {
-                        $query->where('academic_year_id', $selectedYearId);
+                if ($selectedYearId) {
+                    $builder->whereHas('batch', function ($q) use ($selectedYearId) {
+                        $q->where('academic_year_id', $selectedYearId);
                     });
                 }
             });
@@ -47,7 +44,7 @@ class Student extends Model
 
     // Explicitly define the primary key (Laravel defaults to 'id')
     protected $primaryKey = 'id';
-    
+
     // If you need to use student_id elsewhere, create a custom accessor
     protected $appends = ['student_id'];
 
@@ -60,6 +57,9 @@ class Student extends Model
         'father_name',
         'student_mobile',
         'father_mobile',
+        'mother_mobile',
+        'dob', // Date of Birth
+        'course_id',
         'village',
         'current_employer',
         'job_title',
@@ -71,22 +71,67 @@ class Student extends Model
         'source',
         'referral_name',
         // DROPOUT MANAGEMENT FIELDS
-        'dropout_date', 
-        'dropout_reason', 
+        'dropout_date',
+        'dropout_reason',
         'final_outstanding_amount',
-        'total_paid_amount', 
-        'dropout_metadata', 
-        'processed_by', 
-        'dropout_processed_at'
+        'total_paid_amount',
+        'dropout_metadata',
+        'processed_by',
+        'dropout_processed_at',
+        'admission_id',
+        'referral_commission_paid_at',
+        'referral_commission_amount',
+        'referral_payment_mode',
+        'referral_payment_remarks'
     ];
 
     protected $casts = [
+        'email_verified_at' => 'datetime',
         'admission_date' => 'date',
-        'payment_terms' => 'integer',
         'dropout_date' => 'date',
+        'dob' => 'date', // Cast DOB to date
         'dropout_metadata' => 'array',
-        'dropout_processed_at' => 'datetime'
+        'status' => 'string',
+        'payment_terms' => 'integer',
+        'dropout_processed_at' => 'datetime',
+        'referral_commission_paid_at' => 'datetime'
     ];
+
+    /**
+     * Get the student's age based on DOB.
+     * Returns string like "20 Years, 5 Months" or null if DOB is missing.
+     */
+    public function getAgeAttribute()
+    {
+        if (!$this->dob) {
+            return null;
+        }
+
+        $dob = $this->dob;
+        $now = now();
+
+        $years = (int) $dob->diffInYears($now);
+        $months = (int) $dob->copy()->addYears($years)->diffInMonths($now);
+
+        $ageString = $years . ' Years';
+        if ($months > 0) {
+            $ageString .= ', ' . $months . ' Months';
+        }
+
+        return $ageString;
+    }
+
+    /**
+     * Get the student who referred this student.
+     */
+    public function getReferrerAttribute()
+    {
+        if ($this->source !== 'Student Refer' || empty($this->referral_name)) {
+            return null;
+        }
+
+        return self::where('name', $this->referral_name)->with('batch')->first();
+    }
 
     protected $dates = [
         'admission_date',
@@ -97,7 +142,7 @@ class Student extends Model
     // ===================================
     // ACCESSORS
     // ===================================
-    
+
     public function getStudentIdAttribute()
     {
         return $this->id;
@@ -128,7 +173,7 @@ class Student extends Model
     {
         return self::hasRealPhoto($this);
     }
-    
+
     /* * --------------------------------------------------------------------
      * ADD THIS METHOD TO STOP SYSTEM LOGS
      * --------------------------------------------------------------------
@@ -139,7 +184,7 @@ class Student extends Model
         if (app()->runningInConsole()) {
             return false;
         }
-        
+
         // Optional: Don't log if the user is not logged in (System actions)
         if (!auth()->check()) {
             return false;
@@ -164,7 +209,7 @@ class Student extends Model
     {
         return $this->hasMany(StudentFee::class);
     }
-    
+
     /**
      * Get the payment defaulter records for this student
      */
@@ -201,7 +246,7 @@ class Student extends Model
         if (Schema::hasColumn('payments', 'student_id')) {
             return $this->hasMany(Payment::class, 'student_id');
         }
-        
+
         // Return empty relationship if column doesn't exist
         return $this->hasMany(Payment::class, 'student_id')->where('id', null);
     }
@@ -238,7 +283,7 @@ class Student extends Model
         if (Schema::hasColumn('admissions', 'student_id')) {
             return $this->hasOne(Admission::class, 'student_id');
         }
-        
+
         // Return empty relationship if column doesn't exist
         return $this->hasOne(Admission::class, 'student_id')->where('id', null);
     }
@@ -267,7 +312,7 @@ class Student extends Model
             ->where('created_at', '>=', now()->subDays(30))
             ->latest();
     }
-    
+
     public function activities()
     {
         return $this->morphMany(\Spatie\Activitylog\Models\Activity::class, 'subject');
@@ -370,11 +415,11 @@ class Student extends Model
     {
         if (Schema::hasTable('student_fees')) {
             return $query->where('status', '!=', 'dropout')
-                ->whereHas('studentFees', function($q) {
+                ->whereHas('studentFees', function ($q) {
                     $q->whereRaw('amount - COALESCE(paid_amount, 0) - COALESCE(concession_amount, 0) > 0');
                 });
         }
-        
+
         return $query->where('id', null); // No results if no component system
     }
 
@@ -385,13 +430,13 @@ class Student extends Model
     {
         if (Schema::hasTable('student_fees')) {
             return $query->where('status', '!=', 'dropout')
-                ->whereHas('studentFees', function($q) {
+                ->whereHas('studentFees', function ($q) {
                     $q->where('due_date', '<', now())
-                      ->where('status', '!=', 'paid')
-                      ->whereRaw('amount - COALESCE(paid_amount, 0) - COALESCE(concession_amount, 0) > 0');
+                        ->where('status', '!=', 'paid')
+                        ->whereRaw('amount - COALESCE(paid_amount, 0) - COALESCE(concession_amount, 0) > 0');
                 });
         }
-        
+
         return $query->where('id', null); // No results if no component system
     }
 
@@ -402,11 +447,11 @@ class Student extends Model
     {
         if (Schema::hasTable('student_fees')) {
             return $query->where('status', '!=', 'dropout')
-                ->whereDoesntHave('studentFees', function($q) {
+                ->whereDoesntHave('studentFees', function ($q) {
                     $q->whereRaw('amount - COALESCE(paid_amount, 0) - COALESCE(concession_amount, 0) > 0');
                 });
         }
-        
+
         return $query->where('status', '!=', 'dropout'); // All non-dropout students if no system to check
     }
 
@@ -438,12 +483,12 @@ class Student extends Model
         if ($academicYearId) {
             return $this->practicalGroupsForYear($academicYearId)->exists();
         }
-        
+
         $currentYear = \App\Models\AcademicYear::where('is_current', true)->first();
         if ($currentYear) {
             return $this->practicalGroupsForYear($currentYear->id)->exists();
         }
-        
+
         return false;
     }
 
@@ -481,11 +526,11 @@ class Student extends Model
         }
 
         $fees = $this->studentFees;
-        
+
         $totalFees = $fees->sum('amount');
         $totalPaid = $fees->sum('paid_amount');
         $totalConcession = $fees->sum('concession_amount');
-        $totalOutstanding = $fees->sum(function($fee) {
+        $totalOutstanding = $fees->sum(function ($fee) {
             return max(0, $fee->amount - $fee->concession_amount - $fee->paid_amount);
         });
 
@@ -575,7 +620,7 @@ class Student extends Model
         if (!$this->isDropout() || !$this->dropout_date) {
             return null;
         }
-        
+
         return Carbon::parse($this->admission_date)->diffInDays($this->dropout_date);
     }
 
@@ -587,7 +632,7 @@ class Student extends Model
         if (!$this->isDropout()) {
             return [];
         }
-        
+
         return [
             'dropout_date' => $this->dropout_date,
             'dropout_reason' => $this->dropout_reason,
@@ -622,7 +667,7 @@ class Student extends Model
         return $this->studentFees()
             ->where('status', 'unpaid')
             ->get()
-            ->sum(function($fee) {
+            ->sum(function ($fee) {
                 return ($fee->amount ?? 0) - ($fee->paid_amount ?? 0) - ($fee->concession_amount ?? 0);
             });
     }
@@ -640,7 +685,7 @@ class Student extends Model
             ->where('status', 'unpaid')
             ->where('due_date', '<', now())
             ->get()
-            ->sum(function($fee) {
+            ->sum(function ($fee) {
                 return ($fee->amount ?? 0) - ($fee->paid_amount ?? 0) - ($fee->concession_amount ?? 0);
             });
     }
@@ -650,14 +695,17 @@ class Student extends Model
      */
     public function getAttendancePercentage($startDate = null, $endDate = null): float
     {
-        if (!$startDate) $startDate = now()->startOfMonth();
-        if (!$endDate) $endDate = now()->endOfMonth();
+        if (!$startDate)
+            $startDate = now()->startOfMonth();
+        if (!$endDate)
+            $endDate = now()->endOfMonth();
 
         $totalClasses = $this->attendances()
             ->whereBetween('attendance_date', [$startDate, $endDate])
             ->count();
 
-        if ($totalClasses === 0) return 0;
+        if ($totalClasses === 0)
+            return 0;
 
         $presentClasses = $this->attendances()
             ->whereBetween('attendance_date', [$startDate, $endDate])
@@ -687,7 +735,7 @@ class Student extends Model
         $settings = Setting::all()->keyBy('key');
         $collegePrefix = $settings['enrollment_prefix']->value ?? 'UV';
         $coursePrefix = $this->batch->course->enrollment_prefix ?? substr($this->batch->course->name, 0, 2);
-        
+
         $year = date('Y');
         $lastStudent = static::where('batch_id', $this->batch_id)
             ->where('enrollment_number', 'LIKE', "{$collegePrefix}{$coursePrefix}{$year}%")
@@ -767,7 +815,7 @@ class Student extends Model
         if (Schema::hasTable('student_fees')) {
             return $this->unpaidFees()->get()->sum(fn($fee) => $fee->getRemainingAmount());
         }
-        
+
         return 0.0;
     }
 
@@ -783,7 +831,7 @@ class Student extends Model
         if (Schema::hasTable('student_fees')) {
             return $this->paidFees()->sum('paid_amount');
         }
-        
+
         return 0.0;
     }
 
@@ -798,13 +846,22 @@ class Student extends Model
     {
         return LogOptions::defaults()
             ->logOnly([
-                'name', 'email', 'father_name', 'student_mobile', 'father_mobile',
-                'village', 'admission_date', 'batch_id', 'gender', 'status',
-                'dropout_date', 'dropout_reason' // Added dropout fields
+                'name',
+                'email',
+                'father_name',
+                'student_mobile',
+                'father_mobile',
+                'village',
+                'admission_date',
+                'batch_id',
+                'gender',
+                'status',
+                'dropout_date',
+                'dropout_reason' // Added dropout fields
             ])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs()
-            ->setDescriptionForEvent(fn(string $eventName) => match($eventName) {
+            ->setDescriptionForEvent(fn(string $eventName) => match ($eventName) {
                 'created' => 'Student profile created',
                 'updated' => 'Student profile updated',
                 'deleted' => 'Student profile deleted',
@@ -833,7 +890,7 @@ class Student extends Model
     {
         $oldBatch = $oldBatchId ? Batch::find($oldBatchId) : null;
         $newBatch = $newBatchId ? Batch::find($newBatchId) : null;
-        
+
         activity()
             ->causedBy(auth()->user())
             ->performedOn($this)

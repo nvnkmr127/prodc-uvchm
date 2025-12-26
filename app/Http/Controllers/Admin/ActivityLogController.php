@@ -17,12 +17,36 @@ class ActivityLogController extends Controller
         if ($request->filled('search')) {
             $searchTerm = $request->search;
             $query->where('description', 'LIKE', '%' . $searchTerm . '%')
-                  ->orWhere('log_name', 'LIKE', '%' . $searchTerm . '%');
+                ->orWhere('log_name', 'LIKE', '%' . $searchTerm . '%');
         }
 
         // Filter by user
         if ($request->filled('causer_id')) {
             $query->where('causer_id', $request->causer_id);
+        }
+
+        // Optional: Hide system logs (but keep important ones)
+        if ($request->boolean('hide_system')) {
+            $query->where(function ($q) {
+                // 1. Always show actions by real users
+                $q->whereNotNull('causer_id')
+                    // 2. OR show critical system events (whitelisted models/logs)
+                    ->orWhereIn('log_name', ['payment', 'webhook', 'attendance'])
+                    ->orWhereIn('subject_type', [
+                        'App\Models\Payment',
+                        'App\Models\WebhookCall',
+                        'App\Models\Attendance',
+                        // Removed Student/Course/Batch from blanket allow-list to prevent noise
+                    ])
+                    // 3. Keep specific important events based on description
+                    ->orWhere(function ($sub) {
+                        $sub->where('description', 'LIKE', '%created%')
+                            ->orWhere('description', 'LIKE', '%deleted%')
+                            ->orWhere('description', 'LIKE', '%dropout%')
+                            ->orWhere('description', 'LIKE', '%internship%')
+                            ->orWhere('description', 'LIKE', '%profile%');
+                    });
+            });
         }
 
         // Filter by log name (activity type)
@@ -52,7 +76,7 @@ class ActivityLogController extends Controller
         $subjectTypes = Activity::distinct()
             ->pluck('subject_type')
             ->filter()
-            ->map(function($type) {
+            ->map(function ($type) {
                 return class_basename($type);
             });
 
@@ -66,10 +90,16 @@ class ActivityLogController extends Controller
 
     public function destroy(Request $request)
     {
-        $days = $request->input('days', 30);
+        $days = (int) $request->input('days', 30);
 
-        $deleted = Activity::where('created_at', '<', now()->subDays($days))->delete();
+        if ($days === 0) {
+            $deleted = Activity::truncate();
+            $message = "Cleared all activity log entries.";
+        } else {
+            $deleted = Activity::where('created_at', '<', now()->subDays($days))->delete();
+            $message = "Deleted {$deleted} old activity log entries.";
+        }
 
-        return redirect()->back()->with('success', "Deleted {$deleted} old activity log entries.");
+        return redirect()->back()->with('success', $message);
     }
 }

@@ -18,146 +18,150 @@ use Illuminate\Support\Facades\DB;
 
 class ComponentPaymentReminderService
 {
-    
-/**
- * Get defaulter stats safely with correct column names
- */
-public function getSafeDefaulterStats(): array
-{
-    try {
-        return [
-            'total_defaulters' => PaymentDefaulter::count(),
-            'total_active' => PaymentDefaulter::where('current_status', '!=', 'resolved')->count(),
-            'chronic_defaulters' => PaymentDefaulter::where('defaulter_category', 'chronic')->count(),
-            'severe_defaulters' => PaymentDefaulter::where('defaulter_category', 'severe')->count(),
-            'moderate_defaulters' => PaymentDefaulter::where('defaulter_category', 'moderate')->count(),
-            'resolved_defaulters' => PaymentDefaulter::where('current_status', 'resolved')->count(),
-            'total_overdue_amount' => PaymentDefaulter::sum('total_overdue_amount'),
-            'avg_overdue_amount' => PaymentDefaulter::avg('total_overdue_amount') ?? 0,
-            'recovery_rate' => $this->calculateResolutionRate(),
-        ];
-    } catch (\Exception $e) {
-        \Log::error('Error getting defaulter stats: ' . $e->getMessage());
-        return [
-            'total_defaulters' => 0,
-            'total_active' => 0,
-            'chronic_defaulters' => 0,
-            'severe_defaulters' => 0,
-            'moderate_defaulters' => 0,
-            'resolved_defaulters' => 0,
-            'total_overdue_amount' => 0,
-            'avg_overdue_amount' => 0,
-            'recovery_rate' => 0,
-        ];
+
+    /**
+     * Get defaulter stats safely with correct column names
+     */
+    public function getSafeDefaulterStats(): array
+    {
+        try {
+            return [
+                'total_defaulters' => PaymentDefaulter::count(),
+                'total_active' => PaymentDefaulter::where('current_status', '!=', 'resolved')->count(),
+                'chronic_defaulters' => PaymentDefaulter::where('defaulter_category', 'chronic')->count(),
+                'severe_defaulters' => PaymentDefaulter::where('defaulter_category', 'severe')->count(),
+                'moderate_defaulters' => PaymentDefaulter::where('defaulter_category', 'moderate')->count(),
+                'resolved_defaulters' => PaymentDefaulter::where('current_status', 'resolved')->count(),
+                'total_overdue_amount' => PaymentDefaulter::sum('total_overdue_amount'),
+                'avg_overdue_amount' => PaymentDefaulter::avg('total_overdue_amount') ?? 0,
+                'recovery_rate' => $this->calculateResolutionRate(),
+            ];
+        } catch (\Exception $e) {
+            \Log::error('Error getting defaulter stats: ' . $e->getMessage());
+            return [
+                'total_defaulters' => 0,
+                'total_active' => 0,
+                'chronic_defaulters' => 0,
+                'severe_defaulters' => 0,
+                'moderate_defaulters' => 0,
+                'resolved_defaulters' => 0,
+                'total_overdue_amount' => 0,
+                'avg_overdue_amount' => 0,
+                'recovery_rate' => 0,
+            ];
+        }
     }
-}
 
-/**
- * Alias method for controller compatibility
- */
-public function getDefaulterStats(): array
-{
-    return $this->getSafeDefaulterStats();
-}
+    /**
+     * Alias method for controller compatibility
+     */
+    public function getDefaulterStats(): array
+    {
+        return $this->getSafeDefaulterStats();
+    }
 
-/**
- * Calculate resolution rate for defaulters
- */
-private function calculateResolutionRate(): float
-{
-    try {
-        $total = PaymentDefaulter::count();
-        if ($total === 0) {
+    /**
+     * Calculate resolution rate for defaulters
+     */
+    private function calculateResolutionRate(): float
+    {
+        try {
+            $total = PaymentDefaulter::count();
+            if ($total === 0) {
+                return 0;
+            }
+            $resolved = PaymentDefaulter::where('current_status', 'resolved')->count();
+            return round(($resolved / $total) * 100, 2);
+        } catch (\Exception $e) {
             return 0;
         }
-        $resolved = PaymentDefaulter::where('current_status', 'resolved')->count();
-        return round(($resolved / $total) * 100, 2);
-    } catch (\Exception $e) {
-        return 0;
     }
-}
 
-/**
- * Fix the broken getDefaulterComponentBreakdown method
- */
-private function getDefaulterComponentBreakdown(): array
-{
-    try {
-        // Since PaymentDefaulter doesn't have fee_category_id, 
-        // we need to build this from StudentFee data
-        return FeeCategory::select('fee_categories.name', 'fee_categories.category_type')
-            ->selectRaw('
+    /**
+     * Fix the broken getDefaulterComponentBreakdown method
+     */
+    private function getDefaulterComponentBreakdown(): array
+    {
+        try {
+            // Since PaymentDefaulter doesn't have fee_category_id, 
+            // we need to build this from StudentFee data
+            return FeeCategory::select('fee_categories.name', 'fee_categories.category_type')
+                ->selectRaw('
                 COUNT(DISTINCT sf.student_id) as defaulter_count,
                 SUM(sf.amount - COALESCE(sf.paid_amount, 0) - COALESCE(sf.concession_amount, 0)) as total_overdue_amount,
                 AVG(sf.amount - COALESCE(sf.paid_amount, 0) - COALESCE(sf.concession_amount, 0)) as avg_overdue_amount
             ')
-            ->leftJoin('student_fees as sf', 'fee_categories.id', '=', 'sf.fee_category_id')
-            ->where('sf.status', 'unpaid')
-            ->where('sf.due_date', '<', now())
-            ->whereRaw('sf.amount - COALESCE(sf.paid_amount, 0) - COALESCE(sf.concession_amount, 0) > 0')
-            ->groupBy('fee_categories.id', 'fee_categories.name', 'fee_categories.category_type')
-            ->orderByDesc('total_overdue_amount')
-            ->get()
-            ->toArray();
-    } catch (\Exception $e) {
-        \Log::error('Error getting component breakdown: ' . $e->getMessage());
-        return [];
-    }
-}
-
-/**
- * Get channel performance statistics
- */
-public function getChannelPerformanceStats(): array
-{
-    try {
-        if (!class_exists('\App\Models\PaymentReminder')) {
+                ->leftJoin('student_fees as sf', 'fee_categories.id', '=', 'sf.fee_category_id')
+                ->where('sf.status', 'unpaid')
+                ->where('sf.due_date', '<', now())
+                ->whereRaw('sf.amount - COALESCE(sf.paid_amount, 0) - COALESCE(sf.concession_amount, 0) > 0')
+                ->groupBy('fee_categories.id', 'fee_categories.name', 'fee_categories.category_type')
+                ->orderByDesc('total_overdue_amount')
+                ->get()
+                ->toArray();
+        } catch (\Exception $e) {
+            \Log::error('Error getting component breakdown: ' . $e->getMessage());
             return [];
         }
-
-        return \App\Models\PaymentReminder::where('created_at', '>=', now()->subMonths(3))
-            ->select('channel')
-            ->selectRaw('COUNT(*) as total_sent')
-            ->selectRaw('COUNT(CASE WHEN status = "sent" THEN 1 END) as successful')
-            ->selectRaw('COUNT(CASE WHEN status = "failed" THEN 1 END) as failed')
-            ->selectRaw('AVG(CASE WHEN delivered_at IS NOT NULL THEN TIMESTAMPDIFF(HOUR, sent_at, delivered_at) END) as avg_delivery_time')
-            ->groupBy('channel')
-            ->get()
-            ->map(function ($item) {
-                $successRate = $item->total_sent > 0 ? round(($item->successful / $item->total_sent) * 100, 2) : 0;
-                
-                return [
-                    'channel' => $item->channel,
-                    'total_sent' => $item->total_sent,
-                    'successful' => $item->successful,
-                    'failed' => $item->failed,
-                    'success_rate' => $successRate,
-                    'avg_delivery_time' => round($item->avg_delivery_time ?? 0, 2),
-                    'status' => $this->getChannelStatus($successRate)
-                ];
-            })
-            ->keyBy('channel')
-            ->toArray();
-
-    } catch (\Exception $e) {
-        \Log::error('Error getting channel performance stats: ' . $e->getMessage());
-        return [];
     }
-}
 
-/**
- * Get channel status based on success rate
- */
-private function getChannelStatus(float $successRate): string
-{
-    if ($successRate >= 90) return 'excellent';
-    if ($successRate >= 75) return 'good';
-    if ($successRate >= 60) return 'average';
-    if ($successRate >= 40) return 'poor';
-    return 'critical';
-}
+    /**
+     * Get channel performance statistics
+     */
+    public function getChannelPerformanceStats(): array
+    {
+        try {
+            if (!class_exists('\App\Models\PaymentReminder')) {
+                return [];
+            }
 
- /**
+            return \App\Models\PaymentReminder::where('created_at', '>=', now()->subMonths(3))
+                ->select('channel')
+                ->selectRaw('COUNT(*) as total_sent')
+                ->selectRaw('COUNT(CASE WHEN status = "sent" THEN 1 END) as successful')
+                ->selectRaw('COUNT(CASE WHEN status = "failed" THEN 1 END) as failed')
+                ->selectRaw('AVG(CASE WHEN delivered_at IS NOT NULL THEN TIMESTAMPDIFF(HOUR, sent_at, delivered_at) END) as avg_delivery_time')
+                ->groupBy('channel')
+                ->get()
+                ->map(function ($item) {
+                    $successRate = $item->total_sent > 0 ? round(($item->successful / $item->total_sent) * 100, 2) : 0;
+
+                    return [
+                        'channel' => $item->channel,
+                        'total_sent' => $item->total_sent,
+                        'successful' => $item->successful,
+                        'failed' => $item->failed,
+                        'success_rate' => $successRate,
+                        'avg_delivery_time' => round($item->avg_delivery_time ?? 0, 2),
+                        'status' => $this->getChannelStatus($successRate)
+                    ];
+                })
+                ->keyBy('channel')
+                ->toArray();
+
+        } catch (\Exception $e) {
+            \Log::error('Error getting channel performance stats: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Get channel status based on success rate
+     */
+    private function getChannelStatus(float $successRate): string
+    {
+        if ($successRate >= 90)
+            return 'excellent';
+        if ($successRate >= 75)
+            return 'good';
+        if ($successRate >= 60)
+            return 'average';
+        if ($successRate >= 40)
+            return 'poor';
+        return 'critical';
+    }
+
+    /**
      * Get defaulter count
      */
     private function getDefaulterCount(int $daysPastDue = 30): int
@@ -193,13 +197,13 @@ private function getChannelStatus(float $successRate): string
                     ]);
                     $processed++;
                     break;
-                
+
                 case 'mark_contacted':
                     // You could add a contacted_at field to students table
                     // $student->update(['last_contacted_at' => now()]);
                     $processed++;
                     break;
-                
+
                 case 'extend_deadline':
                     // Extend deadlines for unpaid fees
                     $student->studentFees()
@@ -231,7 +235,7 @@ private function getChannelStatus(float $successRate): string
         ];
     }
 
-  /**
+    /**
      * Get defaulter students
      */
     public function getDefaulterStudents(int $daysPastDue = 30): \Illuminate\Database\Eloquent\Collection
@@ -243,13 +247,16 @@ private function getChannelStatus(float $successRate): string
                 ->whereIn('status', ['unpaid', 'partial'])
                 ->whereRaw('amount - concession_amount - paid_amount > 0');
         })
-        ->with(['batch.course', 'studentFees' => function ($query) use ($cutoffDate) {
-            $query->whereDate('due_date', '<', $cutoffDate)
-                ->whereIn('status', ['unpaid', 'partial'])
-                ->whereRaw('amount - concession_amount - paid_amount > 0')
-                ->with('feeCategory');
-        }])
-        ->get();
+            ->with([
+                'batch.course',
+                'studentFees' => function ($query) use ($cutoffDate) {
+                    $query->whereDate('due_date', '<', $cutoffDate)
+                        ->whereIn('status', ['unpaid', 'partial'])
+                        ->whereRaw('amount - concession_amount - paid_amount > 0')
+                        ->with('feeCategory');
+                }
+            ])
+            ->get();
     }
 
     /**
@@ -257,10 +264,10 @@ private function getChannelStatus(float $successRate): string
      */
     public function getTotalDefaultersCount(): int
     {
-        return Student::whereHas('studentFees', function($q) {
+        return Student::whereHas('studentFees', function ($q) {
             $q->whereIn('status', ['unpaid', 'partial'])
-              ->where('due_date', '<', now())
-              ->whereRaw('amount - concession_amount - paid_amount > 0');
+                ->where('due_date', '<', now())
+                ->whereRaw('amount - concession_amount - paid_amount > 0');
         })->count();
     }
 
@@ -272,9 +279,9 @@ private function getChannelStatus(float $successRate): string
         $totalFees = StudentFee::count();
         $paidFees = StudentFee::where('status', 'paid')->count();
         $overdueFees = StudentFee::where('due_date', '<', now())
-                                ->whereIn('status', ['unpaid', 'partial'])
-                                ->whereRaw('amount - concession_amount - paid_amount > 0')
-                                ->count();
+            ->whereIn('status', ['unpaid', 'partial'])
+            ->whereRaw('amount - concession_amount - paid_amount > 0')
+            ->count();
 
         $collectionRate = $totalFees > 0 ? round(($paidFees / $totalFees) * 100, 2) : 0;
         $overdueRate = $totalFees > 0 ? round(($overdueFees / $totalFees) * 100, 2) : 0;
@@ -295,10 +302,10 @@ private function getChannelStatus(float $successRate): string
     public function setupComponentReminderSchedule(Student $student, StudentFee $studentFee): void
     {
         $feeCategory = $studentFee->feeCategory;
-        $reminderDaysBefore = $feeCategory?->reminder_days_before ?? 
-                             Setting::where('key', 'reminder_days_before')->value('value') ?? 7;
-        $escalationDaysAfter = $feeCategory?->escalation_days_after ?? 
-                              Setting::where('key', 'escalation_days')->value('value') ?? 15;
+        $reminderDaysBefore = $feeCategory?->reminder_days_before ??
+            Setting::where('key', 'reminder_days_before')->value('value') ?? 7;
+        $escalationDaysAfter = $feeCategory?->escalation_days_after ??
+            Setting::where('key', 'escalation_days')->value('value') ?? 15;
 
         $reminders = [
             [
@@ -360,8 +367,8 @@ private function getChannelStatus(float $successRate): string
     public function cancelRemindersForStudentFee(StudentFee $studentFee): void
     {
         PaymentReminder::where('student_fee_id', $studentFee->id)
-                      ->where('status', 'pending')
-                      ->update(['status' => 'cancelled']);
+            ->where('status', 'pending')
+            ->update(['status' => 'cancelled']);
     }
 
     /**
@@ -371,46 +378,46 @@ private function getChannelStatus(float $successRate): string
     {
         try {
             // Get all students with overdue component fees
-            $studentsWithOverdueFees = Student::whereHas('studentFees', function($query) {
+            $studentsWithOverdueFees = Student::whereHas('studentFees', function ($query) {
                 $query->where('due_date', '<', now())
-                      ->whereIn('status', ['unpaid', 'partial'])
-                      ->whereRaw('amount - concession_amount - paid_amount > 0');
+                    ->whereIn('status', ['unpaid', 'partial'])
+                    ->whereRaw('amount - concession_amount - paid_amount > 0');
             })->with([
-                'batch.course',
-                'studentFees' => function($query) {
-                    $query->where('due_date', '<', now())
-                          ->whereIn('status', ['unpaid', 'partial'])
-                          ->whereRaw('amount - concession_amount - paid_amount > 0')
-                          ->with('feeCategory');
-                }
-            ])->get();
+                        'batch.course',
+                        'studentFees' => function ($query) {
+                            $query->where('due_date', '<', now())
+                                ->whereIn('status', ['unpaid', 'partial'])
+                                ->whereRaw('amount - concession_amount - paid_amount > 0')
+                                ->with('feeCategory');
+                        }
+                    ])->get();
 
             $defaulters = [];
 
             foreach ($studentsWithOverdueFees as $student) {
                 $overdueFees = $student->studentFees;
-                
+
                 if ($overdueFees->isEmpty()) {
                     continue;
                 }
 
                 // Calculate totals
-                $totalOverdueAmount = $overdueFees->sum(function($fee) {
+                $totalOverdueAmount = $overdueFees->sum(function ($fee) {
                     return $fee->amount - $fee->concession_amount - $fee->paid_amount;
                 });
                 $overdueFeeCount = $overdueFees->count();
-                
+
                 // Get oldest overdue date
                 $oldestDueDate = $overdueFees->min('due_date');
                 $overdueDays = Carbon::parse($oldestDueDate)->diffInDays(now());
-                
+
                 // Get fee categories and amounts
-                $componentBreakdown = $overdueFees->groupBy('fee_category_id')->map(function($fees, $categoryId) {
+                $componentBreakdown = $overdueFees->groupBy('fee_category_id')->map(function ($fees, $categoryId) {
                     $category = $fees->first()->feeCategory;
-                    $overdueAmount = $fees->sum(function($fee) {
+                    $overdueAmount = $fees->sum(function ($fee) {
                         return $fee->amount - $fee->concession_amount - $fee->paid_amount;
                     });
-                    
+
                     return [
                         'category_name' => $category->name,
                         'category_type' => $category->category_type ?? 'other',
@@ -424,8 +431,8 @@ private function getChannelStatus(float $successRate): string
 
                 // Determine defaulter category
                 $defaulterCategory = $this->categorizeComponentDefaulter(
-                    $totalOverdueAmount, 
-                    $overdueDays, 
+                    $totalOverdueAmount,
+                    $overdueDays,
                     $overdueFeeCount,
                     $componentBreakdown->count()
                 );
@@ -458,7 +465,7 @@ private function getChannelStatus(float $successRate): string
             }
 
             // Sort by priority score (highest first)
-            usort($defaulters, function($a, $b) {
+            usort($defaulters, function ($a, $b) {
                 return $b['priority_score'] <=> $a['priority_score'];
             });
 
@@ -489,10 +496,10 @@ private function getChannelStatus(float $successRate): string
     {
         try {
             $defaulters = $this->generateComponentDefaultersList();
-            
+
             // Clear existing records that are no longer defaulters
             PaymentDefaulter::whereNotIn('student_id', collect($defaulters)->pluck('student_id'))->delete();
-            
+
             foreach ($defaulters as $defaulterData) {
                 PaymentDefaulter::updateOrCreate(
                     ['student_id' => $defaulterData['student_id']],
@@ -565,25 +572,34 @@ private function getChannelStatus(float $successRate): string
 
         // Enhanced categorization considering multiple factors
         $score = 0;
-        
-        // Amount factor
-        if ($amount > 50000) $score += 3;
-        elseif ($amount > 25000) $score += 2;
-        elseif ($amount > 10000) $score += 1;
-        
-        // Days overdue factor
-        if ($days > $chronicDays) $score += 3;
-        elseif ($days > $severeDays) $score += 2;
-        elseif ($days > $moderateDays) $score += 1;
-        
-        // Multiple fees factor
-        if ($feeCount > 5) $score += 2;
-        elseif ($feeCount > 3) $score += 1;
-        
-        // Multiple categories factor (indicates widespread non-payment)
-        if ($categoriesCount > 3) $score += 1;
 
-        return match(true) {
+        // Amount factor
+        if ($amount > 50000)
+            $score += 3;
+        elseif ($amount > 25000)
+            $score += 2;
+        elseif ($amount > 10000)
+            $score += 1;
+
+        // Days overdue factor
+        if ($days > $chronicDays)
+            $score += 3;
+        elseif ($days > $severeDays)
+            $score += 2;
+        elseif ($days > $moderateDays)
+            $score += 1;
+
+        // Multiple fees factor
+        if ($feeCount > 5)
+            $score += 2;
+        elseif ($feeCount > 3)
+            $score += 1;
+
+        // Multiple categories factor (indicates widespread non-payment)
+        if ($categoriesCount > 3)
+            $score += 1;
+
+        return match (true) {
             $score >= 6 => 'chronic',
             $score >= 4 => 'severe',
             $score >= 2 => 'moderate',
@@ -628,8 +644,8 @@ private function getChannelStatus(float $successRate): string
             ->leftJoin('student_fees', 'fee_categories.id', '=', 'student_fees.fee_category_id')
             ->groupBy('fee_categories.id', 'fee_categories.name')
             ->get()
-            ->map(function($category) {
-                $category->collection_rate = $category->net_amount > 0 ? 
+            ->map(function ($category) {
+                $category->collection_rate = $category->net_amount > 0 ?
                     round(($category->collected_amount / $category->net_amount) * 100, 2) : 0;
                 $category->overdue_rate = $category->total_fees > 0 ?
                     round(($category->overdue_fees / $category->total_fees) * 100, 2) : 0;
@@ -646,7 +662,7 @@ private function getChannelStatus(float $successRate): string
         try {
             $message = $this->generateComponentReminderMessage($reminder);
             $result = $this->sendReminder($reminder, $message);
-            
+
             if ($result['success']) {
                 $reminder->markAsSent();
                 return ['success' => true, 'message' => 'Component reminder sent successfully'];
@@ -690,12 +706,12 @@ private function getChannelStatus(float $successRate): string
             ])->count(),
             'failed_reminders' => PaymentReminder::where('status', 'failed')->count(),
             'overdue_reminders' => PaymentReminder::where('scheduled_date', '<', now())
-                                                 ->where('status', 'pending')->count(),
+                ->where('status', 'pending')->count(),
             'total_defaulters' => $this->getTotalDefaultersCount(),
-            'chronic_defaulters' => Student::whereHas('studentFees', function($q) {
+            'chronic_defaulters' => Student::whereHas('studentFees', function ($q) {
                 $q->whereIn('status', ['unpaid', 'partial'])
-                  ->where('due_date', '<', now()->subDays(90))
-                  ->whereRaw('amount - concession_amount - paid_amount > 0');
+                    ->where('due_date', '<', now()->subDays(90))
+                    ->whereRaw('amount - concession_amount - paid_amount > 0');
             })->count(),
             'component_reminder_breakdown' => $this->getComponentReminderBreakdown(),
         ];
@@ -727,7 +743,7 @@ private function getChannelStatus(float $successRate): string
     public function cleanupOldRecords(int $daysToKeep = 30): int
     {
         $cutoffDate = Carbon::now()->subDays($daysToKeep);
-        
+
         return PaymentReminder::where('created_at', '<', $cutoffDate)
             ->where('status', '!=', 'pending')
             ->delete();
@@ -752,7 +768,7 @@ private function getChannelStatus(float $successRate): string
             // Get message content
             if (!$message) {
                 $message = $reminder->message_content;
-                
+
                 if (empty($message)) {
                     $template = $this->getTemplate($reminder->reminder_type, $reminder->channel);
                     if (!$template) {
@@ -814,21 +830,65 @@ private function getChannelStatus(float $successRate): string
         }
     }
 
-     /**
+    /**
+     * Send a test reminder to verify channel configuration
+     */
+    public function sendTestReminder(string $channel, string $recipient, string $message): array
+    {
+        try {
+            switch ($channel) {
+                case 'email':
+                    // Send raw email
+                    if (!filter_var($recipient, FILTER_VALIDATE_EMAIL)) {
+                        return ['success' => false, 'error' => 'Invalid email address'];
+                    }
+
+                    try {
+                        Mail::raw($message, function ($mail) use ($recipient) {
+                            $mail->to($recipient)
+                                ->subject('Test Payment Reminder - System Check');
+                        });
+                        return ['success' => true, 'message' => 'Test email sent successfully'];
+                    } catch (\Exception $e) {
+                        // Attempt to use fallback or report specific mail error
+                        throw $e;
+                    }
+
+                case 'sms':
+                    // Log SMS attempt (simulated)
+                    // In a real scenario, you would call the SMS provider API here
+                    \Log::info("TEST SMS to {$recipient}: {$message}");
+                    return ['success' => true, 'message' => 'Test SMS logged (Simulated)'];
+
+                case 'whatsapp':
+                    // Log WhatsApp attempt (simulated)
+                    \Log::info("TEST WhatsApp to {$recipient}: {$message}");
+                    return ['success' => true, 'message' => 'Test WhatsApp logged (Simulated)'];
+
+                default:
+                    return ['success' => false, 'error' => 'Unsupported channel for testing'];
+            }
+        } catch (\Exception $e) {
+            \Log::error('Test reminder failed', ['error' => $e->getMessage()]);
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+
+    /**
      * Send email reminder
      */
-    private function sendEmailReminder(PaymentReminder $reminder): bool
+    private function sendEmailReminder(PaymentReminder $reminder, ?string $message = null): bool
     {
         try {
             $student = $reminder->student;
-            
+
             if (!$student->email) {
                 throw new \Exception('Student email not found');
             }
 
             // Here you would send the actual email
             // Mail::to($student->email)->send(new PaymentReminderMail($reminder));
-            
+
             // For now, we'll just log it
             Log::info('Email reminder sent', [
                 'student_id' => $student->id,
@@ -888,8 +948,8 @@ private function getChannelStatus(float $successRate): string
             return ['success' => false, 'error' => 'WhatsApp sending failed: ' . $e->getMessage()];
         }
     }
-    
-      /**
+
+    /**
      * Queue reminder
      */
     public function queueReminder(PaymentReminder $reminder): void
@@ -897,7 +957,7 @@ private function getChannelStatus(float $successRate): string
         // Here you would add the reminder to a queue for processing
         // For now, we'll just update the status
         $reminder->update(['status' => 'queued']);
-        
+
         Log::info('Reminder queued', ['reminder_id' => $reminder->id]);
     }
 
@@ -1070,7 +1130,7 @@ private function getChannelStatus(float $successRate): string
         $student = $reminder->student;
         $studentFee = $reminder->studentFee;
 
-        $remainingAmount = $studentFee ? 
+        $remainingAmount = $studentFee ?
             ($studentFee->amount - $studentFee->concession_amount - $studentFee->paid_amount) : 0;
 
         return [
@@ -1152,9 +1212,9 @@ private function getChannelStatus(float $successRate): string
 
             foreach ($pendingReminders as $reminder) {
                 $results['processed']++;
-                
+
                 $result = $this->sendReminder($reminder);
-                
+
                 if ($result['success']) {
                     $results['sent']++;
                 } else {
@@ -1172,7 +1232,7 @@ private function getChannelStatus(float $successRate): string
 
         } catch (\Exception $e) {
             Log::error('Failed to process pending component reminders: ' . $e->getMessage());
-            
+
             return [
                 'processed' => 0,
                 'sent' => 0,
@@ -1196,7 +1256,7 @@ private function getChannelStatus(float $successRate): string
             foreach ($students as $student) {
                 $studentFees = $student->studentFees()
                     ->whereIn('status', ['unpaid', 'partial'])
-                    ->when(!empty($feeCategories), function($q) use ($feeCategories) {
+                    ->when(!empty($feeCategories), function ($q) use ($feeCategories) {
                         $q->whereIn('fee_category_id', $feeCategories);
                     })
                     ->get();
@@ -1253,15 +1313,15 @@ private function getChannelStatus(float $successRate): string
             ->leftJoin('payment_reminders', 'fee_categories.id', '=', 'payment_reminders.fee_category_id')
             ->leftJoin('student_fees', 'payment_reminders.student_fee_id', '=', 'student_fees.id')
             ->leftJoin('component_payment_items', 'student_fees.id', '=', 'component_payment_items.student_fee_id')
-            ->leftJoin('payments', function($join) {
+            ->leftJoin('payments', function ($join) {
                 $join->on('component_payment_items.payment_id', '=', 'payments.id')
-                     ->where('payments.payment_date', '>', DB::raw('payment_reminders.sent_at'));
+                    ->where('payments.payment_date', '>', DB::raw('payment_reminders.sent_at'));
             })
             ->where('payment_reminders.created_at', '>=', now()->subMonths(6))
             ->groupBy('fee_categories.id', 'fee_categories.name')
             ->get()
-            ->map(function($category) {
-                $category->effectiveness_rate = $category->sent_reminders > 0 ? 
+            ->map(function ($category) {
+                $category->effectiveness_rate = $category->sent_reminders > 0 ?
                     round(($category->resulted_in_payment / $category->sent_reminders) * 100, 2) : 0;
                 return $category;
             })
@@ -1282,14 +1342,14 @@ private function getChannelStatus(float $successRate): string
             ->groupBy('channel', 'fee_category_id')
             ->get()
             ->groupBy('feeCategory.name')
-            ->map(function($channelData, $categoryName) {
+            ->map(function ($channelData, $categoryName) {
                 return [
                     'category' => $categoryName,
-                    'channels' => $channelData->map(function($data) {
+                    'channels' => $channelData->map(function ($data) {
                         return [
                             'channel' => $data->channel,
                             'total_sent' => $data->total_sent,
-                            'success_rate' => $data->total_sent > 0 ? 
+                            'success_rate' => $data->total_sent > 0 ?
                                 round(($data->successful_sends / $data->total_sent) * 100, 2) : 0,
                             'avg_send_delay_hours' => round($data->avg_send_delay_hours ?? 0, 2),
                         ];
@@ -1315,8 +1375,8 @@ private function getChannelStatus(float $successRate): string
             ->where('created_at', '>=', now()->subMonths(6))
             ->groupBy('reminder_type')
             ->get()
-            ->map(function($data) {
-                $data->on_time_rate = $data->total_reminders > 0 ? 
+            ->map(function ($data) {
+                $data->on_time_rate = $data->total_reminders > 0 ?
                     round(($data->on_time_sends / $data->total_reminders) * 100, 2) : 0;
                 return $data;
             })
@@ -1336,18 +1396,19 @@ private function getChannelStatus(float $successRate): string
         $responseData = [];
 
         foreach ($remindersSent as $reminder) {
-            if (!$reminder->studentFee) continue;
+            if (!$reminder->studentFee)
+                continue;
 
             // Check if payment was made within 7 days of reminder
             $paymentMade = ComponentPaymentItem::where('student_fee_id', $reminder->student_fee_id)
-                ->whereHas('payment', function($q) use ($reminder) {
+                ->whereHas('payment', function ($q) use ($reminder) {
                     $q->where('payment_date', '>', $reminder->sent_at)
-                     ->where('payment_date', '<=', $reminder->sent_at->addDays(7));
+                        ->where('payment_date', '<=', $reminder->sent_at->addDays(7));
                 })
                 ->exists();
 
             $categoryName = $reminder->feeCategory->name ?? 'Unknown';
-            
+
             if (!isset($responseData[$categoryName])) {
                 $responseData[$categoryName] = [
                     'total_reminders' => 0,
@@ -1361,12 +1422,12 @@ private function getChannelStatus(float $successRate): string
             }
         }
 
-        return collect($responseData)->map(function($data, $categoryName) {
+        return collect($responseData)->map(function ($data, $categoryName) {
             return [
                 'category' => $categoryName,
                 'total_reminders' => $data['total_reminders'],
                 'responses' => $data['responses'],
-                'response_rate' => $data['total_reminders'] > 0 ? 
+                'response_rate' => $data['total_reminders'] > 0 ?
                     round(($data['responses'] / $data['total_reminders']) * 100, 2) : 0,
             ];
         })->sortByDesc('response_rate')->values()->toArray();

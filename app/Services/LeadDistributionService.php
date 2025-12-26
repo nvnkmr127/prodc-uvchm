@@ -12,43 +12,57 @@ class LeadDistributionService
      *
      * @return int|null The ID of the next counselor, or null if none are available.
      */
-    public function getNextCounselorId(): ?int
+    /**
+     * Assigns the next available user with the given roles in a round-robin sequence.
+     */
+    private function getNextUserForRole(array $roles, string $settingKey): ?int
     {
-        // Get all active users with the 'counselor' role (lowercase), ordered by their creation date.
-        // FIXED: Changed 'is_active' to 'status' based on your User model and migration
-        $counselors = User::role('counselor')->where('status', 'active')->orderBy('id')->get();
+        // Get all active users with the specified roles, ordered by ID
+        $users = User::whereHas('roles', function ($q) use ($roles) {
+            $q->whereIn('name', $roles);
+        })->where('status', 'active')->orderBy('id')->get();
 
-        if ($counselors->isEmpty()) {
-            // No counselors available to assign the lead to.
+        if ($users->isEmpty()) {
             return null;
         }
 
-        // Find out who was assigned the last lead.
-        // We store the ID of the last assigned user in the settings table.
-        $lastAssignedId = Setting::where('key', 'last_assigned_counselor_id')->value('value');
+        // Find out who was assigned last
+        $lastAssignedId = Setting::where('key', $settingKey)->value('value');
 
         if (!$lastAssignedId) {
-            // If no one has been assigned before, assign to the first counselor.
-            $nextCounselor = $counselors->first();
+            $nextUser = $users->first();
         } else {
-            // Find the index of the last assigned counselor in our list.
-            $lastIndex = $counselors->search(fn($counselor) => $counselor->id == $lastAssignedId);
+            $lastIndex = $users->search(fn($u) => $u->id == $lastAssignedId);
 
-            if ($lastIndex === false || $lastIndex >= ($counselors->count() - 1)) {
-                // If the last assignee is not found or was the last in the list, loop back to the first.
-                $nextCounselor = $counselors->first();
+            if ($lastIndex === false || $lastIndex >= ($users->count() - 1)) {
+                $nextUser = $users->first();
             } else {
-                // Assign to the next counselor in the list.
-                $nextCounselor = $counselors[$lastIndex + 1];
+                $nextUser = $users[$lastIndex + 1];
             }
         }
-        
-        // Update the settings table with the ID of the counselor we are about to assign.
+
+        // Update the settings table
         Setting::updateOrCreate(
-            ['key' => 'last_assigned_counselor_id'],
-            ['value' => $nextCounselor->id]
+            ['key' => $settingKey],
+            ['value' => $nextUser->id]
         );
 
-        return $nextCounselor->id;
+        return $nextUser->id;
+    }
+
+    /**
+     * Assigns the next available counselor.
+     */
+    public function getNextCounselorId(): ?int
+    {
+        return $this->getNextUserForRole(['counselor', 'Counselor'], 'last_assigned_counselor_id');
+    }
+
+    /**
+     * Assigns the next available college admin.
+     */
+    public function getNextCollegeAdminId(): ?int
+    {
+        return $this->getNextUserForRole(['college-admin', 'College-admin'], 'last_assigned_college_admin_id');
     }
 }

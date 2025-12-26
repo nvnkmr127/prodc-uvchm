@@ -205,10 +205,18 @@ class SettingController extends Controller
                         'label' => 'Academic Session Start Month',
                         'type' => 'select',
                         'options' => [
-                            '01' => 'January', '02' => 'February', '03' => 'March',
-                            '04' => 'April', '05' => 'May', '06' => 'June',
-                            '07' => 'July', '08' => 'August', '09' => 'September',
-                            '10' => 'October', '11' => 'November', '12' => 'December'
+                            '01' => 'January',
+                            '02' => 'February',
+                            '03' => 'March',
+                            '04' => 'April',
+                            '05' => 'May',
+                            '06' => 'June',
+                            '07' => 'July',
+                            '08' => 'August',
+                            '09' => 'September',
+                            '10' => 'October',
+                            '11' => 'November',
+                            '12' => 'December'
                         ],
                         'default' => '07'
                     ],
@@ -216,10 +224,18 @@ class SettingController extends Controller
                         'label' => 'Academic Session End Month',
                         'type' => 'select',
                         'options' => [
-                            '01' => 'January', '02' => 'February', '03' => 'March',
-                            '04' => 'April', '05' => 'May', '06' => 'June',
-                            '07' => 'July', '08' => 'August', '09' => 'September',
-                            '10' => 'October', '11' => 'November', '12' => 'December'
+                            '01' => 'January',
+                            '02' => 'February',
+                            '03' => 'March',
+                            '04' => 'April',
+                            '05' => 'May',
+                            '06' => 'June',
+                            '07' => 'July',
+                            '08' => 'August',
+                            '09' => 'September',
+                            '10' => 'October',
+                            '11' => 'November',
+                            '12' => 'December'
                         ],
                         'default' => '06'
                     ],
@@ -439,74 +455,74 @@ class SettingController extends Controller
                 'description' => 'Attendance tracking and requirements',
                 'fields' => [
                     'minimum_attendance_percentage' => [
-            'label' => 'Minimum Attendance Percentage',
-            'type' => 'number',
-            'help' => 'Minimum attendance required for exam eligibility (%)',
-            'default' => '75',
-            'min' => '0',
-            'max' => '100'
-        ],
-        'attendance_grace_period' => [
-            'label' => 'Late Arrival Grace Period',
-            'type' => 'number',
-            'help' => 'Grace period for late arrivals (minutes)',
-            'default' => '10',
-            'min' => '0',
-            'max' => '60'
-        ],
-        'attendance_auto_mark' => [
-            'label' => 'Auto-Mark Attendance',
-            'type' => 'toggle',
-            'help' => 'Automatically mark attendance based on schedules',
-            'default' => '0'
-        ],
-        'weekend_working' => [
-            'label' => 'Working Weekend Days',
-            'type' => 'multiselect',
-            'options' => [
-                'saturday' => 'Saturday',
-                'sunday' => 'Sunday'
-            ],
-            'default' => '["saturday"]',
-            'help' => 'Select working weekend days'
-        ],
-        'holiday_auto_absent' => [
-            'label' => 'Auto-Mark Absent on Holidays',
-            'type' => 'toggle',
-            'help' => 'Automatically mark students absent on declared holidays',
-            'default' => '0'
-        ],
-        'attendance_sms_alerts' => [
-            'label' => 'SMS Attendance Alerts',
-            'type' => 'toggle',
-            'help' => 'Send SMS alerts for attendance updates',
-            'default' => '0'
-        ],
-        'attendance_email_alerts' => [
-            'label' => 'Email Attendance Alerts',
-            'type' => 'toggle',
-            'help' => 'Send email alerts for low attendance',
-            'default' => '1'
-        ],
-        'attendance_report_frequency' => [
-            'label' => 'Report Generation Frequency',
-            'type' => 'select',
-            'options' => [
-                'daily' => 'Daily',
-                'weekly' => 'Weekly', 
-                'monthly' => 'Monthly'
-            ],
-            'default' => 'weekly',
-            'help' => 'How often to generate attendance reports'
-        ],
-        'attendance_low_threshold' => [
-            'label' => 'Low Attendance Threshold',
-            'type' => 'number',
-            'help' => 'Send alerts when attendance falls below this percentage',
-            'default' => '80',
-            'min' => '0',
-            'max' => '100'
-        ]
+                        'label' => 'Minimum Attendance Percentage',
+                        'type' => 'number',
+                        'help' => 'Minimum attendance required for exam eligibility (%)',
+                        'default' => '75',
+                        'min' => '0',
+                        'max' => '100'
+                    ],
+                    'attendance_grace_period' => [
+                        'label' => 'Late Arrival Grace Period',
+                        'type' => 'number',
+                        'help' => 'Grace period for late arrivals (minutes)',
+                        'default' => '10',
+                        'min' => '0',
+                        'max' => '60'
+                    ],
+                    'attendance_auto_mark' => [
+                        'label' => 'Auto-Mark Attendance',
+                        'type' => 'toggle',
+                        'help' => 'Automatically mark attendance based on schedules',
+                        'default' => '0'
+                    ],
+                    'weekend_working' => [
+                        'label' => 'Working Weekend Days',
+                        'type' => 'multiselect',
+                        'options' => [
+                            'saturday' => 'Saturday',
+                            'sunday' => 'Sunday'
+                        ],
+                        'default' => '["saturday"]',
+                        'help' => 'Select working weekend days'
+                    ],
+                    'holiday_auto_absent' => [
+                        'label' => 'Auto-Mark Absent on Holidays',
+                        'type' => 'toggle',
+                        'help' => 'Automatically mark students absent on declared holidays',
+                        'default' => '0'
+                    ],
+                    'attendance_sms_alerts' => [
+                        'label' => 'SMS Attendance Alerts',
+                        'type' => 'toggle',
+                        'help' => 'Send SMS alerts for attendance updates',
+                        'default' => '0'
+                    ],
+                    'attendance_email_alerts' => [
+                        'label' => 'Email Attendance Alerts',
+                        'type' => 'toggle',
+                        'help' => 'Send email alerts for low attendance',
+                        'default' => '1'
+                    ],
+                    'attendance_report_frequency' => [
+                        'label' => 'Report Generation Frequency',
+                        'type' => 'select',
+                        'options' => [
+                            'daily' => 'Daily',
+                            'weekly' => 'Weekly',
+                            'monthly' => 'Monthly'
+                        ],
+                        'default' => 'weekly',
+                        'help' => 'How often to generate attendance reports'
+                    ],
+                    'attendance_low_threshold' => [
+                        'label' => 'Low Attendance Threshold',
+                        'type' => 'number',
+                        'help' => 'Send alerts when attendance falls below this percentage',
+                        'default' => '80',
+                        'min' => '0',
+                        'max' => '100'
+                    ]
                 ]
             ],
             'sms' => [
@@ -627,8 +643,8 @@ class SettingController extends Controller
                     ],
                 ]
             ],
-            
-          
+
+
             'api' => [
                 'title' => 'API & Integration',
                 'icon' => 'fas fa-plug',
@@ -822,7 +838,7 @@ class SettingController extends Controller
         return view('admin.settings.index', compact('settingGroups', 'settings', 'activeTab'));
     }
 
-/**
+    /**
      * Update settings - FIXED VERSION
      */
     public function update(Request $request)
@@ -830,7 +846,7 @@ class SettingController extends Controller
         try {
             $settingGroups = $this->getSettingGroups();
             $activeTab = $request->get('active_tab', 'general');
-            
+
             if (!isset($settingGroups[$activeTab])) {
                 return back()->with('error', 'Invalid settings group.');
             }
@@ -841,16 +857,16 @@ class SettingController extends Controller
             foreach ($currentGroup['fields'] as $key => $field) {
                 try {
                     $value = $request->input($key);
-                    
+
                     // FIXED: Better password field handling
                     if ($field['type'] === 'password') {
                         // Get current setting to check if it exists
                         $currentSetting = Setting::where('key', $key)->first();
-                        
+
                         // Check if the submitted value is the placeholder or empty
                         $isPlaceholder = ($value === '***ENCRYPTED***');
                         $isEmpty = empty($value);
-                        
+
                         if ($isPlaceholder) {
                             // Skip update if placeholder value - keep current password
                             \Log::info("Skipping password field update for {$key} - placeholder value detected");
@@ -885,8 +901,13 @@ class SettingController extends Controller
                             'type' => $field['type'],
                             'description' => $field['help'] ?? $field['label'] ?? '',
                             'is_public' => in_array($key, [
-                                'app_name', 'app_tagline', 'college_name', 'college_logo',
-                                'college_short_name', 'currency_symbol', 'currency_code'
+                                'app_name',
+                                'app_tagline',
+                                'college_name',
+                                'college_logo',
+                                'college_short_name',
+                                'currency_symbol',
+                                'currency_code'
                             ]),
                             'is_encrypted' => $field['type'] === 'password' && !empty($value),
                         ]
@@ -950,14 +971,16 @@ class SettingController extends Controller
                 'app_version' => config('app.version', '1.0.0'),
                 'export_version' => '2.0',
                 'settings' => $settings->mapWithKeys(function ($setting) {
-                    return [$setting->key => [
-                        'value' => $setting->is_encrypted ? '[ENCRYPTED]' : $setting->value,
-                        'group' => $setting->group,
-                        'type' => $setting->type,
-                        'description' => $setting->description,
-                        'is_public' => $setting->is_public,
-                        'is_encrypted' => $setting->is_encrypted,
-                    ]];
+                    return [
+                        $setting->key => [
+                            'value' => $setting->is_encrypted ? '[ENCRYPTED]' : $setting->value,
+                            'group' => $setting->group,
+                            'type' => $setting->type,
+                            'description' => $setting->description,
+                            'is_public' => $setting->is_public,
+                            'is_encrypted' => $setting->is_encrypted,
+                        ]
+                    ];
                 })->toArray()
             ];
 
@@ -976,935 +999,831 @@ class SettingController extends Controller
     /**
      * Import settings from JSON
      */
-public function import(Request $request)
-{
-    $request->validate([
-        'settings_file' => 'required|file|mimes:json|max:2048',
-        'overwrite_existing' => 'nullable|boolean'
-    ]);
-
-    try {
-        $file = $request->file('settings_file');
-        $content = file_get_contents($file->getPathname());
-        $settings = json_decode($content, true);
-
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            return back()->with('error', 'Invalid JSON file format.');
-        }
-
-        $overwriteExisting = $request->boolean('overwrite_existing');
-        $importedCount = 0;
-        $skippedCount = 0;
-
-        foreach ($settings as $key => $value) {
-            // Check if setting already exists
-            $existingSetting = \App\Models\Setting::where('key', $key)->first();
-            
-            if ($existingSetting && !$overwriteExisting) {
-                $skippedCount++;
-                continue;
-            }
-
-            // Create or update setting
-            \App\Models\Setting::updateOrCreate(
-                ['key' => $key],
-                ['value' => $value]
-            );
-            
-            $importedCount++;
-        }
-
-        $message = "Settings imported successfully. {$importedCount} settings imported";
-        if ($skippedCount > 0) {
-            $message .= ", {$skippedCount} settings skipped (already exist)";
-        }
-
-        return back()->with('success', $message);
-
-    } catch (\Exception $e) {
-        return \App\Helpers\ErrorHandler::handleWebException(
-            $e,
-            'Settings import failed',
-            'Settings import failed. Please check the file format and try again.'
-        );
-    }
-}
-
-/**
- * Create backup - FIXED VERSION
- */
-public function createBackup()
-{
-    try {
-        $backupName = 'settings_backup_' . date('Y-m-d_H-i-s') . '.json';
-        $backupPath = storage_path('app/backups');
-        
-        // Create backups directory if it doesn't exist
-        if (!file_exists($backupPath)) {
-            mkdir($backupPath, 0755, true);
-        }
-        
-        // Get all settings
-        $settings = Setting::all()->map(function ($setting) {
-            return [
-                'key' => $setting->key,
-                'value' => $setting->value,
-                'group' => $setting->group,
-                'type' => $setting->type,
-                'description' => $setting->description,
-                'is_public' => $setting->is_public,
-            ];
-        });
-        
-        $backupData = [
-            'created_at' => now()->toISOString(),
-            'app_version' => config('app.version', '1.0.0'),
-            'laravel_version' => app()->version(),
-            'settings_count' => $settings->count(),
-            'settings' => $settings
-        ];
-        
-        $filePath = $backupPath . '/' . $backupName;
-        file_put_contents($filePath, json_encode($backupData, JSON_PRETTY_PRINT));
-        
-        return response()->json([
-            'success' => true,
-            'message' => 'Settings backup created successfully!',
-            'filename' => $backupName,
-            'path' => $filePath,
-            'settings_count' => $settings->count(),
-            'file_size' => $this->formatBytes(filesize($filePath))
+    public function import(Request $request)
+    {
+        $request->validate([
+            'settings_file' => 'required|file|mimes:json|max:2048',
+            'overwrite_existing' => 'nullable|boolean'
         ]);
 
-    } catch (\Exception $e) {
-        Log::error('Backup creation failed: ' . $e->getMessage());
-        return response()->json([
-            'success' => false,
-            'message' => 'Failed to create backup: ' . $e->getMessage()
-        ], 500);
+        try {
+            $file = $request->file('settings_file');
+            $content = file_get_contents($file->getPathname());
+            $settings = json_decode($content, true);
+
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                return back()->with('error', 'Invalid JSON file format.');
+            }
+
+            $overwriteExisting = $request->boolean('overwrite_existing');
+            $importedCount = 0;
+            $skippedCount = 0;
+
+            foreach ($settings as $key => $value) {
+                // Check if setting already exists
+                $existingSetting = \App\Models\Setting::where('key', $key)->first();
+
+                if ($existingSetting && !$overwriteExisting) {
+                    $skippedCount++;
+                    continue;
+                }
+
+                // Create or update setting
+                \App\Models\Setting::updateOrCreate(
+                    ['key' => $key],
+                    ['value' => $value]
+                );
+
+                $importedCount++;
+            }
+
+            $message = "Settings imported successfully. {$importedCount} settings imported";
+            if ($skippedCount > 0) {
+                $message .= ", {$skippedCount} settings skipped (already exist)";
+            }
+
+            return back()->with('success', $message);
+
+        } catch (\Exception $e) {
+            return \App\Helpers\ErrorHandler::handleWebException(
+                $e,
+                'Settings import failed',
+                'Settings import failed. Please check the file format and try again.'
+            );
+        }
     }
-}
+
+    /**
+     * Create backup - FIXED VERSION
+     */
+    public function createBackup()
+    {
+        try {
+            $backupName = 'settings_backup_' . date('Y-m-d_H-i-s') . '.json';
+            $backupPath = storage_path('app/backups');
+
+            // Create backups directory if it doesn't exist
+            if (!file_exists($backupPath)) {
+                mkdir($backupPath, 0755, true);
+            }
+
+            // Get all settings
+            $settings = Setting::all()->map(function ($setting) {
+                return [
+                    'key' => $setting->key,
+                    'value' => $setting->value,
+                    'group' => $setting->group,
+                    'type' => $setting->type,
+                    'description' => $setting->description,
+                    'is_public' => $setting->is_public,
+                ];
+            });
+
+            $backupData = [
+                'created_at' => now()->toISOString(),
+                'app_version' => config('app.version', '1.0.0'),
+                'laravel_version' => app()->version(),
+                'settings_count' => $settings->count(),
+                'settings' => $settings
+            ];
+
+            $filePath = $backupPath . '/' . $backupName;
+            file_put_contents($filePath, json_encode($backupData, JSON_PRETTY_PRINT));
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Settings backup created successfully!',
+                'filename' => $backupName,
+                'path' => $filePath,
+                'settings_count' => $settings->count(),
+                'file_size' => $this->formatBytes(filesize($filePath))
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Backup creation failed: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create backup: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 
 
 
-/**
- * Optimize database - FIXED VERSION
- */
-public function optimizeDatabase()
-{
-    try {
-        $results = [];
-        
-        // Remove duplicate settings
-        $duplicates = DB::select("
+    /**
+     * Optimize database - FIXED VERSION
+     */
+    public function optimizeDatabase()
+    {
+        try {
+            $results = [];
+
+            // Remove duplicate settings
+            $duplicates = DB::select("
             SELECT key, COUNT(*) as count 
             FROM settings 
             GROUP BY key 
             HAVING COUNT(*) > 1
         ");
-        
-        $duplicatesRemoved = 0;
-        foreach ($duplicates as $duplicate) {
-            // Keep the most recent one, delete the rest
-            $settingsToDelete = Setting::where('key', $duplicate->key)
-                ->orderBy('updated_at', 'desc')
-                ->skip(1)
-                ->take($duplicate->count - 1)
-                ->get();
-            
-            foreach ($settingsToDelete as $setting) {
-                $setting->delete();
-                $duplicatesRemoved++;
-            }
-        }
-        
-        // Fix settings without groups
-        $ungroupedFixed = Setting::whereNull('group')
-            ->orWhere('group', '')
-            ->update(['group' => 'general']);
-        
-        // Fix settings without types
-        $untypedFixed = Setting::whereNull('type')
-            ->orWhere('type', '')
-            ->update(['type' => 'text']);
-        
-        // Optimize database tables (MySQL specific)
-        try {
-            if (config('database.default') === 'mysql') {
-                DB::statement('OPTIMIZE TABLE settings');
-                $results[] = 'Settings table optimized';
-            }
-        } catch (\Exception $e) {
-            $results[] = 'Table optimization skipped: ' . $e->getMessage();
-        }
-        
-        // Clear settings cache
-        if (function_exists('clear_settings_cache')) {
-            clear_settings_cache();
-        }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Database optimization completed!',
-            'details' => [
-                'duplicates_removed' => $duplicatesRemoved,
-                'ungrouped_fixed' => $ungroupedFixed,
-                'untyped_fixed' => $untypedFixed,
-                'operations' => $results
-            ]
-        ]);
+            $duplicatesRemoved = 0;
+            foreach ($duplicates as $duplicate) {
+                // Keep the most recent one, delete the rest
+                $settingsToDelete = Setting::where('key', $duplicate->key)
+                    ->orderBy('updated_at', 'desc')
+                    ->skip(1)
+                    ->take($duplicate->count - 1)
+                    ->get();
 
-    } catch (\Exception $e) {
-        Log::error('Database optimization failed: ' . $e->getMessage());
-        return response()->json([
-            'success' => false,
-            'message' => 'Database optimization failed: ' . $e->getMessage()
-        ], 500);
-    }
-}
-
-
-
-/**
- * Test SMS configuration
- */
-public function testSMS(Request $request)
-{
-    $request->validate([
-        'test_phone' => 'required|string'
-    ]);
-
-    try {
-        // This is a placeholder - implement according to your SMS provider
-        $phone = $request->test_phone;
-        $message = 'Test SMS from ' . setting('college_name', 'College Management System');
-        
-        // Add your SMS sending logic here
-        // Example: SMSService::send($phone, $message);
-        
-        return response()->json([
-            'success' => true,
-            'message' => 'Test SMS would be sent to ' . $phone . ' (SMS service not configured)'
-        ]);
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'SMS test failed: ' . $e->getMessage()
-        ]);
-    }
-}
-
-/**
- * Reset all settings to defaults
- */
-public function resetAllSettings(Request $request)
-{
-    if (!$request->has('confirm') || $request->confirm !== 'yes') {
-        return response()->json([
-            'success' => false,
-            'message' => 'Please confirm by sending confirm=yes parameter'
-        ]);
-    }
-
-    try {
-        DB::beginTransaction();
-        
-        // Clear all existing settings
-        Setting::truncate();
-        
-        // Recreate default settings
-        $settingGroups = $this->getSettingGroups();
-        $createdCount = 0;
-        
-        foreach ($settingGroups as $groupKey => $group) {
-            foreach ($group['fields'] as $key => $field) {
-                if (isset($field['default'])) {
-                    Setting::create([
-                        'key' => $key,
-                        'value' => $field['default'],
-                        'group' => $groupKey,
-                        'type' => $field['type'],
-                        'description' => $field['help'] ?? $field['label'] ?? '',
-                        'is_public' => in_array($key, ['app_name', 'college_name']),
-                        'is_encrypted' => false
-                    ]);
-                    $createdCount++;
+                foreach ($settingsToDelete as $setting) {
+                    $setting->delete();
+                    $duplicatesRemoved++;
                 }
             }
-        }
-        
-        DB::commit();
-        $this->clearSettingsCache();
-        
-        return response()->json([
-            'success' => true,
-            'message' => "All settings reset to defaults. {$createdCount} settings recreated."
-        ]);
-    } catch (\Exception $e) {
-        DB::rollback();
-        return response()->json([
-            'success' => false,
-            'message' => 'Failed to reset settings: ' . $e->getMessage()
-        ]);
-    }
-}
 
-  /**
- * Test email configuration
- */
-public function testEmail(Request $request)
-{
-    $request->validate([
-        'test_email' => 'required|email'
-    ]);
+            // Fix settings without groups
+            $ungroupedFixed = Setting::whereNull('group')
+                ->orWhere('group', '')
+                ->update(['group' => 'general']);
 
-    try {
-        $testEmail = $request->input('test_email');
-        
-        // Get email settings
-        $emailSettings = \App\Models\Setting::whereIn('key', [
-            'mail_driver', 'mail_host', 'mail_port', 'mail_username', 
-            'mail_password', 'mail_encryption', 'mail_from_address', 'mail_from_name'
-        ])->pluck('value', 'key');
+            // Fix settings without types
+            $untypedFixed = Setting::whereNull('type')
+                ->orWhere('type', '')
+                ->update(['type' => 'text']);
 
-        // Configure mail settings dynamically
-        config([
-            'mail.default' => $emailSettings['mail_driver'] ?? 'smtp',
-            'mail.mailers.smtp.host' => $emailSettings['mail_host'] ?? 'localhost',
-            'mail.mailers.smtp.port' => $emailSettings['mail_port'] ?? 587,
-            'mail.mailers.smtp.username' => $emailSettings['mail_username'] ?? '',
-            'mail.mailers.smtp.password' => $emailSettings['mail_password'] ?? '',
-            'mail.mailers.smtp.encryption' => $emailSettings['mail_encryption'] ?? 'tls',
-            'mail.from.address' => $emailSettings['mail_from_address'] ?? 'noreply@college.edu',
-            'mail.from.name' => $emailSettings['mail_from_name'] ?? 'College Management System',
-        ]);
+            // Optimize database tables (MySQL specific)
+            try {
+                if (config('database.default') === 'mysql') {
+                    DB::statement('OPTIMIZE TABLE settings');
+                    $results[] = 'Settings table optimized';
+                }
+            } catch (\Exception $e) {
+                $results[] = 'Table optimization skipped: ' . $e->getMessage();
+            }
 
-        // Send test email
-        Mail::raw('This is a test email from your College Management System. Email configuration is working correctly!', function ($message) use ($testEmail, $emailSettings) {
-            $message->to($testEmail)
-                    ->subject('Test Email - College Management System')
-                    ->from($emailSettings['mail_from_address'] ?? 'noreply@college.edu', 
-                           $emailSettings['mail_from_name'] ?? 'College Management System');
-        });
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Test email sent successfully to ' . $testEmail
-        ]);
-
-    } catch (\Exception $e) {
-        \Log::error('Test email failed: ' . $e->getMessage());
-        
-        return response()->json([
-            'success' => false,
-            'message' => 'Failed to send test email: ' . $e->getMessage()
-        ], 422);
-    }
-}
-
-/**
- * Clear application cache - FIXED VERSION
- */
-public function clearCache()
-{
-    try {
-        $results = [];
-        
-        // Clear various caches with error handling
-        try {
-            Artisan::call('cache:clear');
-            $results[] = 'Application cache cleared';
-        } catch (\Exception $e) {
-            $results[] = 'Application cache: ' . $e->getMessage();
-        }
-        
-        try {
-            Artisan::call('config:clear');
-            $results[] = 'Configuration cache cleared';
-        } catch (\Exception $e) {
-            $results[] = 'Configuration cache: ' . $e->getMessage();
-        }
-        
-        try {
-            Artisan::call('route:clear');
-            $results[] = 'Route cache cleared';
-        } catch (\Exception $e) {
-            $results[] = 'Route cache: ' . $e->getMessage();
-        }
-        
-        try {
-            Artisan::call('view:clear');
-            $results[] = 'View cache cleared';
-        } catch (\Exception $e) {
-            $results[] = 'View cache: ' . $e->getMessage();
-        }
-        
-        // Clear settings cache using helper function
-        try {
+            // Clear settings cache
             if (function_exists('clear_settings_cache')) {
                 clear_settings_cache();
-                $results[] = 'Settings cache cleared';
             }
-        } catch (\Exception $e) {
-            $results[] = 'Settings cache: ' . $e->getMessage();
-        }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Cache clearing completed!',
-            'details' => $results
-        ]);
-
-    } catch (\Exception $e) {
-        Log::error('Cache clear failed: ' . $e->getMessage());
-        return response()->json([
-            'success' => false,
-            'message' => 'Failed to clear cache: ' . $e->getMessage()
-        ], 500);
-    }
-}
-
-
-
-/**
- * Seed default settings - FIXED VERSION
- */
-public function seedDefaults()
-{
-    try {
-        $defaults = $this->getAllDefaultSettings();
-        $created = 0;
-        $updated = 0;
-        
-        foreach ($defaults as $group => $settings) {
-            foreach ($settings as $key => $value) {
-                $setting = Setting::where('key', $key)->first();
-                
-                if (!$setting) {
-                    Setting::create([
-                        'key' => $key,
-                        'value' => $value,
-                        'group' => $group,
-                        'type' => $this->detectSettingType($value),
-                        'description' => $this->getSettingDescription($key),
-                        'is_public' => $this->isPublicSetting($key),
-                    ]);
-                    $created++;
-                } else if (empty($setting->value)) {
-                    $setting->update(['value' => $value]);
-                    $updated++;
-                }
-            }
-        }
-
-        // Clear settings cache
-        if (function_exists('clear_settings_cache')) {
-            clear_settings_cache();
-        }
-
-        return response()->json([
-            'success' => true,
-            'message' => "Default settings seeded successfully! Created: {$created}, Updated: {$updated}",
-            'details' => [
-                'created' => $created,
-                'updated' => $updated,
-                'total_defaults' => count($defaults, COUNT_RECURSIVE) - count($defaults)
-            ]
-        ]);
-
-    } catch (\Exception $e) {
-        Log::error('Seed defaults failed: ' . $e->getMessage());
-        return response()->json([
-            'success' => false,
-            'message' => 'Failed to seed defaults: ' . $e->getMessage()
-        ], 500);
-    }
-}
-
-
-/**
- * Get setting description
- */
-private function getSettingDescription($key)
-{
-    $descriptions = [
-        'app_name' => 'Application name displayed throughout the system',
-        'college_name' => 'Official name of the college',
-        'college_code' => 'Unique identifier code for the college',
-        'timezone' => 'Default timezone for the application',
-        'academic_year_start' => 'Start date (MM-DD) of academic year',
-        'semester_duration' => 'Duration of each semester in months',
-        'passing_percentage' => 'Minimum percentage required to pass',
-        'mail_from_name' => 'Name shown in outgoing emails',
-        'session_lifetime' => 'Session timeout in minutes',
-        'login_attempts' => 'Maximum failed login attempts before lockout',
-    ];
-    
-    return $descriptions[$key] ?? 'System setting';
-}
-
-/**
- * Check if setting should be public
- */
-private function isPublicSetting($key)
-{
-    $publicSettings = [
-        'app_name', 'college_name', 'college_address', 'college_phone',
-        'college_email', 'college_website', 'timezone', 'date_format',
-        'time_format', 'currency', 'currency_symbol', 'language'
-    ];
-    
-    return in_array($key, $publicSettings);
-}
-
-/**
- * Detect setting type from value
- */
-private function detectSettingType($value)
-{
-    if (is_bool($value) || $value === '1' || $value === '0') {
-        return 'boolean';
-    }
-    if (is_numeric($value)) {
-        return 'number';
-    }
-    if (filter_var($value, FILTER_VALIDATE_EMAIL)) {
-        return 'email';
-    }
-    if (filter_var($value, FILTER_VALIDATE_URL)) {
-        return 'url';
-    }
-    if (strlen($value) > 100) {
-        return 'textarea';
-    }
-    return 'text';
-}
-
-
-/**
- * Get all default settings
- */
-private function getAllDefaultSettings()
-{
-    return [
-        'general' => [
-            'app_name' => 'College Management System',
-            'college_name' => 'Your College Name',
-            'college_code' => 'COL001',
-            'college_address' => '',
-            'college_phone' => '',
-            'college_email' => 'info@college.edu',
-            'college_website' => '',
-            'timezone' => 'Asia/Kolkata',
-            'date_format' => 'Y-m-d',
-            'time_format' => 'H:i',
-            'currency' => 'INR',
-            'currency_symbol' => '₹',
-            'language' => 'en',
-        ],
-        'academic' => [
-            'academic_year_start' => '07-01',
-            'academic_year_end' => '06-30',
-            'semester_duration' => '6',
-            'max_subjects_per_semester' => '8',
-            'passing_percentage' => '40',
-            'grading_system' => 'percentage',
-            'attendance_required' => '75',
-        ],
-        'email' => [
-            'mail_driver' => 'smtp',
-            'mail_host' => 'smtp.gmail.com',
-            'mail_port' => '587',
-            'mail_encryption' => 'tls',
-            'mail_from_name' => 'College System',
-            'mail_from_address' => 'noreply@college.edu',
-        ],
-        'security' => [
-            'session_lifetime' => '120',
-            'password_reset_expire' => '60',
-            'login_attempts' => '5',
-            'lockout_duration' => '15',
-            'force_password_change' => '90',
-        ],
-        'features' => [
-            'enable_online_admission' => '1',
-            'enable_fee_payment' => '1',
-            'enable_sms_notifications' => '0',
-            'enable_email_notifications' => '1',
-            'enable_student_portal' => '1',
-            'enable_parent_portal' => '1',
-        ]
-    ];
-}
-
-
-/**
- * Reset settings group to defaults
- */
-public function resetDefaults(Request $request)
-{
-    $request->validate([
-        'group' => 'required|string'
-    ]);
-
-    try {
-        $group = $request->input('group');
-        
-        // Define default settings for each group
-        $defaults = [
-            'general' => [
-                'app_name' => 'College Management System',
-                'app_description' => 'Comprehensive college management solution',
-                'timezone' => 'Asia/Kolkata',
-                'date_format' => 'Y-m-d',
-                'time_format' => 'H:i:s',
-            ],
-            'email' => [
-                'mail_driver' => 'smtp',
-                'mail_host' => 'localhost',
-                'mail_port' => '587',
-                'mail_encryption' => 'tls',
-                'mail_from_name' => 'College Management System',
-                'mail_from_address' => 'noreply@college.edu',
-            ],
-            'academic' => [
-                'academic_year_start_month' => '7',
-                'default_session_duration' => '60',
-                'attendance_marking_window' => '15',
-            ],
-            'financial' => [
-                'currency_symbol' => '₹',
-                'currency_code' => 'INR',
-                'late_fee_percentage' => '5',
-                'payment_grace_period' => '7',
-            ],
-            'notification' => [
-                'enable_email_notifications' => '1',
-                'enable_sms_notifications' => '0',
-                'notification_sender_name' => 'College Management System',
-            ]
-        ];
-
-        if (!isset($defaults[$group])) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Invalid settings group specified'
-            ], 422);
-        }
-
-        // Reset settings to defaults
-        foreach ($defaults[$group] as $key => $value) {
-            \App\Models\Setting::updateOrCreate(
-                ['key' => $key],
-                ['value' => $value, 'group' => $group]
-            );
-        }
-
-        return response()->json([
-            'success' => true,
-            'message' => ucfirst($group) . ' settings have been reset to defaults successfully!'
-        ]);
-
-    } catch (\Exception $e) {
-        \Log::error('Reset defaults failed: ' . $e->getMessage());
-        
-        return response()->json([
-            'success' => false,
-            'message' => 'Failed to reset settings: ' . $e->getMessage()
-        ], 500);
-    }
-}
-
-/**
- * Toggle maintenance mode
- */
-public function toggleMaintenance()
-{
-    try {
-        if (app()->isDownForMaintenance()) {
-            Artisan::call('up');
-            $mode = false;
-            $message = 'Maintenance mode disabled';
-        } else {
-            Artisan::call('down', ['--secret' => 'admin-access']);
-            $mode = true;
-            $message = 'Maintenance mode enabled';
-        }
-
-        return response()->json([
-            'success' => true,
-            'mode' => $mode,
-            'message' => $message
-        ]);
-
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Failed to toggle maintenance mode: ' . $e->getMessage()
-        ], 500);
-    }
-}
-
-/**
- * Complete system information method that matches the view
- */
-public function systemInfo(Request $request)
-{
-    try {
-        // Get settings safely
-        $settings = Setting::pluck('value', 'key')->toArray();
-        
-        $systemInfo = [
-            'application' => [
-                'name' => $settings['app_name'] ?? $settings['college_name'] ?? 'College Management System',
-                'version' => config('app.version', '1.0.0'),
-                'environment' => config('app.env'),
-                'debug_mode' => config('app.debug') ? 'Enabled' : 'Disabled',
-                'timezone' => $settings['timezone'] ?? config('app.timezone'),
-                'url' => config('app.url'),
-                'maintenance_mode' => $settings['maintenance_mode'] ?? '0',
-            ],
-            'server' => [
-                'php_version' => PHP_VERSION,
-                'laravel_version' => app()->version(),
-                'server_software' => $_SERVER['SERVER_SOFTWARE'] ?? 'Unknown',
-                'operating_system' => PHP_OS,
-                'server_ip' => $_SERVER['SERVER_ADDR'] ?? $_SERVER['LOCAL_ADDR'] ?? 'Unknown',
-                'memory_limit' => ini_get('memory_limit'),
-                'memory_usage' => memory_get_usage(true),
-                'max_execution_time' => ini_get('max_execution_time'),
-                'upload_max_filesize' => ini_get('upload_max_filesize'),
-                'post_max_size' => ini_get('post_max_size'),
-                'disk_space' => $this->getDiskUsage(),
-            ],
-            'database' => [
-                'connection' => config('database.default'),
-                'host' => config('database.connections.' . config('database.default') . '.host'),
-                'database' => config('database.connections.' . config('database.default') . '.database'),
-                'driver' => config('database.connections.' . config('database.default') . '.driver'),
-                'total_tables' => $this->getDatabaseTableCount(),
-                'total_records' => $this->getDatabaseRecordCount(),
-            ],
-            'cache' => [
-                'default_driver' => config('cache.default'),
-                'prefix' => config('cache.prefix'),
-                'status' => $this->checkCache()['status'] ? 'Working' : 'Failed',
-            ],
-            'queue' => [
-                'default_connection' => config('queue.default'),
-                'status' => 'Configured',
-            ],
-            'mail' => [
-                'default_mailer' => config('mail.default'),
-                'from_address' => config('mail.from.address'),
-                'from_name' => config('mail.from.name'),
-                'status' => $this->checkEmailConfiguration()['status'] ? 'Configured' : 'Not Configured',
-            ],
-            'college' => [
-                'name' => $settings['college_name'] ?? 'Not Set',
-                'short_name' => $settings['college_short_name'] ?? 'Not Set',
-                'email' => $settings['college_email'] ?? 'Not Set',
-                'phone' => $settings['college_phone'] ?? 'Not Set',
-                'address' => $settings['college_address'] ?? 'Not Set',
-            ],
-            'academic' => [
-                'current_year' => $settings['current_academic_year'] ?? date('Y') . '-' . (date('Y') + 1),
-                'enrollment_prefix' => $settings['enrollment_prefix'] ?? 'STD',
-                'semester_system' => $settings['semester_system'] ?? '1',
-            ],
-            'financial' => [
-                'currency_symbol' => $settings['currency_symbol'] ?? '₹',
-                'currency_code' => $settings['currency_code'] ?? 'INR',
-                'tax_rate' => $settings['tax_rate'] ?? '0',
-                'late_fee_percentage' => $settings['late_fee_percentage'] ?? '5',
-            ],
-            'extensions' => $this->getRequiredExtensions(),
-            'statistics' => [
-                'total_settings' => count($settings),
-                'last_backup' => $this->getLastBackupInfo(),
-                'uptime' => $this->getSystemUptime(),
-            ]
-        ];
-
-        if ($request->wantsJson()) {
             return response()->json([
                 'success' => true,
-                'data' => $systemInfo
+                'message' => 'Database optimization completed!',
+                'details' => [
+                    'duplicates_removed' => $duplicatesRemoved,
+                    'ungrouped_fixed' => $ungroupedFixed,
+                    'untyped_fixed' => $untypedFixed,
+                    'operations' => $results
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Database optimization failed: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Database optimization failed: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+
+
+    /**
+     * Test SMS configuration
+     */
+    public function testSMS(Request $request)
+    {
+        $request->validate([
+            'test_phone' => 'required|string'
+        ]);
+
+        try {
+            // This is a placeholder - implement according to your SMS provider
+            $phone = $request->test_phone;
+            $message = 'Test SMS from ' . setting('college_name', 'College Management System');
+
+            // Add your SMS sending logic here
+            // Example: SMSService::send($phone, $message);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Test SMS would be sent to ' . $phone . ' (SMS service not configured)'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'SMS test failed: ' . $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Reset all settings to defaults
+     */
+    public function resetAllSettings(Request $request)
+    {
+        if (!$request->has('confirm') || $request->confirm !== 'yes') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Please confirm by sending confirm=yes parameter'
             ]);
         }
 
-        return view('admin.settings.system-info', compact('systemInfo'));
-        
-    } catch (\Exception $e) {
-        \Log::error('System info error: ' . $e->getMessage());
-        
-        // Return safe fallback data
-        $systemInfo = [
-            'application' => ['name' => 'College Management System', 'version' => '1.0.0'],
-            'server' => ['php_version' => PHP_VERSION],
-            'database' => ['driver' => 'mysql'],
-            'cache' => ['status' => 'Unknown'],
-            'queue' => ['status' => 'Unknown'],
-            'mail' => ['status' => 'Unknown'],
-            'college' => ['name' => 'Not Set'],
-            'academic' => ['current_year' => date('Y') . '-' . (date('Y') + 1)],
-            'financial' => ['currency_symbol' => '₹'],
-            'extensions' => [],
-            'statistics' => ['total_settings' => 0],
-            'error' => $e->getMessage()
-        ];
+        try {
+            DB::beginTransaction();
 
-        return view('admin.settings.system-info', compact('systemInfo'));
+            // Clear all existing settings
+            Setting::truncate();
+
+            // Recreate default settings
+            $settingGroups = $this->getSettingGroups();
+            $createdCount = 0;
+
+            foreach ($settingGroups as $groupKey => $group) {
+                foreach ($group['fields'] as $key => $field) {
+                    if (isset($field['default'])) {
+                        Setting::create([
+                            'key' => $key,
+                            'value' => $field['default'],
+                            'group' => $groupKey,
+                            'type' => $field['type'],
+                            'description' => $field['help'] ?? $field['label'] ?? '',
+                            'is_public' => in_array($key, ['app_name', 'college_name']),
+                            'is_encrypted' => false
+                        ]);
+                        $createdCount++;
+                    }
+                }
+            }
+
+            DB::commit();
+            $this->clearSettingsCache();
+
+            return response()->json([
+                'success' => true,
+                'message' => "All settings reset to defaults. {$createdCount} settings recreated."
+            ]);
+        } catch (\Exception $e) {
+            DB::rollback();
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to reset settings: ' . $e->getMessage()
+            ]);
+        }
     }
-}
-/**
- * Get database table count
- */
-private function getDatabaseTableCount()
-{
-    try {
-        $database = config('database.connections.' . config('database.default') . '.database');
-        $tables = DB::select("SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = ?", [$database]);
-        return $tables[0]->count ?? 0;
-    } catch (\Exception $e) {
-        return 'Unknown';
+
+    /**
+     * Test email configuration
+     */
+    public function testEmail(Request $request)
+    {
+        $request->validate([
+            'test_email' => 'required|email'
+        ]);
+
+        try {
+            $testEmail = $request->input('test_email');
+
+            // Get email settings
+            $emailSettings = \App\Models\Setting::whereIn('key', [
+                'mail_driver',
+                'mail_host',
+                'mail_port',
+                'mail_username',
+                'mail_password',
+                'mail_encryption',
+                'mail_from_address',
+                'mail_from_name'
+            ])->pluck('value', 'key');
+
+            // Configure mail settings dynamically
+            config([
+                'mail.default' => $emailSettings['mail_driver'] ?? 'smtp',
+                'mail.mailers.smtp.host' => $emailSettings['mail_host'] ?? 'localhost',
+                'mail.mailers.smtp.port' => $emailSettings['mail_port'] ?? 587,
+                'mail.mailers.smtp.username' => $emailSettings['mail_username'] ?? '',
+                'mail.mailers.smtp.password' => $emailSettings['mail_password'] ?? '',
+                'mail.mailers.smtp.encryption' => $emailSettings['mail_encryption'] ?? 'tls',
+                'mail.from.address' => $emailSettings['mail_from_address'] ?? 'noreply@college.edu',
+                'mail.from.name' => $emailSettings['mail_from_name'] ?? 'College Management System',
+            ]);
+
+            // Send test email
+            Mail::raw('This is a test email from your College Management System. Email configuration is working correctly!', function ($message) use ($testEmail, $emailSettings) {
+                $message->to($testEmail)
+                    ->subject('Test Email - College Management System')
+                    ->from(
+                        $emailSettings['mail_from_address'] ?? 'noreply@college.edu',
+                        $emailSettings['mail_from_name'] ?? 'College Management System'
+                    );
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Test email sent successfully to ' . $testEmail
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Test email failed: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to send test email: ' . $e->getMessage()
+            ], 422);
+        }
     }
-}
-/**
- * Get total database records
- */
-private function getDatabaseRecordCount()
-{
-    try {
-        $database = config('database.connections.' . config('database.default') . '.database');
-        $result = DB::select("
+
+    /**
+     * Clear application cache - FIXED VERSION
+     */
+    public function clearCache()
+    {
+        try {
+            $results = [];
+
+            // Clear various caches with error handling
+            try {
+                Artisan::call('cache:clear');
+                $results[] = 'Application cache cleared';
+            } catch (\Exception $e) {
+                $results[] = 'Application cache: ' . $e->getMessage();
+            }
+
+            try {
+                Artisan::call('config:clear');
+                $results[] = 'Configuration cache cleared';
+            } catch (\Exception $e) {
+                $results[] = 'Configuration cache: ' . $e->getMessage();
+            }
+
+            try {
+                Artisan::call('route:clear');
+                $results[] = 'Route cache cleared';
+            } catch (\Exception $e) {
+                $results[] = 'Route cache: ' . $e->getMessage();
+            }
+
+            try {
+                Artisan::call('view:clear');
+                $results[] = 'View cache cleared';
+            } catch (\Exception $e) {
+                $results[] = 'View cache: ' . $e->getMessage();
+            }
+
+            // Clear settings cache using helper function
+            try {
+                if (function_exists('clear_settings_cache')) {
+                    clear_settings_cache();
+                    $results[] = 'Settings cache cleared';
+                }
+            } catch (\Exception $e) {
+                $results[] = 'Settings cache: ' . $e->getMessage();
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Cache clearing completed!',
+                'details' => $results
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Cache clear failed: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to clear cache: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+
+
+    /**
+     * Seed default settings - FIXED VERSION
+     */
+    /**
+     * Seed default settings - FIXED VERSION
+     */
+    public function seedDefaults()
+    {
+        try {
+            $settingGroups = $this->getSettingGroups();
+            $created = 0;
+            $updated = 0;
+
+            foreach ($settingGroups as $groupKey => $groupData) {
+                foreach ($groupData['fields'] as $key => $field) {
+                    if (!isset($field['default'])) {
+                        continue;
+                    }
+
+                    $value = $field['default'];
+                    $setting = Setting::where('key', $key)->first();
+
+                    if (!$setting) {
+                        Setting::create([
+                            'key' => $key,
+                            'value' => (string) $value,
+                            'group' => $groupKey,
+                            'type' => $field['type'],
+                            'description' => $field['help'] ?? $field['label'] ?? '',
+                            'is_public' => in_array($key, [
+                                'app_name',
+                                'app_tagline',
+                                'college_name',
+                                'college_logo',
+                                'college_short_name',
+                                'currency_symbol',
+                                'currency_code'
+                            ]),
+                            'is_encrypted' => false,
+                        ]);
+                        $created++;
+                    } else if (empty($setting->value) && $setting->value !== '0') {
+                        $setting->update(['value' => (string) $value]);
+                        $updated++;
+                    }
+                }
+            }
+
+            // Clear settings cache
+            if (function_exists('clear_settings_cache')) {
+                clear_settings_cache();
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => "Default settings seeded successfully! Created: {$created}, Updated: {$updated}",
+                'details' => [
+                    'created' => $created,
+                    'updated' => $updated
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Seed defaults failed: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to seed defaults: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+
+    /**
+     * Reset settings group to defaults
+     */
+    public function resetDefaults(Request $request)
+    {
+        $request->validate([
+            'group' => 'required|string'
+        ]);
+
+        try {
+            $group = $request->input('group');
+            $settingGroups = $this->getSettingGroups();
+
+            if (!isset($settingGroups[$group])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid settings group specified'
+                ], 422);
+            }
+
+            $currentGroup = $settingGroups[$group];
+            $resetCount = 0;
+
+            // Reset settings to defaults from getSettingGroups configuration
+            foreach ($currentGroup['fields'] as $key => $field) {
+                if (isset($field['default'])) {
+                    Setting::updateOrCreate(
+                        ['key' => $key],
+                        [
+                            'value' => (string) $field['default'],
+                            'group' => $group,
+                            'type' => $field['type'],
+                            'description' => $field['help'] ?? $field['label'] ?? '',
+                            'is_public' => in_array($key, [
+                                'app_name',
+                                'app_tagline',
+                                'college_name',
+                                'college_logo',
+                                'college_short_name',
+                                'currency_symbol',
+                                'currency_code'
+                            ]),
+                            'is_encrypted' => false
+                        ]
+                    );
+                    $resetCount++;
+                }
+            }
+
+            $this->clearSettingsCache();
+
+            return response()->json([
+                'success' => true,
+                'message' => "Settings group '{$group}' reset to defaults. {$resetCount} settings updated."
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Group reset failed: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to reset settings group: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Toggle maintenance mode
+     */
+    public function toggleMaintenance()
+    {
+        try {
+            if (app()->isDownForMaintenance()) {
+                Artisan::call('up');
+                $mode = false;
+                $message = 'Maintenance mode disabled';
+            } else {
+                Artisan::call('down', ['--secret' => 'admin-access']);
+                $mode = true;
+                $message = 'Maintenance mode enabled';
+            }
+
+            return response()->json([
+                'success' => true,
+                'mode' => $mode,
+                'message' => $message
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to toggle maintenance mode: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Complete system information method that matches the view
+     */
+    public function systemInfo(Request $request)
+    {
+        try {
+            // Get settings safely
+            $settings = Setting::pluck('value', 'key')->toArray();
+
+            $systemInfo = [
+                'application' => [
+                    'name' => $settings['app_name'] ?? $settings['college_name'] ?? 'College Management System',
+                    'version' => config('app.version', '1.0.0'),
+                    'environment' => config('app.env'),
+                    'debug_mode' => config('app.debug') ? 'Enabled' : 'Disabled',
+                    'timezone' => $settings['timezone'] ?? config('app.timezone'),
+                    'url' => config('app.url'),
+                    'maintenance_mode' => $settings['maintenance_mode'] ?? '0',
+                ],
+                'server' => [
+                    'php_version' => PHP_VERSION,
+                    'laravel_version' => app()->version(),
+                    'server_software' => $_SERVER['SERVER_SOFTWARE'] ?? 'Unknown',
+                    'operating_system' => PHP_OS,
+                    'server_ip' => $_SERVER['SERVER_ADDR'] ?? $_SERVER['LOCAL_ADDR'] ?? 'Unknown',
+                    'memory_limit' => ini_get('memory_limit'),
+                    'memory_usage' => memory_get_usage(true),
+                    'max_execution_time' => ini_get('max_execution_time'),
+                    'upload_max_filesize' => ini_get('upload_max_filesize'),
+                    'post_max_size' => ini_get('post_max_size'),
+                    'disk_space' => $this->getDiskUsage(),
+                ],
+                'database' => [
+                    'connection' => config('database.default'),
+                    'host' => config('database.connections.' . config('database.default') . '.host'),
+                    'database' => config('database.connections.' . config('database.default') . '.database'),
+                    'driver' => config('database.connections.' . config('database.default') . '.driver'),
+                    'total_tables' => $this->getDatabaseTableCount(),
+                    'total_records' => $this->getDatabaseRecordCount(),
+                ],
+                'cache' => [
+                    'default_driver' => config('cache.default'),
+                    'prefix' => config('cache.prefix'),
+                    'status' => $this->checkCache()['status'] ? 'Working' : 'Failed',
+                ],
+                'queue' => [
+                    'default_connection' => config('queue.default'),
+                    'status' => 'Configured',
+                ],
+                'mail' => [
+                    'default_mailer' => config('mail.default'),
+                    'from_address' => config('mail.from.address'),
+                    'from_name' => config('mail.from.name'),
+                    'status' => $this->checkEmailConfiguration()['status'] ? 'Configured' : 'Not Configured',
+                ],
+                'college' => [
+                    'name' => $settings['college_name'] ?? 'Not Set',
+                    'short_name' => $settings['college_short_name'] ?? 'Not Set',
+                    'email' => $settings['college_email'] ?? 'Not Set',
+                    'phone' => $settings['college_phone'] ?? 'Not Set',
+                    'address' => $settings['college_address'] ?? 'Not Set',
+                ],
+                'academic' => [
+                    'current_year' => $settings['current_academic_year'] ?? date('Y') . '-' . (date('Y') + 1),
+                    'enrollment_prefix' => $settings['enrollment_prefix'] ?? 'STD',
+                    'semester_system' => $settings['semester_system'] ?? '1',
+                ],
+                'financial' => [
+                    'currency_symbol' => $settings['currency_symbol'] ?? '₹',
+                    'currency_code' => $settings['currency_code'] ?? 'INR',
+                    'tax_rate' => $settings['tax_rate'] ?? '0',
+                    'late_fee_percentage' => $settings['late_fee_percentage'] ?? '5',
+                ],
+                'extensions' => $this->getRequiredExtensions(),
+                'statistics' => [
+                    'total_settings' => count($settings),
+                    'last_backup' => $this->getLastBackupInfo(),
+                    'uptime' => $this->getSystemUptime(),
+                ]
+            ];
+
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'data' => $systemInfo
+                ]);
+            }
+
+            return view('admin.settings.system-info', compact('systemInfo'));
+
+        } catch (\Exception $e) {
+            \Log::error('System info error: ' . $e->getMessage());
+
+            // Return safe fallback data
+            $systemInfo = [
+                'application' => ['name' => 'College Management System', 'version' => '1.0.0'],
+                'server' => ['php_version' => PHP_VERSION],
+                'database' => ['driver' => 'mysql'],
+                'cache' => ['status' => 'Unknown'],
+                'queue' => ['status' => 'Unknown'],
+                'mail' => ['status' => 'Unknown'],
+                'college' => ['name' => 'Not Set'],
+                'academic' => ['current_year' => date('Y') . '-' . (date('Y') + 1)],
+                'financial' => ['currency_symbol' => '₹'],
+                'extensions' => [],
+                'statistics' => ['total_settings' => 0],
+                'error' => $e->getMessage()
+            ];
+
+            return view('admin.settings.system-info', compact('systemInfo'));
+        }
+    }
+    /**
+     * Get database table count
+     */
+    private function getDatabaseTableCount()
+    {
+        try {
+            $database = config('database.connections.' . config('database.default') . '.database');
+            $tables = DB::select("SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = ?", [$database]);
+            return $tables[0]->count ?? 0;
+        } catch (\Exception $e) {
+            return 'Unknown';
+        }
+    }
+    /**
+     * Get total database records
+     */
+    private function getDatabaseRecordCount()
+    {
+        try {
+            $database = config('database.connections.' . config('database.default') . '.database');
+            $result = DB::select("
             SELECT SUM(table_rows) as total_records 
             FROM information_schema.tables 
             WHERE table_schema = ? AND table_type = 'BASE TABLE'
         ", [$database]);
-        return number_format($result[0]->total_records ?? 0);
-    } catch (\Exception $e) {
-        return 'Unknown';
-    }
-}
-
-/**
- * Get last backup info
- */
-private function getLastBackupInfo()
-{
-    try {
-        $backupPath = base_path('storage/backups');
-        if (!is_dir($backupPath)) {
-            return 'No backups found';
-        }
-        
-        $files = glob($backupPath . '/backup_*.sql');
-        if (empty($files)) {
-            return 'No backups found';
-        }
-        
-        $lastBackup = max($files);
-        $lastBackupTime = filemtime($lastBackup);
-        
-        return date('Y-m-d H:i:s', $lastBackupTime);
-    } catch (\Exception $e) {
-        return 'Unknown';
-    }
-}
-
-/**
- * Get system uptime approximation
- */
-private function getSystemUptime()
-{
-    try {
-        if (function_exists('sys_getloadavg')) {
-            return 'Load average available';
-        }
-        
-        if (PHP_OS_FAMILY === 'Linux') {
-            return 'Linux system detected';
-        }
-        
-        return 'System information available';
-    } catch (\Exception $e) {
-        return 'Unknown';
-    }
-}
-    
-/**
- * Run system health check
- */
-public function healthCheck()
-{
-    try {
-        $checks = [];
-        $passed = 0;
-        $total = 0;
-
-        // Database check
-        $total++;
-        try {
-            DB::connection()->getPdo();
-            $checks[] = ['name' => 'Database', 'status' => true, 'message' => 'Connected'];
-            $passed++;
+            return number_format($result[0]->total_records ?? 0);
         } catch (\Exception $e) {
-            $checks[] = ['name' => 'Database', 'status' => false, 'message' => $e->getMessage()];
+            return 'Unknown';
         }
+    }
 
-        // Cache check
-        $total++;
+    /**
+     * Get last backup info
+     */
+    private function getLastBackupInfo()
+    {
         try {
-            Cache::put('health_check', 'test', 5);
-            $test = Cache::get('health_check');
-            if ($test === 'test') {
-                $checks[] = ['name' => 'Cache', 'status' => true, 'message' => 'Working'];
-                $passed++;
-            } else {
-                $checks[] = ['name' => 'Cache', 'status' => false, 'message' => 'Not working'];
+            $backupPath = base_path('storage/backups');
+            if (!is_dir($backupPath)) {
+                return 'No backups found';
             }
-        } catch (\Exception $e) {
-            $checks[] = ['name' => 'Cache', 'status' => false, 'message' => $e->getMessage()];
-        }
 
-        // Storage check
-        $total++;
-        try {
-            $testFile = storage_path('framework/cache/health_check.txt');
-            file_put_contents($testFile, 'test');
-            $content = file_get_contents($testFile);
-            unlink($testFile);
-            
-            if ($content === 'test') {
-                $checks[] = ['name' => 'Storage', 'status' => true, 'message' => 'Writable'];
-                $passed++;
-            } else {
-                $checks[] = ['name' => 'Storage', 'status' => false, 'message' => 'Not writable'];
+            $files = glob($backupPath . '/backup_*.sql');
+            if (empty($files)) {
+                return 'No backups found';
             }
+
+            $lastBackup = max($files);
+            $lastBackupTime = filemtime($lastBackup);
+
+            return date('Y-m-d H:i:s', $lastBackupTime);
         } catch (\Exception $e) {
-            $checks[] = ['name' => 'Storage', 'status' => false, 'message' => $e->getMessage()];
+            return 'Unknown';
         }
-
-        $status = $passed === $total ? 'healthy' : 'issues';
-
-        return response()->json([
-            'status' => $status,
-            'summary' => [
-                'passed' => $passed,
-                'total_checks' => $total
-            ],
-            'checks' => $checks,
-            'message' => "System health check completed. {$passed}/{$total} checks passed."
-        ]);
-
-    } catch (\Exception $e) {
-        return response()->json([
-            'status' => 'error',
-            'message' => 'Health check failed: ' . $e->getMessage()
-        ], 500);
     }
-}
+
+    /**
+     * Get system uptime approximation
+     */
+    private function getSystemUptime()
+    {
+        try {
+            if (function_exists('sys_getloadavg')) {
+                return 'Load average available';
+            }
+
+            if (PHP_OS_FAMILY === 'Linux') {
+                return 'Linux system detected';
+            }
+
+            return 'System information available';
+        } catch (\Exception $e) {
+            return 'Unknown';
+        }
+    }
+
+    /**
+     * Run system health check
+     */
+    public function healthCheck()
+    {
+        try {
+            $checks = [];
+            $passed = 0;
+            $total = 0;
+
+            // Database check
+            $total++;
+            try {
+                DB::connection()->getPdo();
+                $checks[] = ['name' => 'Database', 'status' => true, 'message' => 'Connected'];
+                $passed++;
+            } catch (\Exception $e) {
+                $checks[] = ['name' => 'Database', 'status' => false, 'message' => $e->getMessage()];
+            }
+
+            // Cache check
+            $total++;
+            try {
+                Cache::put('health_check', 'test', 5);
+                $test = Cache::get('health_check');
+                if ($test === 'test') {
+                    $checks[] = ['name' => 'Cache', 'status' => true, 'message' => 'Working'];
+                    $passed++;
+                } else {
+                    $checks[] = ['name' => 'Cache', 'status' => false, 'message' => 'Not working'];
+                }
+            } catch (\Exception $e) {
+                $checks[] = ['name' => 'Cache', 'status' => false, 'message' => $e->getMessage()];
+            }
+
+            // Storage check
+            $total++;
+            try {
+                $testFile = storage_path('framework/cache/health_check.txt');
+                file_put_contents($testFile, 'test');
+                $content = file_get_contents($testFile);
+                unlink($testFile);
+
+                if ($content === 'test') {
+                    $checks[] = ['name' => 'Storage', 'status' => true, 'message' => 'Writable'];
+                    $passed++;
+                } else {
+                    $checks[] = ['name' => 'Storage', 'status' => false, 'message' => 'Not writable'];
+                }
+            } catch (\Exception $e) {
+                $checks[] = ['name' => 'Storage', 'status' => false, 'message' => $e->getMessage()];
+            }
+
+            $status = $passed === $total ? 'healthy' : 'issues';
+
+            return response()->json([
+                'status' => $status,
+                'summary' => [
+                    'passed' => $passed,
+                    'total_checks' => $total
+                ],
+                'checks' => $checks,
+                'message' => "System health check completed. {$passed}/{$total} checks passed."
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Health check failed: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 
     /**
      * Validate a setting value
@@ -2076,7 +1995,7 @@ public function healthCheck()
         }
     }
 
-  /**
+    /**
      * IMPROVED: Update specific setting via AJAX with better password handling
      */
     public function updateSetting(Request $request, $key)
@@ -2111,7 +2030,7 @@ public function healthCheck()
             // IMPROVED: Better password handling for AJAX updates
             if ($isPassword) {
                 $currentSetting = Setting::where('key', $key)->first();
-                
+
                 if ($value === '***ENCRYPTED***') {
                     // Don't update if placeholder
                     return response()->json([
@@ -2150,7 +2069,7 @@ public function healthCheck()
                 'key' => $key,
                 'error' => $e->getMessage()
             ]);
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Error updating setting: ' . $e->getMessage()
@@ -2292,7 +2211,7 @@ public function healthCheck()
                 }
                 break;
             case 'textarea':
-                 if (strlen($value) > 2000) {
+                if (strlen($value) > 2000) {
                     return ['valid' => false, 'message' => 'Maximum length of 2000 characters exceeded'];
                 }
                 break;
@@ -2311,244 +2230,253 @@ public function healthCheck()
                 break;
             }
         }
-        
+
         if (!$field) {
             return ['valid' => false, 'message' => 'Unknown setting key.'];
         }
-        
+
         return $this->validateFieldValue($value, $field);
     }
 
-/**
- * Check database connectivity
- */
-private function checkDatabase()
-{
-    try {
-        DB::connection()->getPdo();
-        $databaseName = DB::connection()->getDatabaseName();
-        return ['status' => true, 'message' => "Database connection successful to: {$databaseName}"];
-    } catch (\Exception $e) {
-        return ['status' => false, 'message' => 'Database connection failed: ' . $e->getMessage()];
-    }
-}
-/**
- * Check cache functionality
- */
-private function checkCache()
-{
-    try {
-        $testKey = 'health_check_' . time();
-        $testValue = 'test_value';
-        
-        Cache::put($testKey, $testValue, 60);
-        $retrievedValue = Cache::get($testKey);
-        Cache::forget($testKey);
-        
-        if ($retrievedValue === $testValue) {
-            return ['status' => true, 'message' => 'Cache is working properly.'];
+    /**
+     * Check database connectivity
+     */
+    private function checkDatabase()
+    {
+        try {
+            DB::connection()->getPdo();
+            $databaseName = DB::connection()->getDatabaseName();
+            return ['status' => true, 'message' => "Database connection successful to: {$databaseName}"];
+        } catch (\Exception $e) {
+            return ['status' => false, 'message' => 'Database connection failed: ' . $e->getMessage()];
         }
-        
-        return ['status' => false, 'message' => 'Cache verification failed.'];
-    } catch (\Exception $e) {
-        return ['status' => false, 'message' => 'Cache check failed: ' . $e->getMessage()];
     }
-}
+    /**
+     * Check cache functionality
+     */
+    private function checkCache()
+    {
+        try {
+            $testKey = 'health_check_' . time();
+            $testValue = 'test_value';
+
+            Cache::put($testKey, $testValue, 60);
+            $retrievedValue = Cache::get($testKey);
+            Cache::forget($testKey);
+
+            if ($retrievedValue === $testValue) {
+                return ['status' => true, 'message' => 'Cache is working properly.'];
+            }
+
+            return ['status' => false, 'message' => 'Cache verification failed.'];
+        } catch (\Exception $e) {
+            return ['status' => false, 'message' => 'Cache check failed: ' . $e->getMessage()];
+        }
+    }
 
 
 
-/**
- * Check file permissions - FIXED
- */
-private function checkFilePermissions()
-{
-    try {
-        $paths = [
-            base_path('storage/framework/'),
-            base_path('storage/logs/'),
-            base_path('bootstrap/cache/'),
+    /**
+     * Check file permissions - FIXED
+     */
+    private function checkFilePermissions()
+    {
+        try {
+            $paths = [
+                base_path('storage/framework/'),
+                base_path('storage/logs/'),
+                base_path('bootstrap/cache/'),
+            ];
+
+            foreach ($paths as $path) {
+                if (!file_exists($path)) {
+                    return ['status' => false, 'message' => "Directory does not exist: {$path}"];
+                }
+
+                if (!is_writable($path)) {
+                    return ['status' => false, 'message' => "Directory not writable: {$path}"];
+                }
+            }
+
+            return ['status' => true, 'message' => 'Required directories are writable.'];
+
+        } catch (\Exception $e) {
+            return ['status' => false, 'message' => 'Permission check failed: ' . $e->getMessage()];
+        }
+    }
+
+
+    /**
+     * Check storage functionality
+     */
+    private function checkStorage()
+    {
+        try {
+            $testFile = 'health_check_' . time() . '.txt';
+            $testContent = 'Health check test file';
+
+            Storage::disk('local')->put($testFile, $testContent);
+
+            if (Storage::disk('local')->exists($testFile)) {
+                $retrievedContent = Storage::disk('local')->get($testFile);
+                Storage::disk('local')->delete($testFile);
+
+                if ($retrievedContent === $testContent) {
+                    return ['status' => true, 'message' => 'Local storage is working properly.'];
+                }
+            }
+
+            return ['status' => false, 'message' => 'Storage verification failed.'];
+        } catch (\Exception $e) {
+            return ['status' => false, 'message' => 'Storage check failed: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Check settings table
+     */
+    private function checkSettings()
+    {
+        try {
+            $settingsCount = Setting::count();
+            $requiredSettings = ['app_name', 'college_name'];
+
+            foreach ($requiredSettings as $key) {
+                if (!Setting::where('key', $key)->exists()) {
+                    return ['status' => false, 'message' => "Required setting '{$key}' is missing."];
+                }
+            }
+
+            return ['status' => true, 'message' => "Settings table accessible with {$settingsCount} settings."];
+        } catch (\Exception $e) {
+            return ['status' => false, 'message' => 'Settings check failed: ' . $e->getMessage()];
+        }
+    }
+
+
+    /**
+     * Check email configuration
+     */
+    private function checkEmailConfiguration()
+    {
+        try {
+            $mailDriver = config('mail.default');
+
+            if ($mailDriver === 'log') {
+                return ['status' => true, 'message' => 'Email configured to use log driver.'];
+            }
+
+            if ($mailDriver === 'smtp') {
+                $host = config('mail.mailers.smtp.host');
+                $username = config('mail.mailers.smtp.username');
+
+                if (empty($host)) {
+                    return ['status' => false, 'message' => 'SMTP host is not configured.'];
+                }
+
+                if (empty($username)) {
+                    return ['status' => false, 'message' => 'SMTP username is not configured.'];
+                }
+
+                return ['status' => true, 'message' => 'SMTP configuration appears to be complete.'];
+            }
+
+            return ['status' => true, 'message' => "Email driver '{$mailDriver}' is configured."];
+        } catch (\Exception $e) {
+            return ['status' => false, 'message' => 'Email configuration check failed: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Check queue configuration
+     */
+    private function checkQueue()
+    {
+        try {
+            $queueDriver = config('queue.default');
+
+            if ($queueDriver === 'sync') {
+                return ['status' => true, 'message' => 'Queue is using sync driver (immediate processing).'];
+            }
+
+            return ['status' => true, 'message' => "Queue driver '{$queueDriver}' is configured."];
+        } catch (\Exception $e) {
+            return ['status' => false, 'message' => 'Queue check failed: ' . $e->getMessage()];
+        }
+    }
+    /**
+     * Get disk usage - FIXED
+     */
+    private function getDiskUsage()
+    {
+        try {
+            $path = base_path('storage');
+
+            if (!function_exists('disk_total_space') || !function_exists('disk_free_space')) {
+                return ['error' => 'Disk functions not available on this system'];
+            }
+
+            $totalSpace = disk_total_space($path);
+            $freeSpace = disk_free_space($path);
+
+            if ($totalSpace === false || $freeSpace === false) {
+                return ['error' => 'Unable to get disk space information'];
+            }
+
+            $usedSpace = $totalSpace - $freeSpace;
+            $usagePercentage = round(($usedSpace / $totalSpace) * 100, 2);
+
+            return [
+                'total' => $this->formatBytes($totalSpace),
+                'used' => $this->formatBytes($usedSpace),
+                'free' => $this->formatBytes($freeSpace),
+                'usage_percentage' => $usagePercentage . '%',
+            ];
+        } catch (\Exception $e) {
+            return ['error' => 'Could not retrieve disk usage: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Format bytes to human readable format
+     */
+    private function formatBytes($bytes, $precision = 2)
+    {
+        $units = array('B', 'KB', 'MB', 'GB', 'TB');
+
+        for ($i = 0; $bytes > 1024 && $i < count($units) - 1; $i++) {
+            $bytes /= 1024;
+        }
+
+        return round($bytes, $precision) . ' ' . $units[$i];
+    }
+
+
+    /**
+     * Get required PHP extensions
+     */
+    private function getRequiredExtensions()
+    {
+        $required = [
+            'BCMath',
+            'Ctype',
+            'Fileinfo',
+            'JSON',
+            'Mbstring',
+            'OpenSSL',
+            'PDO',
+            'Tokenizer',
+            'XML',
+            'cURL',
+            'GD'
         ];
-        
-        foreach ($paths as $path) {
-            if (!file_exists($path)) {
-                return ['status' => false, 'message' => "Directory does not exist: {$path}"];
-            }
-            
-            if (!is_writable($path)) {
-                return ['status' => false, 'message' => "Directory not writable: {$path}"];
-            }
-        }
-        
-        return ['status' => true, 'message' => 'Required directories are writable.'];
-        
-    } catch (\Exception $e) {
-        return ['status' => false, 'message' => 'Permission check failed: ' . $e->getMessage()];
-    }
-}
 
+        $extensions = [];
+        foreach ($required as $ext) {
+            $extensions[$ext] = extension_loaded(strtolower($ext));
+        }
 
-/**
- * Check storage functionality
- */
-private function checkStorage()
-{
-    try {
-        $testFile = 'health_check_' . time() . '.txt';
-        $testContent = 'Health check test file';
-        
-        Storage::disk('local')->put($testFile, $testContent);
-        
-        if (Storage::disk('local')->exists($testFile)) {
-            $retrievedContent = Storage::disk('local')->get($testFile);
-            Storage::disk('local')->delete($testFile);
-            
-            if ($retrievedContent === $testContent) {
-                return ['status' => true, 'message' => 'Local storage is working properly.'];
-            }
-        }
-        
-        return ['status' => false, 'message' => 'Storage verification failed.'];
-    } catch (\Exception $e) {
-        return ['status' => false, 'message' => 'Storage check failed: ' . $e->getMessage()];
+        return $extensions;
     }
-}
-    
-/**
- * Check settings table
- */
-private function checkSettings()
-{
-    try {
-        $settingsCount = Setting::count();
-        $requiredSettings = ['app_name', 'college_name'];
-        
-        foreach ($requiredSettings as $key) {
-            if (!Setting::where('key', $key)->exists()) {
-                return ['status' => false, 'message' => "Required setting '{$key}' is missing."];
-            }
-        }
-        
-        return ['status' => true, 'message' => "Settings table accessible with {$settingsCount} settings."];
-    } catch (\Exception $e) {
-        return ['status' => false, 'message' => 'Settings check failed: ' . $e->getMessage()];
-    }
-}
-    
-
-/**
- * Check email configuration
- */
-private function checkEmailConfiguration()
-{
-    try {
-        $mailDriver = config('mail.default');
-        
-        if ($mailDriver === 'log') {
-            return ['status' => true, 'message' => 'Email configured to use log driver.'];
-        }
-        
-        if ($mailDriver === 'smtp') {
-            $host = config('mail.mailers.smtp.host');
-            $username = config('mail.mailers.smtp.username');
-            
-            if (empty($host)) {
-                return ['status' => false, 'message' => 'SMTP host is not configured.'];
-            }
-            
-            if (empty($username)) {
-                return ['status' => false, 'message' => 'SMTP username is not configured.'];
-            }
-            
-            return ['status' => true, 'message' => 'SMTP configuration appears to be complete.'];
-        }
-        
-        return ['status' => true, 'message' => "Email driver '{$mailDriver}' is configured."];
-    } catch (\Exception $e) {
-        return ['status' => false, 'message' => 'Email configuration check failed: ' . $e->getMessage()];
-    }
-}
-
-/**
- * Check queue configuration
- */
-private function checkQueue()
-{
-    try {
-        $queueDriver = config('queue.default');
-        
-        if ($queueDriver === 'sync') {
-            return ['status' => true, 'message' => 'Queue is using sync driver (immediate processing).'];
-        }
-        
-        return ['status' => true, 'message' => "Queue driver '{$queueDriver}' is configured."];
-    } catch (\Exception $e) {
-        return ['status' => false, 'message' => 'Queue check failed: ' . $e->getMessage()];
-    }
-}
-/**
- * Get disk usage - FIXED
- */
-private function getDiskUsage() 
-{
-    try {
-        $path = base_path('storage');
-        
-        if (!function_exists('disk_total_space') || !function_exists('disk_free_space')) {
-            return ['error' => 'Disk functions not available on this system'];
-        }
-        
-        $totalSpace = disk_total_space($path);
-        $freeSpace = disk_free_space($path);
-        
-        if ($totalSpace === false || $freeSpace === false) {
-            return ['error' => 'Unable to get disk space information'];
-        }
-        
-        $usedSpace = $totalSpace - $freeSpace;
-        $usagePercentage = round(($usedSpace / $totalSpace) * 100, 2);
-        
-        return [
-            'total' => $this->formatBytes($totalSpace),
-            'used' => $this->formatBytes($usedSpace),
-            'free' => $this->formatBytes($freeSpace),
-            'usage_percentage' => $usagePercentage . '%',
-        ];
-    } catch (\Exception $e) {
-        return ['error' => 'Could not retrieve disk usage: ' . $e->getMessage()];
-    }
-}
-
-/**
- * Format bytes to human readable format
- */
-private function formatBytes($bytes, $precision = 2) 
-{
-    $units = array('B', 'KB', 'MB', 'GB', 'TB');
-    
-    for ($i = 0; $bytes > 1024 && $i < count($units) - 1; $i++) {
-        $bytes /= 1024;
-    }
-    
-    return round($bytes, $precision) . ' ' . $units[$i];
-}
-
-    
-/**
- * Get required PHP extensions
- */
-private function getRequiredExtensions()
-{
-    $required = [
-        'BCMath', 'Ctype', 'Fileinfo', 'JSON', 'Mbstring', 
-        'OpenSSL', 'PDO', 'Tokenizer', 'XML', 'cURL', 'GD'
-    ];
-    
-    $extensions = [];
-    foreach ($required as $ext) {
-        $extensions[$ext] = extension_loaded(strtolower($ext));
-    }
-    
-    return $extensions;
-}
 
 }

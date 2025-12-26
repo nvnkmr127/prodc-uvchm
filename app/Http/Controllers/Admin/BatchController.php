@@ -14,23 +14,21 @@ class BatchController extends Controller
 {
     public function index(Request $request)
     {
-        // [FIX] Use 'withoutGlobalScopes' to ignore the Academic Year filter
-        // This ensures newly created batches appear even if they belong to a future year
-        $query = Batch::withoutGlobalScopes() 
-                      ->with('course')
-                      ->withCount('students');
+        // [FIX] Uses 'HasAcademicYear' trait implicitly now
+        $query = Batch::with('course')
+            ->withCount('students');
 
         if ($request->filled('course_id')) {
             $query->where('course_id', $request->course_id);
         }
-        
+
         // Optional: Filter by Academic Year manually if selected in dropdown
         if ($request->filled('academic_year_id')) {
             $query->where('academic_year_id', $request->academic_year_id);
         }
 
         $batches = $query->latest()->get();
-        
+
         $courses = Course::orderBy('name')->get();
         $academicYears = \App\Models\AcademicYear::orderBy('start_date', 'desc')->get();
 
@@ -53,7 +51,7 @@ class BatchController extends Controller
         // 2. Set Defaults
         // If status is missing, default to 'active'
         $validatedData['status'] = $request->status ?? 'active';
-        
+
         // Handle checkbox (true if checked, false if missing)
         $validatedData['is_on_internship'] = $request->has('is_on_internship');
 
@@ -80,9 +78,8 @@ class BatchController extends Controller
             'status' => 'required|in:active,completed,archived',
             'is_on_internship' => 'nullable'
         ]);
-
         // Handle checkbox for update
-        $validatedData['is_on_internship'] = $request->has('is_on_internship');
+        $validatedData['is_on_internship'] = $request->boolean('is_on_internship');
 
         $batch->update($validatedData);
 
@@ -104,10 +101,14 @@ class BatchController extends Controller
      */
     public function toggleInternship(Batch $batch)
     {
-        $batch->update(['is_on_internship' => !$batch->is_on_internship]);
-        
+        $newState = !$batch->is_on_internship;
+        $batch->update([
+            'is_on_internship' => $newState,
+            'internship_start_date' => $newState ? now() : null
+        ]);
+
         return response()->json([
-            'success' => true, 
+            'success' => true,
             'is_on_internship' => $batch->is_on_internship,
             'message' => $batch->is_on_internship ? 'Batch marked as On Internship' : 'Batch marked as In College'
         ]);
@@ -127,17 +128,17 @@ class BatchController extends Controller
 
         DB::transaction(function () use ($batch, $assignedStudentIds) {
             Student::where('batch_id', $batch->id)
-                   ->whereNotIn('id', $assignedStudentIds)
-                   ->update(['batch_id' => null]);
+                ->whereNotIn('id', $assignedStudentIds)
+                ->update(['batch_id' => null]);
 
             Student::whereIn('id', $assignedStudentIds)
-                   ->update(['batch_id' => $batch->id]);
+                ->update(['batch_id' => $batch->id]);
         });
 
         return redirect()->route('admin.batches.manageStudents', $batch)
-                         ->with('success', 'Student list for the batch has been updated successfully.');
+            ->with('success', 'Student list for the batch has been updated successfully.');
     }
-    
+
     public function getPracticalGroups(Batch $batch)
     {
         try {
@@ -145,28 +146,28 @@ class BatchController extends Controller
                 ->select('id', 'name')
                 ->orderBy('name')
                 ->get();
-            
+
             return response()->json($practicalGroups);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Failed to load practical groups'], 500);
         }
     }
-    
+
     public function graduate(Batch $batch)
     {
         $studentCount = Student::where('batch_id', $batch->id)
-                               ->where('status', 'active')
-                               ->update(['status' => 'graduated']);
+            ->where('status', 'active')
+            ->update(['status' => 'graduated']);
 
         return redirect()->route('admin.batches.index')
-                         ->with('success', $studentCount . ' students from ' . $batch->name . ' have been marked as graduated.');
+            ->with('success', $studentCount . ' students from ' . $batch->name . ' have been marked as graduated.');
     }
-    
+
     public function getStudentsWithAttendance(Request $request, Batch $batch)
     {
         try {
             $date = $request->input('date', now()->format('Y-m-d'));
-            
+
             $students = Student::where('batch_id', $batch->id)
                 ->where('status', 'active')
                 ->select('id', 'name', 'email', 'enrollment_number')
@@ -178,7 +179,7 @@ class BatchController extends Controller
                 $attendanceRecords = Attendance::where('batch_id', $batch->id)
                     ->where('attendance_date', $date)
                     ->get();
-                
+
                 foreach ($attendanceRecords as $attendance) {
                     $existingAttendance[$attendance->student_id] = $attendance->status;
                 }

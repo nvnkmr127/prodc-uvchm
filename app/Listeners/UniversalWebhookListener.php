@@ -15,7 +15,7 @@ class UniversalWebhookListener
      * Track processed events to prevent infinite loops
      */
     protected static array $processedEvents = [];
-    
+
     /**
      * Maximum number of times to process the same event
      */
@@ -31,7 +31,7 @@ class UniversalWebhookListener
     public function handle($event): void
     {
         // Add debug logging at the very start
-        Log::info('🎯 UniversalWebhookListener::handle() called', [
+        Log::channel('webhook-events')->debug('🎯 UniversalWebhookListener::handle() called', [
             'event_class' => get_class($event),
             'event_type' => property_exists($event, 'eventType') ? $event->eventType : 'unknown',
             'webhook_event_name' => property_exists($event, 'webhookEventName') ? $event->webhookEventName : 'unknown',
@@ -41,12 +41,12 @@ class UniversalWebhookListener
 
         // Prevent infinite loops by tracking processed events
         $eventHash = $this->generateEventHash($event);
-        
+
         if (isset(static::$processedEvents[$eventHash])) {
             static::$processedEvents[$eventHash]++;
-            
+
             if (static::$processedEvents[$eventHash] > static::$maxProcessCount) {
-                Log::warning('Webhook infinite loop prevented in UniversalWebhookListener', [
+                Log::channel('webhook-events')->warning('Webhook infinite loop prevented in UniversalWebhookListener', [
                     'event_class' => get_class($event),
                     'event_hash' => $eventHash,
                     'process_count' => static::$processedEvents[$eventHash]
@@ -59,36 +59,36 @@ class UniversalWebhookListener
 
         try {
             $eventName = $this->determineEventName($event);
-            Log::info('Determined event name', ['event_name' => $eventName]);
-            
+            Log::channel('webhook-events')->debug('Determined event name', ['event_name' => $eventName]);
+
             if (!$eventName) {
-                Log::warning('Could not determine event name, skipping');
+                Log::channel('webhook-events')->warning('Could not determine event name, skipping');
                 return;
             }
 
             // Skip internal Laravel events that might cause loops
             if ($this->shouldSkipEvent($eventName, $event)) {
-                Log::info('Skipping event due to shouldSkipEvent', ['event_name' => $eventName]);
+                Log::channel('webhook-events')->debug('Skipping event due to shouldSkipEvent', ['event_name' => $eventName]);
                 return;
             }
 
-            Log::info('Building optimized webhook payload', ['event_name' => $eventName]);
-            
+            Log::channel('webhook-events')->debug('Building optimized webhook payload', ['event_name' => $eventName]);
+
             // Use the optimized payload builder
             $payload = WebhookPayloadBuilder::buildOptimizedPayload($event);
-            
+
             if ($payload) {
-                Log::info('Sending webhooks', [
-                    'event_name' => $eventName, 
+                Log::channel('webhook-events')->debug('Sending webhooks', [
+                    'event_name' => $eventName,
                     'payload_size' => strlen(json_encode($payload)) . ' bytes'
                 ]);
                 $this->sendWebhooks($eventName, $payload);
             } else {
-                Log::warning('No payload built for event', ['event_name' => $eventName]);
+                Log::channel('webhook-events')->debug('No payload built for event', ['event_name' => $eventName]);
             }
 
         } catch (\Exception $e) {
-            Log::error('Exception in UniversalWebhookListener::handle()', [
+            Log::channel('webhook-events')->error('Exception in UniversalWebhookListener::handle()', [
                 'error' => $e->getMessage(),
                 'event_class' => get_class($event),
                 'trace' => $e->getTraceAsString()
@@ -109,7 +109,7 @@ class UniversalWebhookListener
             'model_id' => property_exists($event, 'model') && $event->model ? $event->model->getKey() : 'no_id',
             'timestamp' => now()->format('Y-m-d H:i:s')
         ];
-        
+
         return md5(json_encode($data));
     }
 
@@ -129,7 +129,7 @@ class UniversalWebhookListener
             'queue.',
             'broadcasting.',
         ];
-        
+
         foreach ($skipPatterns as $pattern) {
             if (Str::startsWith($eventName, $pattern)) {
                 return true;
@@ -144,8 +144,8 @@ class UniversalWebhookListener
         // Skip events that are already webhook events
         if (get_class($event) === 'App\Events\EloquentWebhookEvent') {
             // Only process if this is not a recursive call
-            return isset(static::$processedEvents[$this->generateEventHash($event)]) && 
-                   static::$processedEvents[$this->generateEventHash($event)] > 1;
+            return isset(static::$processedEvents[$this->generateEventHash($event)]) &&
+                static::$processedEvents[$this->generateEventHash($event)] > 1;
         }
 
         return false;
@@ -157,7 +157,7 @@ class UniversalWebhookListener
     protected function scheduleCleanup(string $eventHash): void
     {
         // Clean up after 10 seconds to prevent memory leaks
-        dispatch(function() use ($eventHash) {
+        dispatch(function () use ($eventHash) {
             unset(static::$processedEvents[$eventHash]);
         })->delay(now()->addSeconds(10));
     }
@@ -168,12 +168,12 @@ class UniversalWebhookListener
     protected function determineEventName($event): ?string
     {
         $eventClass = get_class($event);
-        
+
         // Check for explicit event name property
         if (property_exists($event, 'webhookEventName')) {
             return $event->webhookEventName;
         }
-        
+
         // Check for webhook annotation in class docblock
         try {
             $reflection = new \ReflectionClass($eventClass);
@@ -184,7 +184,7 @@ class UniversalWebhookListener
         } catch (\Exception $e) {
             // Continue if reflection fails
         }
-        
+
         // Convert class name to event name
         $eventName = class_basename($eventClass);
         // Remove 'Event' suffix if it exists
@@ -202,17 +202,17 @@ class UniversalWebhookListener
         try {
             // Find webhooks for this specific event
             $specificWebhooks = Webhook::active()->forEvent($eventName)->get();
-            
+
             // Also find wildcard webhooks (events that listen to all events)
             $wildcardWebhooks = Webhook::active()->forEvent('*')->get();
-            
+
             $allWebhooks = $specificWebhooks->merge($wildcardWebhooks)->unique('id');
-            
+
             foreach ($allWebhooks as $webhook) {
                 try {
                     $this->sendOptimizedWebhook($webhook, $payload);
                 } catch (\Exception $e) {
-                    Log::error('Failed to send individual webhook', [
+                    Log::channel('webhook-events')->error('Failed to send individual webhook', [
                         'webhook_id' => $webhook->id,
                         'webhook_url' => $webhook->url,
                         'error' => $e->getMessage()
@@ -220,7 +220,7 @@ class UniversalWebhookListener
                 }
             }
         } catch (\Exception $e) {
-            Log::error('Failed to send webhooks', [
+            Log::channel('webhook-events')->error('Failed to send webhooks', [
                 'event_name' => $eventName,
                 'error' => $e->getMessage()
             ]);
@@ -233,11 +233,11 @@ class UniversalWebhookListener
     protected function sendOptimizedWebhook(Webhook $webhook, array $payload): void
     {
         $startTime = microtime(true);
-        
+
         try {
             // Generate signature for security
             $signature = hash_hmac('sha256', json_encode($payload), $webhook->signing_secret);
-            
+
             $headers = [
                 'X-App-Signature' => $signature,
                 'X-Event-Type' => $payload['event'],
@@ -246,12 +246,12 @@ class UniversalWebhookListener
                 'User-Agent' => config('app.name') . ' Webhook/2.0',
                 'Content-Type' => 'application/json',
             ];
-            
+
             // Add custom headers if configured
             if ($webhook->headers) {
                 $headers = array_merge($headers, (array) $webhook->headers);
             }
-            
+
             $response = Http::timeout($webhook->timeout_seconds)
                 ->withHeaders($headers)
                 ->post($webhook->url, $payload);
@@ -266,7 +266,7 @@ class UniversalWebhookListener
             ]);
 
             if ($response->successful()) {
-                Log::info('Optimized webhook sent successfully', [
+                Log::channel('webhook-events')->debug('Optimized webhook sent successfully', [
                     'webhook_id' => $webhook->id,
                     'event' => $payload['event'],
                     'status_code' => $response->status(),
@@ -274,7 +274,7 @@ class UniversalWebhookListener
                     'execution_time' => round((microtime(true) - $startTime) * 1000) . 'ms'
                 ]);
             } else {
-                Log::warning('Webhook call failed', [
+                Log::channel('webhook-events')->warning('Webhook call failed', [
                     'webhook_id' => $webhook->id,
                     'event' => $payload['event'],
                     'status_code' => $response->status(),
@@ -292,8 +292,8 @@ class UniversalWebhookListener
                     'execution_time_ms' => round((microtime(true) - $startTime) * 1000),
                 ]);
             }
-            
-            Log::error('Webhook call exception', [
+
+            Log::channel('webhook-events')->error('Webhook call exception', [
                 'webhook_id' => $webhook->id,
                 'event' => $payload['event'],
                 'error' => $e->getMessage()

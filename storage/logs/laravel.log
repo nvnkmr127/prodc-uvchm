@@ -1,64 +1,19 @@
-[2025-12-08 19:35:53] production.WARNING: Settings helper error for key 'currency': SQLSTATE[HY000] [1049] Unknown database 'laravel' (Connection: mysql, SQL: select exists (select 1 from information_schema.tables where table_schema = 'laravel' and table_name = 'settings' and table_type in ('BASE TABLE', 'SYSTEM VERSIONED')) as `exists`)  
-[2025-12-08 19:35:53] production.WARNING: Settings helper error for key 'date_format': SQLSTATE[HY000] [1049] Unknown database 'laravel' (Connection: mysql, SQL: select exists (select 1 from information_schema.tables where table_schema = 'laravel' and table_name = 'settings' and table_type in ('BASE TABLE', 'SYSTEM VERSIONED')) as `exists`)  
-[2025-12-08 19:35:53] production.WARNING: Settings helper error for key 'app_name': SQLSTATE[HY000] [1049] Unknown database 'laravel' (Connection: mysql, SQL: select exists (select 1 from information_schema.tables where table_schema = 'laravel' and table_name = 'settings' and table_type in ('BASE TABLE', 'SYSTEM VERSIONED')) as `exists`)  
-[2025-12-08 19:35:53] production.WARNING: Settings helper error for key 'app_tagline': SQLSTATE[HY000] [1049] Unknown database 'laravel' (Connection: mysql, SQL: select exists (select 1 from information_schema.tables where table_schema = 'laravel' and table_name = 'settings' and table_type in ('BASE TABLE', 'SYSTEM VERSIONED')) as `exists`)  
-[2025-12-08 19:35:53] production.ERROR: SQLSTATE[HY000] [1049] Unknown database 'laravel' (Connection: mysql, SQL: SET sql_mode=(SELECT REPLACE(@@sql_mode,'ONLY_FULL_GROUP_BY',''))) {"exception":"[object] (Illuminate\\Database\\QueryException(code: 1049): SQLSTATE[HY000] [1049] Unknown database 'laravel' (Connection: mysql, SQL: SET sql_mode=(SELECT REPLACE(@@sql_mode,'ONLY_FULL_GROUP_BY',''))) at /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Connection.php:825)
+[2025-12-20 08:27:29] local.ERROR: TEST LOG ENTRY  
+[2025-12-20 08:28:49] local.ERROR: Enquiry Show Access Check [DEBUG] {"user_id":49,"roles":["admin"],"is_admin":"YES","enquiry_id":12,"assigned_to":50} 
+[2025-12-20 08:28:49] local.ERROR: Enquiry Show Access Check [DEBUG] {"user_id":51,"roles":["college-admin"],"is_admin":"NO","enquiry_id":12,"assigned_to":50} 
+[2025-12-20 08:28:49] local.ERROR: Enquiry Show Access DENIED [DEBUG] {"user":51,"enquiry":12} 
+[2025-12-20 08:29:30] local.ERROR: Enquiry Show Access Check [DEBUG] {"user_id":49,"roles":["admin"],"is_admin":"YES","enquiry_id":13,"assigned_to":50} 
+[2025-12-20 08:29:30] local.ERROR: Enquiry Show Access Check [DEBUG] {"user_id":51,"roles":["college-admin"],"is_admin":"NO","enquiry_id":13,"assigned_to":50} 
+[2025-12-20 08:29:30] local.ERROR: Enquiry Show Access DENIED [DEBUG] {"user":51,"enquiry":13} 
+[2025-12-24 15:24:16] local.ERROR: Call to undefined method App\Models\Student::withTrashed() {"exception":"[object] (BadMethodCallException(code: 0): Call to undefined method App\\Models\\Student::withTrashed() at /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Support/Traits/ForwardsCalls.php:67)
 [stacktrace]
-#0 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Connection.php(779): Illuminate\\Database\\Connection->runQueryCallback('SET sql_mode=(S...', Array, Object(Closure))
-#1 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Connection.php(560): Illuminate\\Database\\Connection->run('SET sql_mode=(S...', Array, Object(Closure))
-#2 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/DatabaseManager.php(495): Illuminate\\Database\\Connection->statement('SET sql_mode=(S...')
-#3 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Support/Facades/Facade.php(361): Illuminate\\Database\\DatabaseManager->__call('statement', Array)
-#4 /Users/naveenadicharla/Documents/app/app/Providers/AppServiceProvider.php(153): Illuminate\\Support\\Facades\\Facade::__callStatic('statement', Array)
-#5 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(36): App\\Providers\\AppServiceProvider->boot()
-#6 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Container/Util.php(43): Illuminate\\Container\\BoundMethod::{closure:Illuminate\\Container\\BoundMethod::call():35}()
-#7 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(95): Illuminate\\Container\\Util::unwrapIfClosure(Object(Closure))
-#8 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(35): Illuminate\\Container\\BoundMethod::callBoundMethod(Object(Illuminate\\Foundation\\Application), Array, Object(Closure))
-#9 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Container/Container.php(696): Illuminate\\Container\\BoundMethod::call(Object(Illuminate\\Foundation\\Application), Array, Array, NULL)
-#10 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1151): Illuminate\\Container\\Container->call(Array)
-#11 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1132): Illuminate\\Foundation\\Application->bootProvider(Object(App\\Providers\\AppServiceProvider))
-#12 [internal function]: Illuminate\\Foundation\\Application->{closure:Illuminate\\Foundation\\Application::boot():1131}(Object(App\\Providers\\AppServiceProvider), 'App\\\\Providers\\\\A...')
-#13 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1131): array_walk(Array, Object(Closure))
-#14 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Foundation/Bootstrap/BootProviders.php(17): Illuminate\\Foundation\\Application->boot()
-#15 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(342): Illuminate\\Foundation\\Bootstrap\\BootProviders->bootstrap(Object(Illuminate\\Foundation\\Application))
-#16 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(474): Illuminate\\Foundation\\Application->bootstrapWith(Array)
-#17 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(196): Illuminate\\Foundation\\Console\\Kernel->bootstrap()
-#18 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1235): Illuminate\\Foundation\\Console\\Kernel->handle(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
-#19 /Users/naveenadicharla/Documents/app/artisan(13): Illuminate\\Foundation\\Application->handleCommand(Object(Symfony\\Component\\Console\\Input\\ArgvInput))
-#20 {main}
-
-[previous exception] [object] (PDOException(code: 1049): SQLSTATE[HY000] [1049] Unknown database 'laravel' at /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Connectors/Connector.php:67)
-[stacktrace]
-#0 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Connectors/Connector.php(67): PDO::connect('mysql:host=127....', 'root', Object(SensitiveParameterValue), Array)
-#1 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Connectors/Connector.php(44): Illuminate\\Database\\Connectors\\Connector->createPdoConnection('mysql:host=127....', 'root', Object(SensitiveParameterValue), Array)
-#2 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Connectors/MySqlConnector.php(24): Illuminate\\Database\\Connectors\\Connector->createConnection('mysql:host=127....', Array, Array)
-#3 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Connectors/ConnectionFactory.php(185): Illuminate\\Database\\Connectors\\MySqlConnector->connect(Array)
-#4 [internal function]: Illuminate\\Database\\Connectors\\ConnectionFactory->{closure:Illuminate\\Database\\Connectors\\ConnectionFactory::createPdoResolverWithHosts():180}()
-#5 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Connection.php(1231): call_user_func(Object(Closure))
-#6 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Connection.php(565): Illuminate\\Database\\Connection->getPdo()
-#7 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Connection.php(812): Illuminate\\Database\\Connection->{closure:Illuminate\\Database\\Connection::statement():560}('SET sql_mode=(S...', Array)
-#8 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Connection.php(779): Illuminate\\Database\\Connection->runQueryCallback('SET sql_mode=(S...', Array, Object(Closure))
-#9 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Connection.php(560): Illuminate\\Database\\Connection->run('SET sql_mode=(S...', Array, Object(Closure))
-#10 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/DatabaseManager.php(495): Illuminate\\Database\\Connection->statement('SET sql_mode=(S...')
-#11 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Support/Facades/Facade.php(361): Illuminate\\Database\\DatabaseManager->__call('statement', Array)
-#12 /Users/naveenadicharla/Documents/app/app/Providers/AppServiceProvider.php(153): Illuminate\\Support\\Facades\\Facade::__callStatic('statement', Array)
-#13 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(36): App\\Providers\\AppServiceProvider->boot()
-#14 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Container/Util.php(43): Illuminate\\Container\\BoundMethod::{closure:Illuminate\\Container\\BoundMethod::call():35}()
-#15 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(95): Illuminate\\Container\\Util::unwrapIfClosure(Object(Closure))
-#16 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(35): Illuminate\\Container\\BoundMethod::callBoundMethod(Object(Illuminate\\Foundation\\Application), Array, Object(Closure))
-#17 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Container/Container.php(696): Illuminate\\Container\\BoundMethod::call(Object(Illuminate\\Foundation\\Application), Array, Array, NULL)
-#18 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1151): Illuminate\\Container\\Container->call(Array)
-#19 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1132): Illuminate\\Foundation\\Application->bootProvider(Object(App\\Providers\\AppServiceProvider))
-#20 [internal function]: Illuminate\\Foundation\\Application->{closure:Illuminate\\Foundation\\Application::boot():1131}(Object(App\\Providers\\AppServiceProvider), 'App\\\\Providers\\\\A...')
-#21 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1131): array_walk(Array, Object(Closure))
-#22 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Foundation/Bootstrap/BootProviders.php(17): Illuminate\\Foundation\\Application->boot()
-#23 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(342): Illuminate\\Foundation\\Bootstrap\\BootProviders->bootstrap(Object(Illuminate\\Foundation\\Application))
-#24 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(474): Illuminate\\Foundation\\Application->bootstrapWith(Array)
-#25 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(196): Illuminate\\Foundation\\Console\\Kernel->bootstrap()
-#26 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1235): Illuminate\\Foundation\\Console\\Kernel->handle(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
-#27 /Users/naveenadicharla/Documents/app/artisan(13): Illuminate\\Foundation\\Application->handleCommand(Object(Symfony\\Component\\Console\\Input\\ArgvInput))
-#28 {main}
+#0 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Support/Traits/ForwardsCalls.php(36): Illuminate\\Database\\Eloquent\\Model::throwBadMethodCallException('withTrashed')
+#1 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php(2372): Illuminate\\Database\\Eloquent\\Model->forwardCallTo(Object(Illuminate\\Database\\Eloquent\\Builder), 'withTrashed', Array)
+#2 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php(2384): Illuminate\\Database\\Eloquent\\Model->__call('withTrashed', Array)
+#3 /Users/naveenadicharla/Documents/test/prodc-uvchm/debug_compare_students.php(15): Illuminate\\Database\\Eloquent\\Model::__callStatic('withTrashed', Array)
+#4 {main}
 "} 
-[2025-12-08 19:36:22] local.ERROR: Command "test" is not defined.
+[2025-12-24 16:31:01] local.ERROR: Command "test" is not defined.
 
 Did you mean one of these?
     backup:test-now
@@ -72,305 +27,28 @@ Did you mean one of these?
     make:test
     schedule:test
     system:final-test
-    webhook:test-payload at /Users/naveenadicharla/Documents/app/vendor/symfony/console/Application.php:725)
+    webhook:test-payload at /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Application.php:725)
 [stacktrace]
-#0 /Users/naveenadicharla/Documents/app/vendor/symfony/console/Application.php(283): Symfony\\Component\\Console\\Application->find('test')
-#1 /Users/naveenadicharla/Documents/app/vendor/symfony/console/Application.php(192): Symfony\\Component\\Console\\Application->doRun(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
-#2 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(198): Symfony\\Component\\Console\\Application->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
-#3 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1235): Illuminate\\Foundation\\Console\\Kernel->handle(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
-#4 /Users/naveenadicharla/Documents/app/artisan(13): Illuminate\\Foundation\\Application->handleCommand(Object(Symfony\\Component\\Console\\Input\\ArgvInput))
+#0 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Application.php(283): Symfony\\Component\\Console\\Application->find('test')
+#1 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Application.php(192): Symfony\\Component\\Console\\Application->doRun(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#2 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(198): Symfony\\Component\\Console\\Application->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#3 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1235): Illuminate\\Foundation\\Console\\Kernel->handle(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#4 /Users/naveenadicharla/Documents/test/prodc-uvchm/artisan(13): Illuminate\\Foundation\\Application->handleCommand(Object(Symfony\\Component\\Console\\Input\\ArgvInput))
 #5 {main}
 "} 
-[2025-12-08 19:36:57] local.ERROR: SQLSTATE[HY000]: General error: 1 error in index students_user_id_unique after drop column: no such column: "user_id" - should this be a string literal in single-quotes? (Connection: sqlite, SQL: alter table "students" drop column "user_id") {"exception":"[object] (Illuminate\\Database\\QueryException(code: HY000): SQLSTATE[HY000]: General error: 1 error in index students_user_id_unique after drop column: no such column: \"user_id\" - should this be a string literal in single-quotes? (Connection: sqlite, SQL: alter table \"students\" drop column \"user_id\") at /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Connection.php:825)
+[2025-12-24 18:23:58] local.ERROR: The "--columns" option does not exist. {"exception":"[object] (Symfony\\Component\\Console\\Exception\\RuntimeException(code: 0): The \"--columns\" option does not exist. at /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Input/ArgvInput.php:226)
 [stacktrace]
-#0 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Connection.php(779): Illuminate\\Database\\Connection->runQueryCallback('alter table \"st...', Array, Object(Closure))
-#1 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Connection.php(560): Illuminate\\Database\\Connection->run('alter table \"st...', Array, Object(Closure))
-#2 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Schema/Blueprint.php(118): Illuminate\\Database\\Connection->statement('alter table \"st...')
-#3 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Schema/Builder.php(564): Illuminate\\Database\\Schema\\Blueprint->build(Object(Illuminate\\Database\\SQLiteConnection), Object(Illuminate\\Database\\Schema\\Grammars\\SQLiteGrammar))
-#4 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Schema/Builder.php(406): Illuminate\\Database\\Schema\\Builder->build(Object(Illuminate\\Database\\Schema\\Blueprint))
-#5 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Support/Facades/Facade.php(361): Illuminate\\Database\\Schema\\Builder->table('students', Object(Closure))
-#6 /Users/naveenadicharla/Documents/app/database/migrations/2025_06_18_173005_update_students_for_bulk_import.php(11): Illuminate\\Support\\Facades\\Facade::__callStatic('table', Array)
-#7 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(507): Illuminate\\Database\\Migrations\\Migration@anonymous->up()
-#8 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(432): Illuminate\\Database\\Migrations\\Migrator->runMethod(Object(Illuminate\\Database\\SQLiteConnection), Object(Illuminate\\Database\\Migrations\\Migration@anonymous), 'up')
-#9 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(441): Illuminate\\Database\\Migrations\\Migrator->{closure:Illuminate\\Database\\Migrations\\Migrator::runMigration():428}()
-#10 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(244): Illuminate\\Database\\Migrations\\Migrator->runMigration(Object(Illuminate\\Database\\Migrations\\Migration@anonymous), 'up')
-#11 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Console/View/Components/Task.php(40): Illuminate\\Database\\Migrations\\Migrator->{closure:Illuminate\\Database\\Migrations\\Migrator::runUp():244}()
-#12 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(798): Illuminate\\Console\\View\\Components\\Task->render('2025_06_18_1730...', Object(Closure))
-#13 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(244): Illuminate\\Database\\Migrations\\Migrator->write('Illuminate\\\\Cons...', '2025_06_18_1730...', Object(Closure))
-#14 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(211): Illuminate\\Database\\Migrations\\Migrator->runUp('/Users/naveenad...', 1, false)
-#15 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(138): Illuminate\\Database\\Migrations\\Migrator->runPending(Array, Array)
-#16 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/MigrateCommand.php(117): Illuminate\\Database\\Migrations\\Migrator->run(Array, Array)
-#17 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(658): Illuminate\\Database\\Console\\Migrations\\MigrateCommand->{closure:Illuminate\\Database\\Console\\Migrations\\MigrateCommand::runMigrations():110}()
-#18 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/MigrateCommand.php(110): Illuminate\\Database\\Migrations\\Migrator->usingConnection(NULL, Object(Closure))
-#19 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/MigrateCommand.php(89): Illuminate\\Database\\Console\\Migrations\\MigrateCommand->runMigrations()
-#20 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(36): Illuminate\\Database\\Console\\Migrations\\MigrateCommand->handle()
-#21 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Container/Util.php(43): Illuminate\\Container\\BoundMethod::{closure:Illuminate\\Container\\BoundMethod::call():35}()
-#22 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(95): Illuminate\\Container\\Util::unwrapIfClosure(Object(Closure))
-#23 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(35): Illuminate\\Container\\BoundMethod::callBoundMethod(Object(Illuminate\\Foundation\\Application), Array, Object(Closure))
-#24 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Container/Container.php(696): Illuminate\\Container\\BoundMethod::call(Object(Illuminate\\Foundation\\Application), Array, Array, NULL)
-#25 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Console/Command.php(213): Illuminate\\Container\\Container->call(Array)
-#26 /Users/naveenadicharla/Documents/app/vendor/symfony/console/Command/Command.php(318): Illuminate\\Console\\Command->execute(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Illuminate\\Console\\OutputStyle))
-#27 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Console/Command.php(182): Symfony\\Component\\Console\\Command\\Command->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Illuminate\\Console\\OutputStyle))
-#28 /Users/naveenadicharla/Documents/app/vendor/symfony/console/Application.php(1092): Illuminate\\Console\\Command->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
-#29 /Users/naveenadicharla/Documents/app/vendor/symfony/console/Application.php(341): Symfony\\Component\\Console\\Application->doRunCommand(Object(Illuminate\\Database\\Console\\Migrations\\MigrateCommand), Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
-#30 /Users/naveenadicharla/Documents/app/vendor/symfony/console/Application.php(192): Symfony\\Component\\Console\\Application->doRun(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
-#31 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(198): Symfony\\Component\\Console\\Application->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
-#32 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1235): Illuminate\\Foundation\\Console\\Kernel->handle(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
-#33 /Users/naveenadicharla/Documents/app/artisan(13): Illuminate\\Foundation\\Application->handleCommand(Object(Symfony\\Component\\Console\\Input\\ArgvInput))
-#34 {main}
-
-[previous exception] [object] (PDOException(code: HY000): SQLSTATE[HY000]: General error: 1 error in index students_user_id_unique after drop column: no such column: \"user_id\" - should this be a string literal in single-quotes? at /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Connection.php:571)
-[stacktrace]
-#0 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Connection.php(571): PDOStatement->execute()
-#1 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Connection.php(812): Illuminate\\Database\\Connection->{closure:Illuminate\\Database\\Connection::statement():560}('alter table \"st...', Array)
-#2 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Connection.php(779): Illuminate\\Database\\Connection->runQueryCallback('alter table \"st...', Array, Object(Closure))
-#3 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Connection.php(560): Illuminate\\Database\\Connection->run('alter table \"st...', Array, Object(Closure))
-#4 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Schema/Blueprint.php(118): Illuminate\\Database\\Connection->statement('alter table \"st...')
-#5 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Schema/Builder.php(564): Illuminate\\Database\\Schema\\Blueprint->build(Object(Illuminate\\Database\\SQLiteConnection), Object(Illuminate\\Database\\Schema\\Grammars\\SQLiteGrammar))
-#6 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Schema/Builder.php(406): Illuminate\\Database\\Schema\\Builder->build(Object(Illuminate\\Database\\Schema\\Blueprint))
-#7 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Support/Facades/Facade.php(361): Illuminate\\Database\\Schema\\Builder->table('students', Object(Closure))
-#8 /Users/naveenadicharla/Documents/app/database/migrations/2025_06_18_173005_update_students_for_bulk_import.php(11): Illuminate\\Support\\Facades\\Facade::__callStatic('table', Array)
-#9 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(507): Illuminate\\Database\\Migrations\\Migration@anonymous->up()
-#10 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(432): Illuminate\\Database\\Migrations\\Migrator->runMethod(Object(Illuminate\\Database\\SQLiteConnection), Object(Illuminate\\Database\\Migrations\\Migration@anonymous), 'up')
-#11 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(441): Illuminate\\Database\\Migrations\\Migrator->{closure:Illuminate\\Database\\Migrations\\Migrator::runMigration():428}()
-#12 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(244): Illuminate\\Database\\Migrations\\Migrator->runMigration(Object(Illuminate\\Database\\Migrations\\Migration@anonymous), 'up')
-#13 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Console/View/Components/Task.php(40): Illuminate\\Database\\Migrations\\Migrator->{closure:Illuminate\\Database\\Migrations\\Migrator::runUp():244}()
-#14 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(798): Illuminate\\Console\\View\\Components\\Task->render('2025_06_18_1730...', Object(Closure))
-#15 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(244): Illuminate\\Database\\Migrations\\Migrator->write('Illuminate\\\\Cons...', '2025_06_18_1730...', Object(Closure))
-#16 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(211): Illuminate\\Database\\Migrations\\Migrator->runUp('/Users/naveenad...', 1, false)
-#17 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(138): Illuminate\\Database\\Migrations\\Migrator->runPending(Array, Array)
-#18 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/MigrateCommand.php(117): Illuminate\\Database\\Migrations\\Migrator->run(Array, Array)
-#19 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(658): Illuminate\\Database\\Console\\Migrations\\MigrateCommand->{closure:Illuminate\\Database\\Console\\Migrations\\MigrateCommand::runMigrations():110}()
-#20 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/MigrateCommand.php(110): Illuminate\\Database\\Migrations\\Migrator->usingConnection(NULL, Object(Closure))
-#21 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/MigrateCommand.php(89): Illuminate\\Database\\Console\\Migrations\\MigrateCommand->runMigrations()
-#22 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(36): Illuminate\\Database\\Console\\Migrations\\MigrateCommand->handle()
-#23 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Container/Util.php(43): Illuminate\\Container\\BoundMethod::{closure:Illuminate\\Container\\BoundMethod::call():35}()
-#24 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(95): Illuminate\\Container\\Util::unwrapIfClosure(Object(Closure))
-#25 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(35): Illuminate\\Container\\BoundMethod::callBoundMethod(Object(Illuminate\\Foundation\\Application), Array, Object(Closure))
-#26 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Container/Container.php(696): Illuminate\\Container\\BoundMethod::call(Object(Illuminate\\Foundation\\Application), Array, Array, NULL)
-#27 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Console/Command.php(213): Illuminate\\Container\\Container->call(Array)
-#28 /Users/naveenadicharla/Documents/app/vendor/symfony/console/Command/Command.php(318): Illuminate\\Console\\Command->execute(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Illuminate\\Console\\OutputStyle))
-#29 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Console/Command.php(182): Symfony\\Component\\Console\\Command\\Command->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Illuminate\\Console\\OutputStyle))
-#30 /Users/naveenadicharla/Documents/app/vendor/symfony/console/Application.php(1092): Illuminate\\Console\\Command->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
-#31 /Users/naveenadicharla/Documents/app/vendor/symfony/console/Application.php(341): Symfony\\Component\\Console\\Application->doRunCommand(Object(Illuminate\\Database\\Console\\Migrations\\MigrateCommand), Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
-#32 /Users/naveenadicharla/Documents/app/vendor/symfony/console/Application.php(192): Symfony\\Component\\Console\\Application->doRun(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
-#33 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(198): Symfony\\Component\\Console\\Application->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
-#34 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1235): Illuminate\\Foundation\\Console\\Kernel->handle(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
-#35 /Users/naveenadicharla/Documents/app/artisan(13): Illuminate\\Foundation\\Application->handleCommand(Object(Symfony\\Component\\Console\\Input\\ArgvInput))
-#36 {main}
+#0 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Input/ArgvInput.php(153): Symfony\\Component\\Console\\Input\\ArgvInput->addLongOption('columns', 'name,uri,action')
+#1 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Input/ArgvInput.php(88): Symfony\\Component\\Console\\Input\\ArgvInput->parseLongOption('--columns=name,...')
+#2 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Input/ArgvInput.php(77): Symfony\\Component\\Console\\Input\\ArgvInput->parseToken('--columns=name,...', true)
+#3 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Input/Input.php(53): Symfony\\Component\\Console\\Input\\ArgvInput->parse()
+#4 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Command/Command.php(276): Symfony\\Component\\Console\\Input\\Input->bind(Object(Symfony\\Component\\Console\\Input\\InputDefinition))
+#5 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Console/Command.php(182): Symfony\\Component\\Console\\Command\\Command->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Illuminate\\Console\\OutputStyle))
+#6 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Application.php(1092): Illuminate\\Console\\Command->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#7 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Application.php(341): Symfony\\Component\\Console\\Application->doRunCommand(Object(Illuminate\\Foundation\\Console\\RouteListCommand), Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#8 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Application.php(192): Symfony\\Component\\Console\\Application->doRun(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#9 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(198): Symfony\\Component\\Console\\Application->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#10 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1235): Illuminate\\Foundation\\Console\\Kernel->handle(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#11 /Users/naveenadicharla/Documents/test/prodc-uvchm/artisan(13): Illuminate\\Foundation\\Application->handleCommand(Object(Symfony\\Component\\Console\\Input\\ArgvInput))
+#12 {main}
 "} 
-[2025-12-08 19:40:47] local.ERROR: SQLSTATE[42000]: Syntax error or access violation: 1101 BLOB, TEXT, GEOMETRY or JSON column 'notification_preferences' can't have a default value (Connection: mysql, SQL: 
-            ALTER TABLE parent_contacts 
-            ALTER COLUMN notification_preferences 
-            SET DEFAULT '{
-                "attendance_alerts": true,
-                "absence_alerts": true,
-                "late_arrival_alerts": true,
-                "monthly_reports": true,
-                "emergency_alerts": true,
-                "fee_reminders": false,
-                "exam_notifications": true,
-                "channels": ["sms"]
-            }'
-        ) {"exception":"[object] (Illuminate\\Database\\QueryException(code: 42000): SQLSTATE[42000]: Syntax error or access violation: 1101 BLOB, TEXT, GEOMETRY or JSON column 'notification_preferences' can't have a default value (Connection: mysql, SQL: 
-            ALTER TABLE parent_contacts 
-            ALTER COLUMN notification_preferences 
-            SET DEFAULT '{
-                \"attendance_alerts\": true,
-                \"absence_alerts\": true,
-                \"late_arrival_alerts\": true,
-                \"monthly_reports\": true,
-                \"emergency_alerts\": true,
-                \"fee_reminders\": false,
-                \"exam_notifications\": true,
-                \"channels\": [\"sms\"]
-            }'
-        ) at /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Connection.php:825)
-[stacktrace]
-#0 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Connection.php(779): Illuminate\\Database\\Connection->runQueryCallback('\\n            AL...', Array, Object(Closure))
-#1 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Connection.php(560): Illuminate\\Database\\Connection->run('\\n            AL...', Array, Object(Closure))
-#2 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/DatabaseManager.php(495): Illuminate\\Database\\Connection->statement('\\n            AL...')
-#3 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Support/Facades/Facade.php(361): Illuminate\\Database\\DatabaseManager->__call('statement', Array)
-#4 /Users/naveenadicharla/Documents/app/database/migrations/2025_07_19_015306_create_parent_contacts_table.php(73): Illuminate\\Support\\Facades\\Facade::__callStatic('statement', Array)
-#5 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(507): Illuminate\\Database\\Migrations\\Migration@anonymous->up()
-#6 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(432): Illuminate\\Database\\Migrations\\Migrator->runMethod(Object(Illuminate\\Database\\MySqlConnection), Object(Illuminate\\Database\\Migrations\\Migration@anonymous), 'up')
-#7 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(441): Illuminate\\Database\\Migrations\\Migrator->{closure:Illuminate\\Database\\Migrations\\Migrator::runMigration():428}()
-#8 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(244): Illuminate\\Database\\Migrations\\Migrator->runMigration(Object(Illuminate\\Database\\Migrations\\Migration@anonymous), 'up')
-#9 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Console/View/Components/Task.php(40): Illuminate\\Database\\Migrations\\Migrator->{closure:Illuminate\\Database\\Migrations\\Migrator::runUp():244}()
-#10 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(798): Illuminate\\Console\\View\\Components\\Task->render('2025_07_19_0153...', Object(Closure))
-#11 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(244): Illuminate\\Database\\Migrations\\Migrator->write('Illuminate\\\\Cons...', '2025_07_19_0153...', Object(Closure))
-#12 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(211): Illuminate\\Database\\Migrations\\Migrator->runUp('/Users/naveenad...', 1, false)
-#13 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(138): Illuminate\\Database\\Migrations\\Migrator->runPending(Array, Array)
-#14 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/MigrateCommand.php(117): Illuminate\\Database\\Migrations\\Migrator->run(Array, Array)
-#15 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(658): Illuminate\\Database\\Console\\Migrations\\MigrateCommand->{closure:Illuminate\\Database\\Console\\Migrations\\MigrateCommand::runMigrations():110}()
-#16 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/MigrateCommand.php(110): Illuminate\\Database\\Migrations\\Migrator->usingConnection(NULL, Object(Closure))
-#17 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/MigrateCommand.php(89): Illuminate\\Database\\Console\\Migrations\\MigrateCommand->runMigrations()
-#18 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(36): Illuminate\\Database\\Console\\Migrations\\MigrateCommand->handle()
-#19 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Container/Util.php(43): Illuminate\\Container\\BoundMethod::{closure:Illuminate\\Container\\BoundMethod::call():35}()
-#20 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(95): Illuminate\\Container\\Util::unwrapIfClosure(Object(Closure))
-#21 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(35): Illuminate\\Container\\BoundMethod::callBoundMethod(Object(Illuminate\\Foundation\\Application), Array, Object(Closure))
-#22 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Container/Container.php(696): Illuminate\\Container\\BoundMethod::call(Object(Illuminate\\Foundation\\Application), Array, Array, NULL)
-#23 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Console/Command.php(213): Illuminate\\Container\\Container->call(Array)
-#24 /Users/naveenadicharla/Documents/app/vendor/symfony/console/Command/Command.php(318): Illuminate\\Console\\Command->execute(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Illuminate\\Console\\OutputStyle))
-#25 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Console/Command.php(182): Symfony\\Component\\Console\\Command\\Command->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Illuminate\\Console\\OutputStyle))
-#26 /Users/naveenadicharla/Documents/app/vendor/symfony/console/Application.php(1092): Illuminate\\Console\\Command->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
-#27 /Users/naveenadicharla/Documents/app/vendor/symfony/console/Application.php(341): Symfony\\Component\\Console\\Application->doRunCommand(Object(Illuminate\\Database\\Console\\Migrations\\MigrateCommand), Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
-#28 /Users/naveenadicharla/Documents/app/vendor/symfony/console/Application.php(192): Symfony\\Component\\Console\\Application->doRun(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
-#29 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(198): Symfony\\Component\\Console\\Application->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
-#30 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1235): Illuminate\\Foundation\\Console\\Kernel->handle(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
-#31 /Users/naveenadicharla/Documents/app/artisan(13): Illuminate\\Foundation\\Application->handleCommand(Object(Symfony\\Component\\Console\\Input\\ArgvInput))
-#32 {main}
-
-[previous exception] [object] (PDOException(code: 42000): SQLSTATE[42000]: Syntax error or access violation: 1101 BLOB, TEXT, GEOMETRY or JSON column 'notification_preferences' can't have a default value at /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Connection.php:571)
-[stacktrace]
-#0 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Connection.php(571): PDOStatement->execute()
-#1 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Connection.php(812): Illuminate\\Database\\Connection->{closure:Illuminate\\Database\\Connection::statement():560}('\\n            AL...', Array)
-#2 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Connection.php(779): Illuminate\\Database\\Connection->runQueryCallback('\\n            AL...', Array, Object(Closure))
-#3 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Connection.php(560): Illuminate\\Database\\Connection->run('\\n            AL...', Array, Object(Closure))
-#4 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/DatabaseManager.php(495): Illuminate\\Database\\Connection->statement('\\n            AL...')
-#5 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Support/Facades/Facade.php(361): Illuminate\\Database\\DatabaseManager->__call('statement', Array)
-#6 /Users/naveenadicharla/Documents/app/database/migrations/2025_07_19_015306_create_parent_contacts_table.php(73): Illuminate\\Support\\Facades\\Facade::__callStatic('statement', Array)
-#7 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(507): Illuminate\\Database\\Migrations\\Migration@anonymous->up()
-#8 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(432): Illuminate\\Database\\Migrations\\Migrator->runMethod(Object(Illuminate\\Database\\MySqlConnection), Object(Illuminate\\Database\\Migrations\\Migration@anonymous), 'up')
-#9 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(441): Illuminate\\Database\\Migrations\\Migrator->{closure:Illuminate\\Database\\Migrations\\Migrator::runMigration():428}()
-#10 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(244): Illuminate\\Database\\Migrations\\Migrator->runMigration(Object(Illuminate\\Database\\Migrations\\Migration@anonymous), 'up')
-#11 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Console/View/Components/Task.php(40): Illuminate\\Database\\Migrations\\Migrator->{closure:Illuminate\\Database\\Migrations\\Migrator::runUp():244}()
-#12 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(798): Illuminate\\Console\\View\\Components\\Task->render('2025_07_19_0153...', Object(Closure))
-#13 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(244): Illuminate\\Database\\Migrations\\Migrator->write('Illuminate\\\\Cons...', '2025_07_19_0153...', Object(Closure))
-#14 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(211): Illuminate\\Database\\Migrations\\Migrator->runUp('/Users/naveenad...', 1, false)
-#15 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(138): Illuminate\\Database\\Migrations\\Migrator->runPending(Array, Array)
-#16 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/MigrateCommand.php(117): Illuminate\\Database\\Migrations\\Migrator->run(Array, Array)
-#17 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(658): Illuminate\\Database\\Console\\Migrations\\MigrateCommand->{closure:Illuminate\\Database\\Console\\Migrations\\MigrateCommand::runMigrations():110}()
-#18 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/MigrateCommand.php(110): Illuminate\\Database\\Migrations\\Migrator->usingConnection(NULL, Object(Closure))
-#19 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/MigrateCommand.php(89): Illuminate\\Database\\Console\\Migrations\\MigrateCommand->runMigrations()
-#20 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(36): Illuminate\\Database\\Console\\Migrations\\MigrateCommand->handle()
-#21 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Container/Util.php(43): Illuminate\\Container\\BoundMethod::{closure:Illuminate\\Container\\BoundMethod::call():35}()
-#22 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(95): Illuminate\\Container\\Util::unwrapIfClosure(Object(Closure))
-#23 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(35): Illuminate\\Container\\BoundMethod::callBoundMethod(Object(Illuminate\\Foundation\\Application), Array, Object(Closure))
-#24 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Container/Container.php(696): Illuminate\\Container\\BoundMethod::call(Object(Illuminate\\Foundation\\Application), Array, Array, NULL)
-#25 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Console/Command.php(213): Illuminate\\Container\\Container->call(Array)
-#26 /Users/naveenadicharla/Documents/app/vendor/symfony/console/Command/Command.php(318): Illuminate\\Console\\Command->execute(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Illuminate\\Console\\OutputStyle))
-#27 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Console/Command.php(182): Symfony\\Component\\Console\\Command\\Command->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Illuminate\\Console\\OutputStyle))
-#28 /Users/naveenadicharla/Documents/app/vendor/symfony/console/Application.php(1092): Illuminate\\Console\\Command->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
-#29 /Users/naveenadicharla/Documents/app/vendor/symfony/console/Application.php(341): Symfony\\Component\\Console\\Application->doRunCommand(Object(Illuminate\\Database\\Console\\Migrations\\MigrateCommand), Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
-#30 /Users/naveenadicharla/Documents/app/vendor/symfony/console/Application.php(192): Symfony\\Component\\Console\\Application->doRun(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
-#31 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(198): Symfony\\Component\\Console\\Application->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
-#32 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1235): Illuminate\\Foundation\\Console\\Kernel->handle(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
-#33 /Users/naveenadicharla/Documents/app/artisan(13): Illuminate\\Foundation\\Application->handleCommand(Object(Symfony\\Component\\Console\\Input\\ArgvInput))
-#34 {main}
-"} 
-[2025-12-08 19:41:14] local.ERROR: SQLSTATE[42S01]: Base table or view already exists: 1050 Table 'parent_contacts' already exists (Connection: mysql, SQL: create table `parent_contacts` (`id` bigint unsigned not null auto_increment primary key, `student_id` bigint unsigned not null, `contact_type` enum('primary', 'secondary', 'emergency') not null default 'primary', `contact_name` varchar(191) not null, `relationship` enum('father', 'mother', 'guardian', 'sibling', 'grandparent', 'uncle', 'aunt', 'other') not null default 'father', `primary_phone` text null, `secondary_phone` text null, `email` varchar(191) null, `whatsapp_number` varchar(191) null, `preferred_language` enum('en', 'hi', 'regional') not null default 'en', `notification_preferences` json null, `emergency_contact` tinyint(1) not null default '0', `is_active` tinyint(1) not null default '1', `verified_at` timestamp null, `last_contacted_at` timestamp null, `contact_attempts` int not null default '0', `delivery_failures` int not null default '0', `blocked_until` timestamp null, `notes` text null, `created_at` timestamp null, `updated_at` timestamp null) default character set utf8mb4 collate 'utf8mb4_unicode_ci') {"exception":"[object] (Illuminate\\Database\\QueryException(code: 42S01): SQLSTATE[42S01]: Base table or view already exists: 1050 Table 'parent_contacts' already exists (Connection: mysql, SQL: create table `parent_contacts` (`id` bigint unsigned not null auto_increment primary key, `student_id` bigint unsigned not null, `contact_type` enum('primary', 'secondary', 'emergency') not null default 'primary', `contact_name` varchar(191) not null, `relationship` enum('father', 'mother', 'guardian', 'sibling', 'grandparent', 'uncle', 'aunt', 'other') not null default 'father', `primary_phone` text null, `secondary_phone` text null, `email` varchar(191) null, `whatsapp_number` varchar(191) null, `preferred_language` enum('en', 'hi', 'regional') not null default 'en', `notification_preferences` json null, `emergency_contact` tinyint(1) not null default '0', `is_active` tinyint(1) not null default '1', `verified_at` timestamp null, `last_contacted_at` timestamp null, `contact_attempts` int not null default '0', `delivery_failures` int not null default '0', `blocked_until` timestamp null, `notes` text null, `created_at` timestamp null, `updated_at` timestamp null) default character set utf8mb4 collate 'utf8mb4_unicode_ci') at /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Connection.php:825)
-[stacktrace]
-#0 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Connection.php(779): Illuminate\\Database\\Connection->runQueryCallback('create table `p...', Array, Object(Closure))
-#1 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Connection.php(560): Illuminate\\Database\\Connection->run('create table `p...', Array, Object(Closure))
-#2 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Schema/Blueprint.php(118): Illuminate\\Database\\Connection->statement('create table `p...')
-#3 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Schema/Builder.php(564): Illuminate\\Database\\Schema\\Blueprint->build(Object(Illuminate\\Database\\MySqlConnection), Object(Illuminate\\Database\\Schema\\Grammars\\MySqlGrammar))
-#4 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Schema/Builder.php(418): Illuminate\\Database\\Schema\\Builder->build(Object(Illuminate\\Database\\Schema\\Blueprint))
-#5 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Support/Facades/Facade.php(361): Illuminate\\Database\\Schema\\Builder->create('parent_contacts', Object(Closure))
-#6 /Users/naveenadicharla/Documents/app/database/migrations/2025_07_19_015306_create_parent_contacts_table.php(13): Illuminate\\Support\\Facades\\Facade::__callStatic('create', Array)
-#7 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(507): Illuminate\\Database\\Migrations\\Migration@anonymous->up()
-#8 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(432): Illuminate\\Database\\Migrations\\Migrator->runMethod(Object(Illuminate\\Database\\MySqlConnection), Object(Illuminate\\Database\\Migrations\\Migration@anonymous), 'up')
-#9 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(441): Illuminate\\Database\\Migrations\\Migrator->{closure:Illuminate\\Database\\Migrations\\Migrator::runMigration():428}()
-#10 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(244): Illuminate\\Database\\Migrations\\Migrator->runMigration(Object(Illuminate\\Database\\Migrations\\Migration@anonymous), 'up')
-#11 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Console/View/Components/Task.php(40): Illuminate\\Database\\Migrations\\Migrator->{closure:Illuminate\\Database\\Migrations\\Migrator::runUp():244}()
-#12 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(798): Illuminate\\Console\\View\\Components\\Task->render('2025_07_19_0153...', Object(Closure))
-#13 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(244): Illuminate\\Database\\Migrations\\Migrator->write('Illuminate\\\\Cons...', '2025_07_19_0153...', Object(Closure))
-#14 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(211): Illuminate\\Database\\Migrations\\Migrator->runUp('/Users/naveenad...', 2, false)
-#15 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(138): Illuminate\\Database\\Migrations\\Migrator->runPending(Array, Array)
-#16 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/MigrateCommand.php(117): Illuminate\\Database\\Migrations\\Migrator->run(Array, Array)
-#17 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(658): Illuminate\\Database\\Console\\Migrations\\MigrateCommand->{closure:Illuminate\\Database\\Console\\Migrations\\MigrateCommand::runMigrations():110}()
-#18 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/MigrateCommand.php(110): Illuminate\\Database\\Migrations\\Migrator->usingConnection(NULL, Object(Closure))
-#19 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/MigrateCommand.php(89): Illuminate\\Database\\Console\\Migrations\\MigrateCommand->runMigrations()
-#20 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(36): Illuminate\\Database\\Console\\Migrations\\MigrateCommand->handle()
-#21 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Container/Util.php(43): Illuminate\\Container\\BoundMethod::{closure:Illuminate\\Container\\BoundMethod::call():35}()
-#22 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(95): Illuminate\\Container\\Util::unwrapIfClosure(Object(Closure))
-#23 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(35): Illuminate\\Container\\BoundMethod::callBoundMethod(Object(Illuminate\\Foundation\\Application), Array, Object(Closure))
-#24 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Container/Container.php(696): Illuminate\\Container\\BoundMethod::call(Object(Illuminate\\Foundation\\Application), Array, Array, NULL)
-#25 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Console/Command.php(213): Illuminate\\Container\\Container->call(Array)
-#26 /Users/naveenadicharla/Documents/app/vendor/symfony/console/Command/Command.php(318): Illuminate\\Console\\Command->execute(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Illuminate\\Console\\OutputStyle))
-#27 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Console/Command.php(182): Symfony\\Component\\Console\\Command\\Command->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Illuminate\\Console\\OutputStyle))
-#28 /Users/naveenadicharla/Documents/app/vendor/symfony/console/Application.php(1092): Illuminate\\Console\\Command->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
-#29 /Users/naveenadicharla/Documents/app/vendor/symfony/console/Application.php(341): Symfony\\Component\\Console\\Application->doRunCommand(Object(Illuminate\\Database\\Console\\Migrations\\MigrateCommand), Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
-#30 /Users/naveenadicharla/Documents/app/vendor/symfony/console/Application.php(192): Symfony\\Component\\Console\\Application->doRun(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
-#31 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(198): Symfony\\Component\\Console\\Application->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
-#32 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1235): Illuminate\\Foundation\\Console\\Kernel->handle(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
-#33 /Users/naveenadicharla/Documents/app/artisan(13): Illuminate\\Foundation\\Application->handleCommand(Object(Symfony\\Component\\Console\\Input\\ArgvInput))
-#34 {main}
-
-[previous exception] [object] (PDOException(code: 42S01): SQLSTATE[42S01]: Base table or view already exists: 1050 Table 'parent_contacts' already exists at /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Connection.php:571)
-[stacktrace]
-#0 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Connection.php(571): PDOStatement->execute()
-#1 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Connection.php(812): Illuminate\\Database\\Connection->{closure:Illuminate\\Database\\Connection::statement():560}('create table `p...', Array)
-#2 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Connection.php(779): Illuminate\\Database\\Connection->runQueryCallback('create table `p...', Array, Object(Closure))
-#3 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Connection.php(560): Illuminate\\Database\\Connection->run('create table `p...', Array, Object(Closure))
-#4 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Schema/Blueprint.php(118): Illuminate\\Database\\Connection->statement('create table `p...')
-#5 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Schema/Builder.php(564): Illuminate\\Database\\Schema\\Blueprint->build(Object(Illuminate\\Database\\MySqlConnection), Object(Illuminate\\Database\\Schema\\Grammars\\MySqlGrammar))
-#6 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Schema/Builder.php(418): Illuminate\\Database\\Schema\\Builder->build(Object(Illuminate\\Database\\Schema\\Blueprint))
-#7 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Support/Facades/Facade.php(361): Illuminate\\Database\\Schema\\Builder->create('parent_contacts', Object(Closure))
-#8 /Users/naveenadicharla/Documents/app/database/migrations/2025_07_19_015306_create_parent_contacts_table.php(13): Illuminate\\Support\\Facades\\Facade::__callStatic('create', Array)
-#9 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(507): Illuminate\\Database\\Migrations\\Migration@anonymous->up()
-#10 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(432): Illuminate\\Database\\Migrations\\Migrator->runMethod(Object(Illuminate\\Database\\MySqlConnection), Object(Illuminate\\Database\\Migrations\\Migration@anonymous), 'up')
-#11 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(441): Illuminate\\Database\\Migrations\\Migrator->{closure:Illuminate\\Database\\Migrations\\Migrator::runMigration():428}()
-#12 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(244): Illuminate\\Database\\Migrations\\Migrator->runMigration(Object(Illuminate\\Database\\Migrations\\Migration@anonymous), 'up')
-#13 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Console/View/Components/Task.php(40): Illuminate\\Database\\Migrations\\Migrator->{closure:Illuminate\\Database\\Migrations\\Migrator::runUp():244}()
-#14 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(798): Illuminate\\Console\\View\\Components\\Task->render('2025_07_19_0153...', Object(Closure))
-#15 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(244): Illuminate\\Database\\Migrations\\Migrator->write('Illuminate\\\\Cons...', '2025_07_19_0153...', Object(Closure))
-#16 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(211): Illuminate\\Database\\Migrations\\Migrator->runUp('/Users/naveenad...', 2, false)
-#17 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(138): Illuminate\\Database\\Migrations\\Migrator->runPending(Array, Array)
-#18 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/MigrateCommand.php(117): Illuminate\\Database\\Migrations\\Migrator->run(Array, Array)
-#19 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(658): Illuminate\\Database\\Console\\Migrations\\MigrateCommand->{closure:Illuminate\\Database\\Console\\Migrations\\MigrateCommand::runMigrations():110}()
-#20 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/MigrateCommand.php(110): Illuminate\\Database\\Migrations\\Migrator->usingConnection(NULL, Object(Closure))
-#21 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/MigrateCommand.php(89): Illuminate\\Database\\Console\\Migrations\\MigrateCommand->runMigrations()
-#22 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(36): Illuminate\\Database\\Console\\Migrations\\MigrateCommand->handle()
-#23 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Container/Util.php(43): Illuminate\\Container\\BoundMethod::{closure:Illuminate\\Container\\BoundMethod::call():35}()
-#24 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(95): Illuminate\\Container\\Util::unwrapIfClosure(Object(Closure))
-#25 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(35): Illuminate\\Container\\BoundMethod::callBoundMethod(Object(Illuminate\\Foundation\\Application), Array, Object(Closure))
-#26 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Container/Container.php(696): Illuminate\\Container\\BoundMethod::call(Object(Illuminate\\Foundation\\Application), Array, Array, NULL)
-#27 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Console/Command.php(213): Illuminate\\Container\\Container->call(Array)
-#28 /Users/naveenadicharla/Documents/app/vendor/symfony/console/Command/Command.php(318): Illuminate\\Console\\Command->execute(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Illuminate\\Console\\OutputStyle))
-#29 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Console/Command.php(182): Symfony\\Component\\Console\\Command\\Command->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Illuminate\\Console\\OutputStyle))
-#30 /Users/naveenadicharla/Documents/app/vendor/symfony/console/Application.php(1092): Illuminate\\Console\\Command->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
-#31 /Users/naveenadicharla/Documents/app/vendor/symfony/console/Application.php(341): Symfony\\Component\\Console\\Application->doRunCommand(Object(Illuminate\\Database\\Console\\Migrations\\MigrateCommand), Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
-#32 /Users/naveenadicharla/Documents/app/vendor/symfony/console/Application.php(192): Symfony\\Component\\Console\\Application->doRun(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
-#33 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(198): Symfony\\Component\\Console\\Application->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
-#34 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1235): Illuminate\\Foundation\\Console\\Kernel->handle(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
-#35 /Users/naveenadicharla/Documents/app/artisan(13): Illuminate\\Foundation\\Application->handleCommand(Object(Symfony\\Component\\Console\\Input\\ArgvInput))
-#36 {main}
-"} 
-[2025-12-08 19:45:36] local.ERROR: Command "test" is not defined.
-
-Did you mean one of these?
-    backup:test-now
-    make:test
-    schedule:test
-    system:final-test
-    webhook:test-payload {"exception":"[object] (Symfony\\Component\\Console\\Exception\\CommandNotFoundException(code: 0): Command \"test\" is not defined.
-
-Did you mean one of these?
-    backup:test-now
-    make:test
-    schedule:test
-    system:final-test
-    webhook:test-payload at /Users/naveenadicharla/Documents/app/vendor/symfony/console/Application.php:725)
-[stacktrace]
-#0 /Users/naveenadicharla/Documents/app/vendor/symfony/console/Application.php(283): Symfony\\Component\\Console\\Application->find('test')
-#1 /Users/naveenadicharla/Documents/app/vendor/symfony/console/Application.php(192): Symfony\\Component\\Console\\Application->doRun(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
-#2 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(198): Symfony\\Component\\Console\\Application->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
-#3 /Users/naveenadicharla/Documents/app/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1235): Illuminate\\Foundation\\Console\\Kernel->handle(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
-#4 /Users/naveenadicharla/Documents/app/artisan(13): Illuminate\\Foundation\\Application->handleCommand(Object(Symfony\\Component\\Console\\Input\\ArgvInput))
-#5 {main}
-"} 
-[2025-12-08 19:54:45] local.INFO: WebhookEnabled trait - handleWebhookEventSafely called {"model":"App\\Models\\Course","model_id":1,"event_type":"created","webhooks_enabled":true} 
-[2025-12-08 19:54:45] local.INFO: About to fire EloquentWebhookEvent {"webhook_event_name":"course.created","model_class":"App\\Models\\Course","model_id":1} 
-[2025-12-08 19:54:45] local.INFO: 🎯 UniversalWebhookListener::handle() called {"event_class":"App\\Events\\EloquentWebhookEvent","event_type":"created","webhook_event_name":"course.created","model_class":"App\\Models\\Course","model_id":1} 
-[2025-12-08 19:54:45] local.INFO: Determined event name {"event_name":"course.created"} 
-[2025-12-08 19:54:45] local.INFO: Building optimized webhook payload {"event_name":"course.created"} 
-[2025-12-08 19:54:45] local.INFO: Sending webhooks {"event_name":"course.created","payload_size":"468 bytes"} 
-[2025-12-08 19:54:45] local.INFO: EloquentWebhookEvent fired successfully {"event_name":"course.created"} 
-[2025-12-08 19:54:45] local.INFO: WebhookEnabled trait - handleWebhookEventSafely called {"model":"App\\Models\\Batch","model_id":1,"event_type":"created","webhooks_enabled":true} 
-[2025-12-08 19:54:45] local.INFO: About to fire EloquentWebhookEvent {"webhook_event_name":"batch.created","model_class":"App\\Models\\Batch","model_id":1} 
-[2025-12-08 19:54:45] local.INFO: 🎯 UniversalWebhookListener::handle() called {"event_class":"App\\Events\\EloquentWebhookEvent","event_type":"created","webhook_event_name":"batch.created","model_class":"App\\Models\\Batch","model_id":1} 
-[2025-12-08 19:54:45] local.INFO: Determined event name {"event_name":"batch.created"} 
-[2025-12-08 19:54:45] local.INFO: Building optimized webhook payload {"event_name":"batch.created"} 
-[2025-12-08 19:54:45] local.INFO: Sending webhooks {"event_name":"batch.created","payload_size":"488 bytes"} 
-[2025-12-08 19:54:45] local.INFO: EloquentWebhookEvent fired successfully {"event_name":"batch.created"} 

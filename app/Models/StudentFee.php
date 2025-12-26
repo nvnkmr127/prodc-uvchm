@@ -11,7 +11,9 @@ use App\Traits\HasAcademicYear;
 
 class StudentFee extends Model
 {
-    use WebhookEnabled, HasFactory, HasAcademicYear;
+    use WebhookEnabled, HasFactory;
+
+    public $academic_year_column = 'academic_year'; // Keep for reference, though used manually now
 
     protected $fillable = [
         'student_id',
@@ -49,6 +51,37 @@ class StudentFee extends Model
     {
         parent::boot();
 
+        // [FIX] Robust Academic Year Global Scope (Handles Strict Name & Legacy Relations)
+        if (config('app.enable_academic_year_global_scope', true) && !app()->runningInConsole() && !request()->is('api/*')) {
+            static::addGlobalScope('academic_year', function (\Illuminate\Database\Eloquent\Builder $builder) {
+                $yearId = session('selected_academic_year_id');
+
+                // Default to current year
+                if (!$yearId) {
+                    $currentYear = \App\Models\AcademicYear::where('is_current', true)->first();
+                    $yearId = $currentYear?->id;
+                }
+
+                if ($yearId) {
+                    // Get Year Name for string column
+                    $yearName = \App\Models\AcademicYear::find($yearId)?->name;
+
+                    $builder->where(function ($q) use ($yearId, $yearName) {
+                        // 1. Primary: Match by explicit academic_year column string
+                        if ($yearName) {
+                            $q->where('academic_year', $yearName);
+                        }
+
+                        // 2. Fallback: Check Student's Batch Year
+                        // [FIX] Removed whereNull check to allow fallback even if column has mismatched string data
+                        $q->orWhereHas('student.batch', function ($bq) use ($yearId) {
+                            $bq->where('academic_year_id', $yearId);
+                        });
+                    });
+                }
+            });
+        }
+
         static::creating(function ($studentFee) {
             // Set original amount if not provided
             if (!$studentFee->original_amount) {
@@ -57,7 +90,14 @@ class StudentFee extends Model
 
             // Set academic year if not provided
             if (!$studentFee->academic_year) {
-                $studentFee->academic_year = date('Y') . '-' . (date('Y') + 1);
+                // Try to get from student's batch first
+                $student = \App\Models\Student::find($studentFee->student_id);
+                if ($student && $student->batch && $student->batch->academicYear) {
+                    $studentFee->academic_year = $student->batch->academicYear->name;
+                } else {
+                    // Fallback to current date logic
+                    $studentFee->academic_year = date('Y') . '-' . (date('Y') + 1);
+                }
             }
 
             // Update status based on amounts
@@ -75,23 +115,23 @@ class StudentFee extends Model
     /**
      * Update fee status based on payment amounts
      */
-public function updateStatus()
-{
-    $netAmount = $this->amount - $this->concession_amount;
-    
-    if ($this->paid_amount >= $netAmount) {
-        $this->status = 'paid';
-        if (!$this->paid_date) {
-            $this->paid_date = now();
+    public function updateStatus()
+    {
+        $netAmount = $this->amount - $this->concession_amount;
+
+        if ($this->paid_amount >= $netAmount) {
+            $this->status = 'paid';
+            if (!$this->paid_date) {
+                $this->paid_date = now();
+            }
+        } elseif ($this->paid_amount > 0) {
+            $this->status = 'partial';
+        } else {
+            // 🔧 CRITICAL FIX: Always use 'unpaid' instead of 'overdue'
+            // Your database schema only supports: ['unpaid', 'paid', 'partial', 'waived']
+            $this->status = 'unpaid';
         }
-    } elseif ($this->paid_amount > 0) {
-        $this->status = 'partial';
-    } else {
-        // 🔧 CRITICAL FIX: Always use 'unpaid' instead of 'overdue'
-        // Your database schema only supports: ['unpaid', 'paid', 'partial', 'waived']
-        $this->status = 'unpaid';
     }
-}
 
     /**
      * Relationships
@@ -119,13 +159,13 @@ public function updateStatus()
     public function payments()
     {
         return $this->belongsToMany(Payment::class, 'component_payment_items')
-                    ->withPivot('amount_paid', 'notes', 'created_at');
+            ->withPivot('amount_paid', 'notes', 'created_at');
     }
 
     public function concessions()
     {
         return $this->hasMany(StudentConcession::class, 'fee_category_id', 'fee_category_id')
-                    ->where('student_id', $this->student_id);
+            ->where('student_id', $this->student_id);
     }
 
     /**
@@ -144,10 +184,10 @@ public function updateStatus()
     public function scopeOverdue($query)
     {
         return $query->where('status', 'overdue')
-                     ->orWhere(function($q) {
-                         $q->where('status', 'unpaid')
-                           ->where('due_date', '<', now());
-                     });
+            ->orWhere(function ($q) {
+                $q->where('status', 'unpaid')
+                    ->where('due_date', '<', now());
+            });
     }
 
     public function scopeForAcademicYear($query, $year)
@@ -204,18 +244,18 @@ public function updateStatus()
         if (!$this->isOverdue()) {
             return 0;
         }
-        
+
         return $this->due_date->diffInDays(now());
     }
 
     public function getLatestPaymentDate()
     {
         return $this->componentPaymentItems()
-                    ->with('payment')
-                    ->latest('created_at')
-                    ->first()
-                    ?->payment
-                    ?->payment_date;
+            ->with('payment')
+            ->latest('created_at')
+            ->first()
+            ?->payment
+                ?->payment_date;
     }
 
     /**
@@ -231,7 +271,7 @@ public function updateStatus()
         }
 
         $this->increment('paid_amount', $paymentAmount);
-        
+
         // Create payment item record
         $payment->componentItems()->create([
             'student_fee_id' => $this->id,
@@ -258,7 +298,7 @@ public function updateStatus()
 
         $this->increment('concession_amount', $concessionAmount);
         $this->concession_notes = $notes;
-        
+
         $this->updateStatus();
         $this->save();
 
@@ -285,39 +325,39 @@ public function updateStatus()
      * Format fee for display
      */
 
-public function toDisplayArray()
-{
-    return [
-        'id' => $this->id,
-        'category' => $this->feeCategory->name,
-        'category_type' => $this->feeCategory->category_type ?? 'other',
-        'amount' => $this->amount,
-        'concession_amount' => $this->concession_amount,
-        'paid_amount' => $this->paid_amount,
-        'remaining_amount' => $this->getRemainingAmount(),
-        'net_amount' => $this->getNetAmount(),
-        'due_date' => $this->due_date?->format('Y-m-d'),
-        'status' => $this->status, // Database status
-        'display_status' => $this->getDisplayStatus(), // 🆕 For UI (includes overdue)
-        'is_overdue' => $this->isOverdue(),
-        'overdue_days' => $this->getOverdueDays(),
-        'payment_percentage' => $this->getPaymentPercentage(),
-        'can_pay' => $this->canMakePayment(),
-        'installment' => $this->installment_number . '/' . $this->total_installments,
-        'latest_payment_date' => $this->getLatestPaymentDate()?->format('Y-m-d'),
-    ];
-}
-
-/**
- * Get display status (includes overdue logic for UI without affecting database)
- */
-public function getDisplayStatus()
-{
-    if ($this->status === 'unpaid' && $this->isOverdue()) {
-        return 'overdue';
+    public function toDisplayArray()
+    {
+        return [
+            'id' => $this->id,
+            'category' => $this->feeCategory->name,
+            'category_type' => $this->feeCategory->category_type ?? 'other',
+            'amount' => $this->amount,
+            'concession_amount' => $this->concession_amount,
+            'paid_amount' => $this->paid_amount,
+            'remaining_amount' => $this->getRemainingAmount(),
+            'net_amount' => $this->getNetAmount(),
+            'due_date' => $this->due_date?->format('Y-m-d'),
+            'status' => $this->status, // Database status
+            'display_status' => $this->getDisplayStatus(), // 🆕 For UI (includes overdue)
+            'is_overdue' => $this->isOverdue(),
+            'overdue_days' => $this->getOverdueDays(),
+            'payment_percentage' => $this->getPaymentPercentage(),
+            'can_pay' => $this->canMakePayment(),
+            'installment' => $this->installment_number . '/' . $this->total_installments,
+            'latest_payment_date' => $this->getLatestPaymentDate()?->format('Y-m-d'),
+        ];
     }
-    return $this->status;
-}
+
+    /**
+     * Get display status (includes overdue logic for UI without affecting database)
+     */
+    public function getDisplayStatus()
+    {
+        if ($this->status === 'unpaid' && $this->isOverdue()) {
+            return 'overdue';
+        }
+        return $this->status;
+    }
 
     /**
      * Static methods
@@ -338,7 +378,7 @@ public function getDisplayStatus()
             $query->where('academic_year', $filters['academic_year']);
         }
 
-        return $query->get()->sum(function($fee) {
+        return $query->get()->sum(function ($fee) {
             return $fee->getRemainingAmount();
         });
     }

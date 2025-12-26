@@ -14,12 +14,14 @@ use Illuminate\Support\Facades\Log; // Import Log
 class EnquiriesImport implements ToModel, WithHeadingRow, WithValidation
 {
     protected $assignedTo;
+    protected $leadDistribution;
     public $importedCount = 0;
     public $skippedCount = 0;
 
-    public function __construct($assignedTo = null)
+    public function __construct($assignedTo = null, $leadDistribution = null)
     {
         $this->assignedTo = $assignedTo;
+        $this->leadDistribution = $leadDistribution;
     }
 
     public function model(array $row)
@@ -30,7 +32,7 @@ class EnquiriesImport implements ToModel, WithHeadingRow, WithValidation
 
         // 1. Sanitize Phone (Handle mismatched headers gracefully)
         $rawPhone = $row['mobile_number'] ?? $row['phone'] ?? $row['mobile'] ?? null;
-        $phone = preg_replace('/[^0-9]/', '', (string)$rawPhone); 
+        $phone = preg_replace('/[^0-9]/', '', (string) $rawPhone);
 
         // 2. Basic Validation
         if (empty($phone)) {
@@ -57,18 +59,31 @@ class EnquiriesImport implements ToModel, WithHeadingRow, WithValidation
             $courseId = $course ? $course->id : null;
         }
 
+        // Determine Assignment
+        // Priority: 1. Manually selected user 2. Round-Robin College Admin 3. Current User (Auth::id())
+        $assignedId = $this->assignedTo;
+
+        if (!$assignedId && $this->leadDistribution) {
+            $assignedId = $this->leadDistribution->getNextCollegeAdminId();
+        }
+
+        // Fallback to current user if still null
+        if (!$assignedId) {
+            $assignedId = Auth::id();
+        }
+
         $this->importedCount++;
 
         return new Enquiry([
-            'student_name'        => $row['name'] ?? $row['student_name'] ?? 'Unknown',
-            'phone_number'        => $phone,
-            'address'             => $row['address'] ?? null,
-            'email'               => $row['email'] ?? null,
-            'course_id'           => $courseId,
-            'source'              => $row['source'] ?? 'Bulk Import',
-            'notes'               => $row['notes'] ?? null,
-            'status'              => 'New',
-            'assigned_to_user_id' => $this->assignedTo ?: Auth::id(),
+            'student_name' => $row['name'] ?? $row['student_name'] ?? 'Unknown',
+            'phone_number' => $phone,
+            'address' => $row['address'] ?? null,
+            'email' => $row['email'] ?? null,
+            'course_id' => $courseId,
+            'source' => $row['source'] ?? 'Bulk Import',
+            'notes' => $row['notes'] ?? null,
+            'status' => 'New',
+            'assigned_to_user_id' => $assignedId,
             'next_follow_up_date' => now()->addDays(1),
         ]);
     }
@@ -77,7 +92,7 @@ class EnquiriesImport implements ToModel, WithHeadingRow, WithValidation
     {
         return [
             // Loose validation here, strict validation handled in logic to count skips
-            'name' => 'required', 
+            'name' => 'required',
         ];
     }
 }

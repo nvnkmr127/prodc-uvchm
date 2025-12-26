@@ -1,316 +1,284 @@
 @extends('layouts.theme')
-@section('title', 'Webhook Health Check')
+@section('title', 'Webhook Health Dashboard')
+
+@push('styles')
+    <style>
+        .card-premium {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            background: #fff;
+            transition: transform 0.2s;
+        }
+
+        .stats-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .pill-success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .pill-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .pill-danger {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .table-health th {
+            border-top: none;
+            background: #f9fafb;
+            color: #6b7280;
+            font-weight: 600;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+        }
+
+        .tip-card {
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 8px;
+        }
+    </style>
+@endpush
 
 @section('content')
-<div class="d-sm-flex align-items-center justify-content-between mb-4">
-    <div>
-        <h1 class="h3 mb-0 text-gray-800">Webhook Health Check</h1>
-        <p class="mb-0 text-muted">Monitor the health and reachability of all webhook endpoints</p>
-    </div>
-    <div class="d-flex gap-2">
-        <button onclick="refreshHealthCheck()" class="btn btn-sm btn-primary">
-            <i class="fas fa-sync"></i> Refresh Check
-        </button>
-        <a href="{{ route('admin.webhooks.index') }}" class="btn btn-sm btn-secondary">
-            <i class="fas fa-arrow-left"></i> Back to List
-        </a>
-    </div>
-</div>
-
-{{-- Health Summary --}}
-<div class="row mb-4">
-    @php
-        $totalWebhooks = count($results);
-        $healthyCount = collect($results)->where('health_status', 'healthy')->count();
-        $warningCount = collect($results)->where('health_status', 'warning')->count();
-        $criticalCount = collect($results)->where('health_status', 'critical')->count();
-        $reachableCount = collect($results)->where('is_reachable', true)->count();
-    @endphp
-
-    <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-left-primary shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
-                            Total Webhooks
-                        </div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ $totalWebhooks }}</div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="fas fa-webhook fa-2x text-gray-300"></i>
-                    </div>
-                </div>
+    <div class="container-fluid">
+        <div class="d-sm-flex align-items-center justify-content-between mb-4">
+            <div>
+                <h1 class="h3 mb-0 text-gray-800 font-weight-bold">System Health</h1>
+                <p class="mb-0 text-muted">Real-time status of webhook delivery infrastructure.</p>
             </div>
-        </div>
-    </div>
-
-    <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-left-success shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                            Healthy
-                        </div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ $healthyCount }}</div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="fas fa-heart fa-2x text-gray-300"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-left-warning shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
-                            Warning
-                        </div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ $warningCount }}</div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="fas fa-exclamation-triangle fa-2x text-gray-300"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-left-danger shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
-                            Critical
-                        </div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ $criticalCount }}</div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="fas fa-times-circle fa-2x text-gray-300"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-{{-- Health Check Results --}}
-<div class="card shadow mb-4">
-    <div class="card-header py-3 d-flex justify-content-between align-items-center">
-        <h6 class="m-0 font-weight-bold text-primary">Health Check Results</h6>
-        <div class="text-muted small">
-            Last checked: {{ now()->format('M d, Y H:i:s') }}
-        </div>
-    </div>
-    <div class="card-body">
-        @if(count($results) > 0)
-            <div class="table-responsive">
-                <table class="table table-bordered table-hover">
-                    <thead class="bg-light">
-                        <tr>
-                            <th width="25%">Webhook URL</th>
-                            <th width="15%">Event Type</th>
-                            <th width="12%">Reachable</th>
-                            <th width="12%">Health Status</th>
-                            <th width="12%">Failures</th>
-                            <th width="14%">Last Success</th>
-                            <th width="10%">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($results as $result)
-                            @php
-                                $healthBadgeClass = match($result['health_status']) {
-                                    'healthy' => 'badge-success',
-                                    'warning' => 'badge-warning',
-                                    'critical' => 'badge-danger',
-                                    default => 'badge-secondary'
-                                };
-                                
-                                $reachableBadgeClass = $result['is_reachable'] ? 'badge-success' : 'badge-danger';
-                            @endphp
-                            <tr class="{{ $result['health_status'] === 'critical' ? 'table-danger' : ($result['health_status'] === 'warning' ? 'table-warning' : '') }}">
-                                <td>
-                                    <div class="small">
-                                        <code>{{ Str::limit($result['url'], 40) }}</code>
-                                    </div>
-                                </td>
-                                <td>
-                                    <span class="badge badge-info">{{ $result['event_name'] }}</span>
-                                </td>
-                                <td>
-                                    <span class="badge {{ $reachableBadgeClass }}">
-                                        <i class="fas fa-{{ $result['is_reachable'] ? 'check' : 'times' }}"></i>
-                                        {{ $result['is_reachable'] ? 'Yes' : 'No' }}
-                                    </span>
-                                </td>
-                                <td>
-                                    <span class="badge {{ $healthBadgeClass }}">
-                                        {{ ucfirst($result['health_status']) }}
-                                    </span>
-                                </td>
-                                <td>
-                                    @if($result['consecutive_failures'] > 0)
-                                        <span class="badge badge-danger">{{ $result['consecutive_failures'] }}</span>
-                                    @else
-                                        <span class="badge badge-success">0</span>
-                                    @endif
-                                </td>
-                                <td>
-                                    @if($result['last_success'])
-                                        <span class="small text-success">{{ $result['last_success'] }}</span>
-                                    @else
-                                        <span class="small text-muted">Never</span>
-                                    @endif
-                                </td>
-                                <td>
-                                    <div class="btn-group" role="group">
-                                        <a href="{{ route('admin.webhooks.show', $result['id']) }}" 
-                                           class="btn btn-sm btn-outline-primary" title="View Details">
-                                            <i class="fas fa-eye"></i>
-                                        </a>
-                                        <form action="{{ route('admin.webhooks.test', $result['id']) }}" method="POST" class="d-inline">
-                                            @csrf
-                                            <button type="submit" class="btn btn-sm btn-outline-info" title="Test">
-                                                <i class="fas fa-paper-plane"></i>
-                                            </button>
-                                        </form>
-                                    </div>
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-        @else
-            <div class="text-center py-5">
-                <i class="fas fa-heartbeat fa-3x text-gray-300 mb-3"></i>
-                <h5 class="text-gray-500">No active webhooks found</h5>
-                <p class="text-gray-400 mb-4">Create some webhooks to monitor their health status.</p>
-                <a href="{{ route('admin.webhooks.create') }}" class="btn btn-primary">
-                    <i class="fas fa-plus"></i> Create Your First Webhook
+            <div class="d-flex gap-2">
+                <button onclick="window.location.reload()" class="btn btn-primary shadow-sm">
+                    <i class="fas fa-sync-alt mr-2"></i>Refresh Status
+                </button>
+                <a href="{{ route('admin.webhooks.index') }}" class="btn btn-light border shadow-sm text-gray-700">
+                    <i class="fas fa-list mr-2"></i>Webhook List
                 </a>
             </div>
-        @endif
-    </div>
-</div>
+        </div>
 
-{{-- Health Check Information --}}
-<div class="row">
-    <div class="col-lg-6">
-        <div class="card shadow mb-4">
-            <div class="card-header py-3">
-                <h6 class="m-0 font-weight-bold text-info">Health Status Levels</h6>
+        @php
+            $totalWebhooks = count($results);
+            $healthyCount = collect($results)->where('health_status', 'healthy')->count();
+            $warningCount = collect($results)->where('health_status', 'warning')->count();
+            $criticalCount = collect($results)->where('health_status', 'critical')->count();
+        @endphp
+
+        <!-- Stats Row -->
+        <div class="row mb-4">
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card card-premium h-100 py-2 border-left-primary">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Monitored Endpoints
+                                </div>
+                                <div class="h3 mb-0 font-weight-bold text-gray-800">{{ $totalWebhooks }}</div>
+                            </div>
+                            <div class="col-auto">
+                                <div class="stats-icon bg-primary-light text-primary">
+                                    <i class="fas fa-satellite-dish"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="card-body">
-                <div class="mb-3">
-                    <div class="d-flex align-items-center mb-2">
-                        <span class="badge badge-success mr-2">Healthy</span>
-                        <span>Working normally with good success rate</span>
+
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card card-premium h-100 py-2 border-left-success">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Operational</div>
+                                <div class="h3 mb-0 font-weight-bold text-gray-800">{{ $healthyCount }}</div>
+                            </div>
+                            <div class="col-auto">
+                                <div class="stats-icon bg-success-light text-success">
+                                    <i class="fas fa-check-circle"></i>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <small class="text-muted ml-4">
-                        • Less than 3 consecutive failures<br>
-                        • Endpoint is reachable<br>
-                        • Recent successful calls
-                    </small>
+                </div>
+            </div>
+
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card card-premium h-100 py-2 border-left-warning">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Degraded</div>
+                                <div class="h3 mb-0 font-weight-bold text-gray-800">{{ $warningCount }}</div>
+                            </div>
+                            <div class="col-auto">
+                                <div class="stats-icon bg-warning-light text-warning">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card card-premium h-100 py-2 border-left-danger">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Down / Critical</div>
+                                <div class="h3 mb-0 font-weight-bold text-gray-800">{{ $criticalCount }}</div>
+                            </div>
+                            <div class="col-auto">
+                                <div class="stats-icon bg-danger-light text-danger">
+                                    <i class="fas fa-times-circle"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Main Table -->
+            <div class="col-lg-8">
+                <div class="card card-premium shadow mb-4">
+                    <div class="card-header bg-white py-3 border-0">
+                        <h6 class="m-0 font-weight-bold text-gray-800">Endpoint Status</h6>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover table-health align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th class="pl-4">Endpoint</th>
+                                    <th>Latency</th>
+                                    <th>Status</th>
+                                    <th>Last Success</th>
+                                    <th class="text-right pr-4">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($results as $result)
+                                    @php
+                                        $statusClass = match ($result['health_status']) {
+                                            'healthy' => 'pill-success',
+                                            'warning' => 'pill-warning',
+                                            'critical' => 'pill-danger',
+                                            default => 'badge-secondary'
+                                        };
+                                        $icon = match ($result['health_status']) {
+                                            'healthy' => 'fa-check',
+                                            'warning' => 'fa-exclamation',
+                                            'critical' => 'fa-times',
+                                            default => 'fa-question'
+                                        };
+                                    @endphp
+                                    <tr>
+                                        <td class="pl-4">
+                                            <div class="font-weight-bold text-dark">{{ Str::limit($result['url'], 40) }}</div>
+                                            <div class="small text-muted">{{ $result['event_name'] }}</div>
+                                        </td>
+                                        <td>
+                                            @if($result['is_reachable'])
+                                                <span class="text-success small"><i class="fas fa-signal mr-1"></i>Reachable</span>
+                                            @else
+                                                <span class="text-danger small"><i class="fas fa-ban mr-1"></i>Unreachable</span>
+                                            @endif
+                                        </td>
+                                        <td>
+                                            <span class="status-pill {{ $statusClass }}">
+                                                <i class="fas {{ $icon }} mr-1"></i> {{ ucfirst($result['health_status']) }}
+                                            </span>
+                                            @if($result['consecutive_failures'] > 0)
+                                                <div class="small text-danger mt-1">{{ $result['consecutive_failures'] }} failures
+                                                </div>
+                                            @endif
+                                        </td>
+                                        <td class="small text-gray-600">
+                                            {{ $result['last_success'] ?? 'Never' }}
+                                        </td>
+                                        <td class="text-right pr-4">
+                                            <a href="{{ route('admin.webhooks.show', $result['id']) }}"
+                                                class="btn btn-sm btn-light border text-primary">
+                                                Details
+                                            </a>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="5" class="text-center py-5 text-gray-500">
+                                            No active configurations to monitor.
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <div class="col-lg-4">
+                <div class="card card-premium mb-4">
+                    <div class="card-body">
+                        <h6 class="font-weight-bold text-gray-800 mb-3">Diagnostic Guide</h6>
+
+                        <div class="mb-3 p-3 rounded bg-warning-light border border-warning">
+                            <div class="text-warning font-weight-bold mb-1"><i class="fas fa-exclamation-triangle mr-1"></i>
+                                Warning State</div>
+                            <p class="small text-dark mb-0">Endpoint is returning errors (4xx/5xx) intermittently. Check
+                                your server logs.</p>
+                        </div>
+
+                        <div class="mb-3 p-3 rounded bg-danger-light border border-danger">
+                            <div class="text-danger font-weight-bold mb-1"><i class="fas fa-times-circle mr-1"></i> Critical
+                                State</div>
+                            <p class="small text-dark mb-0">Endpoint is completely unreachable or timing out. Webhooks may
+                                be auto-disabled soon.</p>
+                        </div>
+
+                        <div class="mb-0 p-3 rounded bg-success-light border border-success">
+                            <div class="text-success font-weight-bold mb-1"><i class="fas fa-check-double mr-1"></i> Optimal
+                            </div>
+                            <p class="small text-dark mb-0">Latency is low and all deliveries are succeeding.</p>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="mb-3">
-                    <div class="d-flex align-items-center mb-2">
-                        <span class="badge badge-warning mr-2">Warning</span>
-                        <span>Some issues detected, requires attention</span>
+                <div class="card card-premium">
+                    <div class="card-body text-center">
+                        <i class="fas fa-life-ring fa-2x text-primary mb-2"></i>
+                        <p class="small text-muted">Need help debugging?</p>
+                        <a href="https://webhook.site" target="_blank" class="btn btn-sm btn-outline-primary">Use Webhook
+                            Tester</a>
                     </div>
-                    <small class="text-muted ml-4">
-                        • 3-9 consecutive failures<br>
-                        • Endpoint may be slow or intermittent<br>
-                        • Monitor closely
-                    </small>
-                </div>
-
-                <div class="mb-0">
-                    <div class="d-flex align-items-center mb-2">
-                        <span class="badge badge-danger mr-2">Critical</span>
-                        <span>Not working, immediate action required</span>
-                    </div>
-                    <small class="text-muted ml-4">
-                        • 10+ consecutive failures<br>
-                        • Endpoint unreachable or disabled<br>
-                        • May be auto-disabled
-                    </small>
                 </div>
             </div>
         </div>
     </div>
-
-    <div class="col-lg-6">
-        <div class="card shadow mb-4">
-            <div class="card-header py-3">
-                <h6 class="m-0 font-weight-bold text-success">Troubleshooting Tips</h6>
-            </div>
-            <div class="card-body">
-                <div class="mb-3">
-                    <h6 class="font-weight-bold">🔴 Not Reachable</h6>
-                    <ul class="small text-muted mb-3">
-                        <li>Check if the URL is correct and accessible</li>
-                        <li>Verify SSL certificates for HTTPS URLs</li>
-                        <li>Ensure firewall allows outbound connections</li>
-                        <li>Test the endpoint manually with curl/Postman</li>
-                    </ul>
-                </div>
-
-                <div class="mb-3">
-                    <h6 class="font-weight-bold">⚠️ High Failure Rate</h6>
-                    <ul class="small text-muted mb-3">
-                        <li>Check webhook endpoint logs for errors</li>
-                        <li>Verify payload format is being handled correctly</li>
-                        <li>Ensure endpoint responds with 200 OK status</li>
-                        <li>Check timeout settings (current: 30 seconds)</li>
-                    </ul>
-                </div>
-
-                <div class="mb-0">
-                    <h6 class="font-weight-bold">🔧 Quick Fixes</h6>
-                    <ul class="small text-muted mb-0">
-                        <li>Test the webhook manually using the Test button</li>
-                        <li>Regenerate secret key if authentication fails</li>
-                        <li>Reset failure count by toggling webhook off/on</li>
-                        <li>Check webhook logs for detailed error messages</li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<script>
-function refreshHealthCheck() {
-    // Show loading state
-    const refreshBtn = document.querySelector('[onclick="refreshHealthCheck()"]');
-    const originalText = refreshBtn.innerHTML;
-    refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking...';
-    refreshBtn.disabled = true;
-    
-    // Reload the page to refresh the health check
-    setTimeout(() => {
-        window.location.reload();
-    }, 1000);
-}
-
-// Auto-refresh every 2 minutes
-setInterval(() => {
-    window.location.reload();
-}, 120000);
-
-// Add tooltip for reachability check
-document.addEventListener('DOMContentLoaded', function() {
-    // You can add tooltips here if using Bootstrap tooltips
-    $('[data-toggle="tooltip"]').tooltip();
-});
-</script>
 @endsection

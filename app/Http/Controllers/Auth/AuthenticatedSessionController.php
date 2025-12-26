@@ -17,9 +17,14 @@ class AuthenticatedSessionController extends Controller
      */
     public function create(): View
     {
-        // Fetch all settings and key them by their name for easy access
-        $settings = Setting::all()->keyBy('key');
-        
+        try {
+            // Fetch all settings and key them by their name for easy access
+            $settings = Setting::all()->keyBy('key');
+        } catch (\Throwable $e) {
+            \Log::warning('AuthenticatedSessionController: Failed to load settings: ' . $e->getMessage());
+            $settings = collect();
+        }
+
         // Pass the settings to the login view
         return view('auth.login', compact('settings'));
     }
@@ -29,11 +34,21 @@ class AuthenticatedSessionController extends Controller
      */
     public function store(LoginRequest $request): RedirectResponse
     {
-        $request->authenticate();
+        try {
+            $request->authenticate();
 
-        $request->session()->regenerate();
+            $request->session()->regenerate();
 
-        return redirect()->intended(route('admin.dashboard', absolute: false));
+            return redirect()->intended(route('admin.dashboard', absolute: false));
+        } catch (\Illuminate\Database\QueryException $e) {
+            // Check for connection refusal or access denied
+            if ($e->getCode() === 1045 || $e->getCode() === 2002) {
+                return back()->withInput()->withErrors([
+                    'email' => 'System is currently unavailable. Please contact support.',
+                ]);
+            }
+            throw $e;
+        }
     }
 
     /**

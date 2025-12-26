@@ -40,6 +40,8 @@ class ComponentPaymentService
                 'component_details' => $components,
                 'transaction_id' => $paymentData['transaction_id'] ?? null,
                 'notes' => $paymentData['notes'] ?? null,
+                // [FIX] Populate academic_year for filtering
+                'academic_year' => $student->batch?->academicYear?->name ?? null,
             ]);
 
             // Apply payments to individual components
@@ -231,6 +233,25 @@ class ComponentPaymentService
             'total_concessions' => $studentFees->sum('concession_amount'),
             'collection_rate' => $this->calculateCollectionRate()
         ];
+    }
+
+    /**
+     * Get student overdue amount, optionally for a specific category
+     */
+    public function getStudentOverdueAmount(Student $student, ?int $feeCategoryId = null): float
+    {
+        $query = $student->studentFees()
+            ->whereDate('due_date', '<', now())
+            ->whereIn('status', ['unpaid', 'partial']);
+
+        if ($feeCategoryId) {
+            $query->where('fee_category_id', $feeCategoryId);
+        }
+
+        return $query->get()
+            ->sum(function ($fee) {
+                return max(0, $fee->amount - $fee->concession_amount - $fee->paid_amount);
+            });
     }
 
     // PRIVATE HELPER METHODS

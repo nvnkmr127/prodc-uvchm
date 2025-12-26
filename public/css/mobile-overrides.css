@@ -1,0 +1,164 @@
+/* Mobile Overrides for UVCHM Portal
+   Targeting screens smaller than 768px (MD breakpoint)
+   Strictly affects mobile only.
+*/
+
+@media (max-width: 768px) {
+    /* =========================================
+       Layout & Container Adjustments
+       ========================================= */
+    .container-fluid {
+        padding-left: 0.75rem !important;
+        padding-right: 0.75rem !important;
+    }
+    
+    /* Reduce margins/paddings on cards to save space */
+    .card-body {
+        padding: 1rem !important;
+    }
+    
+    /* Stack stats cards with less vertical gap */
+    .mb-4 {
+        margin-bottom: 1rem !important;
+    }
+
+    /* =========================================
+       Typography
+       ========================================= */
+    h1, .h3, .h4 {
+        font-size: 1.25rem !important;
+        line-height: 1.4 !important;
+    }
+    
+    .small, small {
+        font-size: 85% !important;
+    }
+
+    /* Prevent iOS zoom on inputs */
+    input, select, textarea {
+        font-size: 16px !important;
+    }
+
+    /* =========================================
+       Tables
+       ========================================= */
+    /* Force all tables to be scrollable horizontally */
+    table {
+        width: 100% !important;
+        margin-bottom: 0 !important;
+    }
+    
+    /* Ensure table-responsive wrapper works smoothly */
+    .table-responsive {
+        display: block;
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        border: 0;
+    }
+    
+    /* Optional: Hide less important columns in tables if they have specific classes 
+       (Only if consistent classes exist, otherwise rely on scroll) */
+
+    /* =========================================
+       Navigation & Sidebar
+       ========================================= */
+    /* Ensure topbar items don't overflow */
+    .topbar .nav-item .nav-link {
+        padding-right: 0.5rem !important;
+        padding-left: 0.5rem !important;
+    }
+
+    /* Make the mobile menu toggle visible and large enough */
+    #sidebarToggleTop {
+        display: inline-block !important;
+        padding: 0.5rem !important;
+    }
+
+    /* =========================================
+       Forms & Interactions
+       ========================================= */
+    .form-control {
+        height: auto !important;
+        padding: 0.5rem 0.75rem !important;
+    }
+
+    /* Stack flex containers that are rows on desktop */
+    /* Be careful not to break specific toolbars */
+    .d-sm-flex {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+    }
+    
+    /* Revert for specific internal flex boxes if needed */
+    .d-sm-flex .btn {
+        width: 100%; 
+        margin-bottom: 0.5rem;
+        margin-right: 0 !important;
+    }
+    
+    /* Exceptions for simple icon rows */
+    .d-sm-flex.align-items-center.justify-content-between {
+        gap: 10px;
+    }
+
+    /* =========================================
+       Dashboard Specifics
+       ========================================= */
+    /* Chart containers */
+    canvas {
+        max-width: 100% !important;
+        height: auto !important;
+    }
+
+    /* Dashboard Icon Circles */
+    .text-xs {
+        font-size: 0.7rem !important;
+    }
+    .h5 {
+        font-size: 1.1rem !important;
+    }
+
+    /* Modal adjustments */
+    .modal-dialog {
+        margin: 0.5rem !important;
+    }
+    
+    /* Search Bar in Topbar */
+    .navbar-search {
+        display: none !important; /* Hide global search on mobile to save space, relies on dropdown if available */
+    }
+
+    /* Header Actions Stacking */
+    .header-actions {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        gap: 0.5rem;
+    }
+    
+    .header-actions .btn {
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    
+    /* Stats Grid Stacking */
+    .stats-grid {
+        grid-template-columns: 1fr; /* Full width cards */
+        gap: 1rem;
+    }
+    
+    /* Student List Tweaks */
+    .student-info {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .student-avatar {
+        width: 40px;
+        height: 40px;
+    }
+}

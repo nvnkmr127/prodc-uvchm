@@ -20,7 +20,7 @@ trait HasAcademicYear
         // 1. Not running in console (to avoid issues with migrations/seeds)
         // 2. Not in API context (API should explicitly pass year)
         // 3. Explicitly enabled via config (disabled by default)
-        if (config('app.enable_academic_year_global_scope', false) && !app()->runningInConsole() && !request()->is('api/*')) {
+        if (config('app.enable_academic_year_global_scope', true) && !app()->runningInConsole() && !request()->is('api/*')) {
 
             static::addGlobalScope('academic_year', function (Builder $builder) {
                 // Get selected year from session, or default to current year
@@ -31,11 +31,28 @@ trait HasAcademicYear
                     $selectedYearId = $currentYear?->id;
                 }
 
+                // Determine column name (default to academic_year_id)
+                $columnName = $builder->getModel()->academic_year_column ?? 'academic_year_id';
+
                 // Only apply filter if we have a year ID and column exists
-                if ($selectedYearId && \Schema::hasColumn($builder->getModel()->getTable(), 'academic_year_id')) {
+                if ($selectedYearId && \Schema::hasColumn($builder->getModel()->getTable(), $columnName)) {
+
+                    // If column is 'academic_year' (not ID), we need to find the NAME of the year
+                    $valueToFilter = $selectedYearId;
+
+                    if ($columnName !== 'academic_year_id') {
+                        // Attempt to find the year name
+                        // Cache this query to avoid hitting DB on every model boot if possible, 
+                        // but here strict correctness is key.
+                        $yearModel = AcademicYear::find($selectedYearId);
+                        if ($yearModel) {
+                            $valueToFilter = $yearModel->name;
+                        }
+                    }
+
                     $builder->where(
-                        $builder->getModel()->getTable() . '.academic_year_id',
-                        $selectedYearId
+                        $builder->getModel()->getTable() . '.' . $columnName,
+                        $valueToFilter
                     );
                 }
             });
@@ -55,7 +72,16 @@ trait HasAcademicYear
      */
     public function scopeForAcademicYear(Builder $query, $academicYearId)
     {
-        return $query->where('academic_year_id', $academicYearId);
+        $columnName = $this->academic_year_column ?? 'academic_year_id';
+
+        $value = $academicYearId;
+        if ($columnName !== 'academic_year_id' && is_numeric($academicYearId)) {
+            $year = AcademicYear::find($academicYearId);
+            if ($year)
+                $value = $year->name;
+        }
+
+        return $query->where($columnName, $value);
     }
 
     /**
@@ -64,7 +90,13 @@ trait HasAcademicYear
     public function scopeForCurrentYear(Builder $query)
     {
         $currentYear = AcademicYear::where('is_current', true)->first();
-        return $currentYear ? $query->where('academic_year_id', $currentYear->id) : $query;
+        $columnName = $this->academic_year_column ?? 'academic_year_id';
+
+        if ($currentYear) {
+            $value = ($columnName === 'academic_year_id') ? $currentYear->id : $currentYear->name;
+            return $query->where($columnName, $value);
+        }
+        return $query;
     }
 
     /**

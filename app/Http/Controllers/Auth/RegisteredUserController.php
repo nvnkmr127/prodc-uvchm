@@ -20,9 +20,14 @@ class RegisteredUserController extends Controller
      */
     public function create(): View
     {
-        // Fetch all settings and key them by their name for easy access
-        $settings = Setting::all()->keyBy('key');
-        
+        try {
+            // Fetch all settings and key them by their name for easy access
+            $settings = Setting::all()->keyBy('key');
+        } catch (\Throwable $e) {
+            \Log::warning('RegisteredUserController: Failed to load settings: ' . $e->getMessage());
+            $settings = collect();
+        }
+
         // Pass the settings to the registration view
         return view('auth.register', compact('settings'));
     }
@@ -36,7 +41,7 @@ class RegisteredUserController extends Controller
     {
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
+            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:' . User::class],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 

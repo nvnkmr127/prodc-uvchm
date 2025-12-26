@@ -31,33 +31,33 @@ class PaymentReminderSettingsController extends Controller
     public function index()
     {
         $settings = Setting::whereIn('group', ['payment_reminders', 'communication', 'defaulter_management'])
-                          ->get()
-                          ->groupBy('group');
+            ->get()
+            ->groupBy('group');
 
         // Get reminder statistics
         $stats = $this->getReminderStatistics();
 
         // Get recent reminder activity
         $recentActivity = collect(); // Initialize as empty collection
-        
+
         // Check if PaymentReminder table exists before querying
         try {
             if (class_exists('\App\Models\PaymentReminder')) {
                 // ✅ CHANGED: The relationship is updated from 'invoice' to 'studentFee.feeCategory'
                 // to align with the new component-based system.
                 $recentActivity = PaymentReminder::with(['student', 'studentFee.feeCategory'])
-                                                ->latest()
-                                                ->limit(10)
-                                                ->get();
+                    ->latest()
+                    ->limit(10)
+                    ->get();
             }
         } catch (\Exception $e) {
-            Log::info('PaymentReminder table not yet available: ' . $e->getMessage());
+            \Log::info('PaymentReminder table not yet available: ' . $e->getMessage());
         }
 
         // ✅ FIXED: Return the correct view path in the payments folder
         return view('admin.payments.reminder-settings', compact(
-            'settings', 
-            'stats', 
+            'settings',
+            'stats',
             'recentActivity'
         ));
     }
@@ -89,7 +89,7 @@ class PaymentReminderSettingsController extends Controller
             return redirect()->back()->with('success', 'Payment reminder settings updated successfully!');
 
         } catch (\Exception $e) {
-            Log::error('Failed to update payment reminder settings: ' . $e->getMessage());
+            \Log::error('Failed to update payment reminder settings: ' . $e->getMessage());
             return redirect()->back()->with('error', 'Failed to update settings. Please try again.');
         }
     }
@@ -115,7 +115,7 @@ class PaymentReminderSettingsController extends Controller
             $pending = PaymentReminder::where('status', 'pending')->count();
             $failed = PaymentReminder::where('status', 'failed')->count();
             $sent = PaymentReminder::where('status', 'sent')->count();
-            
+
             $successRate = $total > 0 ? round(($sent / $total) * 100, 1) : 0;
 
             return [
@@ -127,7 +127,7 @@ class PaymentReminderSettingsController extends Controller
             ];
 
         } catch (\Exception $e) {
-            Log::error('Error getting reminder statistics: ' . $e->getMessage());
+            \Log::error('Error getting reminder statistics: ' . $e->getMessage());
             return [
                 'total_reminders' => 0,
                 'sent_today' => 0,
@@ -176,7 +176,7 @@ class PaymentReminderSettingsController extends Controller
             ], 503);
 
         } catch (\Exception $e) {
-            Log::error('Test reminder failed: ' . $e->getMessage());
+            \Log::error('Test reminder failed: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Test failed: ' . $e->getMessage()
@@ -263,7 +263,7 @@ class PaymentReminderSettingsController extends Controller
             return redirect()->back()->with('success', 'Settings reset to defaults successfully!');
 
         } catch (\Exception $e) {
-            Log::error('Failed to reset settings: ' . $e->getMessage());
+            \Log::error('Failed to reset settings: ' . $e->getMessage());
             return redirect()->back()->with('error', 'Failed to reset settings. Please try again.');
         }
     }

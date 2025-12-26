@@ -23,43 +23,43 @@ if (!function_exists('setting')) {
             }
 
             $cacheKey = "setting_{$key}";
-            
+
             return Cache::remember($cacheKey, 3600, function () use ($key, $default) {
                 $setting = Setting::where('key', $key)->first();
-                
+
                 if (!$setting) {
                     return $default;
                 }
 
                 // Handle different data types
                 $value = $setting->value;
-                
+
                 switch ($setting->type) {
                     case 'boolean':
                     case 'toggle':
                         return filter_var($value, FILTER_VALIDATE_BOOLEAN);
-                    
+
                     case 'integer':
                     case 'number':
                         return is_numeric($value) ? (int) $value : $default;
-                    
+
                     case 'float':
                     case 'decimal':
                         return is_numeric($value) ? (float) $value : $default;
-                    
+
                     case 'array':
                     case 'multiselect':
                         return is_string($value) ? json_decode($value, true) : $value;
-                    
+
                     case 'json':
                         return is_string($value) ? json_decode($value, true) : $value;
-                    
+
                     default:
                         return $value;
                 }
             });
-            
-        } catch (\Exception $e) {
+
+        } catch (\Throwable $e) {
             // Log error but don't break the application
             \Log::warning("Settings helper error for key '{$key}': " . $e->getMessage());
             return $default;
@@ -67,7 +67,8 @@ if (!function_exists('setting')) {
     }
 }
 if (!function_exists('get_payment_status_badge')) {
-    function get_payment_status_badge($status) {
+    function get_payment_status_badge($status)
+    {
         $badges = [
             'paid' => '<span class="badge badge-success">Paid</span>',
             'unpaid' => '<span class="badge badge-danger">Unpaid</span>',
@@ -79,7 +80,8 @@ if (!function_exists('get_payment_status_badge')) {
 }
 
 if (!function_exists('get_defaulter_category_badge')) {
-    function get_defaulter_category_badge($category) {
+    function get_defaulter_category_badge($category)
+    {
         $badges = [
             'mild' => '<span class="badge badge-info">Mild</span>',
             'moderate' => '<span class="badge badge-warning">Moderate</span>',
@@ -91,7 +93,8 @@ if (!function_exists('get_defaulter_category_badge')) {
 }
 
 if (!function_exists('format_overdue_days')) {
-    function format_overdue_days($days) {
+    function format_overdue_days($days)
+    {
         if ($days < 0) {
             return abs($days) . ' days left';
         } elseif ($days == 0) {
@@ -103,7 +106,8 @@ if (!function_exists('format_overdue_days')) {
 }
 
 if (!function_exists('get_fee_type_color')) {
-    function get_fee_type_color($feeType) {
+    function get_fee_type_color($feeType)
+    {
         $colors = [
             'tuition_fee' => 'primary',
             'uniform_fee' => 'success',
@@ -126,12 +130,12 @@ if (!function_exists('settings')) {
     function settings(array $keys, array $defaults = [])
     {
         $result = [];
-        
+
         foreach ($keys as $key) {
             $default = $defaults[$key] ?? null;
             $result[$key] = setting($key, $default);
         }
-        
+
         return $result;
     }
 }
@@ -154,7 +158,7 @@ if (!function_exists('public_settings')) {
                     ->pluck('value', 'key')
                     ->toArray();
             });
-            
+
         } catch (\Exception $e) {
             \Log::warning("Public settings error: " . $e->getMessage());
             return [];
@@ -229,7 +233,7 @@ if (!function_exists('update_setting')) {
             clear_settings_cache();
 
             return true;
-            
+
         } catch (\Exception $e) {
             \Log::error("Failed to update setting '{$key}': " . $e->getMessage());
             return false;
@@ -256,7 +260,7 @@ if (!function_exists('clear_settings_cache')) {
             Cache::forget('all_settings');
             Cache::forget('public_settings');
             Cache::tags(['settings'])->flush();
-            
+
         } catch (\Exception $e) {
             \Log::warning("Failed to clear settings cache: " . $e->getMessage());
         }
@@ -278,26 +282,26 @@ if (!function_exists('format_setting_value')) {
             case 'boolean':
             case 'toggle':
                 return $value ? 'Yes' : 'No';
-            
+
             case 'currency':
                 $symbol = app_setting('currency_symbol', '₹');
                 return $symbol . number_format($value, 2);
-            
+
             case 'percentage':
                 return $value . '%';
-            
+
             case 'array':
             case 'multiselect':
                 $array = is_string($value) ? json_decode($value, true) : $value;
                 return is_array($array) ? implode(', ', $array) : $value;
-            
+
             case 'date':
                 $format = app_setting('date_format', 'd-m-Y');
                 return \Carbon\Carbon::parse($value)->format($format);
-            
+
             case 'file':
                 return $value ? basename($value) : 'No file';
-            
+
             default:
                 return (string) $value;
         }
@@ -318,26 +322,29 @@ if (!function_exists('validate_setting_value')) {
         switch ($type) {
             case 'email':
                 return filter_var($value, FILTER_VALIDATE_EMAIL) !== false;
-            
+
             case 'url':
                 return filter_var($value, FILTER_VALIDATE_URL) !== false;
-            
+
             case 'number':
             case 'integer':
-                if (!is_numeric($value)) return false;
-                
-                if (isset($options['min']) && $value < $options['min']) return false;
-                if (isset($options['max']) && $value > $options['max']) return false;
-                
+                if (!is_numeric($value))
+                    return false;
+
+                if (isset($options['min']) && $value < $options['min'])
+                    return false;
+                if (isset($options['max']) && $value > $options['max'])
+                    return false;
+
                 return true;
-            
+
             case 'select':
                 return isset($options['allowed']) ? in_array($value, $options['allowed']) : true;
-            
+
             case 'boolean':
             case 'toggle':
                 return in_array($value, ['0', '1', 0, 1, true, false], true);
-            
+
             default:
                 return true;
         }
@@ -436,7 +443,7 @@ if (!function_exists('seed_default_settings')) {
                 'description' => 'Put application in maintenance mode',
                 'is_public' => false
             ],
-            
+
             // Academic Settings
             'academic_year_start' => [
                 'value' => '7',
@@ -452,7 +459,7 @@ if (!function_exists('seed_default_settings')) {
                 'description' => 'Current academic year (YYYY-YYYY format)',
                 'is_public' => true
             ],
-            
+
             // Attendance Settings
             'minimum_attendance_percentage' => [
                 'value' => '75',
@@ -468,7 +475,7 @@ if (!function_exists('seed_default_settings')) {
                 'description' => 'Late arrival grace period in minutes',
                 'is_public' => false
             ],
-            
+
             // Financial Settings
             'currency_symbol' => [
                 'value' => '₹',
@@ -494,10 +501,10 @@ if (!function_exists('seed_default_settings')) {
         ];
 
         $created = 0;
-        
+
         foreach ($defaultSettings as $key => $data) {
             $exists = Setting::where('key', $key)->exists();
-            
+
             if (!$exists) {
                 Setting::create(array_merge(['key' => $key], $data));
                 $created++;
@@ -528,21 +535,23 @@ if (!function_exists('export_settings')) {
             }
 
             $query = Setting::query();
-            
+
             if ($group) {
                 $query->where('group', $group);
             }
 
             return $query->get()->mapWithKeys(function ($setting) {
-                return [$setting->key => [
-                    'value' => $setting->value,
-                    'group' => $setting->group,
-                    'type' => $setting->type,
-                    'description' => $setting->description,
-                    'is_public' => $setting->is_public,
-                ]];
+                return [
+                    $setting->key => [
+                        'value' => $setting->value,
+                        'group' => $setting->group,
+                        'type' => $setting->type,
+                        'description' => $setting->description,
+                        'is_public' => $setting->is_public,
+                    ]
+                ];
             })->toArray();
-            
+
         } catch (\Exception $e) {
             \Log::error("Failed to export settings: " . $e->getMessage());
             return [];
@@ -566,10 +575,10 @@ if (!function_exists('import_settings')) {
             }
 
             $imported = 0;
-            
+
             foreach ($settings as $key => $data) {
                 $exists = Setting::where('key', $key)->exists();
-                
+
                 if (!$exists || $overwrite) {
                     Setting::updateOrCreate(
                         ['key' => $key],
@@ -591,7 +600,7 @@ if (!function_exists('import_settings')) {
             }
 
             return $imported;
-            
+
         } catch (\Exception $e) {
             \Log::error("Failed to import settings: " . $e->getMessage());
             return 0;

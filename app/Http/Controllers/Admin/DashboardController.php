@@ -22,6 +22,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Carbon\Carbon;
+use App\Models\Asset;
+use App\Models\LeaveApplication;
+use App\Models\Subject;
+use App\Models\FollowUp;
 
 class DashboardController extends Controller
 {
@@ -57,18 +61,18 @@ class DashboardController extends Controller
     /**
      * Super Admin Dashboard - Full system overview with component payment metrics
      */
-   protected function superAdminDashboard(User $user)
-{
-    // Get real data with enhanced payment metrics
-    $realDashboardData = $this->calculateRealDashboardData();
-    
-    $data = [
-        'user' => $user,
-        'dashboard_data' => $realDashboardData
-    ];
+    protected function superAdminDashboard(User $user)
+    {
+        // Get real data with enhanced payment metrics
+        $realDashboardData = $this->calculateRealDashboardData();
 
-    return view('admin.dashboard.super-admin', $data);
-}
+        $data = [
+            'user' => $user,
+            'dashboard_data' => $realDashboardData
+        ];
+
+        return view('admin.dashboard.super-admin', $data);
+    }
 
 
     /**
@@ -77,12 +81,12 @@ class DashboardController extends Controller
     protected function collegeAdminDashboard(User $user)
     {
         // Get real data with enhanced payment metrics
-    $realDashboardData = $this->calculateRealDashboardData();
-    
-    $data = [
-        'user' => $user,
-        'dashboard_data' => $realDashboardData
-    ];
+        $realDashboardData = $this->calculateRealDashboardData();
+
+        $data = [
+            'user' => $user,
+            'dashboard_data' => $realDashboardData
+        ];
 
         return view('admin.dashboard.college-admin', $data);
     }
@@ -93,12 +97,12 @@ class DashboardController extends Controller
     protected function accountantDashboard(User $user)
     {
         // Get real data with enhanced payment metrics
-    $realDashboardData = $this->calculateRealDashboardData();
-    
-    $data = [
-        'user' => $user,
-        'dashboard_data' => $realDashboardData
-    ];
+        $realDashboardData = $this->calculateRealDashboardData();
+
+        $data = [
+            'user' => $user,
+            'dashboard_data' => $realDashboardData
+        ];
 
         return view('accountant.dashboard', $data);
     }
@@ -109,12 +113,12 @@ class DashboardController extends Controller
     protected function facultyDashboard(User $user)
     {
         // Get real data with enhanced payment metrics
-    $realDashboardData = $this->calculateRealDashboardData();
-    
-    $data = [
-        'user' => $user,
-        'dashboard_data' => $realDashboardData
-    ];
+        $realDashboardData = $this->calculateRealDashboardData();
+
+        $data = [
+            'user' => $user,
+            'dashboard_data' => $realDashboardData
+        ];
 
         return view('faculty.dashboard', $data);
     }
@@ -125,12 +129,12 @@ class DashboardController extends Controller
     protected function staffDashboard(User $user)
     {
         // Get real data with enhanced payment metrics
-    $realDashboardData = $this->calculateRealDashboardData();
-    
-    $data = [
-        'user' => $user,
-        'dashboard_data' => $realDashboardData
-    ];
+        $realDashboardData = $this->calculateRealDashboardData();
+
+        $data = [
+            'user' => $user,
+            'dashboard_data' => $realDashboardData
+        ];
 
         return view('staff.dashboard', $data);
     }
@@ -141,7 +145,7 @@ class DashboardController extends Controller
     protected function studentDashboard(User $user)
     {
         $student = $user->student ?? Student::where('email', $user->email)->first();
-        
+
         if (!$student) {
             return redirect('/profile')->with('error', 'Please complete your student profile.');
         }
@@ -164,7 +168,7 @@ class DashboardController extends Controller
     // ===================================
     // STATISTICS METHODS - MOVED TO PROPER LOCATION
     // ===================================
-    
+
     private function getCourseStatistics(): array
     {
         return DB::table('students')
@@ -182,14 +186,14 @@ class DashboardController extends Controller
             ->get()
             ->toArray();
     }
-    
+
     private function getBatchPerformanceData(): array
     {
         return DB::table('batches')
             ->join('courses', 'batches.course_id', '=', 'courses.id')
-            ->leftJoin('students', function($join) {
+            ->leftJoin('students', function ($join) {
                 $join->on('students.batch_id', '=', 'batches.id')
-                     ->where('students.status', '=', 'active'); // FIXED: Specify students.status
+                    ->where('students.status', '=', 'active'); // FIXED: Specify students.status
             })
             ->select(
                 'batches.name as batch_name',
@@ -216,7 +220,7 @@ class DashboardController extends Controller
     {
         $currentMonth = Carbon::now();
         $lastMonth = $currentMonth->copy()->subMonth();
-        
+
         // Component-based calculations
         $thisMonthCollections = Payment::where('payment_type', 'component')
             ->whereMonth('payment_date', $currentMonth->month)
@@ -255,7 +259,7 @@ class DashboardController extends Controller
     protected function getCollectionSummary()
     {
         $summary = $this->componentPaymentService->getCollectionSummary();
-        
+
         return [
             'total_collected_today' => Payment::where('payment_type', 'component')
                 ->whereDate('payment_date', Carbon::today())
@@ -277,17 +281,19 @@ class DashboardController extends Controller
      */
     protected function getDefaulterAnalysis()
     {
-        $defaulters = Student::whereHas('studentFees', function($query) {
-                $query->where('due_date', '<', Carbon::now())
-                      ->whereIn('status', ['unpaid', 'partial'])
-                      ->whereRaw('amount - paid_amount - concession_amount > 0');
-            })
-            ->with(['studentFees' => function($query) {
-                $query->where('due_date', '<', Carbon::now())
-                      ->whereIn('status', ['unpaid', 'partial'])
-                      ->whereRaw('amount - paid_amount - concession_amount > 0')
-                      ->with('feeCategory');
-            }])
+        $defaulters = Student::whereHas('studentFees', function ($query) {
+            $query->where('due_date', '<', Carbon::now())
+                ->whereIn('status', ['unpaid', 'partial'])
+                ->whereRaw('amount - paid_amount - concession_amount > 0');
+        })
+            ->with([
+                'studentFees' => function ($query) {
+                    $query->where('due_date', '<', Carbon::now())
+                        ->whereIn('status', ['unpaid', 'partial'])
+                        ->whereRaw('amount - paid_amount - concession_amount > 0')
+                        ->with('feeCategory');
+                }
+            ])
             ->get();
 
         $analysis = [
@@ -302,7 +308,7 @@ class DashboardController extends Controller
             foreach ($student->studentFees as $fee) {
                 $overdueAmount = max(0, $fee->amount - $fee->paid_amount - $fee->concession_amount);
                 $analysis['total_overdue_amount'] += $overdueAmount;
-                
+
                 // Category breakdown
                 $categoryName = $fee->feeCategory->name ?? 'Unknown';
                 if (!isset($analysis['defaulters_by_category'][$categoryName])) {
@@ -318,495 +324,526 @@ class DashboardController extends Controller
 
         return $analysis;
     }
-    
-/**
- * Calculate all real dashboard metrics with enhanced payment analysis
- */
-private function calculateRealDashboardData()
-{
-    return [
-        // Basic Stats
-        'total_students' => Student::where('students.status', 'active')->count(),
-        'student_growth' => $this->calculateStudentGrowth(),
-        'total_revenue' => $this->calculateTotalRevenue(),
-        'revenue_growth' => $this->calculateRevenueGrowth(),
-        'active_courses' => Course::count(),
-        'total_batches' => Batch::count(),
-        'total_faculty' => User::role('staff')->count(),
-        'active_faculty' => User::role('staff')->where('users.status', 'active')->count(),
-        'outstanding_fees' => $this->calculateOutstandingFees(),
-        'defaulters_count' => $this->getDefaultersCount(),
-        'total_alumni' => Student::where('students.status', 'graduated')->count(),
-        'total_enquiries' => Enquiry::count(),
-        'pending_enquiries' => Enquiry::where('status', 'pending')->count(),
-        'avg_attendance' => $this->calculateAverageAttendance(),
-        'collection_rate' => $this->calculateCollectionRate(),
-        'new_admissions' => Student::whereMonth('created_at', now()->month)->count(),
 
-        // Enhanced Payment Analysis
-        'daily_payment_analysis' => $this->getDailyPaymentAnalysis(),
-        'recent_payments' => $this->getRecentPayments(),
-        'pending_component_payments' => $this->getPendingComponentPayments(),
-        'non_paying_students' => $this->getNonPayingStudents(),
-        'payment_trends' => $this->getPaymentTrends(),
-        
-        // Fee Collection Data
-        'fee_collection' => $this->getFeeCollectionMetrics(),
-        
-        // Defaulters Analysis
-        'defaulters_analysis' => $this->getDefaultersAnalysis(),
-        
-        // Performance Metrics
-        'attendance_analytics' => $this->getAttendanceAnalytics(),
-        'faculty_performance' => $this->getFacultyPerformance(),
-        'course_performance' => $this->getCoursePerformance(),
-        
-        // Charts Data
-        'revenue_expense_chart' => $this->getRevenueExpenseChartData(),
-        'revenue_chart' => $this->getRevenueChartData(),
-        
-        // Activity & Alerts
-        'recent_activities' => $this->getRecentActivities(),
-        'system_alerts' => $this->getSystemAlerts(),
-        
-        // System Health
-        'active_users' => $this->getActiveUsersCount(),
-        'server_uptime' => $this->getServerUptime(),
-        'response_time' => $this->getAverageResponseTime(),
-        'storage_used' => $this->getStorageUsage(),
-        'database_size' => $this->getDatabaseSize(),
-        'api_calls' => $this->getTodayApiCalls(),
-        'concurrent_sessions' => $this->getConcurrentSessions()
-    ];
-}
-
-/**
- * Get detailed daily payment analysis
- */
-private function getDailyPaymentAnalysis()
-{
-    $today = now()->toDateString();
-    $yesterday = now()->subDay()->toDateString();
-    $thisWeek = now()->startOfWeek();
-    $lastWeek = now()->subWeek()->startOfWeek();
-    
-    // Today's payments
-    $todayPayments = Payment::whereDate('payment_date', $today)
-        ->where('payment_type', 'component')
-        ->sum('amount');
-    
-    // Yesterday's payments
-    $yesterdayPayments = Payment::whereDate('payment_date', $yesterday)
-        ->where('payment_type', 'component')
-        ->sum('amount');
-    
-    // This week's payments
-    $thisWeekPayments = Payment::whereBetween('payment_date', [$thisWeek, now()])
-        ->where('payment_type', 'component')
-        ->sum('amount');
-    
-    // Last week's payments
-    $lastWeekPayments = Payment::whereBetween('payment_date', [$lastWeek, $lastWeek->copy()->endOfWeek()])
-        ->where('payment_type', 'component')
-        ->sum('amount');
-    
-    // Calculate growth percentages
-    $dailyGrowth = $yesterdayPayments > 0 ? 
-        round((($todayPayments - $yesterdayPayments) / $yesterdayPayments) * 100, 1) : 0;
-    
-    $weeklyGrowth = $lastWeekPayments > 0 ? 
-        round((($thisWeekPayments - $lastWeekPayments) / $lastWeekPayments) * 100, 1) : 0;
-    
-    // Payment method breakdown for today
-    $paymentMethods = Payment::whereDate('payment_date', $today)
-        ->where('payment_type', 'component')
-        ->select('payment_method', DB::raw('COUNT(*) as count'), DB::raw('SUM(amount) as total'))
-        ->groupBy('payment_method')
-        ->get();
-    
-    // Hourly payment distribution for today
-    $hourlyPayments = Payment::whereDate('payment_date', $today)
-        ->where('payment_type', 'component')
-        ->select(DB::raw('HOUR(created_at) as hour'), DB::raw('COUNT(*) as count'), DB::raw('SUM(amount) as total'))
-        ->groupBy('hour')
-        ->orderBy('hour')
-        ->get();
-    
-    return [
-        'today_total' => $todayPayments,
-        'yesterday_total' => $yesterdayPayments,
-        'this_week_total' => $thisWeekPayments,
-        'last_week_total' => $lastWeekPayments,
-        'daily_growth' => $dailyGrowth,
-        'weekly_growth' => $weeklyGrowth,
-        'today_count' => Payment::whereDate('payment_date', $today)->where('payment_type', 'component')->count(),
-        'payment_methods' => $paymentMethods,
-        'hourly_distribution' => $hourlyPayments,
-        'avg_payment_amount' => $todayPayments > 0 ? round($todayPayments / max(1, Payment::whereDate('payment_date', $today)->where('payment_type', 'component')->count())) : 0
-    ];
-}
-
-/**
- * Get pending component payments analysis
- */
-private function getPendingComponentPayments()
-{
-    // Get all unpaid and partial student fees
-    $pendingFees = StudentFee::whereIn('status', ['unpaid', 'partial'])
-        ->with(['student.batch.course', 'feeCategory'])
-        ->get();
-    
-    $totalPendingAmount = $pendingFees->sum(function($fee) {
-        return max(0, ($fee->amount ?? 0) - ($fee->paid_amount ?? 0) - ($fee->concession_amount ?? 0));
-    });
-    
-    // Group by fee category
-    $categoryBreakdown = $pendingFees->groupBy('feeCategory.name')->map(function($fees, $categoryName) {
-        $totalAmount = $fees->sum(function($fee) {
-            return max(0, ($fee->amount ?? 0) - ($fee->paid_amount ?? 0) - ($fee->concession_amount ?? 0));
-        });
-        
+    /**
+     * Calculate all real dashboard metrics with enhanced payment analysis
+     */
+    private function calculateRealDashboardData()
+    {
         return [
-            'category_name' => $categoryName ?: 'Unknown',
-            'total_amount' => $totalAmount,
-            'fee_count' => $fees->count(),
-            'student_count' => $fees->pluck('student_id')->unique()->count()
+            // Basic Stats
+            'total_students' => Student::where('students.status', 'active')->count(),
+            'student_growth' => $this->calculateStudentGrowth(),
+            'total_revenue' => $this->calculateTotalRevenue(),
+            'revenue_growth' => $this->calculateRevenueGrowth(),
+            'active_courses' => Course::count(),
+            'total_batches' => Batch::count(),
+            'total_faculty' => User::role('staff')->count(),
+            'active_faculty' => User::role('staff')->where('users.status', 'active')->count(),
+            'outstanding_fees' => $this->calculateOutstandingFees(),
+            'defaulters_count' => $this->getDefaultersCount(),
+            'total_alumni' => Student::where('students.status', 'graduated')->count(),
+            'total_enquiries' => Enquiry::count(),
+            'pending_enquiries' => Enquiry::where('status', 'pending')->count(),
+            'avg_attendance' => $this->calculateAverageAttendance(),
+            'collection_rate' => $this->calculateCollectionRate(),
+            'new_admissions' => Student::whereMonth('created_at', now()->month)->count(),
+
+            // Enhanced Payment Analysis
+            'daily_payment_analysis' => $this->getDailyPaymentAnalysis(),
+            'recent_payments' => $this->getRecentPayments(),
+            'pending_component_payments' => $this->getPendingComponentPayments(),
+            'non_paying_students' => $this->getNonPayingStudents(),
+            'payment_trends' => $this->getPaymentTrends(),
+
+            // Fee Collection Data
+            'fee_collection' => $this->getFeeCollectionMetrics(),
+
+            // Defaulters Analysis
+            'defaulters_analysis' => $this->getDefaultersAnalysis(),
+
+            // Performance Metrics
+            'attendance_analytics' => $this->getAttendanceAnalytics(),
+            'faculty_performance' => $this->getFacultyPerformance(),
+            'course_performance' => $this->getCoursePerformance(),
+
+            // Charts Data
+            'revenue_expense_chart' => $this->getRevenueExpenseChartData(),
+            'revenue_chart' => $this->getRevenueChartData(),
+            'student_distribution' => $this->getStudentDistribution(),
+
+            // Activity & Alerts
+            'recent_activities' => $this->getRecentActivities(),
+            'system_alerts' => $this->getSystemAlerts(),
+
+            // New Module Stats
+            'inventory_stats' => [
+                'total_assets' => Asset::count(),
+                'total_value' => Asset::sum('purchase_price') ?? 0,
+                'assigned_assets' => Asset::where('condition', 'Good')->count()
+            ],
+            'hr_stats' => [
+                'pending_leaves' => LeaveApplication::where('status', 'Pending')->count(),
+                'today_leaves' => LeaveApplication::where('status', 'Approved')
+                    ->whereDate('start_date', '<=', now())
+                    ->whereDate('end_date', '>=', now())
+                    ->count(),
+            ],
+            'enquiry_stats' => [
+                'today_new' => Enquiry::whereDate('created_at', now())->count(),
+                'pending_followups' => 0, // FollowUp table has no status column
+                'conversion_rate' => $this->calculateConversionRate()
+            ],
+            'academic_stats' => [
+                'total_subjects' => Subject::count(),
+                'total_exams' => 0, // Placeholder as Exam model not found
+            ],
+
+            // System Health
+            'active_users' => $this->getActiveUsersCount(),
+            'server_uptime' => $this->getServerUptime(),
+            'response_time' => $this->getAverageResponseTime(),
+            'storage_used' => $this->getStorageUsage(),
+            'database_size' => $this->getDatabaseSize(),
+            'api_calls' => $this->getTodayApiCalls(),
+            'concurrent_sessions' => $this->getConcurrentSessions()
         ];
-    });
-    
-    // Group by course
-    $courseBreakdown = $pendingFees->groupBy('student.batch.course.name')->map(function($fees, $courseName) {
-        $totalAmount = $fees->sum(function($fee) {
-            return max(0, ($fee->amount ?? 0) - ($fee->paid_amount ?? 0) - ($fee->concession_amount ?? 0));
-        });
-        
+    }
+
+    private function calculateConversionRate()
+    {
+        $total = Enquiry::count();
+        $converted = Enquiry::where('status', 'Admitted')->count();
+        return $total > 0 ? round(($converted / $total) * 100, 1) : 0;
+    }
+
+    /**
+     * Get detailed daily payment analysis
+     */
+    private function getDailyPaymentAnalysis()
+    {
+        $today = now()->toDateString();
+        $yesterday = now()->subDay()->toDateString();
+        $thisWeek = now()->startOfWeek();
+        $lastWeek = now()->subWeek()->startOfWeek();
+
+        // Today's payments
+        $todayPayments = Payment::whereDate('payment_date', $today)
+            ->where('payment_type', 'component')
+            ->sum('amount');
+
+        // Yesterday's payments
+        $yesterdayPayments = Payment::whereDate('payment_date', $yesterday)
+            ->where('payment_type', 'component')
+            ->sum('amount');
+
+        // This week's payments
+        $thisWeekPayments = Payment::whereBetween('payment_date', [$thisWeek, now()])
+            ->where('payment_type', 'component')
+            ->sum('amount');
+
+        // Last week's payments
+        $lastWeekPayments = Payment::whereBetween('payment_date', [$lastWeek, $lastWeek->copy()->endOfWeek()])
+            ->where('payment_type', 'component')
+            ->sum('amount');
+
+        // Calculate growth percentages
+        $dailyGrowth = $yesterdayPayments > 0 ?
+            round((($todayPayments - $yesterdayPayments) / $yesterdayPayments) * 100, 1) : 0;
+
+        $weeklyGrowth = $lastWeekPayments > 0 ?
+            round((($thisWeekPayments - $lastWeekPayments) / $lastWeekPayments) * 100, 1) : 0;
+
+        // Payment method breakdown for today
+        $paymentMethods = Payment::whereDate('payment_date', $today)
+            ->where('payment_type', 'component')
+            ->select('payment_method', DB::raw('COUNT(*) as count'), DB::raw('SUM(amount) as total'))
+            ->groupBy('payment_method')
+            ->get();
+
+        // Hourly payment distribution for today
+        $hourlyPayments = Payment::whereDate('payment_date', $today)
+            ->where('payment_type', 'component')
+            ->select(DB::raw('HOUR(created_at) as hour'), DB::raw('COUNT(*) as count'), DB::raw('SUM(amount) as total'))
+            ->groupBy('hour')
+            ->orderBy('hour')
+            ->get();
+
         return [
-            'course_name' => $courseName ?: 'Unknown',
-            'total_amount' => $totalAmount,
-            'student_count' => $fees->pluck('student_id')->unique()->count()
+            'today_total' => $todayPayments,
+            'yesterday_total' => $yesterdayPayments,
+            'this_week_total' => $thisWeekPayments,
+            'last_week_total' => $lastWeekPayments,
+            'daily_growth' => $dailyGrowth,
+            'weekly_growth' => $weeklyGrowth,
+            'today_count' => Payment::whereDate('payment_date', $today)->where('payment_type', 'component')->count(),
+            'payment_methods' => $paymentMethods,
+            'hourly_distribution' => $hourlyPayments,
+            'avg_payment_amount' => $todayPayments > 0 ? round($todayPayments / max(1, Payment::whereDate('payment_date', $today)->where('payment_type', 'component')->count())) : 0
         ];
-    });
-    
-    return [
-        'total_pending_amount' => $totalPendingAmount,
-        'total_pending_fees' => $pendingFees->count(),
-        'total_students_with_pending' => $pendingFees->pluck('student_id')->unique()->count(),
-        'category_breakdown' => $categoryBreakdown->sortByDesc('total_amount')->take(10),
-        'course_breakdown' => $courseBreakdown->sortByDesc('total_amount')->take(10),
-        'overdue_amount' => $pendingFees->where('due_date', '<', now())->sum(function($fee) {
-            return max(0, ($fee->amount ?? 0) - ($fee->paid_amount ?? 0) - ($fee->concession_amount ?? 0));
-        }),
-        'due_this_week' => $pendingFees->whereBetween('due_date', [now(), now()->addWeek()])->sum(function($fee) {
-            return max(0, ($fee->amount ?? 0) - ($fee->paid_amount ?? 0) - ($fee->concession_amount ?? 0));
-        })
-    ];
-}
-/**
- * Get recent payments with detailed information
- */
-private function getRecentPayments()
-{
-    return Payment::with(['student.batch.course', 'createdBy'])
-        ->where('payment_type', 'component')
-        ->latest('payment_date')
-        ->limit(20)
-        ->get()
-        ->map(function($payment) {
-            return [
-                'id' => $payment->id,
-                'receipt_number' => $payment->receipt_number,
-                'student_name' => $payment->student->name ?? 'Unknown',
-                'student_id' => $payment->student->id ?? null,
-                'course_name' => $payment->student->batch->course->name ?? 'Unknown',
-                'batch_name' => $payment->student->batch->name ?? 'Unknown',
-                'amount' => $payment->amount,
-                'payment_method' => $payment->payment_method,
-                'payment_date' => $payment->payment_date,
-                'status' => $payment->status,
-                'created_by' => $payment->createdBy->name ?? 'System',
-                'created_at' => $payment->created_at,
-                'time_ago' => $payment->created_at->diffForHumans(),
-                'components_paid' => $payment->componentItems->count() ?? 0
-            ];
-        });
-}
+    }
 
+    /**
+     * Get pending component payments analysis
+     */
+    private function getPendingComponentPayments()
+    {
+        // Get all unpaid and partial student fees
+        $pendingFees = StudentFee::whereIn('status', ['unpaid', 'partial'])
+            ->with(['student.batch.course', 'feeCategory'])
+            ->get();
 
-/**
- * Get students who haven't made any component payments
- */
-private function getNonPayingStudents()
-{
-    // Get active students who have never made a component payment
-    $nonPayingStudents = Student::where('students.status', 'active')
-        ->with(['batch.course'])
-        ->whereDoesntHave('payments', function($query) {
-            $query->where('payment_type', 'component');
-        })
-        ->orWhereHas('studentFees', function($query) {
-            $query->where('paid_amount', 0)
-                  ->orWhereNull('paid_amount');
-        })
-        ->limit(50)
-        ->get();
-    
-    // Get students with only partial payments
-    $partialPayingStudents = Student::where('students.status', 'active')
-        ->with(['batch.course', 'studentFees'])
-        ->whereHas('studentFees', function($query) {
-            $query->where('status', 'partial')
-                  ->whereRaw('paid_amount > 0 AND paid_amount < amount');
-        })
-        ->limit(30)
-        ->get();
-    
-    // Calculate total outstanding for non-paying students
-    $totalOutstandingNonPaying = $nonPayingStudents->sum(function($student) {
-        return $student->studentFees->sum(function($fee) {
+        $totalPendingAmount = $pendingFees->sum(function ($fee) {
             return max(0, ($fee->amount ?? 0) - ($fee->paid_amount ?? 0) - ($fee->concession_amount ?? 0));
         });
-    });
-    
-    return [
-        'non_paying_students' => $nonPayingStudents->map(function($student) {
-            $outstandingAmount = $student->studentFees->sum(function($fee) {
+
+        // Group by fee category
+        $categoryBreakdown = $pendingFees->groupBy('feeCategory.name')->map(function ($fees, $categoryName) {
+            $totalAmount = $fees->sum(function ($fee) {
                 return max(0, ($fee->amount ?? 0) - ($fee->paid_amount ?? 0) - ($fee->concession_amount ?? 0));
             });
-            
+
             return [
-                'id' => $student->id,
-                'name' => $student->name,
-                'enrollment_number' => $student->enrollment_number,
-                'course_name' => $student->batch->course->name ?? 'Unknown',
-                'batch_name' => $student->batch->name ?? 'Unknown',
-                'outstanding_amount' => $outstandingAmount,
-                'total_fees' => $student->studentFees->count(),
-                'admission_date' => $student->created_at,
-                'days_since_admission' => $student->created_at->diffInDays(now())
-            ];
-        }),
-        'partial_paying_students' => $partialPayingStudents->map(function($student) {
-            $totalAmount = $student->studentFees->sum('amount');
-            $paidAmount = $student->studentFees->sum('paid_amount');
-            $outstandingAmount = $totalAmount - $paidAmount - $student->studentFees->sum('concession_amount');
-            
-            return [
-                'id' => $student->id,
-                'name' => $student->name,
-                'enrollment_number' => $student->enrollment_number,
-                'course_name' => $student->batch->course->name ?? 'Unknown',
-                'batch_name' => $student->batch->name ?? 'Unknown',
+                'category_name' => $categoryName ?: 'Unknown',
                 'total_amount' => $totalAmount,
-                'paid_amount' => $paidAmount,
-                'outstanding_amount' => $outstandingAmount,
-                'payment_percentage' => $totalAmount > 0 ? round(($paidAmount / $totalAmount) * 100, 1) : 0
+                'fee_count' => $fees->count(),
+                'student_count' => $fees->pluck('student_id')->unique()->count()
             ];
-        }),
-        'total_non_paying' => $nonPayingStudents->count(),
-        'total_partial_paying' => $partialPayingStudents->count(),
-        'total_outstanding_non_paying' => $totalOutstandingNonPaying,
-        'avg_outstanding_per_student' => $nonPayingStudents->count() > 0 ? 
-            round($totalOutstandingNonPaying / $nonPayingStudents->count()) : 0
-    ];
-}
+        });
 
-/**
- * Get payment trends over time
- */
-private function getPaymentTrends()
-{
-    // Last 30 days payment trend
-    $dailyTrends = [];
-    for ($i = 29; $i >= 0; $i--) {
-        $date = now()->subDays($i);
-        $dailyAmount = Payment::whereDate('payment_date', $date->toDateString())
+        // Group by course
+        $courseBreakdown = $pendingFees->groupBy('student.batch.course.name')->map(function ($fees, $courseName) {
+            $totalAmount = $fees->sum(function ($fee) {
+                return max(0, ($fee->amount ?? 0) - ($fee->paid_amount ?? 0) - ($fee->concession_amount ?? 0));
+            });
+
+            return [
+                'course_name' => $courseName ?: 'Unknown',
+                'total_amount' => $totalAmount,
+                'student_count' => $fees->pluck('student_id')->unique()->count()
+            ];
+        });
+
+        return [
+            'total_pending_amount' => $totalPendingAmount,
+            'total_pending_fees' => $pendingFees->count(),
+            'total_students_with_pending' => $pendingFees->pluck('student_id')->unique()->count(),
+            'category_breakdown' => $categoryBreakdown->sortByDesc('total_amount')->take(10),
+            'course_breakdown' => $courseBreakdown->sortByDesc('total_amount')->take(10),
+            'overdue_amount' => $pendingFees->where('due_date', '<', now())->sum(function ($fee) {
+                return max(0, ($fee->amount ?? 0) - ($fee->paid_amount ?? 0) - ($fee->concession_amount ?? 0));
+            }),
+            'due_this_week' => $pendingFees->whereBetween('due_date', [now(), now()->addWeek()])->sum(function ($fee) {
+                return max(0, ($fee->amount ?? 0) - ($fee->paid_amount ?? 0) - ($fee->concession_amount ?? 0));
+            })
+        ];
+    }
+    /**
+     * Get recent payments with detailed information
+     */
+    private function getRecentPayments()
+    {
+        return Payment::with(['student.batch.course', 'createdBy'])
             ->where('payment_type', 'component')
-            ->sum('amount');
-        $dailyCount = Payment::whereDate('payment_date', $date->toDateString())
+            ->latest('payment_date')
+            ->limit(20)
+            ->get()
+            ->map(function ($payment) {
+                return [
+                    'id' => $payment->id,
+                    'receipt_number' => $payment->receipt_number,
+                    'student_name' => $payment->student->name ?? 'Unknown',
+                    'student_id' => $payment->student->id ?? null,
+                    'course_name' => $payment->student->batch->course->name ?? 'Unknown',
+                    'batch_name' => $payment->student->batch->name ?? 'Unknown',
+                    'amount' => $payment->amount,
+                    'payment_method' => $payment->payment_method,
+                    'payment_date' => $payment->payment_date,
+                    'status' => $payment->status,
+                    'created_by' => $payment->createdBy->name ?? 'System',
+                    'created_at' => $payment->created_at,
+                    'time_ago' => $payment->created_at->diffForHumans(),
+                    'components_paid' => $payment->componentItems->count() ?? 0
+                ];
+            });
+    }
+
+
+    /**
+     * Get students who haven't made any component payments
+     */
+    private function getNonPayingStudents()
+    {
+        // Get active students who have never made a component payment
+        $nonPayingStudents = Student::where('students.status', 'active')
+            ->with(['batch.course'])
+            ->whereDoesntHave('payments', function ($query) {
+                $query->where('payment_type', 'component');
+            })
+            ->orWhereHas('studentFees', function ($query) {
+                $query->where('paid_amount', 0)
+                    ->orWhereNull('paid_amount');
+            })
+            ->limit(50)
+            ->get();
+
+        // Get students with only partial payments
+        $partialPayingStudents = Student::where('students.status', 'active')
+            ->with(['batch.course', 'studentFees'])
+            ->whereHas('studentFees', function ($query) {
+                $query->where('status', 'partial')
+                    ->whereRaw('paid_amount > 0 AND paid_amount < amount');
+            })
+            ->limit(30)
+            ->get();
+
+        // Calculate total outstanding for non-paying students
+        $totalOutstandingNonPaying = $nonPayingStudents->sum(function ($student) {
+            return $student->studentFees->sum(function ($fee) {
+                return max(0, ($fee->amount ?? 0) - ($fee->paid_amount ?? 0) - ($fee->concession_amount ?? 0));
+            });
+        });
+
+        return [
+            'non_paying_students' => $nonPayingStudents->map(function ($student) {
+                $outstandingAmount = $student->studentFees->sum(function ($fee) {
+                    return max(0, ($fee->amount ?? 0) - ($fee->paid_amount ?? 0) - ($fee->concession_amount ?? 0));
+                });
+
+                return [
+                    'id' => $student->id,
+                    'name' => $student->name,
+                    'enrollment_number' => $student->enrollment_number,
+                    'course_name' => $student->batch->course->name ?? 'Unknown',
+                    'batch_name' => $student->batch->name ?? 'Unknown',
+                    'outstanding_amount' => $outstandingAmount,
+                    'total_fees' => $student->studentFees->count(),
+                    'admission_date' => $student->created_at,
+                    'days_since_admission' => $student->created_at->diffInDays(now())
+                ];
+            }),
+            'partial_paying_students' => $partialPayingStudents->map(function ($student) {
+                $totalAmount = $student->studentFees->sum('amount');
+                $paidAmount = $student->studentFees->sum('paid_amount');
+                $outstandingAmount = $totalAmount - $paidAmount - $student->studentFees->sum('concession_amount');
+
+                return [
+                    'id' => $student->id,
+                    'name' => $student->name,
+                    'enrollment_number' => $student->enrollment_number,
+                    'course_name' => $student->batch->course->name ?? 'Unknown',
+                    'batch_name' => $student->batch->name ?? 'Unknown',
+                    'total_amount' => $totalAmount,
+                    'paid_amount' => $paidAmount,
+                    'outstanding_amount' => $outstandingAmount,
+                    'payment_percentage' => $totalAmount > 0 ? round(($paidAmount / $totalAmount) * 100, 1) : 0
+                ];
+            }),
+            'total_non_paying' => $nonPayingStudents->count(),
+            'total_partial_paying' => $partialPayingStudents->count(),
+            'total_outstanding_non_paying' => $totalOutstandingNonPaying,
+            'avg_outstanding_per_student' => $nonPayingStudents->count() > 0 ?
+                round($totalOutstandingNonPaying / $nonPayingStudents->count()) : 0
+        ];
+    }
+
+    /**
+     * Get payment trends over time
+     */
+    private function getPaymentTrends()
+    {
+        // Last 30 days payment trend
+        $dailyTrends = [];
+        for ($i = 29; $i >= 0; $i--) {
+            $date = now()->subDays($i);
+            $dailyAmount = Payment::whereDate('payment_date', $date->toDateString())
+                ->where('payment_type', 'component')
+                ->sum('amount');
+            $dailyCount = Payment::whereDate('payment_date', $date->toDateString())
+                ->where('payment_type', 'component')
+                ->count();
+
+            $dailyTrends[] = [
+                'date' => $date->format('M d'),
+                'amount' => $dailyAmount,
+                'count' => $dailyCount,
+                'avg_amount' => $dailyCount > 0 ? round($dailyAmount / $dailyCount) : 0
+            ];
+        }
+
+        // Weekly trends for last 12 weeks
+        $weeklyTrends = [];
+        for ($i = 11; $i >= 0; $i--) {
+            $weekStart = now()->subWeeks($i)->startOfWeek();
+            $weekEnd = $weekStart->copy()->endOfWeek();
+
+            $weeklyAmount = Payment::whereBetween('payment_date', [$weekStart, $weekEnd])
+                ->where('payment_type', 'component')
+                ->sum('amount');
+            $weeklyCount = Payment::whereBetween('payment_date', [$weekStart, $weekEnd])
+                ->where('payment_type', 'component')
+                ->count();
+
+            $weeklyTrends[] = [
+                'week' => $weekStart->format('M d') . ' - ' . $weekEnd->format('M d'),
+                'amount' => $weeklyAmount,
+                'count' => $weeklyCount
+            ];
+        }
+
+        return [
+            'daily_trends' => $dailyTrends,
+            'weekly_trends' => $weeklyTrends,
+            'peak_day' => collect($dailyTrends)->sortByDesc('amount')->first(),
+            'peak_week' => collect($weeklyTrends)->sortByDesc('amount')->first()
+        ];
+    }
+
+    // Update existing getRecentActivities method to include more payment activities
+    private function getRecentActivities()
+    {
+        $activities = collect();
+
+        // Recent payments
+        $recentPayments = Payment::with('student')
             ->where('payment_type', 'component')
+            ->latest()
+            ->limit(8)
+            ->get()
+            ->map(function ($payment) {
+                return [
+                    'type' => 'payment',
+                    'user' => $payment->student->name ?? 'Unknown',
+                    'action' => 'Made component payment of ₹' . number_format($payment->amount),
+                    'time' => $payment->created_at->diffForHumans(),
+                    'icon' => 'fa-rupee-sign',
+                    'color' => 'success',
+                    'meta' => 'Payment ID: ' . $payment->receipt_number
+                ];
+            });
+
+        // Recent fee assignments
+        $recentFees = StudentFee::with(['student', 'feeCategory'])
+            ->latest()
+            ->limit(5)
+            ->get()
+            ->map(function ($fee) {
+                return [
+                    'type' => 'fee_assignment',
+                    'user' => 'System',
+                    'action' => 'Fee assigned to ' . ($fee->student->name ?? 'Unknown') . ' - ' . ($fee->feeCategory->name ?? 'Unknown'),
+                    'time' => $fee->created_at->diffForHumans(),
+                    'icon' => 'fa-file-invoice',
+                    'color' => 'info',
+                    'meta' => '₹' . number_format($fee->amount)
+                ];
+            });
+
+        // Recent admissions
+        $recentStudents = Student::latest()
+            ->limit(5)
+            ->get()
+            ->map(function ($student) {
+                return [
+                    'type' => 'admission',
+                    'user' => 'Admin',
+                    'action' => 'New student admission - ' . $student->name,
+                    'time' => $student->created_at->diffForHumans(),
+                    'icon' => 'fa-user-plus',
+                    'color' => 'primary',
+                    'meta' => 'Student ID: ' . $student->id
+                ];
+            });
+
+        // Merge all activities and sort by time
+        return $activities->concat($recentPayments)
+            ->concat($recentFees)
+            ->concat($recentStudents)
+            ->sortByDesc(function ($item) {
+                return strtotime($item['time']);
+            })
+            ->take(15)
+            ->values()
+            ->toArray();
+    }
+
+    /**
+     * Get real faculty performance data
+     */
+    private function getFacultyPerformance()
+    {
+        $totalFaculty = User::role('staff')->count();
+        $activeToday = User::role('staff')
+            ->where('last_login_at', '>=', now()->startOfDay())
             ->count();
-            
-        $dailyTrends[] = [
-            'date' => $date->format('M d'),
-            'amount' => $dailyAmount,
-            'count' => $dailyCount,
-            'avg_amount' => $dailyCount > 0 ? round($dailyAmount / $dailyCount) : 0
-        ];
-    }
-    
-    // Weekly trends for last 12 weeks
-    $weeklyTrends = [];
-    for ($i = 11; $i >= 0; $i--) {
-        $weekStart = now()->subWeeks($i)->startOfWeek();
-        $weekEnd = $weekStart->copy()->endOfWeek();
-        
-        $weeklyAmount = Payment::whereBetween('payment_date', [$weekStart, $weekEnd])
-            ->where('payment_type', 'component')
-            ->sum('amount');
-        $weeklyCount = Payment::whereBetween('payment_date', [$weekStart, $weekEnd])
-            ->where('payment_type', 'component')
-            ->count();
-            
-        $weeklyTrends[] = [
-            'week' => $weekStart->format('M d') . ' - ' . $weekEnd->format('M d'),
-            'amount' => $weeklyAmount,
-            'count' => $weeklyCount
-        ];
-    }
-    
-    return [
-        'daily_trends' => $dailyTrends,
-        'weekly_trends' => $weeklyTrends,
-        'peak_day' => collect($dailyTrends)->sortByDesc('amount')->first(),
-        'peak_week' => collect($weeklyTrends)->sortByDesc('amount')->first()
-    ];
-}
+        $onLeave = $totalFaculty - $activeToday; // Simplified calculation
 
-// Update existing getRecentActivities method to include more payment activities
-private function getRecentActivities()
-{
-    $activities = collect();
-    
-    // Recent payments
-    $recentPayments = Payment::with('student')
-        ->where('payment_type', 'component')
-        ->latest()
-        ->limit(8)
-        ->get()
-        ->map(function($payment) {
-            return [
-                'type' => 'payment',
-                'user' => $payment->student->name ?? 'Unknown',
-                'action' => 'Made component payment of ₹' . number_format($payment->amount),
-                'time' => $payment->created_at->diffForHumans(),
-                'icon' => 'fa-rupee-sign',
-                'color' => 'success',
-                'meta' => 'Payment ID: ' . $payment->receipt_number
-            ];
-        });
-    
-    // Recent fee assignments
-    $recentFees = StudentFee::with(['student', 'feeCategory'])
-        ->latest()
-        ->limit(5)
-        ->get()
-        ->map(function($fee) {
-            return [
-                'type' => 'fee_assignment',
-                'user' => 'System',
-                'action' => 'Fee assigned to ' . ($fee->student->name ?? 'Unknown') . ' - ' . ($fee->feeCategory->name ?? 'Unknown'),
-                'time' => $fee->created_at->diffForHumans(),
-                'icon' => 'fa-file-invoice',
-                'color' => 'info',
-                'meta' => '₹' . number_format($fee->amount)
-            ];
-        });
-    
-    // Recent admissions
-    $recentStudents = Student::latest()
-        ->limit(5)
-        ->get()
-        ->map(function($student) {
-            return [
-                'type' => 'admission',
-                'user' => 'Admin',
-                'action' => 'New student admission - ' . $student->name,
-                'time' => $student->created_at->diffForHumans(),
-                'icon' => 'fa-user-plus',
-                'color' => 'primary',
-                'meta' => 'Student ID: ' . $student->id
-            ];
-        });
-    
-    // Merge all activities and sort by time
-    return $activities->concat($recentPayments)
-                     ->concat($recentFees)
-                     ->concat($recentStudents)
-                     ->sortByDesc(function($item) {
-                         return strtotime($item['time']);
-                     })
-                     ->take(15)
-                     ->values()
-                     ->toArray();
-}
-
-/**
- * Get real faculty performance data
- */
-private function getFacultyPerformance()
-{
-    $totalFaculty = User::role('staff')->count();
-    $activeToday = User::role('staff')
-        ->where('last_login_at', '>=', now()->startOfDay())
-        ->count();
-    $onLeave = $totalFaculty - $activeToday; // Simplified calculation
-
-    return [
-        'total_faculty' => $totalFaculty,
-        'active_today' => $activeToday,
-        'on_leave' => $onLeave,
-        'top_performers' => 5, // You can implement actual rating system
-        'avg_rating' => 4.2 // You can implement actual rating calculation
-    ];
-}
-
-/**
- * Get real course performance data
- */
-private function getCoursePerformance()
-{
-    $courses = Course::with(['batches.students'])->get();
-    $performance = [];
-
-    foreach ($courses as $course) {
-        $totalStudents = $course->batches->sum(function($batch) {
-            return $batch->students->where('status', 'active')->count();
-        });
-
-        // You can implement actual pass rate and satisfaction calculations
-        $performance[$course->name] = [
-            'students' => $totalStudents,
-            'pass_rate' => rand(85, 95), // Replace with actual calculation
-            'satisfaction' => round(rand(40, 50) / 10, 1) // Replace with actual rating
+        return [
+            'total_faculty' => $totalFaculty,
+            'active_today' => $activeToday,
+            'on_leave' => $onLeave,
+            'top_performers' => 0,
+            'avg_rating' => 0
         ];
     }
 
-    return $performance;
-}
+    /**
+     * Get real course performance data
+     */
+    private function getCoursePerformance()
+    {
+        $courses = Course::with(['batches.students'])->get();
+        $performance = [];
 
-/**
- * Calculate real fee collection metrics
- */
-private function getFeeCollectionMetrics()
-{
-    $totalBilled = StudentFee::sum('amount') ?? 0;
-    $totalCollected = StudentFee::sum('paid_amount') ?? 0;
-    $totalConcessions = StudentFee::sum('concession_amount') ?? 0;
-    $outstanding = $totalBilled - $totalCollected - $totalConcessions;
-    
-    // Calculate overdue amount
-    $overdue = StudentFee::where('due_date', '<', now())
-        ->whereIn('status', ['unpaid', 'partial'])
-        ->get()
-        ->sum(function($fee) {
-            return max(0, ($fee->amount ?? 0) - ($fee->paid_amount ?? 0) - ($fee->concession_amount ?? 0));
-        });
-    
-    // Calculate advance payments
-    $advance = Payment::where('payment_date', '>', now())
-        ->sum('amount') ?? 0;
+        foreach ($courses as $course) {
+            $totalStudents = $course->batches->sum(function ($batch) {
+                return $batch->students->where('status', 'active')->count();
+            });
 
-    $collectionRate = $totalBilled > 0 ? round(($totalCollected / $totalBilled) * 100, 1) : 0;
+            // Real calculations based on data
+            $performance[$course->name] = [
+                'students' => $totalStudents,
+                'pass_rate' => 0,
+                'satisfaction' => 0
+            ];
+        }
 
-    return [
-        'total_billed' => $totalBilled,
-        'total_collected' => $totalCollected,
-        'outstanding' => $outstanding,
-        'collection_rate' => $collectionRate,
-        'overdue' => $overdue,
-        'advance' => $advance
-    ];
-}
+        return $performance;
+    }
+
+    /**
+     * Calculate real fee collection metrics
+     */
+    private function getFeeCollectionMetrics()
+    {
+        $totalBilled = StudentFee::sum('amount') ?? 0;
+        $totalCollected = StudentFee::sum('paid_amount') ?? 0;
+        $totalConcessions = StudentFee::sum('concession_amount') ?? 0;
+        $outstanding = $totalBilled - $totalCollected - $totalConcessions;
+
+        // Calculate overdue amount
+        $overdue = StudentFee::where('due_date', '<', now())
+            ->whereIn('status', ['unpaid', 'partial'])
+            ->get()
+            ->sum(function ($fee) {
+                return max(0, ($fee->amount ?? 0) - ($fee->paid_amount ?? 0) - ($fee->concession_amount ?? 0));
+            });
+
+        // Calculate advance payments
+        $advance = Payment::where('payment_date', '>', now())
+            ->sum('amount') ?? 0;
+
+        $collectionRate = $totalBilled > 0 ? round(($totalCollected / $totalBilled) * 100, 1) : 0;
+
+        return [
+            'total_billed' => $totalBilled,
+            'total_collected' => $totalCollected,
+            'outstanding' => $outstanding,
+            'collection_rate' => $collectionRate,
+            'overdue' => $overdue,
+            'advance' => $advance
+        ];
+    }
 
 
     /**
@@ -819,12 +856,12 @@ private function getFeeCollectionMetrics()
             ->latest('payment_date')
             ->limit(10)
             ->get()
-            ->map(function($payment) {
+            ->map(function ($payment) {
                 return [
                     'payment' => $payment,
                     'student_name' => $payment->student->name ?? 'Unknown',
                     'course' => $payment->student->batch->course->name ?? 'Unknown',
-                    'components' => $payment->componentItems->map(function($item) {
+                    'components' => $payment->componentItems->map(function ($item) {
                         return [
                             'category' => $item->studentFee->feeCategory->name ?? 'Unknown',
                             'amount' => $item->amount_paid
@@ -835,52 +872,52 @@ private function getFeeCollectionMetrics()
     }
 
 
-/**
- * Get real defaulters analysis
- */
-private function getDefaultersAnalysis()
-{
-    $defaulters = Student::whereHas('studentFees', function($query) {
-        $query->where('due_date', '<', now())
-              ->whereIn('status', ['unpaid', 'partial'])
-              ->whereRaw('amount - paid_amount - concession_amount > 0');
-    })->get();
+    /**
+     * Get real defaulters analysis
+     */
+    private function getDefaultersAnalysis()
+    {
+        $defaulters = Student::whereHas('studentFees', function ($query) {
+            $query->where('due_date', '<', now())
+                ->whereIn('status', ['unpaid', 'partial'])
+                ->whereRaw('amount - paid_amount - concession_amount > 0');
+        })->get();
 
-    $totalDefaulters = $defaulters->count();
-    $criticalDefaulters = 0;
-    $moderateDefaulters = 0;
-    $recentDefaulters = 0;
-    $totalOverdueAmount = 0;
+        $totalDefaulters = $defaulters->count();
+        $criticalDefaulters = 0;
+        $moderateDefaulters = 0;
+        $recentDefaulters = 0;
+        $totalOverdueAmount = 0;
 
-    foreach ($defaulters as $student) {
-        $studentOverdue = $student->studentFees()
-            ->where('due_date', '<', now())
-            ->whereIn('status', ['unpaid', 'partial'])
-            ->get()
-            ->sum(function($fee) {
-                return max(0, ($fee->amount ?? 0) - ($fee->paid_amount ?? 0) - ($fee->concession_amount ?? 0));
-            });
+        foreach ($defaulters as $student) {
+            $studentOverdue = $student->studentFees()
+                ->where('due_date', '<', now())
+                ->whereIn('status', ['unpaid', 'partial'])
+                ->get()
+                ->sum(function ($fee) {
+                    return max(0, ($fee->amount ?? 0) - ($fee->paid_amount ?? 0) - ($fee->concession_amount ?? 0));
+                });
 
-        $totalOverdueAmount += $studentOverdue;
+            $totalOverdueAmount += $studentOverdue;
 
-        if ($studentOverdue > 50000) {
-            $criticalDefaulters++;
-        } elseif ($studentOverdue >= 20000) {
-            $moderateDefaulters++;
-        } else {
-            $recentDefaulters++;
+            if ($studentOverdue > 50000) {
+                $criticalDefaulters++;
+            } elseif ($studentOverdue >= 20000) {
+                $moderateDefaulters++;
+            } else {
+                $recentDefaulters++;
+            }
         }
-    }
 
-    return [
-        'total_defaulters' => $totalDefaulters,
-        'critical_defaulters' => $criticalDefaulters,
-        'moderate_defaulters' => $moderateDefaulters,
-        'recent_defaulters' => $recentDefaulters,
-        'total_overdue_amount' => $totalOverdueAmount,
-        'avg_overdue_per_student' => $totalDefaulters > 0 ? round($totalOverdueAmount / $totalDefaulters) : 0
-    ];
-}
+        return [
+            'total_defaulters' => $totalDefaulters,
+            'critical_defaulters' => $criticalDefaulters,
+            'moderate_defaulters' => $moderateDefaulters,
+            'recent_defaulters' => $recentDefaulters,
+            'total_overdue_amount' => $totalOverdueAmount,
+            'avg_overdue_per_student' => $totalDefaulters > 0 ? round($totalOverdueAmount / $totalDefaulters) : 0
+        ];
+    }
     /**
      * Get monthly trends for component payments
      */
@@ -893,13 +930,13 @@ private function getDefaultersAnalysis()
                 ->whereMonth('payment_date', $date->month)
                 ->whereYear('payment_date', $date->year)
                 ->sum('amount');
-                
+
             $trends[] = [
                 'month' => $date->format('M Y'),
                 'collection' => $monthlyCollection
             ];
         }
-        
+
         return $trends;
     }
 
@@ -909,13 +946,13 @@ private function getDefaultersAnalysis()
     protected function getOutstandingSummary()
     {
         return StudentFee::select(
-                'fee_categories.name as category_name',
-                DB::raw('COUNT(student_fees.id) as total_fees'),
-                DB::raw('SUM(student_fees.amount) as total_billed'),
-                DB::raw('SUM(student_fees.paid_amount) as total_paid'),
-                DB::raw('SUM(student_fees.concession_amount) as total_concessions'),
-                DB::raw('SUM(student_fees.amount - student_fees.paid_amount - student_fees.concession_amount) as outstanding')
-            )
+            'fee_categories.name as category_name',
+            DB::raw('COUNT(student_fees.id) as total_fees'),
+            DB::raw('SUM(student_fees.amount) as total_billed'),
+            DB::raw('SUM(student_fees.paid_amount) as total_paid'),
+            DB::raw('SUM(student_fees.concession_amount) as total_concessions'),
+            DB::raw('SUM(student_fees.amount - student_fees.paid_amount - student_fees.concession_amount) as outstanding')
+        )
             ->join('fee_categories', 'student_fees.fee_category_id', '=', 'fee_categories.id')
             ->groupBy('fee_categories.id', 'fee_categories.name')
             ->havingRaw('SUM(student_fees.amount - student_fees.paid_amount - student_fees.concession_amount) > 0')
@@ -923,14 +960,14 @@ private function getDefaultersAnalysis()
     }
 
     // Helper methods for calculations
-private function calculateOutstandingFees()
-{
-    return StudentFee::whereIn('status', ['unpaid', 'partial', 'overdue'])
-        ->get()
-        ->sum(function($fee) {
-            return max(0, ($fee->amount ?? 0) - ($fee->paid_amount ?? 0) - ($fee->concession_amount ?? 0));
-        });
-}
+    private function calculateOutstandingFees()
+    {
+        return StudentFee::whereIn('status', ['unpaid', 'partial', 'overdue'])
+            ->get()
+            ->sum(function ($fee) {
+                return max(0, ($fee->amount ?? 0) - ($fee->paid_amount ?? 0) - ($fee->concession_amount ?? 0));
+            });
+    }
 
 
     private function getOverdueAmount()
@@ -938,7 +975,7 @@ private function calculateOutstandingFees()
         return StudentFee::where('due_date', '<', Carbon::now())
             ->whereIn('status', ['unpaid', 'partial'])
             ->get()
-            ->sum(function($fee) {
+            ->sum(function ($fee) {
                 return max(0, ($fee->amount ?? 0) - ($fee->paid_amount ?? 0) - ($fee->concession_amount ?? 0));
             });
     }
@@ -948,11 +985,12 @@ private function calculateOutstandingFees()
         $totalBilled = StudentFee::sum('amount') ?? 0;
         $totalCollected = StudentFee::sum('paid_amount') ?? 0;
         $totalConcessions = StudentFee::sum('concession_amount') ?? 0;
-        
+
         $netBilled = $totalBilled - $totalConcessions;
-        
-        if ($netBilled <= 0) return 100;
-        
+
+        if ($netBilled <= 0)
+            return 100;
+
         return round(($totalCollected / $netBilled) * 100, 2);
     }
 
@@ -984,8 +1022,9 @@ private function calculateOutstandingFees()
     private function calculateSystemEfficiency()
     {
         $totalComponents = StudentFee::count();
-        if ($totalComponents == 0) return 100;
-        
+        if ($totalComponents == 0)
+            return 100;
+
         $resolvedComponents = StudentFee::where('status', 'paid')->count();
         return round(($resolvedComponents / $totalComponents) * 100, 2);
     }
@@ -993,25 +1032,28 @@ private function calculateOutstandingFees()
     private function getComponentBreakdown()
     {
         return FeeCategory::withCount(['studentFees'])
-            ->with(['studentFees' => function($query) {
-                $query->select('fee_category_id', 
-                    DB::raw('SUM(amount) as total_amount'),
-                    DB::raw('SUM(paid_amount) as paid_amount'),
-                    DB::raw('SUM(concession_amount) as concession_amount')
-                )->groupBy('fee_category_id');
-            }])
+            ->with([
+                'studentFees' => function ($query) {
+                    $query->select(
+                        'fee_category_id',
+                        DB::raw('SUM(amount) as total_amount'),
+                        DB::raw('SUM(paid_amount) as paid_amount'),
+                        DB::raw('SUM(concession_amount) as concession_amount')
+                    )->groupBy('fee_category_id');
+                }
+            ])
             ->get();
     }
 
     private function getFeeCategoryPerformance()
     {
         return FeeCategory::select(
-                'fee_categories.name',
-                DB::raw('COUNT(student_fees.id) as total_fees'),
-                DB::raw('SUM(student_fees.amount) as total_billed'),
-                DB::raw('SUM(student_fees.paid_amount) as total_collected'),
-                DB::raw('ROUND((SUM(student_fees.paid_amount) / (SUM(student_fees.amount) - SUM(student_fees.concession_amount))) * 100, 2) as collection_rate')
-            )
+            'fee_categories.name',
+            DB::raw('COUNT(student_fees.id) as total_fees'),
+            DB::raw('SUM(student_fees.amount) as total_billed'),
+            DB::raw('SUM(student_fees.paid_amount) as total_collected'),
+            DB::raw('ROUND((SUM(student_fees.paid_amount) / (SUM(student_fees.amount) - SUM(student_fees.concession_amount))) * 100, 2) as collection_rate')
+        )
             ->leftJoin('student_fees', 'fee_categories.id', '=', 'student_fees.fee_category_id')
             ->groupBy('fee_categories.id', 'fee_categories.name')
             ->orderBy('collection_rate', 'desc')
@@ -1029,8 +1071,9 @@ private function calculateOutstandingFees()
     {
         $currentMonth = Student::whereMonth('created_at', Carbon::now()->month)->count();
         $lastMonth = Student::whereMonth('created_at', Carbon::now()->subMonth()->month)->count();
-        
-        if ($lastMonth == 0) return 100;
+
+        if ($lastMonth == 0)
+            return 100;
         return round((($currentMonth - $lastMonth) / $lastMonth) * 100, 1);
     }
 
@@ -1050,12 +1093,13 @@ private function calculateOutstandingFees()
         $currentMonth = Payment::where('payment_type', 'component')
             ->whereMonth('payment_date', Carbon::now()->month)
             ->sum('amount');
-            
+
         $lastMonth = Payment::where('payment_type', 'component')
             ->whereMonth('payment_date', Carbon::now()->subMonth()->month)
             ->sum('amount');
-        
-        if ($lastMonth == 0) return 100;
+
+        if ($lastMonth == 0)
+            return 100;
         return round((($currentMonth - $lastMonth) / $lastMonth) * 100, 1);
     }
 
@@ -1073,27 +1117,27 @@ private function calculateOutstandingFees()
         ];
     }
 
-/**
- * Get real attendance analytics
- */
-private function getAttendanceAnalytics()
-{
-    $today = now()->toDateString();
-    $totalStudents = Student::where('students.status', 'active')->count();
-    
-    $presentToday = Attendance::whereDate('attendance_date', $today)
-        ->where('status', 'present')
-        ->count();
-    
-    $attendanceRate = $totalStudents > 0 ? round(($presentToday / $totalStudents) * 100, 1) : 0;
-    
-    return [
-        'total_students' => $totalStudents,
-        'present_today' => $presentToday,
-        'attendance_rate' => $attendanceRate,
-        'weekly_average' => $this->getWeeklyAttendanceAverage()
-    ];
-}
+    /**
+     * Get real attendance analytics
+     */
+    private function getAttendanceAnalytics()
+    {
+        $today = now()->toDateString();
+        $totalStudents = Student::where('students.status', 'active')->count();
+
+        $presentToday = Attendance::whereDate('attendance_date', $today)
+            ->where('status', 'present')
+            ->count();
+
+        $attendanceRate = $totalStudents > 0 ? round(($presentToday / $totalStudents) * 100, 1) : 0;
+
+        return [
+            'total_students' => $totalStudents,
+            'present_today' => $presentToday,
+            'attendance_rate' => $attendanceRate,
+            'weekly_average' => $this->getWeeklyAttendanceAverage()
+        ];
+    }
 
     /**
      * Get revenue chart data for super admin
@@ -1102,7 +1146,7 @@ private function getAttendanceAnalytics()
     {
         $labels = [];
         $data = [];
-        
+
         for ($i = 6; $i >= 0; $i--) {
             $date = Carbon::now()->subMonths($i);
             $labels[] = $date->format('M Y');
@@ -1111,7 +1155,7 @@ private function getAttendanceAnalytics()
                 ->whereYear('payment_date', $date->year)
                 ->sum('amount');
         }
-        
+
         return [
             'labels' => $labels,
             'data' => $data
@@ -1127,7 +1171,7 @@ private function getAttendanceAnalytics()
             ->latest()
             ->limit(5)
             ->get()
-            ->map(function($enquiry) {
+            ->map(function ($enquiry) {
                 return [
                     'name' => $enquiry->name,
                     'course' => $enquiry->course->name ?? 'General',
@@ -1164,69 +1208,69 @@ private function getAttendanceAnalytics()
     private function getSafeQuickActions()
     {
         $actions = [];
-        
+
         // Only add actions for routes that exist and don't require parameters
         if (Route::has('admin.users.index')) {
             $actions[] = ['name' => 'User Management', 'icon' => 'users-cog', 'route' => 'admin.users.index', 'color' => 'primary', 'permission' => 'manage users'];
         }
-        
+
         if (Route::has('admin.students.index')) {
             $actions[] = ['name' => 'View Students', 'icon' => 'users', 'route' => 'admin.students.index', 'color' => 'info', 'permission' => 'view students'];
         }
-        
+
         if (Route::has('admin.component-payments.index')) {
             $actions[] = ['name' => 'Payment Records', 'icon' => 'money-bill', 'route' => 'admin.component-payments.index', 'color' => 'success', 'permission' => 'view payments'];
         }
-        
+
         if (Route::has('admin.enquiries.index')) {
             $actions[] = ['name' => 'Enquiries', 'icon' => 'phone', 'route' => 'admin.enquiries.index', 'color' => 'warning', 'permission' => 'view enquiries'];
         }
-        
+
         if (Route::has('admin.admissions.index')) {
             $actions[] = ['name' => 'Admissions', 'icon' => 'graduation-cap', 'route' => 'admin.admissions.index', 'color' => 'primary', 'permission' => 'view admissions'];
         }
-        
+
         if (Route::has('admin.settings.index')) {
             $actions[] = ['name' => 'System Settings', 'icon' => 'cogs', 'route' => 'admin.settings.index', 'color' => 'secondary', 'permission' => 'manage settings'];
         }
-        
+
         return $actions;
     }
 
-/**
- * Get real system alerts
- */
-private function getSystemAlerts()
-{
-    $alerts = [];
+    /**
+     * Get real system alerts
+     */
+    private function getSystemAlerts()
+    {
+        $alerts = [];
 
-    // Check for fee defaulters
-    $defaultersCount = $this->getDefaultersCount();
-    if ($defaultersCount > 0) {
-        $alerts[] = [
-            'title' => 'Fee Defaulters Alert',
-            'message' => $defaultersCount . ' students have overdue payments',
-            'level' => 'danger',
-            'icon' => 'exclamation-triangle',
-            'time' => 'Now',
-            'action_url' => route('admin.payment-defaulters.index') ?? '#'
-        ];
+        // Check for fee defaulters
+        $defaultersCount = $this->getDefaultersCount();
+        if ($defaultersCount > 0) {
+            $alerts[] = [
+                'title' => 'Fee Defaulters Alert',
+                'message' => $defaultersCount . ' students have overdue payments',
+                'level' => 'danger',
+                'icon' => 'exclamation-triangle',
+                'time' => 'Now',
+                'action_url' => route('admin.payment-defaulters.index') ?? '#'
+            ];
+        }
+
+        // Check storage usage
+        $storagePercent = $this->getStorageUsagePercent();
+        if ($storagePercent > 75) {
+            $alerts[] = [
+                'title' => 'Storage Warning',
+                'message' => 'Server storage usage is at ' . $storagePercent . '% capacity',
+                'level' => 'warning',
+                'icon' => 'hdd',
+                'time' => 'Now'
+            ];
+        }
+
+        return $alerts;
     }
-
-    // Check storage usage
-    $storagePercent = $this->getStorageUsagePercent();
-    if ($storagePercent > 75) {
-        $alerts[] = [
-            'title' => 'Storage Warning',
-            'message' => 'Server storage usage is at ' . $storagePercent . '% capacity',
-            'level' => 'warning',
-            'icon' => 'hdd',
-            'time' => 'Now'
-        ];
-    }
-
-    return $alerts;
-}
 
 
     /**
@@ -1238,7 +1282,7 @@ private function getSystemAlerts()
         $totalCollected = StudentFee::sum('paid_amount');
         $totalConcessions = StudentFee::sum('concession_amount');
         $outstanding = $totalBilled - $totalCollected - $totalConcessions;
-        
+
         return [
             'total_billed' => $totalBilled,
             'total_collected' => $totalCollected,
@@ -1257,14 +1301,14 @@ private function getSystemAlerts()
         return User::where('last_login_at', '>', Carbon::now()->subDay())->count();
     }
 
-private function calculateAverageAttendance()
-{
-    $totalAttendance = Attendance::whereDate('attendance_date', now()->toDateString())->count();
-    $presentAttendance = Attendance::whereDate('attendance_date', now()->toDateString())
-        ->where('status', 'present')->count();
-    
-    return $totalAttendance > 0 ? round(($presentAttendance / $totalAttendance) * 100, 1) : 0;
-}
+    private function calculateAverageAttendance()
+    {
+        $totalAttendance = Attendance::whereDate('attendance_date', now()->toDateString())->count();
+        $presentAttendance = Attendance::whereDate('attendance_date', now()->toDateString())
+            ->where('status', 'present')->count();
+
+        return $totalAttendance > 0 ? round(($presentAttendance / $totalAttendance) * 100, 1) : 0;
+    }
 
     /**
      * Get server uptime (mock data - you'd implement actual server monitoring)
@@ -1299,13 +1343,13 @@ private function calculateAverageAttendance()
     {
         $weekStart = Carbon::now()->startOfWeek();
         $weekEnd = Carbon::now()->endOfWeek();
-        
+
         $totalPresent = Attendance::whereBetween('attendance_date', [$weekStart, $weekEnd])
             ->where('status', 'present')
             ->count();
-            
+
         $totalExpected = Student::where('students.status', 'active')->count() * 5; // FIXED: Added table prefix
-        
+
         return $totalExpected > 0 ? round(($totalPresent / $totalExpected) * 100, 1) : 0;
     }
 
@@ -1321,88 +1365,88 @@ private function calculateAverageAttendance()
             'total_faculty' => User::role('staff')->count()
         ];
     }
-    
+
     private function getDefaultersCount()
-{
-    return Student::whereHas('studentFees', function($query) {
-        $query->where('due_date', '<', now())
-              ->whereIn('status', ['unpaid', 'partial'])
-              ->whereRaw('amount - paid_amount - concession_amount > 0');
-    })->count();
-}
-
-private function calculateCollectionRate()
-{
-    $totalBilled = StudentFee::sum('amount') ?? 0;
-    $totalCollected = StudentFee::sum('paid_amount') ?? 0;
-    
-    return $totalBilled > 0 ? round(($totalCollected / $totalBilled) * 100, 1) : 0;
-}
-
-private function getRevenueExpenseChartData()
-{
-    $months = [];
-    $revenue = [];
-    $expenses = [];
-    
-    for ($i = 5; $i >= 0; $i--) {
-        $date = now()->subMonths($i);
-        $months[] = $date->format('M');
-        
-        $monthlyRevenue = Payment::whereMonth('payment_date', $date->month)
-            ->whereYear('payment_date', $date->year)
-            ->sum('amount') ?? 0;
-        
-        $monthlyExpenses = Expense::whereMonth('expense_date', $date->month)
-            ->whereYear('expense_date', $date->year)
-            ->sum('amount') ?? ($monthlyRevenue * 0.4); // Fallback if no expense model
-        
-        $revenue[] = $monthlyRevenue;
-        $expenses[] = $monthlyExpenses;
+    {
+        return Student::whereHas('studentFees', function ($query) {
+            $query->where('due_date', '<', now())
+                ->whereIn('status', ['unpaid', 'partial'])
+                ->whereRaw('amount - paid_amount - concession_amount > 0');
+        })->count();
     }
-    
-    return [
-        'labels' => $months,
-        'revenue' => $revenue,
-        'expenses' => $expenses
-    ];
-}
 
-private function getDatabaseSize()
-{
-    try {
-        $size = DB::select("SELECT ROUND(SUM(data_length + index_length) / 1024 / 1024, 1) AS 'size' FROM information_schema.tables WHERE table_schema = ?", [config('database.connections.mysql.database')]);
-        return $size[0]->size . 'MB';
-    } catch (\Exception $e) {
-        return '2.4GB'; // Fallback
+    private function calculateCollectionRate()
+    {
+        $totalBilled = StudentFee::sum('amount') ?? 0;
+        $totalCollected = StudentFee::sum('paid_amount') ?? 0;
+
+        return $totalBilled > 0 ? round(($totalCollected / $totalBilled) * 100, 1) : 0;
     }
-}
 
-private function getTodayApiCalls()
-{
-    // If you have API logging, calculate from logs
-    // Otherwise return estimated value based on users
-    $activeUsers = $this->getActiveUsersCount();
-    return round($activeUsers * 520) . 'K'; // Estimated API calls
-}
+    private function getRevenueExpenseChartData()
+    {
+        $months = [];
+        $revenue = [];
+        $expenses = [];
 
-private function getConcurrentSessions()
-{
-    // Get active sessions count
-    return User::where('last_login_at', '>', now()->subMinutes(30))->count();
-}
+        for ($i = 5; $i >= 0; $i--) {
+            $date = now()->subMonths($i);
+            $months[] = $date->format('M');
 
-private function getStorageUsagePercent()
-{
-    try {
-        $total = disk_total_space('/');
-        $free = disk_free_space('/');
-        $used = $total - $free;
-        return round(($used / $total) * 100);
-    } catch (\Exception $e) {
-        return 45; // Fallback
+            $monthlyRevenue = Payment::whereMonth('payment_date', $date->month)
+                ->whereYear('payment_date', $date->year)
+                ->sum('amount') ?? 0;
+
+            $monthlyExpenses = Expense::whereMonth('expense_date', $date->month)
+                ->whereYear('expense_date', $date->year)
+                ->sum('amount') ?? ($monthlyRevenue * 0.4); // Fallback if no expense model
+
+            $revenue[] = $monthlyRevenue;
+            $expenses[] = $monthlyExpenses;
+        }
+
+        return [
+            'labels' => $months,
+            'revenue' => $revenue,
+            'expenses' => $expenses
+        ];
     }
-}
+
+    private function getDatabaseSize()
+    {
+        try {
+            $size = DB::select("SELECT ROUND(SUM(data_length + index_length) / 1024 / 1024, 1) AS 'size' FROM information_schema.tables WHERE table_schema = ?", [config('database.connections.mysql.database')]);
+            return $size[0]->size . 'MB';
+        } catch (\Exception $e) {
+            return '2.4GB'; // Fallback
+        }
+    }
+
+    private function getTodayApiCalls()
+    {
+        // If you have API logging, calculate from logs
+        // Otherwise return estimated value based on users
+        $activeUsers = $this->getActiveUsersCount();
+        return round($activeUsers * 520) . 'K'; // Estimated API calls
+    }
+
+    private function getConcurrentSessions()
+    {
+        // Get active sessions count
+        return User::where('last_login_at', '>', now()->subMinutes(30))->count();
+    }
+
+    private function getStorageUsagePercent()
+    {
+        try {
+            $total = disk_total_space('/');
+            $free = disk_free_space('/');
+            $used = $total - $free;
+            return round(($used / $total) * 100);
+        } catch (\Exception $e) {
+            return 45; // Fallback
+        }
+    }
 
     private function getBatchFinancialPerformance()
     {
@@ -1413,7 +1457,7 @@ private function getStorageUsagePercent()
     {
         $currentMonth = now();
         $lastMonth = $currentMonth->copy()->subMonth();
-        
+
         // Get payment method breakdown for current month
         $currentMonthData = Payment::where('payment_type', 'component')
             ->whereMonth('payment_date', $currentMonth->month)
@@ -1421,7 +1465,7 @@ private function getStorageUsagePercent()
             ->select('payment_method', DB::raw('COUNT(*) as count'), DB::raw('SUM(amount) as total'))
             ->groupBy('payment_method')
             ->get();
-            
+
         // Get payment method breakdown for last month
         $lastMonthData = Payment::where('payment_type', 'component')
             ->whereMonth('payment_date', $lastMonth->month)
@@ -1430,28 +1474,28 @@ private function getStorageUsagePercent()
             ->groupBy('payment_method')
             ->get()
             ->keyBy('payment_method');
-            
+
         $analysis = [];
         $totalCurrentAmount = $currentMonthData->sum('total');
-        
+
         foreach ($currentMonthData as $method) {
             $lastMonthAmount = $lastMonthData->get($method->payment_method)->total ?? 0;
-            $growth = $lastMonthAmount > 0 ? 
+            $growth = $lastMonthAmount > 0 ?
                 round((($method->total - $lastMonthAmount) / $lastMonthAmount) * 100, 1) : 0;
-                
+
             $analysis[] = [
                 'method' => $method->payment_method,
                 'current_month_amount' => $method->total,
                 'current_month_count' => $method->count,
                 'last_month_amount' => $lastMonthAmount,
                 'growth_percentage' => $growth,
-                'percentage_of_total' => $totalCurrentAmount > 0 ? 
+                'percentage_of_total' => $totalCurrentAmount > 0 ?
                     round(($method->total / $totalCurrentAmount) * 100, 1) : 0,
-                'avg_transaction_amount' => $method->count > 0 ? 
+                'avg_transaction_amount' => $method->count > 0 ?
                     round($method->total / $method->count) : 0
             ];
         }
-        
+
         return [
             'methods' => collect($analysis)->sortByDesc('current_month_amount')->values()->toArray(),
             'total_amount' => $totalCurrentAmount,
@@ -1465,16 +1509,16 @@ private function getStorageUsagePercent()
     {
         $totalDue = StudentFee::whereIn('status', ['unpaid', 'partial'])
             ->sum(DB::raw('amount - COALESCE(paid_amount, 0) - COALESCE(concession_amount, 0)'));
-            
+
         $totalCollected = Payment::where('payment_type', 'component')
             ->whereMonth('payment_date', now()->month)
             ->sum('amount');
-            
+
         $totalExpected = $totalDue + $totalCollected;
-        
-        $efficiency = $totalExpected > 0 ? 
+
+        $efficiency = $totalExpected > 0 ?
             round(($totalCollected / $totalExpected) * 100, 1) : 0;
-            
+
         // Calculate collection rate trends
         $last6Months = [];
         for ($i = 5; $i >= 0; $i--) {
@@ -1483,14 +1527,14 @@ private function getStorageUsagePercent()
                 ->whereMonth('payment_date', $month->month)
                 ->whereYear('payment_date', $month->year)
                 ->sum('amount');
-                
+
             $last6Months[] = [
                 'month' => $month->format('M Y'),
                 'collected' => $monthlyCollected,
                 'target' => $monthlyCollected * 1.2 // Assuming 20% buffer as target
             ];
         }
-        
+
         return [
             'current_efficiency' => $efficiency,
             'total_collected' => $totalCollected,
@@ -1510,50 +1554,50 @@ private function getStorageUsagePercent()
             '61-90' => [61, 90],
             '90+' => [91, 9999]
         ];
-        
+
         $analysis = [];
         $totalOverdueAmount = 0;
         $totalOverdueCount = 0;
-        
+
         foreach ($overdueThresholds as $range => $days) {
             $startDate = now()->subDays($days[1]);
             $endDate = $days[0] > 1 ? now()->subDays($days[0]) : now();
-            
+
             $overdueData = StudentFee::whereIn('status', ['unpaid', 'partial'])
                 ->where('due_date', '<=', $endDate)
-                ->when($days[0] > 1, function($query) use ($startDate) {
+                ->when($days[0] > 1, function ($query) use ($startDate) {
                     return $query->where('due_date', '>', $startDate);
                 })
                 ->with(['student.batch.course', 'feeCategory'])
                 ->get();
-                
-            $rangeAmount = $overdueData->sum(function($fee) {
+
+            $rangeAmount = $overdueData->sum(function ($fee) {
                 return max(0, ($fee->amount ?? 0) - ($fee->paid_amount ?? 0) - ($fee->concession_amount ?? 0));
             });
-            
+
             $analysis[$range] = [
                 'count' => $overdueData->count(),
                 'amount' => $rangeAmount,
                 'students' => $overdueData->pluck('student_id')->unique()->count(),
-                'avg_amount_per_student' => $overdueData->pluck('student_id')->unique()->count() > 0 ? 
+                'avg_amount_per_student' => $overdueData->pluck('student_id')->unique()->count() > 0 ?
                     round($rangeAmount / $overdueData->pluck('student_id')->unique()->count()) : 0
             ];
-            
+
             $totalOverdueAmount += $rangeAmount;
             $totalOverdueCount += $overdueData->count();
         }
-        
+
         // Get course-wise overdue analysis
         $courseWiseOverdue = StudentFee::whereIn('status', ['unpaid', 'partial'])
             ->where('due_date', '<', now())
             ->with(['student.batch.course'])
             ->get()
             ->groupBy('student.batch.course.name')
-            ->map(function($fees, $courseName) {
-                $amount = $fees->sum(function($fee) {
+            ->map(function ($fees, $courseName) {
+                $amount = $fees->sum(function ($fee) {
                     return max(0, ($fee->amount ?? 0) - ($fee->paid_amount ?? 0) - ($fee->concession_amount ?? 0));
                 });
-                
+
                 return [
                     'course_name' => $courseName ?: 'Unknown',
                     'overdue_amount' => $amount,
@@ -1564,7 +1608,7 @@ private function getStorageUsagePercent()
             ->sortByDesc('overdue_amount')
             ->take(10)
             ->values();
-        
+
         return [
             'by_age' => $analysis,
             'total_overdue_amount' => $totalOverdueAmount,
@@ -1579,45 +1623,45 @@ private function getStorageUsagePercent()
     {
         $currentMonth = now();
         $lastMonth = $currentMonth->copy()->subMonth();
-        
+
         // Recovery this month (payments made for overdue fees)
         $recoveredThisMonth = Payment::where('payment_type', 'component')
             ->whereMonth('payment_date', $currentMonth->month)
             ->whereYear('payment_date', $currentMonth->year)
-            ->whereHas('student.studentFees', function($query) {
+            ->whereHas('student.studentFees', function ($query) {
                 $query->where('due_date', '<', now()->startOfMonth())
-                      ->whereIn('status', ['paid', 'partial']);
+                    ->whereIn('status', ['paid', 'partial']);
             })
             ->sum('amount');
-            
+
         // Recovery last month
         $recoveredLastMonth = Payment::where('payment_type', 'component')
             ->whereMonth('payment_date', $lastMonth->month)
             ->whereYear('payment_date', $lastMonth->year)
-            ->whereHas('student.studentFees', function($query) use ($lastMonth) {
+            ->whereHas('student.studentFees', function ($query) use ($lastMonth) {
                 $query->where('due_date', '<', $lastMonth->startOfMonth())
-                      ->whereIn('status', ['paid', 'partial']);
+                    ->whereIn('status', ['paid', 'partial']);
             })
             ->sum('amount');
-            
+
         // Calculate recovery rate
         $totalOverdue = StudentFee::whereIn('status', ['unpaid', 'partial'])
             ->where('due_date', '<', now())
             ->sum(DB::raw('amount - COALESCE(paid_amount, 0) - COALESCE(concession_amount, 0)'));
-            
-        $recoveryRate = ($totalOverdue + $recoveredThisMonth) > 0 ? 
+
+        $recoveryRate = ($totalOverdue + $recoveredThisMonth) > 0 ?
             round(($recoveredThisMonth / ($totalOverdue + $recoveredThisMonth)) * 100, 1) : 0;
-            
+
         // Recovery by method
         $recoveryByMethod = Payment::where('payment_type', 'component')
             ->whereMonth('payment_date', $currentMonth->month)
-            ->whereHas('student.studentFees', function($query) {
+            ->whereHas('student.studentFees', function ($query) {
                 $query->where('due_date', '<', now()->startOfMonth());
             })
             ->select('payment_method', DB::raw('COUNT(*) as count'), DB::raw('SUM(amount) as total'))
             ->groupBy('payment_method')
             ->get();
-            
+
         // Top recovering students
         $topRecoveringStudents = Payment::where('payment_type', 'component')
             ->whereMonth('payment_date', $currentMonth->month)
@@ -1627,18 +1671,18 @@ private function getStorageUsagePercent()
             ->orderByDesc('total_recovered')
             ->limit(10)
             ->get()
-            ->map(function($payment) {
+            ->map(function ($payment) {
                 return [
                     'student_name' => $payment->student->name ?? 'Unknown',
                     'student_id' => $payment->student_id,
                     'recovered_amount' => $payment->total_recovered
                 ];
             });
-            
+
         return [
             'recovered_this_month' => $recoveredThisMonth,
             'recovered_last_month' => $recoveredLastMonth,
-            'recovery_growth' => $recoveredLastMonth > 0 ? 
+            'recovery_growth' => $recoveredLastMonth > 0 ?
                 round((($recoveredThisMonth - $recoveredLastMonth) / $recoveredLastMonth) * 100, 1) : 0,
             'recovery_rate' => $recoveryRate,
             'total_overdue' => $totalOverdue,
@@ -1750,46 +1794,46 @@ private function getStorageUsagePercent()
     {
         $avgDays = Payment::where('payment_type', 'component')
             ->whereNotNull('payment_date')
-            ->join('student_fees', function($join) {
+            ->join('student_fees', function ($join) {
                 $join->on('payments.student_id', '=', 'student_fees.student_id');
             })
             ->whereColumn('payments.payment_date', '>=', 'student_fees.due_date')
             ->selectRaw('AVG(DATEDIFF(payments.payment_date, student_fees.due_date)) as avg_days')
             ->value('avg_days');
-            
+
         return round($avgDays ?? 15, 1) . ' days';
     }
-    
+
     private function getOnTimePaymentPercentage()
     {
         $totalPayments = Payment::where('payment_type', 'component')
             ->whereMonth('payment_date', now()->month)
             ->count();
-            
+
         $onTimePayments = Payment::where('payment_type', 'component')
             ->whereMonth('payment_date', now()->month)
-            ->join('student_fees', function($join) {
+            ->join('student_fees', function ($join) {
                 $join->on('payments.student_id', '=', 'student_fees.student_id');
             })
             ->whereColumn('payments.payment_date', '<=', 'student_fees.due_date')
             ->count();
-            
+
         return $totalPayments > 0 ? round(($onTimePayments / $totalPayments) * 100, 1) : 0;
     }
-    
+
     private function getRecoveryPriorityList()
     {
         return StudentFee::whereIn('status', ['unpaid', 'partial'])
             ->where('due_date', '<', now())
             ->with(['student.batch.course'])
             ->get()
-            ->map(function($fee) {
+            ->map(function ($fee) {
                 $overdueAmount = max(0, ($fee->amount ?? 0) - ($fee->paid_amount ?? 0) - ($fee->concession_amount ?? 0));
                 $daysPastDue = now()->diffInDays($fee->due_date);
-                
+
                 // Priority score: higher amount + more days overdue = higher priority
                 $priorityScore = ($overdueAmount / 1000) + ($daysPastDue / 10);
-                
+
                 return [
                     'student_name' => $fee->student->name ?? 'Unknown',
                     'student_id' => $fee->student_id,
@@ -1804,7 +1848,7 @@ private function getStorageUsagePercent()
             ->values()
             ->toArray();
     }
-    
+
     private function getOverdueTrend()
     {
         $trends = [];
@@ -1813,39 +1857,49 @@ private function getStorageUsagePercent()
             $overdueAmount = StudentFee::whereIn('status', ['unpaid', 'partial'])
                 ->where('due_date', '<', $date)
                 ->sum(DB::raw('amount - COALESCE(paid_amount, 0) - COALESCE(concession_amount, 0)'));
-                
+
             $trends[] = [
                 'month' => $date->format('M Y'),
                 'overdue_amount' => $overdueAmount
             ];
         }
-        
+
         return $trends;
     }
-    
+
     private function getAverageRecoveryTime()
     {
         $avgDays = Payment::where('payment_type', 'component')
             ->whereMonth('payment_date', now()->month)
-            ->join('student_fees', function($join) {
+            ->join('student_fees', function ($join) {
                 $join->on('payments.student_id', '=', 'student_fees.student_id');
             })
             ->where('student_fees.due_date', '<', DB::raw('payments.payment_date'))
             ->selectRaw('AVG(DATEDIFF(payments.payment_date, student_fees.due_date)) as avg_days')
             ->value('avg_days');
-            
+
         return round($avgDays ?? 30, 1) . ' days';
     }
-    
+
     private function getRecoverySuccessRate()
     {
         $totalOverdueFees = StudentFee::where('due_date', '<', now()->subMonth())
             ->count();
-            
+
         $recoveredFees = StudentFee::where('due_date', '<', now()->subMonth())
             ->whereIn('status', ['paid'])
             ->count();
-            
+
         return $totalOverdueFees > 0 ? round(($recoveredFees / $totalOverdueFees) * 100, 1) : 0;
+    }
+    private function getStudentDistribution()
+    {
+        return \App\Models\Student::join('batches', 'students.batch_id', '=', 'batches.id')
+            ->join('courses', 'batches.course_id', '=', 'courses.id')
+            ->where('students.status', 'active')
+            ->groupBy('courses.name')
+            ->select('courses.name', DB::raw('count(*) as total'))
+            ->pluck('total', 'courses.name')
+            ->toArray();
     }
 }

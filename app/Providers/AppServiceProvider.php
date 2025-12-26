@@ -19,7 +19,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         // ✅ SAFE: Only register services that actually exist
-        
+
         // Register ComponentPaymentService if it exists
         if (class_exists('\App\Services\ComponentPaymentService')) {
             $this->app->singleton(\App\Services\ComponentPaymentService::class, function ($app) {
@@ -37,10 +37,10 @@ class AppServiceProvider extends ServiceProvider
         // Register DashboardDataService if it exists
         if (class_exists('\App\Services\DashboardDataService')) {
             $this->app->singleton(\App\Services\DashboardDataService::class, function ($app) {
-                $componentPaymentService = $app->has(\App\Services\ComponentPaymentService::class) 
-                    ? $app->make(\App\Services\ComponentPaymentService::class) 
+                $componentPaymentService = $app->has(\App\Services\ComponentPaymentService::class)
+                    ? $app->make(\App\Services\ComponentPaymentService::class)
                     : null;
-                
+
                 return new \App\Services\DashboardDataService($componentPaymentService);
             });
         }
@@ -83,13 +83,15 @@ class AppServiceProvider extends ServiceProvider
         if ($this->app->environment('local', 'testing')) {
             $this->registerDevelopmentServices();
         }
-        
+
         // ✅ FIXED: Register Attendance Services with proper dependency injection
-        
+
         // Register NotificationService first (no dependencies)
         if (class_exists('\App\Services\Attendance\NotificationService')) {
             $this->app->singleton(\App\Services\Attendance\NotificationService::class, function ($app) {
-                return new \App\Services\Attendance\NotificationService();
+                return new \App\Services\Attendance\NotificationService(
+                    $app->make(\App\Services\NotificationService::class)
+                );
             });
         }
 
@@ -144,14 +146,20 @@ class AppServiceProvider extends ServiceProvider
 
         // Register macros
         $this->registerMacros();
-        
+
         // Share global data with views
         $this->shareGlobalViewData();
-        
+
         // Disable ONLY_FULL_GROUP_BY for this application
-    if (config('database.default') === 'mysql') {
-        DB::statement("SET sql_mode=(SELECT REPLACE(@@sql_mode,'ONLY_FULL_GROUP_BY',''))");
-    }
+        // Disable ONLY_FULL_GROUP_BY for this application
+        try {
+            if (config('database.default') === 'mysql') {
+                DB::statement("SET sql_mode=(SELECT REPLACE(@@sql_mode,'ONLY_FULL_GROUP_BY',''))");
+            }
+        } catch (\Exception $e) {
+            // Database might not be available yet (e.g. during compilation)
+            // We suppress this error to allow commands like route:cache to run
+        }
     }
 
     /**
@@ -164,7 +172,7 @@ class AppServiceProvider extends ServiceProvider
             return "<?php echo function_exists('get_payment_status_badge') ? get_payment_status_badge($status) : '<span class=\"badge badge-secondary\">N/A</span>'; ?>";
         });
 
-     
+
 
         // Format currency directive
         Blade::directive('currency', function ($amount) {
@@ -220,7 +228,7 @@ class AppServiceProvider extends ServiceProvider
                 }
             ?>";
         });
-        
+
         // Status badge directive for attendance
         Blade::directive('attendanceStatus', function ($status) {
             return "<?php 
@@ -239,7 +247,7 @@ class AppServiceProvider extends ServiceProvider
         Blade::directive('permission', function ($permission) {
             return "<?php if(auth()->check() && auth()->user()->can({$permission})): ?>";
         });
-        
+
         Blade::directive('endpermission', function () {
             return '<?php endif; ?>';
         });
@@ -248,7 +256,7 @@ class AppServiceProvider extends ServiceProvider
         Blade::directive('role', function ($role) {
             return "<?php if(auth()->check() && auth()->user()->hasRole({$role})): ?>";
         });
-        
+
         Blade::directive('endrole', function () {
             return '<?php endif; ?>';
         });
@@ -363,7 +371,7 @@ class AppServiceProvider extends ServiceProvider
      */
     private function registerViewComposers(): void
     {
-        
+
 
         // Share fee categories with payment views (with safety checks)
         View::composer('admin.payment*', function ($view) {
@@ -377,7 +385,7 @@ class AppServiceProvider extends ServiceProvider
             }
         });
 
-       
+
     }
 
     /**
@@ -385,36 +393,41 @@ class AppServiceProvider extends ServiceProvider
      */
     private function shareGlobalData(): void
     {
-        // Share payment reminder configuration (with fallback)
-        $paymentConfig = config('payment_reminders', []);
-        View::share('paymentConfig', $paymentConfig);
+        try {
+            // Share payment reminder configuration (with fallback)
+            $paymentConfig = config('payment_reminders', []);
+            View::share('paymentConfig', $paymentConfig);
 
-        // Share currency settings
-        $currency = function_exists('setting') ? setting('currency', 'INR') : 'INR';
-        View::share('currency', $currency);
-        
-        $currencySymbol = match ($currency) {
-            'INR' => '₹',
-            'USD' => '$',
-            'EUR' => '€',
-            'GBP' => '£',
-            default => '₹'
-        };
-        View::share('currencySymbol', $currencySymbol);
+            // Share currency settings
+            $currency = function_exists('setting') ? setting('currency', 'INR') : 'INR';
+            View::share('currency', $currency);
 
-        // Share date format settings
-        $dateFormat = function_exists('setting') ? setting('date_format', 'd-m-Y') : 'd-m-Y';
-        View::share('dateFormat', $dateFormat);
-        
-        // Share app information
-        $appName = function_exists('setting') ? setting('app_name', 'College Management System') : 'College Management System';
-        $appTagline = function_exists('setting') ? setting('app_tagline', 'Empowering Education Excellence') : 'Empowering Education Excellence';
-        
-        View::share('appName', $appName);
-        View::share('appTagline', $appTagline);
+            $currencySymbol = match ($currency) {
+                'INR' => '₹',
+                'USD' => '$',
+                'EUR' => '€',
+                'GBP' => '£',
+                default => '₹'
+            };
+            View::share('currencySymbol', $currencySymbol);
+
+            // Share date format settings
+            $dateFormat = function_exists('setting') ? setting('date_format', 'd-m-Y') : 'd-m-Y';
+            View::share('dateFormat', $dateFormat);
+
+            // Share app information
+            $appName = function_exists('setting') ? setting('app_name', 'College Management System') : 'College Management System';
+            $appTagline = function_exists('setting') ? setting('app_tagline', 'Empowering Education Excellence') : 'Empowering Education Excellence';
+
+            View::share('appName', $appName);
+            View::share('appTagline', $appTagline);
+        } catch (\Exception $e) {
+            // Suppress error during boot if DB is unavailable
+            \Log::warning('AppServiceProvider: Failed to share global data (DB might be offline): ' . $e->getMessage());
+        }
     }
-    
-     /**
+
+    /**
      * Share global data with views
      */
     private function shareGlobalViewData(): void
@@ -428,7 +441,7 @@ class AppServiceProvider extends ServiceProvider
                 'excused' => ['label' => 'Excused', 'color' => 'info', 'icon' => 'info-circle'],
             ]);
         });
-        
+
         // Share navigation data for attendance modules
         View::composer(['layouts.app', 'layouts.admin'], function ($view) {
             if (auth()->check()) {
@@ -441,7 +454,7 @@ class AppServiceProvider extends ServiceProvider
                     'is_student' => $user->hasRole('student'),
                     'is_admin' => $user->hasRole(['admin', 'super-admin']),
                 ];
-                
+
                 $view->with('attendanceNav', $attendanceNavData);
             }
         });
@@ -454,7 +467,7 @@ class AppServiceProvider extends ServiceProvider
     {
         // Validate fee type
         \Validator::extend('valid_fee_type', function ($attribute, $value, $parameters, $validator) {
-            return class_exists('\App\Models\FeeCategory') ? 
+            return class_exists('\App\Models\FeeCategory') ?
                 \App\Models\FeeCategory::where('category_type', $value)->exists() : true;
         });
 
@@ -464,7 +477,7 @@ class AppServiceProvider extends ServiceProvider
             return in_array($value, $validChannels);
         });
 
-   
+
 
         // Validate payment status
         \Validator::extend('valid_payment_status', function ($attribute, $value, $parameters, $validator) {
@@ -489,7 +502,7 @@ class AppServiceProvider extends ServiceProvider
     private function registerEventListeners(): void
     {
         // ✅ SAFE: Only register event listeners if events and listeners exist
-        
+
         // Listen for student fee paid events
         if (class_exists('\App\Events\StudentFeePaid')) {
             \Event::listen(\App\Events\StudentFeePaid::class, function ($event) {
@@ -548,7 +561,7 @@ class AppServiceProvider extends ServiceProvider
                     if (isset($event->reminder->student_fee_id) && $event->reminder->student_fee_id) {
                         StudentFee::where('id', $event->reminder->student_fee_id)
                             ->increment('reminder_sent_count');
-                        
+
                         StudentFee::where('id', $event->reminder->student_fee_id)
                             ->update(['last_reminder_sent_at' => now()]);
                     }
@@ -592,22 +605,22 @@ class AppServiceProvider extends ServiceProvider
             return [
                 'total' => $this->count(),
                 'overdue' => $this->filter(function ($item) use ($now) {
-                    return $item instanceof \App\Models\StudentFee && 
-                           isset($item->due_date) && $item->due_date < $now && 
-                           in_array($item->status ?? 'unpaid', ['unpaid', 'partial', 'overdue']);
+                    return $item instanceof \App\Models\StudentFee &&
+                        isset($item->due_date) && $item->due_date < $now &&
+                        in_array($item->status ?? 'unpaid', ['unpaid', 'partial', 'overdue']);
                 })->count(),
                 'upcoming' => $this->filter(function ($item) use ($now) {
-                    return $item instanceof \App\Models\StudentFee && 
-                           isset($item->due_date) && $item->due_date >= $now && 
-                           $item->due_date <= $now->copy()->addDays(7);
+                    return $item instanceof \App\Models\StudentFee &&
+                        isset($item->due_date) && $item->due_date >= $now &&
+                        $item->due_date <= $now->copy()->addDays(7);
                 })->count(),
                 'overdue_amount' => $this->filter(function ($item) use ($now) {
-                    return $item instanceof \App\Models\StudentFee && 
-                           isset($item->due_date) && $item->due_date < $now && 
-                           in_array($item->status ?? 'unpaid', ['unpaid', 'partial', 'overdue']);
-                })->sum(function($item) {
-                    return method_exists($item, 'getRemainingAmount') ? 
-                        $item->getRemainingAmount() : 
+                    return $item instanceof \App\Models\StudentFee &&
+                        isset($item->due_date) && $item->due_date < $now &&
+                        in_array($item->status ?? 'unpaid', ['unpaid', 'partial', 'overdue']);
+                })->sum(function ($item) {
+                    return method_exists($item, 'getRemainingAmount') ?
+                        $item->getRemainingAmount() :
                         (($item->amount ?? 0) - ($item->paid_amount ?? 0));
                 }),
             ];
@@ -622,7 +635,7 @@ class AppServiceProvider extends ServiceProvider
                 'status' => $this->input('status'),
                 'start_date' => $this->input('start_date'),
                 'end_date' => $this->input('end_date'),
- 
+
                 'reminder_channel' => $this->input('reminder_channel'),
             ];
         });
@@ -637,8 +650,8 @@ class AppServiceProvider extends ServiceProvider
         if (config('payment_reminders.development.mock_sms_service', false)) {
             if (class_exists('\App\Services\SMSService')) {
                 $this->app->singleton(\App\Services\SMSService::class, function ($app) {
-                    return class_exists('\App\Services\MockSMSService') ? 
-                        new \App\Services\MockSMSService() : 
+                    return class_exists('\App\Services\MockSMSService') ?
+                        new \App\Services\MockSMSService() :
                         new \App\Services\SMSService();
                 });
             }
@@ -648,8 +661,8 @@ class AppServiceProvider extends ServiceProvider
         if (config('payment_reminders.development.mock_whatsapp_service', false)) {
             if (class_exists('\App\Services\WhatsAppService')) {
                 $this->app->singleton(\App\Services\WhatsAppService::class, function ($app) {
-                    return class_exists('\App\Services\MockWhatsAppService') ? 
-                        new \App\Services\MockWhatsAppService() : 
+                    return class_exists('\App\Services\MockWhatsAppService') ?
+                        new \App\Services\MockWhatsAppService() :
                         new \App\Services\WhatsAppService();
                 });
             }
