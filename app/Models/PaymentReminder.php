@@ -11,7 +11,7 @@ class PaymentReminder extends Model
 {
     protected $fillable = [
         'student_id',
-        'invoice_id',
+        'student_fee_id', 
         'fee_category_id',
         'reminder_type',
         'status',
@@ -36,247 +36,108 @@ class PaymentReminder extends Model
 
     /**
      * Relationships
+     * ✅ FIXED: Added explicit return type declaration
      */
     public function student(): BelongsTo
     {
         return $this->belongsTo(Student::class);
     }
 
-    public function invoice(): BelongsTo
+    /**
+     * ✅ FIXED: Relationship changed from invoice() to studentFee()
+     * Get the fee component associated with the reminder.
+     */
+    public function studentFee(): BelongsTo
     {
-        return $this->belongsTo(Invoice::class);
+        return $this->belongsTo(StudentFee::class);
     }
 
+    /**
+     * Get the fee category associated with the reminder
+     */
     public function feeCategory(): BelongsTo
     {
         return $this->belongsTo(FeeCategory::class);
     }
 
+    /**
+     * Get reminder logs
+     */
     public function logs(): HasMany
     {
         return $this->hasMany(PaymentReminderLog::class);
     }
 
-   /**
- * Scope for pending reminders
- */
-public function scopePending($query)
-{
-    return $query->where('status', 'pending');
-}
-
-/**
- * Scope for sent reminders
- */
-public function scopeSent($query)
-{
-    return $query->where('status', 'sent');
-}
-
-/**
- * Scope for failed reminders
- */
-public function scopeFailed($query)
-{
-    return $query->where('status', 'failed');
-}
-
-/**
- * Scope for overdue scheduled reminders
- */
-public function scopeOverdue($query)
-{
-    return $query->where('scheduled_date', '<', now())
-                 ->where('status', 'pending');
-}
-
-/**
- * Scope for reminders due today
- */
-public function scopeDueToday($query)
-{
-    return $query->whereDate('scheduled_date', today())
-                 ->where('status', 'pending');
-}
-
-/**
- * Scope for reminders by type
- */
-public function scopeOfType($query, string $type)
-{
-    return $query->where('reminder_type', $type);
-}
-
-/**
- * Scope for reminders by channel
- */
-public function scopeByChannel($query, string $channel)
-{
-    return $query->where('channel', $channel);
-}
-
-/**
- * Scope for recent reminders (last N days)
- */
-public function scopeRecent($query, int $days = 7)
-{
-    return $query->where('created_at', '>=', now()->subDays($days));
-}
-
-/**
- * Check if reminder can be retried
- */
-public function canRetry(): bool
-{
-    return $this->status === 'failed' && 
-           $this->retry_count < 3 && 
-           ($this->last_retry_at === null || 
-            $this->last_retry_at < now()->subHours(2));
-}
-
-
-/**
- * Schedule retry for failed reminder
- */
-public function scheduleRetry(\Carbon\Carbon $retryAt = null)
-{
-    if (!$this->canRetry()) {
-        return false;
-    }
-
-    $this->update([
-        'status' => 'pending',
-        'scheduled_date' => $retryAt ?? now()->addHours(2),
-        'error_message' => null
-    ]);
-
-    return true;
-}
-
-/**
- * Get formatted recipient details
- */
-public function getRecipientInfo(): array
-{
-    return $this->recipient_details ? 
-        json_decode($this->recipient_details, true) : 
-        [];
-}
-
-/**
- * Check if reminder is urgent (overdue or final notice)
- */
-public function isUrgent(): bool
-{
-    return in_array($this->reminder_type, ['escalation', 'final_notice']) ||
-           ($this->reminder_type === 'overdue' && $this->scheduled_date < now()->subDays(1));
-}
     /**
-     * Accessors & Mutators
+     * Scopes
      */
-    public function getReminderTypeBadgeAttribute(): string
+    public function scopePending($query)
     {
-        return match($this->reminder_type) {
-            'upcoming_due' => 'badge-info',
-            'overdue' => 'badge-warning',
-            'escalation' => 'badge-danger',
-            'final_notice' => 'badge-dark',
-            default => 'badge-secondary'
-        };
+        return $query->where('status', 'pending');
     }
 
-    public function getStatusBadgeAttribute(): string
+    public function scopeSent($query)
     {
-        return match($this->status) {
-            'pending' => 'badge-warning',
-            'sent' => 'badge-success',
-            'failed' => 'badge-danger',
-            'cancelled' => 'badge-secondary',
-            default => 'badge-light'
-        };
+        return $query->where('status', 'sent');
     }
 
-    public function getChannelIconAttribute(): string
+    public function scopeFailed($query)
     {
-        return match($this->channel) {
-            'email' => 'fas fa-envelope',
-            'sms' => 'fas fa-sms',
-            'whatsapp' => 'fab fa-whatsapp',
-            'phone_call' => 'fas fa-phone',
-            'physical_notice' => 'fas fa-file-text',
-            default => 'fas fa-bell'
-        };
+        return $query->where('status', 'failed');
     }
 
-    public function getChannelColorAttribute(): string
+    public function scopeScheduledFor($query, $date)
     {
-        return match($this->channel) {
-            'email' => 'text-primary',
-            'sms' => 'text-success',
-            'whatsapp' => 'text-success',
-            'phone_call' => 'text-info',
-            'physical_notice' => 'text-dark',
-            default => 'text-secondary'
-        };
+        return $query->whereDate('scheduled_date', $date);
     }
 
-    public function getTimeToSendAttribute(): string
+    public function scopeOverdue($query)
     {
-        if ($this->status !== 'pending') {
-            return 'N/A';
-        }
-
-        $now = now();
-        $scheduledDate = $this->scheduled_date;
-
-        if ($scheduledDate->isFuture()) {
-            return $scheduledDate->diffForHumans($now);
-        } else {
-            return 'Overdue by ' . $scheduledDate->diffForHumans($now, true);
-        }
+        return $query->where('reminder_type', 'overdue');
     }
 
-    public function getIsOverdueAttribute(): bool
+    public function scopeByChannel($query, $channel)
     {
-        return $this->status === 'pending' && $this->scheduled_date->isPast();
-    }
-
-    public function getCanRetryAttribute(): bool
-    {
-        return $this->status === 'failed' && $this->retry_count < 3;
-    }
-
-    public function getFormattedRecipientAttribute(): string
-    {
-        $details = $this->recipient_details;
-        if (!$details) return 'N/A';
-
-        switch ($this->channel) {
-            case 'email':
-                return $details['email'] ?? 'N/A';
-            case 'sms':
-            case 'whatsapp':
-            case 'phone_call':
-                return $details['phone'] ?? 'N/A';
-            default:
-                return $details['student_name'] ?? 'N/A';
-        }
+        return $query->where('channel', $channel);
     }
 
     /**
-     * Methods
+     * Helper methods
      */
+    public function isScheduled(): bool
+    {
+        return $this->status === 'scheduled';
+    }
+
+    public function isPending(): bool
+    {
+        return $this->status === 'pending';
+    }
+
+    public function isSent(): bool
+    {
+        return $this->status === 'sent';
+    }
+
+    public function hasFailed(): bool
+    {
+        return $this->status === 'failed';
+    }
+
+    public function canRetry(): bool
+    {
+        return $this->hasFailed() && $this->retry_count < 3;
+    }
+
     public function markAsSent(): void
     {
         $this->update([
             'status' => 'sent',
             'sent_at' => now()
         ]);
-
-        $this->logActivity('sent', 'Reminder sent successfully');
     }
 
-    public function markAsFailed(string $errorMessage = null): void
+    public function markAsFailed(string $errorMessage): void
     {
         $this->update([
             'status' => 'failed',
@@ -284,99 +145,90 @@ public function isUrgent(): bool
             'retry_count' => $this->retry_count + 1,
             'last_retry_at' => now()
         ]);
-
-        $this->logActivity('failed', $errorMessage ?: 'Reminder sending failed');
     }
 
-    public function cancel(string $reason = null): void
+    public function addLog(string $action, array $details = []): void
     {
-        $this->update(['status' => 'cancelled']);
-        $this->logActivity('cancelled', $reason ?: 'Reminder cancelled');
-    }
-
-    public function reschedule(Carbon $newDate): void
-    {
-        $oldDate = $this->scheduled_date;
-        $this->update([
-            'scheduled_date' => $newDate,
-            'status' => 'pending'
+        $this->logs()->create([
+            'action' => $action,
+            'details' => json_encode($details),
+            'performed_by' => auth()->id(),
+            'action_timestamp' => now()
         ]);
-
-        $this->logActivity('rescheduled', "Rescheduled from {$oldDate->format('Y-m-d H:i')} to {$newDate->format('Y-m-d H:i')}");
     }
 
-    public function retry(): void
+    /**
+     * Get formatted message content with placeholders replaced
+     */
+    public function getFormattedMessage(): string
     {
-        if (!$this->can_retry) {
-            throw new \Exception('Cannot retry this reminder');
+        $message = $this->message_content;
+        
+        if ($this->student) {
+            $message = str_replace('[STUDENT_NAME]', $this->student->name, $message);
+            $message = str_replace('[ENROLLMENT_NUMBER]', $this->student->enrollment_number, $message);
         }
 
-        $this->update([
-            'status' => 'pending',
-            'error_message' => null
-        ]);
+        if ($this->studentFee) {
+            $remainingAmount = $this->studentFee->getRemainingAmount();
+            $message = str_replace('[AMOUNT]', '₹' . number_format($remainingAmount, 2), $message);
+            
+            if ($this->studentFee->due_date) {
+                $message = str_replace('[DUE_DATE]', $this->studentFee->due_date->format('d/m/Y'), $message);
+            }
+        }
 
-        $this->logActivity('rescheduled', 'Retry attempt #' . ($this->retry_count + 1));
-    }
-
-    public function logActivity(string $action, string $details = null): void
-    {
-        PaymentReminderLog::create([
-            'payment_reminder_id' => $this->id,
-            'action' => $action,
-            'details' => $details,
-            'performed_by' => auth()->id(),
-            'metadata' => [
-                'timestamp' => now()->toISOString(),
-                'user_agent' => request()->userAgent(),
-                'ip_address' => request()->ip()
-            ]
-        ]);
+        return $message;
     }
 
     /**
-     * Static methods
+     * Get reminder priority score
      */
-    public static function getChannels(): array
+    public function getPriorityScore(): int
     {
-        return [
-            'email' => 'Email',
-            'sms' => 'SMS',
-            'whatsapp' => 'WhatsApp',
-            'phone_call' => 'Phone Call',
-            'physical_notice' => 'Physical Notice'
-        ];
-    }
+        $score = 0;
 
-    public static function getReminderTypes(): array
-    {
-        return [
-            'upcoming_due' => 'Upcoming Due',
-            'overdue' => 'Overdue',
-            'escalation' => 'Escalation',
-            'final_notice' => 'Final Notice'
+        // Base score by type
+        $typeScores = [
+            'upcoming_due' => 1,
+            'overdue' => 3,
+            'escalation' => 5,
+            'final_notice' => 7
         ];
-    }
 
-    public static function getStatuses(): array
-    {
-        return [
-            'pending' => 'Pending',
-            'sent' => 'Sent',
-            'failed' => 'Failed',
-            'cancelled' => 'Cancelled'
-        ];
+        $score += $typeScores[$this->reminder_type] ?? 0;
+
+        // Add score based on overdue amount
+        if ($this->studentFee) {
+            $amount = $this->studentFee->getRemainingAmount();
+            if ($amount > 10000) $score += 3;
+            elseif ($amount > 5000) $score += 2;
+            elseif ($amount > 1000) $score += 1;
+        }
+
+        // Add score for retry count
+        $score += $this->retry_count;
+
+        return $score;
     }
 
     /**
-     * Boot method
+     * Get recipient information for validation
      */
-    protected static function boot()
+    public function getRecipientInfo(): array
     {
-        parent::boot();
+        $recipientDetails = $this->recipient_details ?? [];
 
-        static::creating(function ($reminder) {
-            $reminder->logActivity('scheduled', 'Reminder scheduled');
-        });
+        // If recipient_details is empty, try to get from student
+        if (empty($recipientDetails) && $this->student) {
+            $recipientDetails = [
+                'email' => $this->student->email,
+                'phone' => $this->student->student_mobile ?? $this->student->father_mobile,
+                'student_name' => $this->student->name,
+                'enrollment_number' => $this->student->enrollment_number
+            ];
+        }
+
+        return $recipientDetails;
     }
 }

@@ -1,6 +1,6 @@
 <?php
 
-// App/Services/EventDiscoveryService.php
+
 namespace App\Services;
 
 use Illuminate\Support\Facades\File;
@@ -12,7 +12,7 @@ class EventDiscoveryService
 {
     protected array $eventCategories = [
         'payment' => ['name' => 'Financial Events', 'icon' => 'fas fa-money-bill-wave', 'emoji' => '💰'],
-        'invoice' => ['name' => 'Financial Events', 'icon' => 'fas fa-file-invoice', 'emoji' => '💰'],
+        // 'invoice' => ['name' => 'Financial Events', 'icon' => 'fas fa-file-invoice', 'emoji' => '💰'], // MODIFIED: Removed as it's part of the old system
         'receipt' => ['name' => 'Financial Events', 'icon' => 'fas fa-receipt', 'emoji' => '💰'],
         'fee' => ['name' => 'Financial Events', 'icon' => 'fas fa-bell', 'emoji' => '💰'],
         
@@ -460,15 +460,29 @@ class EventDiscoveryService
     /**
      * Get cached events or discover them
      */
-    public static function getAvailableEvents(): array
-    {
-        return cache()->remember('webhook_available_events', now()->addHours(24), function () {
-            $service = new self();
-            $discovered = $service->discoverAllEvents();
-            return $discovered['events'];
-        });
-    }
-
+  public static function getAvailableEvents(): array
+{
+    return cache()->remember('webhook_available_events', now()->addHours(24), function () {
+        $service = new self();
+        $discovered = $service->discoverAllEvents();
+        
+        // Always ensure daily.summary is included
+        $events = $discovered['events'];
+        if (!isset($events['daily.summary'])) {
+            $events['daily.summary'] = [
+                'event_key' => 'daily.summary',
+                'name' => 'Daily Summary Report',
+                'description' => 'Automated daily report with payment totals and attendance summary. Sent at 5:00 PM on working days (Monday-Saturday)',
+                'category' => ['name' => 'Automation', 'icon' => 'fas fa-robot', 'emoji' => '🤖'],
+                'auto_discovered' => false,
+                'source' => 'manual',
+                'class' => 'scheduled_webhook'
+            ];
+        }
+        
+        return $events;
+    });
+}
     /**
      * Get events grouped by category
      */

@@ -8,6 +8,7 @@ use App\Models\NotificationPreference;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class NotificationManagementController extends Controller
 {
@@ -142,9 +143,13 @@ class NotificationManagementController extends Controller
             ]);
 
         } catch (\Exception $e) {
+            Log::error('Notification test failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json([
                 'success' => false,
-                'message' => 'Test failed: ' . $e->getMessage()
+                'message' => 'Test failed due to system error'
             ], 500);
         }
     }
@@ -162,9 +167,13 @@ class NotificationManagementController extends Controller
                 'message' => $success ? 'Notification marked as read' : 'Failed to mark as read'
             ]);
         } catch (\Exception $e) {
+            Log::error('Mark as read failed', [
+                'notification_id' => $notification->id,
+                'error' => $e->getMessage()
+            ]);
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Failed to mark notification as read'
             ], 500);
         }
     }
@@ -195,9 +204,12 @@ class NotificationManagementController extends Controller
                 'message' => "Marked {$count} notifications as read"
             ]);
         } catch (\Exception $e) {
+            Log::error('Bulk mark as read failed', [
+                'error' => $e->getMessage()
+            ]);
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
+                'message' => 'Failed to mark notifications as read'
             ], 500);
         }
     }
@@ -249,9 +261,13 @@ class NotificationManagementController extends Controller
                 'message' => "Cleaned up {$count} old notifications"
             ]);
         } catch (\Exception $e) {
+            Log::error('Notification cleanup failed', [
+                'error' => $e->getMessage(),
+                'days' => $request->days
+            ]);
             return response()->json([
                 'success' => false,
-                'message' => 'Cleanup failed: ' . $e->getMessage()
+                'message' => 'Cleanup operation failed'
             ], 500);
         }
     }
@@ -302,9 +318,12 @@ class NotificationManagementController extends Controller
                 'Content-Disposition' => 'attachment; filename="' . $filename . '"',
             ]);
         } catch (\Exception $e) {
+            Log::error('Notification export failed', [
+                'error' => $e->getMessage()
+            ]);
             return response()->json([
                 'success' => false,
-                'message' => 'Export failed: ' . $e->getMessage()
+                'message' => 'Export operation failed'
             ], 500);
         }
     }
@@ -353,7 +372,11 @@ class NotificationManagementController extends Controller
             $results['fee_reminder'] = $notification ? 'SUCCESS' : 'FAILED';
 
         } catch (\Exception $e) {
-            $results['error'] = 'ERROR: ' . $e->getMessage();
+            Log::error('Financial notification test failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            $results['error'] = 'Financial notification test failed';
         }
 
         return $results;
@@ -384,7 +407,11 @@ class NotificationManagementController extends Controller
             $results['low_attendance'] = $notification ? 'SUCCESS' : 'FAILED';
 
         } catch (\Exception $e) {
-            $results['error'] = 'ERROR: ' . $e->getMessage();
+            Log::error('Academic notification test failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            $results['error'] = 'Academic notification test failed';
         }
 
         return $results;
@@ -412,7 +439,11 @@ class NotificationManagementController extends Controller
             $results['urgent_system_alert'] = $notification ? 'SUCCESS' : 'FAILED';
 
         } catch (\Exception $e) {
-            $results['error'] = 'ERROR: ' . $e->getMessage();
+            Log::error('System notification test failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            $results['error'] = 'System notification test failed';
         }
 
         return $results;
@@ -436,7 +467,11 @@ class NotificationManagementController extends Controller
             $results['attendance_general'] = $notification ? 'SUCCESS' : 'FAILED';
 
         } catch (\Exception $e) {
-            $results['error'] = 'ERROR: ' . $e->getMessage();
+            Log::error('Attendance notification test failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            $results['error'] = 'Attendance notification test failed';
         }
 
         return $results;

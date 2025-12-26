@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Student;
 use Illuminate\Http\Request;
+use App\Helpers\ErrorHandler;
 
 class StudentController extends Controller
 {
@@ -26,7 +27,7 @@ class StudentController extends Controller
                            ->limit(10)
                            ->get();
 
-        // We can re-format the data for a cleaner API response if needed
+        // Format the data for a cleaner API response
         $formattedStudents = $students->map(function ($student) {
             return [
                 'id' => $student->id,
@@ -42,12 +43,137 @@ class StudentController extends Controller
 
     /**
      * Get the full details for a single student.
+     * 
+     * ✅ FIXED: Updated to use current relationship structure
      */
     public function show(Student $student)
     {
-        // Load all the relationships you want to show
-        $student->load('batch.course', 'invoices', 'attendances');
+        try {
+            // ✅ FIXED: Load relationships that actually exist in current Student model
+            // Removed 'invoices' and replaced with 'studentFees' and 'payments'
+            $student->load([
+                'batch.course',
+                'studentFees.feeCategory',  // Component-based fee system
+                'attendances' => function($query) {
+                    $query->latest()->limit(10);
+                }
+            ]);
 
-        return response()->json(['data' => $student]);
+            // Calculate financial summary from studentFees (not invoices)
+            $studentFees = $student->studentFees;
+            $totalFeeAmount = $studentFees->sum('amount');
+            $totalPaidAmount = $studentFees->sum('paid_amount');
+            $totalConcessionAmount = $studentFees->sum('concession_amount');
+            $totalDueAmount = $totalFeeAmount - $totalPaidAmount - $totalConcessionAmount;
+
+            // Get recent payments
+            $recentPayments = \App\Models\Payment::where('student_id', $student->id)
+                ->with(['createdBy:id,name', 'componentItems.studentFee.feeCategory'])
+                ->latest()
+                ->limit(5)
+                ->get();
+
+            // Format response data
+            $responseData = [
+                'id' => $student->id,
+                'name' => $student->name,
+                'email' => $student->email,
+                'enrollment_number' => $student->enrollment_number,
+                'gender' => $student->gender,
+                'student_mobile' => $student->student_mobile,
+                'father_name' => $student->father_name,
+                'father_mobile' => $student->father_mobile,
+                'village' => $student->village,
+                'admission_date' => $student->admission_date,
+                'status' => $student->status,
+                'photo_url' => $student->photo_url ?? null,
+                
+                // Academic Information
+                'batch' => [
+                    'id' => $student->batch->id ?? null,
+                    'name' => $student->batch->name ?? null,
+                    'course' => [
+                        'id' => $student->batch->course->id ?? null,
+                        'name' => $student->batch->course->name ?? null,
+                    ]
+                ],
+                
+                // Financial Summary (using component-based system)
+                'financial_summary' => [
+                    'total_fee_amount' => $totalFeeAmount,
+                    'total_paid_amount' => $totalPaidAmount,
+                    'total_concession_amount' => $totalConcessionAmount,
+                    'total_due_amount' => $totalDueAmount,
+                    'payment_percentage' => $totalFeeAmount > 0 ? round(($totalPaidAmount / $totalFeeAmount) * 100, 2) : 0,
+                ],
+                
+                // Fee Components
+                'fee_components' => $studentFees->map(function($fee) {
+                    return [
+                        'id' => $fee->id,
+                        'category' => $fee->feeCategory->name ?? 'Unknown',
+                        'amount' => $fee->amount,
+                        'paid_amount' => $fee->paid_amount,
+                        'concession_amount' => $fee->concession_amount,
+                        'remaining_amount' => $fee->amount - $fee->paid_amount - $fee->concession_amount,
+                        'due_date' => $fee->due_date,
+                        'status' => $fee->status,
+                        'academic_year' => $fee->academic_year,
+                    ];
+                }),
+                
+                // Recent Payments
+                'recent_payments' => $recentPayments->map(function($payment) {
+                    return [
+                        'id' => $payment->id,
+                        'receipt_number' => $payment->receipt_number,
+                        'amount' => $payment->amount,
+                        'payment_date' => $payment->payment_date,
+                        'payment_method' => $payment->payment_method,
+                        'created_by' => $payment->createdBy->name ?? 'System',
+                        'components_paid' => $payment->componentItems->map(function($item) {
+                            return [
+                                'fee_category' => $item->studentFee->feeCategory->name ?? 'Unknown',
+                                'amount_paid' => $item->amount_paid,
+                            ];
+                        }),
+                    ];
+                }),
+                
+                // Recent Attendance
+                'recent_attendance' => $student->attendances->map(function($attendance) {
+                    return [
+                        'id' => $attendance->id,
+                        'date' => $attendance->attendance_date,
+                        'status' => $attendance->status,
+                        'marked_by' => $attendance->faculty->name ?? 'System',
+                        'created_at' => $attendance->created_at,
+                    ];
+                }),
+                
+                // Timestamps
+                'created_at' => $student->created_at,
+                'updated_at' => $student->updated_at,
+            ];
+
+            return response()->json([
+                'success' => true,
+                'data' => $responseData
+            ]);
+
+        } catch (\Exception $e) {
+            // Log the error for debugging
+            \Log::error('API Student Show Error: ' . $e->getMessage(), [
+                'student_id' => $student->id,
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return ErrorHandler::handleApiException(
+                $e,
+                'Unable to retrieve student details',
+                'Unable to retrieve student details',
+                500
+            );
+        }
     }
 }

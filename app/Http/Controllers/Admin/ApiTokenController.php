@@ -181,27 +181,11 @@ class ApiTokenController extends Controller
     /**
      * Get token usage statistics.
      */
-    public function usage()
-    {
-        $stats = [
-            'total_tokens' => PersonalAccessToken::count(),
-            'active_tokens' => PersonalAccessToken::whereNull('expires_at')
-                                                 ->orWhere('expires_at', '>', now())
-                                                 ->count(),
-            'expired_tokens' => PersonalAccessToken::where('expires_at', '<', now())->count(),
-            'recently_used' => PersonalAccessToken::where('last_used_at', '>', now()->subDays(7))->count(),
-            'never_used' => PersonalAccessToken::whereNull('last_used_at')->count(),
-        ];
-
-        $tokensByUser = PersonalAccessToken::with('tokenable')
-                                          ->get()
-                                          ->groupBy('tokenable.name')
-                                          ->map(function ($tokens) {
-                                              return $tokens->count();
-                                          });
-
-        return view('admin.api_tokens.usage', compact('stats', 'tokensByUser'));
-    }
+public function usage($tokenId)
+{
+    $token = \Laravel\Sanctum\PersonalAccessToken::findOrFail($tokenId);
+    return response()->json(['token' => $token->name, 'usage' => 'stats here']);
+}
 
     /**
      * Clean up expired tokens.

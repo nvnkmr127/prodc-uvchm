@@ -6,114 +6,105 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Spatie\Activitylog\Traits\LogsActivity;
-use Spatie\Activitylog\LogOptions;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use App\Traits\WebhookEnabled;
-use App\Models\PaymentEditLog; // Ensure you have this model created
-use Illuminate\Support\Facades\Log;
+use App\Traits\HasAcademicYear;
+use Carbon\Carbon;
 
 class Payment extends Model
 {
-    use HasFactory, LogsActivity, WebhookEnabled;
+    use HasFactory, WebhookEnabled, HasAcademicYear;
 
     /**
      * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
+     * Based on your database structure from DESCRIBE payments
      */
     protected $fillable = [
-        'invoice_id',
-        'student_id',
-        'amount',
-        'payment_date',
-        'payment_method',
-        'transaction_id',
-        'notes',
-        'receipt_number',
+        'student_id',           // REQUIRED - Foreign key to students
+        'invoice_id',           // NULLABLE - For backward compatibility
+        'amount',              // REQUIRED - Payment amount
+        'payment_date',        // REQUIRED - Date of payment
+        'payment_method',      // REQUIRED - Method (cash, card, etc.)
+        'payment_type',        // REQUIRED - Type (component, bulk, etc.)
+        'component_details',   // NULLABLE - JSON details
+        'transaction_id',      // NULLABLE - External transaction ID
+        'receipt_number',      // NULLABLE - Auto-generated receipt number
+        'academic_year',       // NULLABLE - Academic year
+        'notes',              // NULLABLE - Additional notes
+        'status'
     ];
 
     /**
-     * The attributes that should be cast.
-     *
-     * @var array<string, string>
+     * Attributes that are not mass assignable (for security)
+     */
+    protected $guarded = ['id', 'created_by', 'updated_by'];
+
+    /**
+     * The attributes that should be cast to native types.
      */
     protected $casts = [
         'payment_date' => 'date',
         'amount' => 'decimal:2',
+        'component_details' => 'array',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     /**
-     * The attributes that should be mutated to dates.
-     *
-     * @var array<int, string>
+     * The attributes that should be hidden for serialization.
      */
-    protected $dates = [
-        'payment_date',
-    ];
+    protected $hidden = [];
 
-    /**
-     * The "booted" method of the model.
-     *
-     * @return void
+ /**
+     * Boot method to handle model events
      */
     protected static function boot()
     {
         parent::boot();
 
-        /**
-         * Auto-generate a unique receipt number before creating a new payment if one isn't provided.
-         */
+        // Auto-generate receipt number and set defaults when creating
         static::creating(function ($payment) {
-            if (empty($payment->receipt_number)) {
-                $payment->receipt_number = static::generateUniqueReceiptNumber();
-                Log::info('Auto-generated receipt number for payment.', [
-                    'receipt_number' => $payment->receipt_number,
-                    'invoice_id' => $payment->invoice_id,
-                ]);
+            // Generate receipt number if not provided
+            if (!$payment->receipt_number) {
+                $payment->receipt_number = static::generateReceiptNumber();
+            }
+
+            // Set payment type if not provided
+            if (!$payment->payment_type) {
+                $payment->payment_type = 'component';
+            }
+
+            // Set status if not provided
+            if (!$payment->status) {
+                $payment->status = 'completed';
+            }
+
+            // Set payment date if not provided
+            if (!$payment->payment_date) {
+                $payment->payment_date = now();
+            }
+
+            // Set created_by if not already set and user is authenticated
+            if (!$payment->created_by && auth()->check()) {
+                $payment->created_by = auth()->id();
             }
         });
 
-        /**
-         * When a payment's amount is updated, log the change and recalculate the associated invoice's totals.
-         */
-        static::updated(function ($payment) {
-            if ($payment->isDirty('amount')) {
-                $payment->recalculateInvoiceTotals();
+        // Handle updating
+        static::updating(function ($payment) {
+            // Set updated_by when updating
+            if (auth()->check()) {
+                $payment->updated_by = auth()->id();
             }
-            Log::info('Payment updated - webhook should fire.', ['payment_id' => $payment->id, 'changes' => $payment->getChanges()]);
-        });
-
-        /**
-         * When a payment is deleted, recalculate the associated invoice's totals.
-         */
-        static::deleted(function ($payment) {
-            $payment->recalculateInvoiceTotals();
-        });
-
-         /**
-         * Log the creation of a new payment.
-         */
-        static::created(function ($payment) {
-            Log::info('Payment created - webhook should fire.', ['payment_id' => $payment->id, 'receipt_number' => $payment->receipt_number]);
         });
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Relationships
-    |--------------------------------------------------------------------------
-    */
-
     /**
-     * Get the invoice that this payment belongs to.
+     * RELATIONSHIPS
      */
-    public function invoice(): BelongsTo
-    {
-        return $this->belongsTo(Invoice::class);
-    }
-
+    
     /**
-     * Get the student that made the payment.
+     * Get the student that owns the payment
      */
     public function student(): BelongsTo
     {
@@ -121,201 +112,415 @@ class Payment extends Model
     }
 
     /**
-     * Get the edit history logs for this payment.
+     * Get the invoice associated with the payment (backward compatibility)
      */
-    public function editLogs(): HasMany
+    public function invoice(): BelongsTo
     {
-        return $this->hasMany(PaymentEditLog::class);
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Activity Log Configuration
-    |--------------------------------------------------------------------------
-    */
-
-    /**
-     * Configure the options for activity logging.
-     */
-    public function getActivitylogOptions(): LogOptions
-    {
-        return LogOptions::defaults()
-            ->logOnly(['amount', 'payment_date', 'payment_method', 'transaction_id', 'notes'])
-            ->logOnlyDirty()
-            ->dontSubmitEmptyLogs()
-            ->setDescriptionForEvent(fn(string $eventName) =>
-                "A payment of {$this->formatted_amount} for invoice '{$this->invoice->invoice_number}' was {$eventName}"
-            );
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Webhook Configuration
-    |--------------------------------------------------------------------------
-    */
-
-    /**
-     * Define the model events that should trigger webhooks.
-     */
-    public function getWebhookEvents(): array
-    {
-        return ['created', 'updated'];
+        return $this->belongsTo(Invoice::class);
     }
 
     /**
-     * Define the data structure for the webhook payload.
+     * Get the component payment items for this payment
      */
-    public function getWebhookData(): array
+    public function componentItems(): HasMany
     {
-        $baseUrl = rtrim(config('app.url'), '/');
-        $receiptNumber = $this->receipt_number;
-        $receiptUrls = [];
+        return $this->hasMany(ComponentPaymentItem::class);
+    }
 
-        try {
-            $receiptUrls = [
-                'view' => route('admin.payments.receipt.show', $this->id),
-                'download_pdf' => route('admin.payments.receipt.pdf', $this->id),
-                'public' => $receiptNumber ? route('public.receipt.show', $receiptNumber) : null,
-            ];
-        } catch (\Exception $e) {
-            Log::warning('Could not generate named receipt URLs for webhook.', [
-                'payment_id' => $this->id,
-                'error' => $e->getMessage(),
-            ]);
-            // Fallback to manually constructed URLs
-            $receiptUrls['view'] = "{$baseUrl}/admin/payments/{$this->id}/receipt/show";
-            $receiptUrls['download_pdf'] = "{$baseUrl}/admin/payments/{$this->id}/receipt/pdf";
-            if ($receiptNumber) {
-                $receiptUrls['public'] = "{$baseUrl}/receipts/{$receiptNumber}";
-            }
+    /**
+     * Get the student fees associated with this payment through component items
+     */
+    public function studentFees(): BelongsToMany
+    {
+        return $this->belongsToMany(StudentFee::class, 'component_payment_items')
+                    ->withPivot('amount_paid', 'notes', 'created_at')
+                    ->withTimestamps();
+    }
+    
+    /**
+     * Get edit logs for this payment
+     */
+    public function editLogs()
+    {
+        return $this->hasMany(PaymentEditLog::class, 'payment_id');
+    }
+
+
+    /**
+     * Get the user who created this payment
+     */
+    public function createdBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+    
+    
+    /**
+     * Get the user who last updated this payment
+     */
+    public function updatedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'updated_by');
+    }
+    
+    /**
+     * Alternative method names for backward compatibility
+     */
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+
+
+    /**
+     * SCOPES
+     */
+
+    /**
+     * Scope to get only component payments
+     */
+    public function scopeComponentPayments($query)
+    {
+        return $query->where('payment_type', 'component');
+    }
+
+    /**
+     * Scope to get payments for a specific student
+     */
+    public function scopeForStudent($query, $studentId)
+    {
+        return $query->where('student_id', $studentId);
+    }
+
+    /**
+     * Scope to get payments for a specific academic year
+     */
+    public function scopeForAcademicYear($query, $year)
+    {
+        return $query->where('academic_year', $year);
+    }
+
+/**
+     * Get edit history
+     */
+    public function getEditHistory()
+    {
+        return PaymentEditLog::where('payment_id', $this->id)
+                           ->with('user')
+                           ->orderBy('created_at', 'desc')
+                           ->get();
+    }
+    
+     /**
+     * Accessor for creator name
+     */
+    public function getCreatorNameAttribute(): string
+    {
+        return $this->creator ? $this->creator->name : 'System';
+    }
+
+    /**
+     * Accessor for updater name
+     */
+    public function getUpdaterNameAttribute(): string
+    {
+        return $this->updater ? $this->updater->name : 'N/A';
+    }
+
+    /**
+     * Scope to get payments by date range
+     */
+    public function scopeByDateRange($query, $startDate, $endDate)
+    {
+        return $query->whereBetween('payment_date', [$startDate, $endDate]);
+    }
+    
+   
+
+    public function updater()
+    {
+        return $this->belongsTo(User::class, 'updated_by');
+    }
+
+
+    /**
+     * Scope to get payments by payment method
+     */
+    public function scopeByPaymentMethod($query, $method)
+    {
+        return $query->where('payment_method', $method);
+    }
+
+    /**
+     * Scope to get payments by status
+     */
+    public function scopeByStatus($query, $status)
+    {
+        return $query->where('status', $status);
+    }
+
+    /**
+     * Scope to get recent payments
+     */
+    public function scopeRecent($query, $days = 30)
+    {
+        return $query->where('payment_date', '>=', now()->subDays($days));
+    }
+
+    /**
+     * METHODS
+     */
+
+    /**
+     * Generate a unique receipt number
+     */
+    public static function generateReceiptNumber(): string
+    {
+        $prefix = 'RCP-' . date('Y') . '-';
+        
+        // Get the latest receipt number for this year
+        $latest = static::where('receipt_number', 'LIKE', $prefix . '%')
+                       ->orderByRaw('CAST(SUBSTRING(receipt_number, ' . (strlen($prefix) + 1) . ') AS UNSIGNED) DESC')
+                       ->first();
+
+        if ($latest) {
+            // Extract the number part and increment
+            $lastNumber = intval(substr($latest->receipt_number, strlen($prefix)));
+            $newNumber = $lastNumber + 1;
+        } else {
+            $newNumber = 1;
         }
 
+        return $prefix . str_pad($newNumber, 6, '0', STR_PAD_LEFT);
+    }
+
+/**
+ * Check if this is a component-based payment
+ */
+public function isComponentPayment(): bool
+{
+    return $this->payment_type === 'component';
+}
+
+/**
+ * Force load component items with all necessary relationships
+ */
+public function loadComponentsForWebhook()
+{
+    if ($this->isComponentPayment()) {
+        $this->load([
+            'componentItems.studentFee.feeCategory',
+            'student'
+        ]);
+    }
+    
+    return $this;
+}
+
+/**
+ * Get components data formatted for webhooks
+ */
+public function getComponentsForWebhook(): array
+{
+    if (!$this->isComponentPayment()) {
+        return [];
+    }
+
+    // Ensure relationships are loaded
+    if (!$this->relationLoaded('componentItems')) {
+        $this->load('componentItems.studentFee.feeCategory');
+    }
+
+    return $this->componentItems->map(function ($item) {
         return [
-            'id' => $this->id,
-            'amount' => $this->amount,
-            'formatted_amount' => $this->formatted_amount,
-            'payment_method' => $this->payment_method,
-            'payment_date' => $this->payment_date->toIso8601String(),
-            'receipt_number' => $receiptNumber,
-            'status' => $this->status ?? 'completed',
-            'invoice_number' => $this->invoice->invoice_number ?? null,
-            'student_name' => $this->invoice->student->name ?? null,
-            'student_id' => $this->invoice->student_id ?? null,
-            'receipt_urls' => $receiptUrls,
-            'webhook_triggered_at' => now()->toIso8601String(),
+            'student_fee_id' => $item->student_fee_id,
+            'category_name' => $item->studentFee?->feeCategory?->name ?? 'Unknown Category',
+            'amount_paid' => (float) $item->amount_paid,
+            'fee_status_after_payment' => $item->studentFee?->status ?? null,
+            'notes' => $item->notes,
         ];
-    }
+    })->toArray();
+}
 
-    /*
-    |--------------------------------------------------------------------------
-    | Accessors & Mutators
-    |--------------------------------------------------------------------------
-    */
+
 
     /**
-     * Get the count of edits for the payment.
+     * Get the total amount paid through component items
      */
-    public function getEditCountAttribute(): int
+    public function getComponentTotal(): float
     {
-        return $this->editLogs()->count();
+        return $this->componentItems()->sum('amount_paid');
     }
 
     /**
-     * Get the formatted amount attribute.
+     * Get formatted amount with currency symbol
      */
     public function getFormattedAmountAttribute(): string
     {
         return '₹' . number_format($this->amount, 2);
     }
 
-    /**
-     * Get the formatted payment date attribute.
+   /**
+     * Get payment status badge class
      */
-    public function getFormattedPaymentDateAttribute(): string
+    public function getStatusBadgeClassAttribute(): string
     {
-        return $this->payment_date->format('M d, Y');
+        return match($this->status ?? 'completed') {
+            'completed' => 'success',
+            'pending' => 'warning',
+            'failed' => 'danger',
+            'refunded' => 'info',
+            default => 'secondary'
+        };
     }
 
     /**
-     * Get the CSS class for the payment method badge.
+     * Create a component payment with items
      */
-    public function getPaymentMethodBadgeClassAttribute(): string
+    public static function createComponentPayment($studentId, array $components, array $paymentData): self
     {
-        $classes = [
-            'Cash' => 'success',
-            'Card' => 'info',
-            'Bank Transfer' => 'primary',
-            'Cheque' => 'warning',
-            'Online' => 'info',
-            'UPI' => 'success',
+        $totalAmount = collect($components)->sum('amount');
+        
+        return static::create([
+            'student_id' => $studentId,
+            'amount' => $totalAmount,
+            'payment_date' => $paymentData['payment_date'] ?? now(),
+            'payment_method' => $paymentData['payment_method'],
+            'payment_type' => 'component',
+            'component_details' => $components,
+            'transaction_id' => $paymentData['transaction_id'] ?? null,
+            'notes' => $paymentData['notes'] ?? null,
+            'academic_year' => $paymentData['academic_year'] ?? null,
+            'status' => $paymentData['status'] ?? 'completed',
+            'created_by' => $paymentData['created_by'] ?? auth()->id(),
+        ]);
+    }
+
+    /**
+     * Get payment summary for dashboard
+     */
+    public static function getPaymentSummary(array $filters = []): array
+    {
+        $query = static::query();
+
+        // Apply filters
+        if (isset($filters['student_id'])) {
+            $query->where('student_id', $filters['student_id']);
+        }
+        
+        if (isset($filters['date_from'])) {
+            $query->whereDate('payment_date', '>=', $filters['date_from']);
+        }
+        
+        if (isset($filters['date_to'])) {
+            $query->whereDate('payment_date', '<=', $filters['date_to']);
+        }
+
+        return [
+            'total_payments' => $query->count(),
+            'total_amount' => $query->sum('amount'),
+            'by_method' => $query->groupBy('payment_method')
+                                ->selectRaw('payment_method, COUNT(*) as count, SUM(amount) as total')
+                                ->get()
+                                ->keyBy('payment_method'),
+            'by_status' => $query->groupBy('status')
+                                ->selectRaw('status, COUNT(*) as count, SUM(amount) as total')
+                                ->get()
+                                ->keyBy('status'),
+            'recent_payments' => $query->with('student')
+                                     ->orderBy('payment_date', 'desc')
+                                     ->limit(10)
+                                     ->get(),
         ];
-
-        return $classes[$this->payment_method] ?? 'secondary';
-    }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Business Logic & Helper Methods
-    |--------------------------------------------------------------------------
-    */
-
-    /**
-     * Generate a unique, sequential receipt number.
-     */
-    public static function generateUniqueReceiptNumber(): string
-    {
-        $year = now()->year;
-        $prefix = 'RCPT-' . $year . '-';
-
-        $lastPayment = static::where('receipt_number', 'like', $prefix . '%')
-                             ->orderBy('id', 'desc')
-                             ->first();
-
-        $nextNumber = 1;
-        if ($lastPayment && $lastPayment->receipt_number) {
-            $lastNumber = (int) str_replace($prefix, '', $lastPayment->receipt_number);
-            $nextNumber = $lastNumber + 1;
-        }
-
-        // Loop to ensure uniqueness in case of race conditions
-        $maxAttempts = 10;
-        for ($attempts = 0; $attempts < $maxAttempts; $attempts++) {
-            $receiptNumber = $prefix . str_pad($nextNumber + $attempts, 6, '0', STR_PAD_LEFT);
-            if (!static::where('receipt_number', $receiptNumber)->exists()) {
-                return $receiptNumber;
-            }
-        }
-
-        // Fallback to a timestamp-based unique ID if sequential generation fails
-        return $prefix . time() . '-' . rand(100, 999);
     }
 
     /**
-     * Check if the payment has been edited.
+     * Check if payment can be refunded
      */
-    public function hasBeenEdited(): bool
+    public function canBeRefunded(): bool
     {
-        return $this->editLogs()->exists();
+        return $this->status === 'completed' && 
+               $this->payment_date >= now()->subDays(30);
+    }
+    
+/**
+ * Check if payment can be edited
+ */
+public function canBeEdited(): bool
+{
+    // Don't allow editing if payment is cancelled or refunded
+    if (in_array($this->status, ['cancelled', 'refunded'])) {
+        return false;
+    }
+    
+    // Don't allow editing very old payments (older than 90 days)
+    $daysSinceCreation = $this->created_at->diffInDays(now());
+    if ($daysSinceCreation > 90) {
+        return false;
+    }
+    
+    // Check if user has permission
+    if (!auth()->check() || !auth()->user()->can('edit payments')) {
+        return false;
+    }
+    
+    // Don't allow editing if payment has been reconciled (if you have this field)
+    if (isset($this->attributes['is_reconciled']) && $this->is_reconciled) {
+        return false;
+    }
+    
+    return true;
+}
+
+
+/**
+ * Check if payment can be reverted
+ * 
+ * @return bool
+ */
+public function canBeReverted(): bool
+{
+    // Only allow reverting if there are edit logs
+    $hasEditHistory = \App\Models\PaymentEditLog::where('payment_id', $this->id)->exists();
+    
+    return $hasEditHistory && 
+           $this->canBeEdited() && 
+           auth()->user() && 
+           auth()->user()->can('revert payments');
+}
+    /**
+     * Check if this payment can have a receipt generated
+     */
+    public function canGenerateReceipt(): bool
+    {
+        return $this->payment_type === 'component' && 
+               in_array($this->status ?? 'completed', ['completed', 'paid']);
     }
 
     /**
-     * Check if the payment can be edited based on business rules.
+     * Check if this payment can be deleted
      */
-    public function canBeEdited(): bool
+    public function canBeDeleted(): bool
     {
-        // Rule 1: User must have permission
-        if (!auth()->check() || !auth()->user()->can('edit payments')) {
+        // Only component payments can be deleted
+        if ($this->payment_type !== 'component') {
             return false;
         }
 
-        // Rule 2: Payment must be recent (e.g., within 30 days)
-        if ($this->created_at < now()->subDays(30)) {
+        // Check if payment is recent (e.g., within 7 days)
+        $deletableWindow = config('payments.deletable_window_days', 7);
+        if ($this->created_at->addDays($deletableWindow)->isPast()) {
             return false;
         }
 
-        // Rule 3: Related invoice must not be finalized/locked
-        if ($this->invoice && method_exists($this->invoice, 'isFinalized') && $this->invoice->isFinalized()) {
+        // Check if payment status allows deletion
+        if (in_array($this->status ?? 'completed', ['refunded', 'cancelled'])) {
+            return false;
+        }
+
+        // Check user permissions
+        if (!auth()->user()->can('delete payments')) {
             return false;
         }
 
@@ -323,83 +528,61 @@ class Payment extends Model
     }
 
     /**
-     * Check if the payment can be reversed based on business rules.
+ * Get payment method display name
+ */
+public function getPaymentMethodDisplayAttribute(): string
+{
+    return match($this->payment_method) {
+        'cash' => 'Cash',
+        'card' => 'Card Payment',
+        'bank_transfer' => 'Bank Transfer',
+        'cheque' => 'Cheque',
+        'online' => 'Online Payment',
+        'upi' => 'UPI',
+        default => ucfirst(str_replace('_', ' ', $this->payment_method))
+    };
+}
+    
+
+    /**
+     * Get related fee categories through component items
      */
-    public function canBeReversed(): bool
+    public function getFeeCategories()
     {
-        // Rule 1: It must be the most recent payment for the invoice
-        $latestPayment = $this->invoice->payments()->latest('id')->first();
-        if (!$latestPayment || $latestPayment->id !== $this->id) {
-            return false;
-        }
-
-        // Rule 2: Payment must be recent (e.g., within 7 days)
-        if ($this->created_at < now()->subDays(7)) {
-            return false;
-        }
-
-        return true;
+        return $this->componentItems()
+                    ->with('studentFee.feeCategory')
+                    ->get()
+                    ->pluck('studentFee.feeCategory')
+                    ->filter()
+                    ->unique('id');
     }
 
     /**
-     * Recalculate the paid and due amounts for the associated invoice.
+     * Convert to webhook payload format
      */
-    public function recalculateInvoiceTotals()
+    public function toWebhookPayload(): array
     {
-        if ($this->invoice) {
-            $totalPaid = $this->invoice->payments()->sum('amount');
-            $dueAmount = max(0, $this->invoice->total_amount - $totalPaid - ($this->invoice->concession_amount ?? 0));
-
-            $status = 'unpaid';
-            if ($dueAmount <= 0 && $totalPaid > 0) {
-                $status = 'paid';
-            } elseif ($totalPaid > 0) {
-                $status = 'partially_paid';
-            }
-
-            $this->invoice->update([
-                'paid_amount' => $totalPaid,
-                'due_amount' => $dueAmount,
-                'status' => $status,
-            ]);
-        }
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Query Scopes
-    |--------------------------------------------------------------------------
-    */
-
-    /**
-     * Scope a query to only include payments within a given date range.
-     */
-    public function scopeWithinDateRange($query, $startDate, $endDate)
-    {
-        return $query->whereBetween('payment_date', [$startDate, $endDate]);
-    }
-
-    /**
-     * Scope a query to only include payments of a specific method.
-     */
-    public function scopeByMethod($query, $method)
-    {
-        return $query->where('payment_method', $method);
-    }
-
-    /**
-     * Scope a query to only include payments that have been edited.
-     */
-    public function scopeWithEdits($query)
-    {
-        return $query->whereHas('editLogs');
-    }
-
-    /**
-     * Scope a query to only include recent payments.
-     */
-    public function scopeRecent($query, $days = 30)
-    {
-        return $query->where('created_at', '>=', now()->subDays($days));
+        return [
+            'id' => $this->id,
+            'amount' => (float) $this->amount,
+            'formatted_amount' => $this->formatted_amount,
+            'payment_method' => $this->payment_method,
+            'payment_date' => $this->payment_date->format('Y-m-d'),
+            'receipt_number' => $this->receipt_number,
+            'status' => $this->status,
+            'payment_type' => $this->payment_type,
+            'student' => $this->student ? [
+                'id' => $this->student->id,
+                'name' => $this->student->name,
+                'enrollment_number' => $this->student->enrollment_number,
+            ] : null,
+            'components_paid' => $this->componentItems->map(function ($item) {
+                return [
+                    'student_fee_id' => $item->student_fee_id,
+                    'category_name' => $item->studentFee->feeCategory->name ?? 'Unknown',
+                    'amount_paid' => (float) $item->amount_paid,
+                ];
+            }),
+        ];
     }
 }

@@ -11,6 +11,42 @@
     <div class="alert alert-success">{{ session('success') }}</div>
 @endif
 
+<!-- Current Academic Year Selector -->
+<div class="card shadow mb-4 border-left-primary">
+    <div class="card-body">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h6 class="font-weight-bold text-primary mb-2">
+                    <i class="fas fa-calendar-check"></i> Currently Viewing Academic Year
+                </h6>
+                <p class="mb-0 text-gray-700">
+                    Select which academic year to view across the system
+                </p>
+            </div>
+            <div class="col-md-6">
+                <form action="{{ route('admin.academic-years.switch') }}" method="POST" id="quickSwitchForm">
+                    @csrf
+                    <div class="input-group">
+                        <select name="academic_year_id" class="form-control form-control-lg" onchange="this.form.submit()">
+                            @foreach($years as $year)
+                                <option value="{{ $year->id }}" {{ (session('selected_academic_year_id', $years->where('is_current', true)->first()?->id) == $year->id) ? 'selected' : '' }}>
+                                    {{ $year->name }}
+                                    @if($year->is_current) (Current Year) @endif
+                                </option>
+                            @endforeach
+                        </select>
+                        <div class="input-group-append">
+                            <button class="btn btn-primary" type="submit">
+                                <i class="fas fa-sync-alt"></i> Switch
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="card shadow mb-4">
     <div class="card-header py-3">
         <h6 class="m-0 font-weight-bold text-primary">Defined Academic Years</h6>

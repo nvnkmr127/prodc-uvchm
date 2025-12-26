@@ -1,5 +1,8 @@
 <?php
 
+// Fixed PaymentEditPermissionsSeeder without description column
+// File: database/seeders/PaymentEditPermissionsSeeder.php
+
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
@@ -13,53 +16,89 @@ class PaymentEditPermissionsSeeder extends Seeder
      */
     public function run(): void
     {
-        // Create payment edit permissions
+        // Create payment-related permissions (without description field)
         $permissions = [
-            'edit payments' => 'Edit and modify payment records',
-            'reverse payments' => 'Reverse payment transactions',
-            'view payment history' => 'View payment edit history and audit logs',
-            'revert payments' => 'Revert payments to previous states',
+            'manage financials',
+            'edit payments',
+            'reverse payments',
+            'view payment history',
+            'revert payments',
+            'delete payments',
+            'export payment data',
         ];
 
-        foreach ($permissions as $name => $description) {
+        foreach ($permissions as $permission) {
             Permission::firstOrCreate(
-                ['name' => $name],
+                ['name' => $permission],
                 ['guard_name' => 'web']
             );
         }
 
         // Assign permissions to roles
-        $adminRole = Role::where('name', 'admin')->first();
-        $financeRole = Role::where('name', 'finance')->first();
-        $accountantRole = Role::where('name', 'accountant')->first();
+        $this->assignPermissionsToRoles();
 
+        $this->command->info('Payment permissions created and assigned successfully!');
+    }
+
+    /**
+     * Assign permissions to existing roles
+     */
+    private function assignPermissionsToRoles(): void
+    {
+        // Admin role - gets all permissions
+        $adminRole = Role::firstOrCreate(['name' => 'admin']);
         if ($adminRole) {
-            // Admin gets all payment permissions
             $adminRole->givePermissionTo([
+                'manage financials',
                 'edit payments',
                 'reverse payments', 
                 'view payment history',
-                'revert payments'
+                'revert payments',
+                'delete payments',
+                'export payment data'
             ]);
         }
 
+        // Finance role - gets most permissions except dangerous ones
+        $financeRole = Role::firstOrCreate(['name' => 'finance']);
         if ($financeRole) {
-            // Finance role gets most permissions except reversal
             $financeRole->givePermissionTo([
+                'manage financials',
                 'edit payments',
                 'view payment history',
-                'revert payments'
+                'revert payments',
+                'export payment data'
             ]);
         }
 
+        // Accountant role - gets limited permissions
+        $accountantRole = Role::firstOrCreate(['name' => 'accountant']);
         if ($accountantRole) {
-            // Accountant gets limited permissions
             $accountantRole->givePermissionTo([
+                'manage financials',
                 'edit payments',
+                'view payment history',
+                'export payment data'
+            ]);
+        }
+
+        // Cashier role - basic payment operations
+        $cashierRole = Role::firstOrCreate(['name' => 'cashier']);
+        if ($cashierRole) {
+            $cashierRole->givePermissionTo([
+                'manage financials',
                 'view payment history'
             ]);
         }
 
-        $this->command->info('Payment edit permissions created and assigned successfully!');
+        // Faculty role - view only
+        $facultyRole = Role::where('name', 'faculty')->first();
+        if ($facultyRole) {
+            $facultyRole->givePermissionTo([
+                'view payment history'
+            ]);
+        }
+
+        $this->command->info('Permissions assigned to roles successfully!');
     }
 }

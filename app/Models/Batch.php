@@ -9,20 +9,28 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne; // <-- FIX: Added the missing import
 use App\Traits\WebhookEnabled;
+use App\Traits\HasAcademicYear;
 
 class Batch extends Model
 {
     use WebhookEnabled;
     use HasFactory;
+    use HasAcademicYear;
 
     protected $fillable = [
+        'academic_year_id',
         'course_id',
         'name',
         'start_date',
         'end_date',
         'status',
+        'is_on_internship'
     ];
-
+protected $casts = [
+        'start_date' => 'date',
+        'end_date' => 'date',
+        'is_on_internship' => 'boolean', // [ADDED]
+    ];
     /**
      * A Batch belongs to one Course.
      */

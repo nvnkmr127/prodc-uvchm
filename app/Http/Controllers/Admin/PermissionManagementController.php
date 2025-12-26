@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Validator;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use App\Models\User;
+use App\Helpers\ErrorHandler;
 
 class PermissionManagementController extends Controller
 {
@@ -468,10 +469,12 @@ class PermissionManagementController extends Controller
             ]);
             
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to find orphaned permissions: ' . $e->getMessage()
-            ], 500);
+            return ErrorHandler::handleApiException(
+                $e,
+                'Failed to find orphaned permissions',
+                'Failed to find orphaned permissions',
+                500
+            );
         }
     }
 

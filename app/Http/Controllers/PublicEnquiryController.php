@@ -2,43 +2,50 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Enquiry; // CHANGED: We now use the Enquiry model
+use App\Models\Enquiry;
 use App\Models\Course;
+use App\Services\LeadDistributionService; // ✅ ADD THIS IMPORT
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth; // ✅ ADD THIS IMPORT
 
-// RENAMED: The class is now PublicEnquiryController to be more descriptive
 class PublicEnquiryController extends Controller
 {
-    // This method can be renamed to showPublicEnquiryForm() for clarity
     public function create()
     {
         $courses = Course::orderBy('name')->get();
-        // You might want to rename 'admission_form' to 'public_enquiry_form'
         return view('admission_form', compact('courses'));
     }
 
-    // This method now creates an Enquiry
-   public function store(Request $request, LeadDistributionService $leadDistribution) // MODIFIED: Inject the service
+    public function store(Request $request, LeadDistributionService $leadDistribution)
     {
         $validated = $request->validate([
             'student_name' => 'required|string|max:255',
             'phone_number' => 'required|string|max:20',
+            'email' => 'nullable|email|max:255', // ✅ ADD EMAIL VALIDATION
+            'gender' => 'nullable|in:Male,Female,Other', // ✅ ADD GENDER VALIDATION
+            'date_of_birth' => 'nullable|date', // ✅ ADD DOB VALIDATION
             'address' => 'nullable|string',
+            'education_qualification' => 'nullable|string', // ✅ ADD EDUCATION VALIDATION
             'course_id' => 'nullable|exists:courses,id',
             'source' => 'nullable|string|max:255',
             'referral_name' => 'nullable|string|max:255',
             'notes' => 'nullable|string',
         ]);
 
-        // ADDED: Get the next counselor ID from the service
-        $nextCounselorId = $leadDistribution->getNextCounselorId();
+        try {
+            // Get the next counselor ID from the service
+            $nextCounselorId = $leadDistribution->getNextCounselorId();
 
-        // MODIFIED: Use the ID from the service, with the logged-in user as a fallback
-        $enquiry = Enquiry::create($validated + [
-            'assigned_to_user_id' => $nextCounselorId ?? Auth::id()
-        ]);
-        
-        // Redirect directly to the manage page for the new enquiry
-        return redirect()->route('admin.enquiries.edit', $enquiry)->with('success', 'Enquiry logged successfully and assigned.');
+            $enquiry = Enquiry::create($validated + [
+                'assigned_to_user_id' => $nextCounselorId ?? optional(Auth::user())->id,
+                'status' => 'New' // ✅ SET DEFAULT STATUS
+            ]);
+            
+            // ✅ REDIRECT TO SUCCESS PAGE INSTEAD OF ADMIN AREA
+            return redirect()->route('enquiry.success')->with('success', 'Thank you! Your enquiry has been submitted successfully. Our team will contact you soon.');
+            
+        } catch (\Exception $e) {
+            return back()->withInput()->with('error', 'Failed to submit enquiry. Please try again.');
+        }
     }
 }

@@ -31,7 +31,24 @@ class RouteServiceProvider extends ServiceProvider
         RateLimiter::for('settings-api', function (Request $request) {
             return Limit::perMinute(30)->by($request->user()?->id ?: $request->ip());
         });
+RateLimiter::for('reports', function (Request $request) {
+    return Limit::perMinute(5)->by($request->user()?->id ?: $request->ip());
+});
 
+RateLimiter::for('api-analytics', function (Request $request) {
+    return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
+});
+ RateLimiter::for('dashboard-api', function (Request $request) {
+        return Limit::perMinute(120)->by($request->user()?->id ?: $request->ip());
+    });
+
+    RateLimiter::for('widget-data', function (Request $request) {
+        return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
+    });
+
+    RateLimiter::for('dashboard-export', function (Request $request) {
+        return Limit::perMinute(10)->by($request->user()?->id ?: $request->ip());
+    });
         $this->routes(function () {
             Route::middleware('api')
                 ->prefix('api')

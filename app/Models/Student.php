@@ -4,37 +4,88 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
 use App\Traits\StudentPhotoHelper;
+use App\Services\ComponentPaymentService;
 use Illuminate\Support\Facades\Schema;
-use App\Traits\WebhookEnabled;
+use Carbon\Carbon;
+
 class Student extends Model
 {
-    use WebhookEnabled;
     use HasFactory, LogsActivity, StudentPhotoHelper;
+
+    /**
+     * Boot method to add global scope for academic year filtering
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        // Filter students by academic year through their batch
+        // Only apply if not in console and not in API
+        if (!app()->runningInConsole() && !request()->is('api/*')) {
+            static::addGlobalScope('academic_year', function (Builder $builder) {
+                // Get selected year from session, or default to current year
+                $selectedYearId = session('selected_academic_year_id');
+
+                if (!$selectedYearId) {
+                    $currentYear = AcademicYear::where('is_current', true)->first();
+                    $selectedYearId = $currentYear?->id;
+                }
+
+                // Only apply filter if we have a year ID and batches table has academic_year_id
+                if ($selectedYearId && Schema::hasColumn('batches', 'academic_year_id')) {
+                    $builder->whereHas('batch', function ($query) use ($selectedYearId) {
+                        $query->where('academic_year_id', $selectedYearId);
+                    });
+                }
+            });
+        }
+    }
+
+    // Explicitly define the primary key (Laravel defaults to 'id')
+    protected $primaryKey = 'id';
+    
+    // If you need to use student_id elsewhere, create a custom accessor
+    protected $appends = ['student_id'];
 
     protected $fillable = [
         'name',
         'email',
         'enrollment_number',
+        'biometric_employee_code',
         'gender',
         'father_name',
         'student_mobile',
         'father_mobile',
         'village',
-        'source',                // New field: source of admission
-        'referral_name',         // New field: referral person name
+        'current_employer',
+        'job_title',
         'admission_date',
         'batch_id',
         'status',
         'photo',
-        'payment_terms'
+        'payment_terms',
+        'source',
+        'referral_name',
+        // DROPOUT MANAGEMENT FIELDS
+        'dropout_date', 
+        'dropout_reason', 
+        'final_outstanding_amount',
+        'total_paid_amount', 
+        'dropout_metadata', 
+        'processed_by', 
+        'dropout_processed_at'
     ];
 
     protected $casts = [
         'admission_date' => 'date',
-        'payment_terms' => 'integer'
+        'payment_terms' => 'integer',
+        'dropout_date' => 'date',
+        'dropout_metadata' => 'array',
+        'dropout_processed_at' => 'datetime'
     ];
 
     protected $dates = [
@@ -43,415 +94,590 @@ class Student extends Model
         'updated_at'
     ];
 
-    // Relationships
-    public function batch()
+    // ===================================
+    // ACCESSORS
+    // ===================================
+    
+    public function getStudentIdAttribute()
     {
-        return $this->belongsTo(Batch::class);
+        return $this->id;
     }
 
-    public function invoices()
-    {
-        return $this->hasMany(Invoice::class);
-    }
-
-    public function payments()
-    {
-        // Check if payments table has student_id column
-        if (Schema::hasColumn('payments', 'student_id')) {
-            return $this->hasMany(Payment::class, 'student_id');
-        } else {
-            // If no student_id, get payments through invoices
-            return $this->hasManyThrough(
-                Payment::class,
-                Invoice::class,
-                'student_id', // Foreign key on invoices table
-                'invoice_id', // Foreign key on payments table
-                'id', // Local key on students table
-                'id' // Local key on invoices table
-            );
-        }
-    }
-
-    public function attendances()
-    {
-        return $this->hasMany(Attendance::class);
-    }
-
-    public function admission()
-    {
-        // Check if the admissions table has student_id column, otherwise use a different relationship
-        try {
-            return $this->hasOne(Admission::class, 'student_id');
-        } catch (\Exception $e) {
-            // If student_id column doesn't exist, try other possible column names
-            if (Schema::hasColumn('admissions', 'user_id')) {
-                return $this->hasOne(Admission::class, 'user_id');
-            }
-            // Return empty relation if no suitable column found
-            return $this->hasOne(Admission::class)->whereRaw('1 = 0');
-        }
-    }
-
-    public function labGroup()
-    {
-        return $this->belongsTo(LabGroup::class);
-    }
-
-    // Accessor for photo URL with automatic dummy fallback
+    // Photo accessor methods using the trait
     public function getPhotoUrlAttribute(): string
     {
         return self::getStudentPhotoUrl($this);
     }
 
-    // Accessor for small circular photo
     public function getSmallPhotoAttribute(): string
     {
         return self::getStudentCircularPhoto($this);
     }
 
-    // Accessor for medium photo
     public function getMediumPhotoAttribute(): string
     {
         return self::getStudentMediumPhoto($this);
     }
 
-    // Accessor for large photo
     public function getLargePhotoAttribute(): string
     {
         return self::getStudentLargePhoto($this);
     }
 
-    // Check if student has real photo
     public function getHasRealPhotoAttribute(): bool
     {
         return self::hasRealPhoto($this);
     }
+    
+    /* * --------------------------------------------------------------------
+     * ADD THIS METHOD TO STOP SYSTEM LOGS
+     * --------------------------------------------------------------------
+     */
+    protected function shouldLogEvent(string $eventName): bool
+    {
+        // Prevent "System" logs: Don't log if running from console (CLI/Cron jobs)
+        if (app()->runningInConsole()) {
+            return false;
+        }
+        
+        // Optional: Don't log if the user is not logged in (System actions)
+        if (!auth()->check()) {
+            return false;
+        }
 
-    // Get course through batch relationship
+        return true;
+    }
+
+    // ===================================
+    // RELATIONSHIPS (Clean Version)
+    // ===================================
+
+    public function batch()
+    {
+        return $this->belongsTo(Batch::class);
+    }
+
+    /**
+     * Component-based fee system
+     */
+    public function studentFees()
+    {
+        return $this->hasMany(StudentFee::class);
+    }
+    
+    /**
+     * Get the payment defaulter records for this student
+     */
+    public function paymentDefaulters()
+    {
+        return $this->hasMany(\App\Models\PaymentDefaulter::class);
+    }
+
+    /**
+     * Get the active payment defaulter record for this student
+     */
+    public function activeDefaulter()
+    {
+        return $this->hasOne(\App\Models\PaymentDefaulter::class)->where('current_status', '!=', 'resolved');
+    }
+
+    /**
+     * Many-to-many relationship with PracticalGroup
+     * A student can belong to multiple practical groups (across different academic years)
+     */
+    public function practicalGroups()
+    {
+        return $this->belongsToMany(PracticalGroup::class, 'practical_group_student')
+            ->withTimestamps()
+            ->orderBy('practical_groups.created_at', 'desc');
+    }
+
+    /**
+     * Direct payments (component-based system)
+     */
+    public function payments()
+    {
+        // Only support direct student payments via student_id
+        if (Schema::hasColumn('payments', 'student_id')) {
+            return $this->hasMany(Payment::class, 'student_id');
+        }
+        
+        // Return empty relationship if column doesn't exist
+        return $this->hasMany(Payment::class, 'student_id')->where('id', null);
+    }
+
+    /**
+     * Component payments specifically
+     */
+    public function componentPayments()
+    {
+        return $this->hasMany(Payment::class, 'student_id')->where('payment_type', 'component');
+    }
+
+    /**
+     * Student concessions
+     */
+    public function concessions()
+    {
+        return $this->hasMany(StudentConcession::class);
+    }
+
+    /**
+     * Attendance records
+     */
+    public function attendances()
+    {
+        return $this->hasMany(Attendance::class);
+    }
+
+    /**
+     * Admission record (if exists)
+     */
+    public function admission()
+    {
+        if (Schema::hasColumn('admissions', 'student_id')) {
+            return $this->hasOne(Admission::class, 'student_id');
+        }
+        
+        // Return empty relationship if column doesn't exist
+        return $this->hasOne(Admission::class, 'student_id')->where('id', null);
+    }
+
+    /**
+     * Payment reminder relationships
+     */
+    public function paymentReminders()
+    {
+        return $this->hasMany(PaymentReminder::class);
+    }
+
+    public function paymentDefaulter()
+    {
+        return $this->hasOne(PaymentDefaulter::class);
+    }
+
+    public function pendingReminders()
+    {
+        return $this->paymentReminders()->where('status', 'pending');
+    }
+
+    public function recentReminders()
+    {
+        return $this->paymentReminders()
+            ->where('created_at', '>=', now()->subDays(30))
+            ->latest();
+    }
+    
+    public function activities()
+    {
+        return $this->morphMany(\Spatie\Activitylog\Models\Activity::class, 'subject');
+    }
+
+    public function causedActivities()
+    {
+        return $this->morphMany(\Spatie\Activitylog\Models\Activity::class, 'causer');
+    }
+
+    /**
+     * DROPOUT MANAGEMENT RELATIONSHIPS
+     */
+    public function processedBy()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'processed_by');
+    }
+
+    // ===================================
+    // COMPUTED ATTRIBUTES
+    // ===================================
+
     public function getCourseAttribute()
     {
         return $this->batch ? $this->batch->course : null;
     }
 
-    // Get course name
     public function getCourseNameAttribute(): string
     {
         return $this->course ? $this->course->name : 'N/A';
     }
-    
-/**
- * Get all payment reminders for this student
- */
-public function paymentReminders()
-{
-    return $this->hasMany(PaymentReminder::class);
-}
 
-/**
- * Get the payment defaulter record for this student
- */
-public function paymentDefaulter()
-{
-    return $this->hasOne(PaymentDefaulter::class);
-}
-
-/**
- * Get pending payment reminders
- */
-public function pendingReminders()
-{
-    return $this->paymentReminders()->where('status', 'pending');
-}
-
-/**
- * Get recent payment reminders (last 30 days)
- */
-public function recentReminders()
-{
-    return $this->paymentReminders()
-        ->where('created_at', '>=', now()->subDays(30))
-        ->latest();
-}
-
-/**
- * Check if student is a defaulter
- */
-public function isDefaulter(): bool
-{
-    return $this->paymentDefaulter()
-        ->where('current_status', '!=', 'resolved')
-        ->exists();
-}
-
-/**
- * Get total overdue amount for this student
- */
-public function getTotalOverdueAmount(): float
-{
-    return $this->invoices()
-        ->where('due_date', '<', now())
-        ->where('status', '!=', 'paid')
-        ->sum('total_amount');
-}
-
-/**
- * Get overdue invoices count
- */
-public function getOverdueInvoicesCount(): int
-{
-    return $this->invoices()
-        ->where('due_date', '<', now())
-        ->where('status', '!=', 'paid')
-        ->count();
-}
-
-/**
- * Get days since first overdue invoice
- */
-public function getDaysOverdue(): int
-{
-    $oldestOverdue = $this->invoices()
-        ->where('due_date', '<', now())
-        ->where('status', '!=', 'paid')
-        ->orderBy('due_date')
-        ->first();
-
-    return $oldestOverdue ? 
-        \Carbon\Carbon::parse($oldestOverdue->due_date)->diffInDays(now()) : 
-        0;
-}
-
-/**
- * Check if student has any overdue payments
- */
-public function hasOverduePayments(): bool
-{
-    return $this->invoices()
-        ->where('due_date', '<', now())
-        ->where('status', '!=', 'paid')
-        ->exists();
-}
-    // Get batch name
     public function getBatchNameAttribute(): string
     {
         return $this->batch ? $this->batch->name : 'N/A';
     }
 
-    // Get full mobile info
     public function getFullMobileInfoAttribute(): string
     {
         $mobiles = array_filter([
             $this->student_mobile ? "Student: {$this->student_mobile}" : null,
             $this->father_mobile ? "Father: {$this->father_mobile}" : null
         ]);
-        return implode(', ', $mobiles) ?: 'N/A';
+        return implode(', ', $mobiles) ?: 'No Contact Info';
     }
 
-    // Get total fees owed
-    public function getTotalFeesOwedAttribute(): float
-    {
-        return $this->invoices()->sum('due_amount');
-    }
+    // ===================================
+    // STATUS SCOPES - CRITICAL FOR DROPOUT MANAGEMENT
+    // ===================================
 
-    // Get total fees paid
-    public function getTotalFeesPaidAttribute(): float
-    {
-        return $this->payments()->sum('amount');
-    }
-
-    // Get current fee status
-    public function getFeeStatusAttribute(): string
-    {
-        $totalOwed = $this->total_fees_owed;
-        
-        if ($totalOwed <= 0) {
-            return 'paid';
-        } elseif ($this->total_fees_paid > 0) {
-            return 'partial';
-        } else {
-            return 'unpaid';
-        }
-    }
-
-    // Get attendance percentage for current month
-    public function getCurrentMonthAttendanceAttribute(): array
-    {
-        $startOfMonth = now()->startOfMonth();
-        $endOfMonth = now()->endOfMonth();
-        
-        $attendances = $this->attendances()
-            ->whereBetween('attendance_date', [$startOfMonth, $endOfMonth])
-            ->get();
-            
-        $present = $attendances->where('status', 'present')->count();
-        $absent = $attendances->where('status', 'absent')->count();
-        $total = $present + $absent;
-        
-        return [
-            'present' => $present,
-            'absent' => $absent,
-            'total' => $total,
-            'percentage' => $total > 0 ? round(($present / $total) * 100, 1) : 0
-        ];
-    }
-
-    // Scopes
+    /**
+     * Scope for active students only
+     */
     public function scopeActive($query)
     {
         return $query->where('status', 'active');
     }
 
-    public function scopeGraduated($query)
-    {
-        return $query->where('status', 'graduated');
-    }
-
+    /**
+     * Scope for dropout students only
+     */
     public function scopeDropout($query)
     {
         return $query->where('status', 'dropout');
     }
 
-    public function scopeInBatch($query, $batchId)
+    /**
+     * Scope for graduated students only
+     */
+    public function scopeGraduated($query)
     {
-        return $query->where('batch_id', $batchId);
+        return $query->where('status', 'graduated');
     }
 
-    public function scopeInCourse($query, $courseId)
+    /**
+     * Scope for all non-dropout students (active + graduated)
+     */
+    public function scopeNonDropout($query)
     {
-        return $query->whereHas('batch', function ($q) use ($courseId) {
-            $q->where('course_id', $courseId);
+        return $query->whereIn('status', ['active', 'graduated']);
+    }
+
+    /**
+     * Scope to disable academic year filtering
+     * Use when you need to query students across all years
+     */
+    public function scopeAllYears($query)
+    {
+        return $query->withoutGlobalScope('academic_year');
+    }
+
+    // ===================================
+    // FINANCIAL SCOPES - UPDATED TO EXCLUDE DROPOUTS
+    // ===================================
+
+    /**
+     * Scope for students with outstanding fees (EXCLUDES DROPOUTS)
+     */
+    public function scopeWithOutstandingFees($query)
+    {
+        if (Schema::hasTable('student_fees')) {
+            return $query->where('status', '!=', 'dropout')
+                ->whereHas('studentFees', function($q) {
+                    $q->whereRaw('amount - COALESCE(paid_amount, 0) - COALESCE(concession_amount, 0) > 0');
+                });
+        }
+        
+        return $query->where('id', null); // No results if no component system
+    }
+
+    /**
+     * Scope for students with overdue fees (EXCLUDES DROPOUTS)
+     */
+    public function scopeWithOverdueFees($query)
+    {
+        if (Schema::hasTable('student_fees')) {
+            return $query->where('status', '!=', 'dropout')
+                ->whereHas('studentFees', function($q) {
+                    $q->where('due_date', '<', now())
+                      ->where('status', '!=', 'paid')
+                      ->whereRaw('amount - COALESCE(paid_amount, 0) - COALESCE(concession_amount, 0) > 0');
+                });
+        }
+        
+        return $query->where('id', null); // No results if no component system
+    }
+
+    /**
+     * Scope for students with fully paid fees (EXCLUDES DROPOUTS)
+     */
+    public function scopeWithPaidFees($query)
+    {
+        if (Schema::hasTable('student_fees')) {
+            return $query->where('status', '!=', 'dropout')
+                ->whereDoesntHave('studentFees', function($q) {
+                    $q->whereRaw('amount - COALESCE(paid_amount, 0) - COALESCE(concession_amount, 0) > 0');
+                });
+        }
+        
+        return $query->where('status', '!=', 'dropout'); // All non-dropout students if no system to check
+    }
+
+    /**
+     * Get practical groups for a specific academic year
+     */
+    public function practicalGroupsForYear($academicYearId)
+    {
+        return $this->practicalGroups()->where('academic_year_id', $academicYearId);
+    }
+
+    /**
+     * Get current year practical groups
+     */
+    public function currentPracticalGroups()
+    {
+        $currentYear = \App\Models\AcademicYear::where('is_current', true)->first();
+        if ($currentYear) {
+            return $this->practicalGroupsForYear($currentYear->id);
+        }
+        return $this->practicalGroups()->where('id', null); // Return empty relationship
+    }
+
+    /**
+     * Check if student is assigned to any practical group for a specific academic year
+     */
+    public function isAssignedToGroup($academicYearId = null)
+    {
+        if ($academicYearId) {
+            return $this->practicalGroupsForYear($academicYearId)->exists();
+        }
+        
+        $currentYear = \App\Models\AcademicYear::where('is_current', true)->first();
+        if ($currentYear) {
+            return $this->practicalGroupsForYear($currentYear->id)->exists();
+        }
+        
+        return false;
+    }
+
+    // ===================================
+    // FINANCIAL METHODS (Component-based) - UPDATED FOR DROPOUT
+    // ===================================
+
+    /**
+     * Get financial summary for the student (UPDATED FOR DROPOUT HANDLING)
+     */
+    public function getFinancialSummary(): array
+    {
+        // Special handling for dropout students
+        if ($this->isDropout()) {
+            return [
+                'total_fees' => $this->total_paid_amount + $this->final_outstanding_amount,
+                'total_paid' => $this->total_paid_amount,
+                'total_outstanding' => 0, // Set to 0 for dropouts
+                'total_concession' => 0, // We don't track this separately for dropouts
+                'payment_status' => 'dropout',
+                'final_outstanding_at_dropout' => $this->final_outstanding_amount,
+                'dropout_info' => $this->getDropoutSummary()
+            ];
+        }
+
+        // Standard logic for active/graduated students
+        if (!Schema::hasTable('student_fees')) {
+            return [
+                'total_fees' => 0,
+                'total_paid' => 0,
+                'total_outstanding' => 0,
+                'total_concession' => 0,
+                'payment_status' => 'no_system'
+            ];
+        }
+
+        $fees = $this->studentFees;
+        
+        $totalFees = $fees->sum('amount');
+        $totalPaid = $fees->sum('paid_amount');
+        $totalConcession = $fees->sum('concession_amount');
+        $totalOutstanding = $fees->sum(function($fee) {
+            return max(0, $fee->amount - $fee->concession_amount - $fee->paid_amount);
         });
+
+        return [
+            'total_fees' => $totalFees,
+            'total_paid' => $totalPaid,
+            'total_outstanding' => $totalOutstanding,
+            'total_concession' => $totalConcession,
+            'payment_status' => $totalOutstanding > 0 ? 'pending' : 'completed'
+        ];
     }
 
-    public function scopeWithUnpaidFees($query)
+    /**
+     * Check if student has outstanding fees (EXCLUDES DROPOUTS)
+     */
+    public function hasOutstandingFees(): bool
     {
-        return $query->whereHas('invoices', function ($q) {
-            $q->where('due_amount', '>', 0);
-        });
+        if ($this->isDropout()) {
+            return false; // Dropout students don't have "outstanding" fees in the operational sense
+        }
+
+        if (!Schema::hasTable('student_fees')) {
+            return false;
+        }
+
+        return $this->studentFees()
+            ->whereRaw('amount - COALESCE(concession_amount, 0) - COALESCE(paid_amount, 0) > 0')
+            ->exists();
     }
 
-    public function scopeSearch($query, $term)
+    /**
+     * Get overdue fees (EXCLUDES DROPOUTS)
+     */
+    public function getOverdueFees()
     {
-        return $query->where(function ($q) use ($term) {
-            $q->where('name', 'LIKE', "%{$term}%")
-              ->orWhere('enrollment_number', 'LIKE', "%{$term}%")
-              ->orWhere('email', 'LIKE', "%{$term}%")
-              ->orWhere('student_mobile', 'LIKE', "%{$term}%")
-              ->orWhere('father_mobile', 'LIKE', "%{$term}%");
-        });
-    }
+        if ($this->isDropout() || !Schema::hasTable('student_fees')) {
+            return collect();
+        }
 
-    // Activity logging
-    public function getActivitylogOptions(): LogOptions
-    {
-        return LogOptions::defaults()
-            ->logOnly([
-                'name',
-                'email', 
-                'enrollment_number',
-                'gender',
-                'father_name',
-                'student_mobile',
-                'father_mobile',
-                'village',
-                'admission_date',
-                'batch_id',
-                'status'
-            ])
-            ->logOnlyDirty()
-            ->dontSubmitEmptyLogs();
-    }
-
-    // Custom methods
-    public function hasUnpaidFees(): bool
-    {
-        return $this->total_fees_owed > 0;
-    }
-
-    public function getLatestInvoice()
-    {
-        return $this->invoices()->latest()->first();
-    }
-
-    public function getOverdueInvoices()
-    {
-        return $this->invoices()
+        return $this->studentFees()
+            ->whereRaw('amount - COALESCE(concession_amount, 0) - COALESCE(paid_amount, 0) > 0')
             ->where('due_date', '<', now())
-            ->where('due_amount', '>', 0)
             ->get();
     }
-    
+
     /**
- * Get all student fees for this student
- */
-public function studentFees()
-{
-    return $this->hasMany(StudentFee::class);
-}
-
-/**
- * Get unpaid student fees
- */
-public function unpaidFees()
-{
-    return $this->studentFees()->where('status', 'unpaid');
-}
-
-/**
- * Get paid student fees
- */
-public function paidFees()
-{
-    return $this->studentFees()->where('status', 'paid');
-}
-
-/**
- * Get student fees by category
- */
-public function feesByCategory($categoryId)
-{
-    return $this->studentFees()->where('fee_category_id', $categoryId);
-}
-
-/**
- * Get total unpaid amount for this student
- */
-public function getTotalUnpaidAmount()
-{
-    return $this->unpaidFees()->sum('amount');
-}
-
-/**
- * Get total paid amount for this student
- */
-public function getTotalPaidAmount()
-{
-    return $this->paidFees()->sum('amount');
-}
-
-    public function calculateAttendancePercentage($startDate = null, $endDate = null): float
+     * Get latest component payment
+     */
+    public function getLatestComponentPayment()
     {
-        $query = $this->attendances();
-        
-        if ($startDate) {
-            $query->where('attendance_date', '>=', $startDate);
-        }
-        if ($endDate) {
-            $query->where('attendance_date', '<=', $endDate);
-        }
-        
-        $attendances = $query->get();
-        $present = $attendances->where('status', 'present')->count();
-        $total = $attendances->count();
-        
-        return $total > 0 ? round(($present / $total) * 100, 1) : 0;
+        return $this->componentPayments()->latest()->first();
     }
 
+    // ===================================
+    // DROPOUT MANAGEMENT METHODS
+    // ===================================
+
+    /**
+     * Check if student is dropout
+     */
+    public function isDropout(): bool
+    {
+        return $this->status === 'dropout';
+    }
+
+    /**
+     * Check if student is active
+     */
+    public function isActive(): bool
+    {
+        return $this->status === 'active';
+    }
+
+    /**
+     * Check if student is graduated
+     */
+    public function isGraduated(): bool
+    {
+        return $this->status === 'graduated';
+    }
+
+    /**
+     * Get dropout duration in days
+     */
+    public function getDropoutDuration(): ?int
+    {
+        if (!$this->isDropout() || !$this->dropout_date) {
+            return null;
+        }
+        
+        return Carbon::parse($this->admission_date)->diffInDays($this->dropout_date);
+    }
+
+    /**
+     * Get comprehensive dropout summary
+     */
+    public function getDropoutSummary(): array
+    {
+        if (!$this->isDropout()) {
+            return [];
+        }
+        
+        return [
+            'dropout_date' => $this->dropout_date,
+            'dropout_reason' => $this->dropout_reason,
+            'study_duration_days' => $this->getDropoutDuration(),
+            'final_outstanding' => $this->final_outstanding_amount,
+            'total_paid' => $this->total_paid_amount,
+            'processed_by' => $this->processedBy->name ?? 'Unknown',
+            'processed_at' => $this->dropout_processed_at,
+            'can_be_reactivated' => true // Add business logic here if needed
+        ];
+    }
+
+    /**
+     * Check if student is payment defaulter
+     */
+    public function isPaymentDefaulter(): bool
+    {
+        return $this->paymentDefaulters()
+            ->where('current_status', '!=', 'resolved')
+            ->exists();
+    }
+
+    /**
+     * Get total outstanding amount for this student
+     */
+    public function getTotalOutstandingAmount(): float
+    {
+        if ($this->isDropout()) {
+            return 0; // Dropouts don't have operational outstanding amounts
+        }
+
+        return $this->studentFees()
+            ->where('status', 'unpaid')
+            ->get()
+            ->sum(function($fee) {
+                return ($fee->amount ?? 0) - ($fee->paid_amount ?? 0) - ($fee->concession_amount ?? 0);
+            });
+    }
+
+    /**
+     * Get overdue amount for this student
+     */
+    public function getOverdueAmount(): float
+    {
+        if ($this->isDropout()) {
+            return 0; // Dropouts don't have operational overdue amounts
+        }
+
+        return $this->studentFees()
+            ->where('status', 'unpaid')
+            ->where('due_date', '<', now())
+            ->get()
+            ->sum(function($fee) {
+                return ($fee->amount ?? 0) - ($fee->paid_amount ?? 0) - ($fee->concession_amount ?? 0);
+            });
+    }
+
+    /**
+     * Calculate attendance percentage for a given period
+     */
+    public function getAttendancePercentage($startDate = null, $endDate = null): float
+    {
+        if (!$startDate) $startDate = now()->startOfMonth();
+        if (!$endDate) $endDate = now()->endOfMonth();
+
+        $totalClasses = $this->attendances()
+            ->whereBetween('attendance_date', [$startDate, $endDate])
+            ->count();
+
+        if ($totalClasses === 0) return 0;
+
+        $presentClasses = $this->attendances()
+            ->whereBetween('attendance_date', [$startDate, $endDate])
+            ->where('status', 'present')
+            ->count();
+
+        return round(($presentClasses / $totalClasses) * 100, 1);
+    }
+
+    /**
+     * Check if student is eligible for discount (example: female students)
+     */
     public function isEligibleForDiscount(): bool
     {
         return $this->gender === 'Female';
     }
 
+    /**
+     * Generate new enrollment number
+     */
     public function generateNewEnrollmentNumber(): string
     {
         if (!$this->batch) {
@@ -460,13 +686,211 @@ public function getTotalPaidAmount()
 
         $settings = Setting::all()->keyBy('key');
         $collegePrefix = $settings['enrollment_prefix']->value ?? 'UV';
-        $coursePrefix = $this->batch->course->enrollment_prefix ?? strtoupper(substr($this->batch->course->name, 0, 4));
-        $batchYear = \Carbon\Carbon::parse($this->batch->created_at)->format('y');
+        $coursePrefix = $this->batch->course->enrollment_prefix ?? substr($this->batch->course->name, 0, 2);
         
-        $studentCount = self::where('batch_id', $this->batch->id)->count();
-        $nextRollNo = $studentCount + 1;
-        $paddedRollNo = str_pad($nextRollNo, 3, '0', STR_PAD_LEFT);
+        $year = date('Y');
+        $lastStudent = static::where('batch_id', $this->batch_id)
+            ->where('enrollment_number', 'LIKE', "{$collegePrefix}{$coursePrefix}{$year}%")
+            ->orderBy('enrollment_number', 'desc')
+            ->first();
+
+        if ($lastStudent) {
+            $lastNumber = (int) substr($lastStudent->enrollment_number, -3);
+            $newNumber = str_pad($lastNumber + 1, 3, '0', STR_PAD_LEFT);
+        } else {
+            $newNumber = '001';
+        }
+
+        return "{$collegePrefix}{$coursePrefix}{$year}{$newNumber}";
+    }
+
+    // ===================================
+    // HELPER METHODS
+    // ===================================
+
+    /**
+     * Find student by student ID (alias for ID)
+     */
+    public static function findByStudentId($studentId)
+    {
+        return static::where('id', $studentId)->first();
+    }
+
+    /**
+     * Get component status based on remaining amount
+     */
+    private function getComponentStatus($remainingAmount)
+    {
+        if ($remainingAmount <= 0) {
+            return 'paid';
+        }
+        return 'unpaid';
+    }
+
+    // ===================================
+    // CONVENIENCE RELATIONSHIP ACCESSORS
+    // ===================================
+
+    /**
+     * Get unpaid student fees
+     */
+    public function unpaidFees()
+    {
+        return $this->studentFees()->whereIn('status', ['unpaid', 'partial']);
+    }
+
+    /**
+     * Get paid student fees
+     */
+    public function paidFees()
+    {
+        return $this->studentFees()->where('status', 'paid');
+    }
+
+    /**
+     * Get student fees by category
+     */
+    public function feesByCategory($categoryId)
+    {
+        return $this->studentFees()->where('fee_category_id', $categoryId);
+    }
+
+    /**
+     * Get total unpaid amount for this student
+     */
+    public function getTotalUnpaidAmount()
+    {
+        if ($this->isDropout()) {
+            return 0.0; // Dropouts don't have operational unpaid amounts
+        }
+
+        if (Schema::hasTable('student_fees')) {
+            return $this->unpaidFees()->get()->sum(fn($fee) => $fee->getRemainingAmount());
+        }
         
-        return "{$collegePrefix}-{$coursePrefix}-{$batchYear}{$paddedRollNo}";
+        return 0.0;
+    }
+
+    /**
+     * Get total paid amount for this student
+     */
+    public function getTotalPaidAmount()
+    {
+        if ($this->isDropout()) {
+            return $this->total_paid_amount; // Use preserved amount for dropouts
+        }
+
+        if (Schema::hasTable('student_fees')) {
+            return $this->paidFees()->sum('paid_amount');
+        }
+        
+        return 0.0;
+    }
+
+    // ===================================
+    // ACTIVITY LOGGING - UPDATED FOR DROPOUT
+    // ===================================
+
+    /**
+     * Activity Logging Configuration
+     */
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly([
+                'name', 'email', 'father_name', 'student_mobile', 'father_mobile',
+                'village', 'admission_date', 'batch_id', 'gender', 'status',
+                'dropout_date', 'dropout_reason' // Added dropout fields
+            ])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->setDescriptionForEvent(fn(string $eventName) => match($eventName) {
+                'created' => 'Student profile created',
+                'updated' => 'Student profile updated',
+                'deleted' => 'Student profile deleted',
+                default => "Student {$eventName}"
+            });
+    }
+
+    /**
+     * Custom activity logging methods
+     */
+    public function logStatusChange($oldStatus, $newStatus, $reason = null)
+    {
+        activity()
+            ->causedBy(auth()->user())
+            ->performedOn($this)
+            ->withProperties([
+                'old_status' => $oldStatus,
+                'new_status' => $newStatus,
+                'reason' => $reason,
+                'type' => 'status_change'
+            ])
+            ->log("Student status changed from {$oldStatus} to {$newStatus}");
+    }
+
+    public function logBatchChange($oldBatchId, $newBatchId)
+    {
+        $oldBatch = $oldBatchId ? Batch::find($oldBatchId) : null;
+        $newBatch = $newBatchId ? Batch::find($newBatchId) : null;
+        
+        activity()
+            ->causedBy(auth()->user())
+            ->performedOn($this)
+            ->withProperties([
+                'old_batch_id' => $oldBatchId,
+                'new_batch_id' => $newBatchId,
+                'old_batch_name' => $oldBatch?->name,
+                'new_batch_name' => $newBatch?->name,
+                'type' => 'batch_change'
+            ])
+            ->log("Student transferred from {$oldBatch?->name} to {$newBatch?->name}");
+    }
+
+    public function logFeeGeneration($feeStructureId, $componentsCount)
+    {
+        activity()
+            ->causedBy(auth()->user())
+            ->performedOn($this)
+            ->withProperties([
+                'fee_structure_id' => $feeStructureId,
+                'components_generated' => $componentsCount,
+                'academic_year' => date('Y') . '-' . (date('Y') + 1),
+                'type' => 'fee_generation'
+            ])
+            ->log("Fee components generated - {$componentsCount} components created");
+    }
+
+    /**
+     * Log dropout process
+     */
+    public function logDropout($reason = null, $financialSummary = [])
+    {
+        activity()
+            ->causedBy(auth()->user())
+            ->performedOn($this)
+            ->withProperties([
+                'dropout_date' => $this->dropout_date,
+                'dropout_reason' => $reason,
+                'financial_summary' => $financialSummary,
+                'type' => 'student_dropout'
+            ])
+            ->log("Student marked as dropout: {$reason}");
+    }
+
+    /**
+     * Log reactivation
+     */
+    public function logReactivation($reason = null)
+    {
+        activity()
+            ->causedBy(auth()->user())
+            ->performedOn($this)
+            ->withProperties([
+                'reactivation_reason' => $reason,
+                'previous_dropout_date' => $this->dropout_date,
+                'type' => 'student_reactivation'
+            ])
+            ->log("Student reactivated from dropout: {$reason}");
     }
 }

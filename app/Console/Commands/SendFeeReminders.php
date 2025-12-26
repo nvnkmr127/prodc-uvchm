@@ -3,28 +3,30 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use App\Http\Controllers\Admin\InvoiceController;
+use App\Services\ComponentPaymentReminderService; // MODIFIED: Use the new component-based reminder service
 use App\Services\NotificationService;
+use App\Models\StudentFee; // MODIFIED: Use the StudentFee model
 use Carbon\Carbon;
 
 class SendFeeReminders extends Command
 {
     protected $signature = 'fees:send-reminders {--dry-run : Show what would be sent without actually sending}';
-    protected $description = 'Send automated fee reminder notifications to students and staff';
+    protected $description = 'Send automated fee reminder notifications for individual fee components to students and staff';
 
-    protected $invoiceController;
+    // MODIFIED: Injected the new component-based reminder service
+    protected $reminderService;
     protected $notificationService;
 
-    public function __construct(InvoiceController $invoiceController, NotificationService $notificationService)
+    public function __construct(ComponentPaymentReminderService $reminderService, NotificationService $notificationService)
     {
         parent::__construct();
-        $this->invoiceController = $invoiceController;
+        $this->reminderService = $reminderService;
         $this->notificationService = $notificationService;
     }
 
     public function handle()
     {
-        $this->info('🔔 Starting Fee Reminder Process...');
+        $this->info('🔔 Starting Component-Based Fee Reminder Process...');
         
         if ($this->option('dry-run')) {
             $this->warn('DRY RUN MODE - No notifications will be sent');
@@ -32,15 +34,15 @@ class SendFeeReminders extends Command
         }
 
         try {
-            $result = $this->invoiceController->sendFeeReminders();
-            $data = $result->getData();
+            // MODIFIED: Call the method that processes pending reminders from the component service
+            $result = $this->reminderService->processPendingReminders();
 
-            $this->info("✅ Fee reminders sent successfully!");
-            $this->line("📧 Upcoming due reminders: " . $data->reminders_sent);
-            $this->line("⚠️  Overdue alerts sent: " . $data->overdue_alerts_sent);
+            $this->info("✅ Fee reminders processed successfully!");
+            $this->line("🚀 Reminders sent: " . ($result['sent'] ?? 0));
+            $this->line("❌ Reminders failed: " . ($result['failed'] ?? 0));
             
-            if ($data->reminders_sent === 0 && $data->overdue_alerts_sent === 0) {
-                $this->comment("📝 No reminders needed - all students are up to date!");
+            if (($result['sent'] ?? 0) === 0 && ($result['failed'] ?? 0) === 0) {
+                $this->comment("📝 No pending reminders needed at this time.");
             }
 
         } catch (\Exception $e) {
@@ -80,52 +82,53 @@ class SendFeeReminders extends Command
     {
         $reminderDays = $this->getNumericSetting('fee_reminder_days', 7);
         
-        $this->info("Using reminder days: {$reminderDays}");
+        $this->info("Scanning for fee components due within the next {$reminderDays} days and those that are overdue.");
         
         try {
-            $upcoming = \App\Models\Invoice::where('due_date', '>=', now())
+            // MODIFIED: Query StudentFee model for upcoming and overdue components
+            $upcoming = StudentFee::where('due_date', '>=', now())
                 ->where('due_date', '<=', now()->addDays($reminderDays))
-                ->where('status', 'unpaid')
-                ->with('student')
+                ->whereIn('status', ['unpaid', 'partial'])
+                ->with('student', 'feeCategory')
                 ->get();
                 
-            $overdue = \App\Models\Invoice::where('due_date', '<', now())
-                ->where('status', 'unpaid')
-                ->with('student')
+            $overdue = StudentFee::where('due_date', '<', now())
+                ->whereIn('status', ['unpaid', 'partial', 'overdue'])
+                ->with('student', 'feeCategory')
                 ->get();
 
             if ($upcoming->isEmpty() && $overdue->isEmpty()) {
-                $this->comment("📝 No invoices found that need reminders");
+                $this->comment("📝 No fee components found that need reminders.");
                 return 0;
             }
 
             $this->table(
-                ['Type', 'Student', 'Amount', 'Due Date', 'Days', 'Invoice'],
+                ['Type', 'Student', 'Fee Category', 'Amount Due', 'Due Date', 'Days'],
                 array_merge(
-                    $upcoming->map(function($inv) {
+                    $upcoming->map(function($fee) {
                         return [
                             'Reminder',
-                            $inv->student->name ?? 'Unknown',
-                            '₹' . number_format($inv->due_amount, 2),
-                           Carbon::parse($inv->due_date)->format('d-m-Y'),
-                            now()->diffInDays($inv->due_date) . ' days left',
-                            $inv->invoice_number ?? 'N/A'
+                            $fee->student->name ?? 'Unknown',
+                            $fee->feeCategory->name ?? 'N/A',
+                            '₹' . number_format($fee->getRemainingAmount(), 2),
+                           Carbon::parse($fee->due_date)->format('d-m-Y'),
+                            now()->diffInDays($fee->due_date) . ' days left',
                         ];
                     })->toArray(),
-                    $overdue->map(function($inv) {
+                    $overdue->map(function($fee) {
                         return [
                             'OVERDUE',
-                            $inv->student->name ?? 'Unknown',
-                            '₹' . number_format($inv->due_amount, 2),
-                            $inv->due_date->format('d-m-Y'),
-                            now()->diffInDays($inv->due_date) . ' days overdue',
-                            $inv->invoice_number ?? 'N/A'
+                            $fee->student->name ?? 'Unknown',
+                            $fee->feeCategory->name ?? 'N/A',
+                            '₹' . number_format($fee->getRemainingAmount(), 2),
+                            $fee->due_date->format('d-m-Y'),
+                            now()->diffInDays($fee->due_date) . ' days overdue',
                         ];
                     })->toArray()
                 )
             );
 
-            $this->info("Would send {$upcoming->count()} reminders and {$overdue->count()} overdue alerts");
+            $this->info("Would process {$upcoming->count()} upcoming reminders and {$overdue->count()} overdue alerts.");
             
         } catch (\Exception $e) {
             $this->error("Error during dry run: " . $e->getMessage());

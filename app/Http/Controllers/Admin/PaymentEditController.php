@@ -5,10 +5,11 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Payment;
 use App\Models\PaymentEditLog;
+use App\Models\ComponentPaymentItem;
+use App\Models\StudentFee;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
 
 class PaymentEditController extends Controller
 {
@@ -17,272 +18,312 @@ class PaymentEditController extends Controller
      */
     public function edit(Payment $payment)
     {
-        $payment->load(['invoice.student.batch.course']);
-        
-        // Get edit history for this payment
-        $editHistory = PaymentEditLog::where('payment_id', $payment->id)
-                                   ->with('user')
-                                   ->latest()
-                                   ->get();
-        
-        return view('admin.payments.edit', compact('payment', 'editHistory'));
+        // Check permissions
+        $this->authorize('edit payments');
+
+        // Verify payment can be edited
+        if (!$payment->canBeEdited()) {
+            return redirect()->back()->with('error', 'This payment cannot be edited.');
+        }
+
+        // Load payment with relationships
+        $payment->load([
+            'student.batch.course',
+            'createdBy',
+            'updatedBy',
+            'componentItems.studentFee.feeCategory'
+        ]);
+
+        // Get available fee categories for this student
+        $availableFees = $payment->student->studentFees()
+            ->with('feeCategory')
+            ->get();
+
+        return view('admin.payment-edit.edit', compact('payment', 'availableFees'));
     }
 
     /**
-     * Update payment with audit trail
+     * Update payment
      */
     public function update(Request $request, Payment $payment)
     {
-        // Check if payment can be edited
+        // Check permissions
+        $this->authorize('edit payments');
+
+        // Verify payment can be edited
         if (!$payment->canBeEdited()) {
-            return redirect()->back()
-                           ->with('error', 'This payment cannot be edited due to business rules (age, finalized invoice, etc.).');
+            return redirect()->back()->with('error', 'This payment cannot be edited.');
         }
 
-        $request->validate([
-            'amount' => [
-                'required',
-                'numeric',
-                'min:0.01',
-                function ($attribute, $value, $fail) use ($payment) {
-                    // Check if new amount doesn't exceed invoice total
-                    $otherPayments = Payment::where('invoice_id', $payment->invoice_id)
-                                          ->where('id', '!=', $payment->id)
-                                          ->sum('amount');
-                    
-                    $maxAllowed = $payment->invoice->total_amount - $otherPayments;
-                    
-                    if ($value > $maxAllowed) {
-                        $fail("Amount cannot exceed ₹" . number_format($maxAllowed, 2));
-                    }
-                },
-            ],
-            'payment_date' => 'required|date|before_or_equal:today',
-            'payment_method' => 'required|string|in:Cash,Card,Bank Transfer,Cheque,Online,UPI',
+        // Validate request
+        $validated = $request->validate([
+            'amount' => 'required|numeric|min:0.01',
+            'payment_method' => 'required|string',
+            'payment_date' => 'required|date',
             'transaction_id' => 'nullable|string|max:255',
-            'notes' => 'nullable|string|max:500',
-            'edit_reason' => 'required|string|max:1000', // Required edit reason
+            'notes' => 'nullable|string|max:1000',
+            'edit_reason' => 'required|string|max:500',
+            'components' => 'required|array|min:1',
+            'components.*.student_fee_id' => 'required|exists:student_fees,id',
+            'components.*.amount' => 'required|numeric|min:0.01'
         ]);
 
         try {
             DB::beginTransaction();
 
-            // Capture original state for audit trail
+            // Capture original state
             $originalState = $this->capturePaymentState($payment);
-            $oldAmount = $payment->amount;
-            $newAmount = $request->amount;
 
-            // Update payment record
-            $updateData = [
-                'amount' => $newAmount,
-                'payment_date' => $request->payment_date,
-                'payment_method' => $request->payment_method,
-                'notes' => $request->notes,
-            ];
+            // Update payment
+            $payment->update([
+                'amount' => $validated['amount'],
+                'payment_method' => $validated['payment_method'],
+                'payment_date' => $validated['payment_date'],
+                'transaction_id' => $validated['transaction_id'],
+                'notes' => $validated['notes'],
+                'updated_by' => auth()->id()
+            ]);
 
-            // Only add transaction_id if the column exists
-            if (Schema::hasColumn('payments', 'transaction_id') && $request->filled('transaction_id')) {
-                $updateData['transaction_id'] = $request->transaction_id;
-            }
+            // Update component items
+            $this->updateComponentItems($payment, $validated['components'], $originalState['components']);
 
-            // Update the payment (this will trigger model events and webhooks)
-            $payment->update($updateData);
-
-            // Note: Invoice recalculation is handled in the Payment model's boot method
-            // This ensures webhooks get the correct updated data
-
-            // Capture new state for audit trail
+            // Capture new state
             $newState = $this->capturePaymentState($payment->fresh());
 
-            // Log the edit with detailed changes
-            $this->logPaymentEdit($payment, $originalState, $newState, $request->edit_reason);
-
-            // Additional activity logging for important changes
-            activity()
-                ->performedOn($payment)
-                ->causedBy(auth()->user())
-                ->withProperties([
-                    'old_amount' => $oldAmount,
-                    'new_amount' => $newAmount,
-                    'amount_difference' => $newAmount - $oldAmount,
-                    'edit_reason' => $request->edit_reason,
-                    'invoice_id' => $payment->invoice_id,
-                    'invoice_number' => $payment->invoice->invoice_number
-                ])
-                ->log("Payment #{$payment->receipt_number} updated: Amount changed from ₹{$oldAmount} to ₹{$newAmount}");
+            // Log the edit
+            PaymentEditLog::logPaymentChange(
+                $payment,
+                'update',
+                $originalState,
+                $newState,
+                $validated['edit_reason']
+            );
 
             DB::commit();
 
-            Log::info('Payment updated successfully with webhook integration:', [
-                'payment_id' => $payment->id,
-                'receipt_number' => $payment->receipt_number,
-                'user_id' => auth()->id(),
-                'old_amount' => $oldAmount,
-                'new_amount' => $newAmount,
-                'edit_reason' => $request->edit_reason,
-                'webhook_enabled' => $payment->areWebhooksEnabled(),
-            ]);
-
-            return redirect()->route('admin.payments.show', $payment)
-                           ->with('success', "Payment #{$payment->receipt_number} updated successfully. Webhooks have been triggered for external integrations.");
+            return redirect()->route('admin.students.show', $payment->student)
+                ->with('success', 'Payment updated successfully.');
 
         } catch (\Exception $e) {
-            DB::rollBack();
-
-            Log::error('Failed to update payment:', [
+            DB::rollback();
+            
+            Log::error('Payment edit failed', [
                 'payment_id' => $payment->id,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'user_id' => auth()->id()
             ]);
 
-            return redirect()->back()
-                           ->withInput()
-                           ->with('error', 'Failed to update payment: ' . $e->getMessage());
+            return back()->withInput()
+                ->with('error', 'Failed to update payment: ' . $e->getMessage());
         }
     }
 
     /**
      * Show payment edit history
      */
-    public function editHistory(Payment $payment)
+    public function history(Payment $payment)
     {
-        $editHistory = PaymentEditLog::where('payment_id', $payment->id)
-                                   ->with('user')
-                                   ->latest()
-                                   ->paginate(20);
+        // Check permissions
+        $this->authorize('view payment history');
 
-        return view('admin.payments.edit-history', compact('payment', 'editHistory'));
+        // Load payment with relationships
+        $payment->load([
+            'student',
+            'createdBy',
+            'componentItems.studentFee.feeCategory'
+        ]);
+
+        // Get edit history
+        $editHistory = PaymentEditLog::where('payment_id', $payment->id)
+            ->with('user')
+            ->orderBy('created_at', 'desc')
+            ->paginate(10);
+
+        return view('admin.payment-edit.history', compact('payment', 'editHistory'));
     }
+
+
+    
 
     /**
      * Revert payment to a previous state
      */
-    public function revert(Payment $payment, PaymentEditLog $editLog, Request $request)
+    public function revert(Request $request, Payment $payment)
     {
-        $request->validate([
+        // Check permissions
+        $this->authorize('revert payments');
+
+        $validated = $request->validate([
+            'log_id' => 'required|exists:payment_edit_logs,id',
             'revert_reason' => 'required|string|max:500'
         ]);
 
         try {
             DB::beginTransaction();
 
+            // Get the log entry to revert to
+            $logEntry = PaymentEditLog::findOrFail($validated['log_id']);
+            
+            if ($logEntry->payment_id !== $payment->id) {
+                throw new \Exception('Invalid log entry for this payment');
+            }
+
             // Capture current state
             $currentState = $this->capturePaymentState($payment);
 
-            // Revert to previous state
-            $previousState = json_decode($editLog->previous_state, true);
+            // Revert payment to old values
+            $oldValues = $logEntry->old_values;
             
-            $revertData = [
-                'amount' => $previousState['amount'],
-                'payment_date' => $previousState['payment_date'],
-                'payment_method' => $previousState['payment_method'],
-                'notes' => $previousState['notes'] ?? null,
-            ];
+            $payment->update([
+                'amount' => $oldValues['amount'] ?? $payment->amount,
+                'payment_method' => $oldValues['payment_method'] ?? $payment->payment_method,
+                'payment_date' => $oldValues['payment_date'] ?? $payment->payment_date,
+                'transaction_id' => $oldValues['transaction_id'] ?? $payment->transaction_id,
+                'notes' => $oldValues['notes'] ?? $payment->notes,
+                'updated_by' => auth()->id()
+            ]);
 
-            if (isset($previousState['transaction_id']) && Schema::hasColumn('payments', 'transaction_id')) {
-                $revertData['transaction_id'] = $previousState['transaction_id'];
+            // Revert component items if available
+            if (isset($oldValues['components'])) {
+                $this->revertComponentItems($payment, $oldValues['components'], $currentState['components']);
             }
 
-            $payment->update($revertData);
-
-            // Recalculate invoice totals
-            $this->recalculateInvoiceTotals($payment->invoice);
-
-            // Log the revert action
-            $this->logPaymentEdit(
+            // Log the reversion
+            PaymentEditLog::logPaymentChange(
                 $payment,
+                'revert',
                 $currentState,
-                $this->capturePaymentState($payment->fresh()),
-                "Reverted to state from " . $editLog->created_at->format('Y-m-d H:i:s') . ". Reason: " . $request->revert_reason,
-                'revert'
+                $oldValues,
+                $validated['revert_reason'] . ' (Reverted to state from ' . $logEntry->created_at->format('Y-m-d H:i:s') . ')'
             );
 
             DB::commit();
 
-            return redirect()->route('admin.payments.show', $payment)
-                           ->with('success', 'Payment reverted successfully.');
+            return redirect()->route('admin.payment-edit.history', $payment)
+                ->with('success', 'Payment reverted successfully.');
 
         } catch (\Exception $e) {
-            DB::rollBack();
-            return redirect()->back()->with('error', 'Failed to revert payment: ' . $e->getMessage());
+            DB::rollback();
+            
+            Log::error('Payment revert failed', [
+                'payment_id' => $payment->id,
+                'log_id' => $validated['log_id'],
+                'error' => $e->getMessage(),
+                'user_id' => auth()->id()
+            ]);
+
+            return back()->with('error', 'Failed to revert payment: ' . $e->getMessage());
         }
     }
 
     /**
-     * Capture current payment state for audit trail
+     * Capture current payment state
      */
     private function capturePaymentState(Payment $payment): array
     {
         return [
+            'id' => $payment->id,
             'amount' => $payment->amount,
-            'payment_date' => $payment->payment_date,
             'payment_method' => $payment->payment_method,
-            'transaction_id' => $payment->transaction_id ?? null,
+            'payment_date' => $payment->payment_date,
+            'transaction_id' => $payment->transaction_id,
             'notes' => $payment->notes,
-            'receipt_number' => $payment->receipt_number,
-            'invoice_id' => $payment->invoice_id,
-            'student_id' => $payment->student_id ?? null,
+            'status' => $payment->status,
+            'components' => $payment->componentItems->map(function($item) {
+                return [
+                    'student_fee_id' => $item->student_fee_id,
+                    'amount_paid' => $item->amount_paid,
+                    'fee_category_name' => $item->studentFee->feeCategory->name ?? 'Unknown'
+                ];
+            })->toArray()
         ];
     }
 
-    /**
-     * Log payment edit with detailed changes
-     */
-    private function logPaymentEdit(Payment $payment, array $originalState, array $newState, string $editReason, string $action = 'update')
-    {
-        $changes = [];
-        
-        foreach ($newState as $field => $newValue) {
-            $oldValue = $originalState[$field] ?? null;
+/**
+ * Update component items for the payment
+ */
+private function updateComponentItems(Payment $payment, array $components, array $originalComponents)
+{
+    // Delete existing component items
+    $payment->componentItems()->delete();
+    
+    // Create new component items
+    foreach ($components as $component) {
+        if (isset($component['student_fee_id']) && isset($component['amount']) && $component['amount'] > 0) {
+            ComponentPaymentItem::create([
+                'payment_id' => $payment->id,
+                'student_fee_id' => $component['student_fee_id'],
+                'amount_paid' => $component['amount']
+            ]);
             
-            if ($oldValue != $newValue) {
-                $changes[$field] = [
-                    'old' => $oldValue,
-                    'new' => $newValue
-                ];
-            }
+            // Update the student fee paid amount
+            $this->updateStudentFeePaidAmount($component['student_fee_id']);
         }
-
-        PaymentEditLog::create([
-            'payment_id' => $payment->id,
-            'user_id' => auth()->id(),
-            'action' => $action,
-            'previous_state' => json_encode($originalState),
-            'new_state' => json_encode($newState),
-            'changes' => json_encode($changes),
-            'edit_reason' => $editReason,
-            'ip_address' => request()->ip(),
-            'user_agent' => request()->userAgent(),
-        ]);
     }
+}
 
-    /**
-     * Recalculate invoice totals after payment changes
-     */
-    private function recalculateInvoiceTotals($invoice)
-    {
-        $totalPaid = $invoice->payments()->sum('amount');
+/**
+ * Update student fee paid amount
+ */
+private function updateStudentFeePaidAmount($studentFeeId)
+{
+    $studentFee = StudentFee::find($studentFeeId);
+    if ($studentFee) {
+        $totalPaid = ComponentPaymentItem::where('student_fee_id', $studentFeeId)
+            ->sum('amount_paid');
         
-        $invoice->update([
-            'paid_amount' => $totalPaid,
-            'due_amount' => max(0, $invoice->total_amount - $totalPaid - ($invoice->concession_amount ?? 0)),
-            'status' => $this->calculateInvoiceStatus($invoice->total_amount, $totalPaid, $invoice->concession_amount ?? 0)
-        ]);
-    }
+        $studentFee->update(['paid_amount' => $totalPaid]);
+        
+        // Update status based on payment
+        $totalAmount = $studentFee->amount - ($studentFee->concession_amount ?? 0);
+        $paidAmount = $studentFee->paid_amount;
 
-    /**
-     * Calculate invoice status based on amounts
-     */
-    private function calculateInvoiceStatus($totalAmount, $paidAmount, $concessionAmount = 0): string
-    {
-        $dueAmount = max(0, $totalAmount - $paidAmount - $concessionAmount);
-        
-        if ($dueAmount <= 0 && $paidAmount > 0) {
-            return 'paid';
+        if ($paidAmount >= $totalAmount) {
+            $studentFee->update(['status' => 'paid']);
         } elseif ($paidAmount > 0) {
-            return 'partially_paid';
+            $studentFee->update(['status' => 'partial']);
         } else {
-            return 'unpaid';
+            $studentFee->update(['status' => 'unpaid']);
+        }
+    }
+}
+
+/**
+ * Revert component items to previous state
+ */
+private function revertComponentItems(Payment $payment, array $oldComponents, array $currentComponents)
+{
+    // Delete current component items
+    $payment->componentItems()->delete();
+    
+    // Recreate old component items
+    foreach ($oldComponents as $component) {
+        if (isset($component['student_fee_id']) && isset($component['amount_paid'])) {
+            ComponentPaymentItem::create([
+                'payment_id' => $payment->id,
+                'student_fee_id' => $component['student_fee_id'],
+                'amount_paid' => $component['amount_paid']
+            ]);
+            
+            // Update the student fee paid amount
+            $this->updateStudentFeePaidAmount($component['student_fee_id']);
+        }
+    }
+}
+
+    /**
+     * Update student fee status
+     */
+    private function updateStudentFeeStatus(StudentFee $studentFee): void
+    {
+        $remainingAmount = $studentFee->amount - $studentFee->concession_amount - $studentFee->paid_amount;
+        
+        if ($remainingAmount <= 0) {
+            $studentFee->update(['status' => 'paid']);
+        } elseif ($studentFee->paid_amount > 0) {
+            $studentFee->update(['status' => 'partial']);
+        } else {
+            $studentFee->update(['status' => 'pending']);
         }
     }
 }

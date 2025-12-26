@@ -57,6 +57,16 @@ return [
             'channels' => explode(',', env('LOG_STACK', 'single')),
             'ignore_exceptions' => false,
         ],
+        
+        
+ 'cron' => [
+        'driver' => 'single',
+        'path' => storage_path('logs/cron-jobs.log'),
+        'level' => 'info',
+        'replace_placeholders' => true,
+        'permission' => 0664,
+    ],
+
 
         'single' => [
             'driver' => 'single',
@@ -122,6 +132,20 @@ return [
             'driver' => 'monolog',
             'handler' => NullHandler::class,
         ],
+        
+        'dashboard' => [
+        'driver' => 'daily',
+        'path' => storage_path('logs/dashboard.log'),
+        'level' => env('LOG_LEVEL', 'debug'),
+        'days' => 14,
+    ],
+    
+    'security' => [
+        'driver' => 'daily', 
+        'path' => storage_path('logs/security.log'),
+        'level' => 'warning',
+        'days' => 30,
+    ],
 
         'emergency' => [
             'path' => storage_path('logs/laravel.log'),

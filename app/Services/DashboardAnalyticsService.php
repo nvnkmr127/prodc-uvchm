@@ -1,5 +1,10 @@
 <?php
-// app/Services/DashboardAnalyticsService.php
+
+namespace App\Services;
+
+use App\Models\User;
+use App\Models\Dashboard;
+use App\Models\DashboardView;
 
 class DashboardAnalyticsService
 {

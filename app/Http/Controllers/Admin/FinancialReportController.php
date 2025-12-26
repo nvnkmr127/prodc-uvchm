@@ -6,9 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Exports\FinancialReportExport;
 use App\Models\Batch;
 use App\Models\Expense;
-use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\Student;
+use App\Models\StudentFee;
+use App\Services\ComponentFinancialReportService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -17,6 +18,13 @@ use PDF;
 
 class FinancialReportController extends Controller
 {
+    protected $reportService;
+
+    public function __construct(ComponentFinancialReportService $reportService)
+    {
+        $this->reportService = $reportService;
+    }
+
     public function show(Request $request)
     {
         $reportData = null;
@@ -39,9 +47,9 @@ class FinancialReportController extends Controller
             if ($reportType == 'summary') {
                 $reportData = $this->generateSummaryReport($startDate, $endDate);
             } elseif ($reportType == 'defaulters') {
-                $reportData = $this->generateDefaulterReport();
+                $reportData = $this->generateComponentDefaulterReport($request);
             } elseif ($reportType == 'collections') {
-                $reportData = $this->generateCollectionReport($startDate, $endDate);
+                $reportData = $this->generateComponentCollectionReport($startDate, $endDate, $request);
             }
 
             if ($request->has('export')) {
@@ -78,7 +86,6 @@ class FinancialReportController extends Controller
         };
     }
 
-   
     private function generateSummaryReport(Carbon $startDate, Carbon $endDate)
     {
         $totalIncome = Payment::whereBetween('payment_date', [$startDate, $endDate])->sum('amount');
@@ -97,23 +104,21 @@ class FinancialReportController extends Controller
         ];
     }
 
-    private function generateDefaulterReport()
+    /**
+     * Generate component-based defaulter report
+     * Migrated from invoice-based system to component-based system
+     */
+    private function generateComponentDefaulterReport(Request $request)
     {
-        return Student::with('batch.course')
-            ->whereHas('invoices', function ($query) {
-                $query->whereIn('status', ['unpaid', 'partially_paid']);
-            })->get()->map(function ($student) {
-                $student->total_due = $student->invoices()->whereIn('status', ['unpaid', 'partially_paid'])->sum('due_amount');
-                return $student;
-            })->where('total_due', '>', 0);
+        return $this->reportService->generateDefaulterReport($request->all());
     }
 
-private function generateCollectionReport(Carbon $startDate, Carbon $endDate)
-{
-    // Eager load all necessary relationships to prevent N+1 queries.
-    return Payment::with('invoice.student.batch.course.feeStructure.feeCategories')
-        ->whereBetween('payment_date', [$startDate, $endDate])
-        ->orderBy('payment_date', 'desc')
-        ->get();
-}
+    /**
+     * Generate component-based collection report
+     * Migrated from invoice-based system to component-based system
+     */
+    private function generateComponentCollectionReport(Carbon $startDate, Carbon $endDate, Request $request)
+    {
+        return $this->reportService->generateCollectionReport($startDate, $endDate, $request->all());
+    }
 }

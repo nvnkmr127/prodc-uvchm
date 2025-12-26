@@ -2,65 +2,65 @@
 @section('title', 'Follow-up Calendar')
 
 @push('styles')
-    {{-- Add FullCalendar CSS --}}
     <link href='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css' rel='stylesheet' />
     <style>
-        /* Custom styles to make the calendar look better with the theme */
-        .fc-event {
-            cursor: pointer;
-        }
-        .fc-daygrid-event .fc-event-title {
-            font-weight: 600;
-            color: #fff;
-        }
-        .fc-h-event {
-            border: 1px solid #e3e6f0;
-        }
+        .fc-event { cursor: pointer; border: none !important; }
+        .fc-daygrid-event { padding: 2px 5px; border-radius: 4px; }
+        .fc-daygrid-event .fc-event-title { font-weight: 600; font-size: 0.85rem; }
+        /* Remove underline from links */
+        a.fc-event:hover { text-decoration: none; }
+        /* Fix toolbar responsiveness */
+        .fc-header-toolbar { flex-wrap: wrap; gap: 10px; }
     </style>
 @endpush
 
 @section('content')
-<div class="d-sm-flex align-items-center justify-content-between mb-4">
-    <h1 class="h3 mb-0 text-gray-800">Follow-up Calendar</h1>
-</div>
+<div class="container-fluid">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Follow-up Calendar</h1>
+        <a href="{{ route('admin.enquiries.index') }}" class="btn btn-sm btn-secondary shadow-sm">
+            <i class="fas fa-list fa-sm text-white-50 mr-1"></i> List View
+        </a>
+    </div>
 
-<div class="card shadow mb-4">
-    <div class="card-body">
-        <div id='calendar'></div>
+    <div class="card shadow mb-4">
+        <div class="card-body p-4">
+            <div id='calendar'></div>
+        </div>
     </div>
 </div>
 @endsection
 
 @push('scripts')
-    {{-- Add FullCalendar JS --}}
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js'></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             var calendarEl = document.getElementById('calendar');
             var calendar = new FullCalendar.Calendar(calendarEl, {
-                initialView: 'dayGridMonth', // Start with month view
+                initialView: 'dayGridMonth',
+                height: 'auto', // Adjusts height automatically
                 headerToolbar: {
                     left: 'prev,next today',
                     center: 'title',
-                    right: 'dayGridMonth,timeGridWeek,listWeek'
+                    right: 'dayGridMonth,listWeek'
                 },
-                // Fetch events from our controller
-                events: '{{ route("admin.follow-ups.calendar") }}',
+                // Use simple URL string for events source
+                events: "{{ route('admin.follow-ups.calendar') }}",
+                
+                // Handle Event Click
                 eventClick: function(info) {
-                    // Prevent the default browser action
-                    info.jsEvent.preventDefault(); 
-                    
-                    // If the event has a URL, go to it
+                    info.jsEvent.preventDefault();
                     if (info.event.url) {
-                        window.location.href = info.event.url;
+                        window.open(info.event.url, '_blank'); // Opens edit page in new tab
                     }
                 },
+                
+                // Show loading spinner
                 loading: function(isLoading) {
-                    // Optional: show a loading indicator
                     if (isLoading) {
-                        // You could show a spinner here
+                        document.body.style.cursor = 'wait';
                     } else {
-                        // And hide it here
+                        document.body.style.cursor = 'default';
                     }
                 }
             });

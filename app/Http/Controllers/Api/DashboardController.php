@@ -3,177 +3,351 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Student;
-use App\Models\Attendance;
-use App\Models\Invoice;
-use App\Models\User;
-use App\Models\Batch;
-use Carbon\Carbon;
 use Illuminate\Http\Request;
+use App\Services\{DashboardService, DashboardDataService, DashboardPermissionService};
+use App\Models\{Widget, Dashboard, DashboardWidget};
 
 class DashboardController extends Controller
 {
-    /**
-     * Get comprehensive dashboard statistics
-     */
-    public function stats(Request $request)
-    {
-        $today = Carbon::today();
-        $currentMonth = Carbon::now()->startOfMonth();
-        
-        // Student Statistics
-        $studentStats = [
-            'total_students' => Student::count(),
-            'active_students' => Student::where('status', 'active')->count(),
-            'graduated_students' => Student::where('status', 'graduated')->count(),
-            'dropout_students' => Student::where('status', 'dropout')->count(),
-        ];
+    protected $dashboardService;
+    protected $dataService;
+    protected $permissionService;
 
-        // Attendance Statistics
-        $todayAttendance = Attendance::where('attendance_date', $today)->get();
-        $monthlyAttendance = Attendance::where('attendance_date', '>=', $currentMonth)->get();
+    public function __construct(
+        DashboardService $dashboardService,
+        DashboardDataService $dataService,
+        DashboardPermissionService $permissionService
+    ) {
+        $this->middleware('auth');
+        $this->middleware('throttle:dashboard-api');
         
-        $attendanceStats = [
-            'today' => [
-                'total_marked' => $todayAttendance->count(),
-                'present' => $todayAttendance->where('status', 'present')->count(),
-                'absent' => $todayAttendance->where('status', 'absent')->count(),
-                'percentage' => $todayAttendance->count() > 0 
-                    ? round(($todayAttendance->where('status', 'present')->count() / $todayAttendance->count()) * 100, 2)
-                    : 0
+        $this->dashboardService = $dashboardService;
+        $this->dataService = $dataService;
+        $this->permissionService = $permissionService;
+    }
+
+    /**
+     * Get widget data
+     */
+    public function getWidgetData(Request $request)
+    {
+        $request->validate([
+            'widget_id' => 'required|exists:widgets,id',
+            'instance_id' => 'nullable|string',
+            'config' => 'nullable|array'
+        ]);
+
+        $user = auth()->user();
+        $widget = Widget::findOrFail($request->widget_id);
+
+        if (!$this->permissionService->canViewWidget($user, $widget)) {
+            return response()->json(['error' => 'Insufficient permissions'], 403);
+        }
+
+        $config = $request->config ?? [];
+        
+        // If instance_id provided, get instance-specific config
+        if ($request->instance_id) {
+            $dashboardWidget = DashboardWidget::where('instance_id', $request->instance_id)->first();
+            if ($dashboardWidget) {
+                $config = array_merge($config, $dashboardWidget->getMergedConfig());
+            }
+        }
+
+        $data = $this->dataService->getWidgetData($user, $widget, $config);
+
+        return response()->json([
+            'widget_id' => $widget->id,
+            'widget_name' => $widget->name,
+            'instance_id' => $request->instance_id,
+            'data' => $data,
+            'last_updated' => now()->toISOString(),
+            'cache_duration' => $widget->cache_duration
+        ]);
+    }
+
+    /**
+     * Refresh dashboard data
+     */
+    public function refreshDashboard(Request $request)
+    {
+        $user = auth()->user();
+        
+        // Clear user cache
+        $this->dashboardService->clearUserCache($user);
+        
+        // Get fresh dashboard data
+        $dashboardData = $this->dashboardService->getDashboardData($user);
+        
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Dashboard refreshed successfully',
+            'dashboard_data' => $dashboardData,
+            'refreshed_at' => now()->toISOString()
+        ]);
+    }
+
+    /**
+     * Update dashboard layout
+     */
+    public function updateLayout(Request $request)
+    {
+        $request->validate([
+            'dashboard_id' => 'required|exists:dashboards,id',
+            'widgets' => 'required|array',
+            'widgets.*.instance_id' => 'required|string',
+            'widgets.*.x' => 'required|integer|min:0',
+            'widgets.*.y' => 'required|integer|min:0',
+            'widgets.*.w' => 'required|integer|min:1',
+            'widgets.*.h' => 'required|integer|min:1',
+            'widgets.*.order' => 'nullable|integer'
+        ]);
+
+        $user = auth()->user();
+        $dashboard = Dashboard::findOrFail($request->dashboard_id);
+
+        if (!$this->permissionService->canEditDashboard($user, $dashboard)) {
+            return response()->json(['error' => 'Cannot edit this dashboard'], 403);
+        }
+
+        $success = $this->dashboardService->updateUserDashboardLayout(
+            $user,
+            $dashboard,
+            $request->widgets
+        );
+
+        return response()->json([
+            'status' => $success ? 'success' : 'error',
+            'message' => $success ? 'Layout updated successfully' : 'Failed to update layout',
+            'updated_at' => now()->toISOString()
+        ]);
+    }
+
+    /**
+     * Get dashboard notifications
+     */
+    public function getNotifications(Request $request)
+    {
+        $user = auth()->user();
+        $limit = $request->get('limit', 10);
+
+        // Sample notifications - integrate with your notification system
+        $notifications = [
+            [
+                'id' => 1,
+                'title' => 'System Update',
+                'message' => 'Dashboard system has been updated',
+                'type' => 'info',
+                'read' => false,
+                'created_at' => now()->subHours(1)->toISOString()
             ],
-            'monthly' => [
-                'total_marked' => $monthlyAttendance->count(),
-                'present' => $monthlyAttendance->where('status', 'present')->count(),
-                'absent' => $monthlyAttendance->where('status', 'absent')->count(),
-                'percentage' => $monthlyAttendance->count() > 0 
-                    ? round(($monthlyAttendance->where('status', 'present')->count() / $monthlyAttendance->count()) * 100, 2)
-                    : 0
+            [
+                'id' => 2,
+                'title' => 'Data Refresh',
+                'message' => 'Widget data has been refreshed',
+                'type' => 'success',
+                'read' => true,
+                'created_at' => now()->subHours(3)->toISOString()
             ]
         ];
-
-        // Financial Statistics
-        $invoices = Invoice::all();
-        $financialStats = [
-            'total_invoiced' => $invoices->sum('total_amount'),
-            'total_collected' => $invoices->sum('paid_amount'),
-            'total_pending' => $invoices->sum('due_amount'),
-            'collection_percentage' => $invoices->sum('total_amount') > 0 
-                ? round(($invoices->sum('paid_amount') / $invoices->sum('total_amount')) * 100, 2)
-                : 0
-        ];
-
-        // Recent Activities
-        $recentActivities = [
-            'new_admissions_today' => Student::whereDate('admission_date', $today)->count(),
-            'payments_today' => \App\Models\Payment::whereDate('payment_date', $today)->count(),
-            'attendance_marked_today' => $todayAttendance->count(),
-        ];
-
-        // Batch-wise Statistics
-        $batchStats = Batch::with(['students', 'course'])
-            ->get()
-            ->map(function($batch) {
-                $students = $batch->students;
-                return [
-                    'batch_name' => $batch->name,
-                    'course_name' => $batch->course->name,
-                    'total_students' => $students->count(),
-                    'active_students' => $students->where('status', 'active')->count(),
-                    'start_date' => $batch->start_date,
-                    'end_date' => $batch->end_date,
-                ];
-            });
 
         return response()->json([
-            'success' => true,
-            'data' => [
-                'students' => $studentStats,
-                'attendance' => $attendanceStats,
-                'financials' => $financialStats,
-                'recent_activities' => $recentActivities,
-                'batches' => $batchStats,
-                'generated_at' => now()->toISOString(),
-            ]
+            'notifications' => array_slice($notifications, 0, $limit),
+            'unread_count' => collect($notifications)->where('read', false)->count(),
+            'total_count' => count($notifications)
         ]);
     }
 
     /**
-     * Get attendance trends for charts
+     * Get quick stats for dashboard
      */
-    public function attendanceTrends(Request $request)
+    public function getQuickStats(Request $request)
+    {
+        $user = auth()->user();
+        $roleName = $user->getRoleNames()->first();
+
+        $stats = $this->getStatsForRole($roleName);
+
+        return response()->json([
+            'role' => $roleName,
+            'stats' => $stats,
+            'generated_at' => now()->toISOString()
+        ]);
+    }
+
+    /**
+     * Export widget data
+     */
+    public function exportWidgetData(Request $request)
     {
         $request->validate([
-            'days' => 'nullable|integer|min:7|max:90'
+            'widget_id' => 'required|exists:widgets,id',
+            'format' => 'required|in:json,csv,xlsx'
         ]);
 
-        $days = $request->days ?? 30;
-        $startDate = Carbon::now()->subDays($days);
+        $user = auth()->user();
+        $widget = Widget::findOrFail($request->widget_id);
 
-        $attendanceData = Attendance::where('attendance_date', '>=', $startDate)
-            ->selectRaw('attendance_date, status, COUNT(*) as count')
-            ->groupBy('attendance_date', 'status')
-            ->orderBy('attendance_date')
-            ->get();
-
-        // Format data for charts
-        $trendData = [];
-        for ($i = $days; $i >= 0; $i--) {
-            $date = Carbon::now()->subDays($i)->format('Y-m-d');
-            $dayData = $attendanceData->where('attendance_date', $date);
-            
-            $trendData[] = [
-                'date' => $date,
-                'present' => $dayData->where('status', 'present')->sum('count'),
-                'absent' => $dayData->where('status', 'absent')->sum('count'),
-                'total' => $dayData->sum('count'),
-            ];
+        if (!$this->permissionService->canViewWidget($user, $widget)) {
+            return response()->json(['error' => 'Insufficient permissions'], 403);
         }
 
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'period_days' => $days,
-                'trends' => $trendData
-            ]
-        ]);
-    }
-
-    /**
-     * Get financial trends
-     */
-    public function financialTrends(Request $request)
-    {
-        $request->validate([
-            'months' => 'nullable|integer|min:3|max:12'
-        ]);
-
-        $months = $request->months ?? 6;
+        $data = $this->dataService->getWidgetData($user, $widget);
         
-        $financialData = [];
-        for ($i = $months - 1; $i >= 0; $i--) {
-            $month = Carbon::now()->subMonths($i);
-            $monthStart = $month->copy()->startOfMonth();
-            $monthEnd = $month->copy()->endOfMonth();
-
-            $invoices = Invoice::whereBetween('issue_date', [$monthStart, $monthEnd])->get();
-            $payments = \App\Models\Payment::whereBetween('payment_date', [$monthStart, $monthEnd])->get();
-
-            $financialData[] = [
-                'month' => $month->format('Y-m'),
-                'month_name' => $month->format('M Y'),
-                'invoiced' => $invoices->sum('total_amount'),
-                'collected' => $payments->sum('amount'),
-                'pending' => $invoices->sum('due_amount'),
-            ];
+        switch ($request->format) {
+            case 'json':
+                return response()->json($data);
+                
+            case 'csv':
+                return $this->exportToCsv($data, $widget->name);
+                
+            case 'xlsx':
+                return $this->exportToExcel($data, $widget->name);
+                
+            default:
+                return response()->json(['error' => 'Invalid format'], 400);
         }
+    }
 
+    // Helper Methods
+    protected function getStatsForRole($roleName): array
+    {
+        switch ($roleName) {
+            case 'super-admin':
+                return [
+                    'total_users' => \App\Models\User::count(),
+                    'total_students' => \App\Models\Student::count(),
+                    'monthly_revenue' => \App\Models\Invoice::whereMonth('created_at', now()->month)
+                        ->where('status', 'paid')->sum('amount'),
+                    'system_health' => 'good'
+                ];
+
+            case 'college-admin':
+                return [
+                    'total_students' => \App\Models\Student::count(),
+                    'active_courses' => \App\Models\Course::where('is_active', true)->count(),
+                    'today_classes' => \App\Models\Timetable::whereDate('schedule_date', today())->count(),
+                    'pending_enquiries' => \App\Models\Enquiry::where('status', 'pending')->count()
+                ];
+
+            case 'accountant':
+                return [
+                    'monthly_revenue' => \App\Models\Invoice::whereMonth('created_at', now()->month)
+                        ->where('status', 'paid')->sum('amount'),
+                    'pending_amount' => \App\Models\Invoice::where('status', 'pending')->sum('amount'),
+                    'overdue_amount' => \App\Models\Invoice::where('status', 'pending')
+                        ->where('due_date', '<', now())->sum('amount'),
+                    'collection_rate' => $this->calculateCollectionRate()
+                ];
+
+            case 'staff':
+                $user = auth()->user();
+                return [
+                    'today_classes' => \App\Models\Timetable::where('user_id', $user->id)
+                        ->whereDate('schedule_date', today())->count(),
+                    'pending_attendance' => \App\Models\Timetable::where('user_id', $user->id)
+                        ->whereDate('schedule_date', today())
+                        ->whereDoesntHave('attendances')->count(),
+                    'my_students' => $this->getMyStudentsCount($user),
+                    'attendance_rate' => $this->getMyAttendanceRate($user)
+                ];
+
+            case 'student':
+                $student = auth()->user()->student;
+                if (!$student) return [];
+                
+                return [
+                    'attendance_percentage' => $this->getStudentAttendancePercentage($student),
+                    'pending_fees' => \App\Models\Invoice::where('student_id', $student->id)
+                        ->where('status', 'pending')->sum('amount'),
+                    'today_classes' => $this->getStudentTodayClassesCount($student),
+                    'upcoming_exams' => 2 // Sample count
+                ];
+
+            default:
+                return [];
+        }
+    }
+
+    protected function exportToCsv($data, $filename): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '.csv"',
+        ];
+
+        return response()->stream(function () use ($data) {
+            $file = fopen('php://output', 'w');
+            
+            if (is_array($data) && !empty($data)) {
+                // Write headers
+                if (isset($data[0])) {
+                    fputcsv($file, array_keys($data[0]));
+                }
+                
+                // Write data
+                foreach ($data as $row) {
+                    fputcsv($file, $row);
+                }
+            }
+            
+            fclose($file);
+        }, 200, $headers);
+    }
+
+    protected function exportToExcel($data, $filename)
+    {
+        // This would require a package like PhpSpreadsheet
+        // For now, return JSON with a note
         return response()->json([
-            'success' => true,
-            'data' => [
-                'period_months' => $months,
-                'trends' => $financialData
-            ]
+            'message' => 'Excel export not implemented yet',
+            'data' => $data
         ]);
+    }
+
+    private function calculateCollectionRate(): float
+    {
+        $total = \App\Models\Invoice::sum('amount');
+        $collected = \App\Models\Invoice::where('status', 'paid')->sum('amount');
+        return $total > 0 ? round(($collected / $total) * 100, 1) : 0;
+    }
+
+    private function getMyStudentsCount($user): int
+    {
+        return \App\Models\Timetable::where('user_id', $user->id)
+            ->with('batch.students')
+            ->get()
+            ->pluck('batch.students')
+            ->flatten()
+            ->unique('id')
+            ->count();
+    }
+
+    private function getMyAttendanceRate($user): float
+    {
+        $totalClasses = \App\Models\Timetable::where('user_id', $user->id)->count();
+        $attendanceTaken = \App\Models\Timetable::where('user_id', $user->id)
+            ->whereHas('attendances')->count();
+        
+        return $totalClasses > 0 ? round(($attendanceTaken / $totalClasses) * 100, 1) : 0;
+    }
+
+    private function getStudentAttendancePercentage($student): float
+    {
+        $attendances = \App\Models\Attendance::where('student_id', $student->id)->get();
+        $total = $attendances->count();
+        $present = $attendances->where('status', 'present')->count();
+        
+        return $total > 0 ? round(($present / $total) * 100, 1) : 0;
+    }
+
+    private function getStudentTodayClassesCount($student): int
+    {
+        $batch = $student->batch;
+        if (!$batch) return 0;
+        
+        return \App\Models\Timetable::where('batch_id', $batch->id)
+            ->whereDate('schedule_date', today())
+            ->count();
     }
 }

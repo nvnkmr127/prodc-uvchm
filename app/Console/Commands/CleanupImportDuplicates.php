@@ -4,7 +4,8 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use App\Models\Student;
-use App\Models\Invoice;
+// ✅ CHANGED: Import the StudentFee model instead of Invoice
+use App\Models\StudentFee;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
@@ -19,7 +20,7 @@ class CleanupImportDuplicates extends Command
     /**
      * The console command description.
      */
-    protected $description = 'Clean up duplicate students and invoices created during import issues';
+    protected $description = 'Clean up duplicate students and fee components created during import issues';
 
     /**
      * Execute the console command.
@@ -34,17 +35,17 @@ class CleanupImportDuplicates extends Command
         
         $this->info('Starting cleanup of import duplicates...');
         
-        // Clean up duplicate students
+        // Clean up duplicate students and their fee components
         $this->cleanupDuplicateStudents($dryRun);
         
-        // ✅ NEW: Clean up duplicate mobile numbers
+        // Clean up duplicate mobile numbers
         $this->cleanupDuplicateMobileNumbers($dryRun);
         
-        // Clean up duplicate invoices
-        $this->cleanupDuplicateInvoices($dryRun);
+        // ✅ CHANGED: Clean up duplicate fee components instead of invoices
+        $this->cleanupDuplicateStudentFees($dryRun);
         
-        // Clean up orphaned invoices
-        $this->cleanupOrphanedInvoices($dryRun);
+        // ✅ CHANGED: Clean up orphaned fee components instead of invoices
+        $this->cleanupOrphanedStudentFees($dryRun);
         
         $this->info('Cleanup completed!');
     }
@@ -53,7 +54,6 @@ class CleanupImportDuplicates extends Command
     {
         $this->info('Checking for duplicate students...');
         
-        // Find students with duplicate enrollment numbers
         $duplicateEnrollments = Student::select('enrollment_number')
             ->groupBy('enrollment_number')
             ->having(DB::raw('COUNT(*)'), '>', 1)
@@ -69,7 +69,6 @@ class CleanupImportDuplicates extends Command
                     
                 $this->info("Processing enrollment number: {$enrollmentNumber}");
                 
-                // Keep the first student, remove the rest
                 $keepStudent = $students->first();
                 $duplicates = $students->skip(1);
                 
@@ -77,12 +76,10 @@ class CleanupImportDuplicates extends Command
                     $this->warn("  - Would remove student ID {$duplicate->id} (Created: {$duplicate->created_at})");
                     
                     if (!$dryRun) {
-                        // Transfer any invoices to the kept student
-                        $duplicate->invoices()->update(['student_id' => $keepStudent->id]);
+                        // ✅ CHANGED: Transfer studentFees to the kept student
+                        $duplicate->studentFees()->update(['student_id' => $keepStudent->id]);
                         
-                        // Delete the duplicate
                         $duplicate->delete();
-                        
                         $this->info("  - Removed duplicate student ID {$duplicate->id}");
                     }
                 }
@@ -90,55 +87,12 @@ class CleanupImportDuplicates extends Command
         } else {
             $this->info('No duplicate enrollment numbers found');
         }
-        
-        // Find students with duplicate emails (only if email column exists)
-        if (Schema::hasColumn('students', 'email')) {
-            $duplicateEmails = Student::select('email')
-                ->whereNotNull('email')
-                ->where('email', '!=', '')
-                ->groupBy('email')
-                ->having(DB::raw('COUNT(*)'), '>', 1)
-                ->pluck('email');
-                
-            if ($duplicateEmails->count() > 0) {
-                $this->warn("Found {$duplicateEmails->count()} duplicate email addresses");
-                
-                foreach ($duplicateEmails as $email) {
-                    $students = Student::where('email', $email)
-                        ->orderBy('created_at', 'asc')
-                        ->get();
-                        
-                    $this->info("Processing email: {$email}");
-                    
-                    // Keep the first student, update emails for the rest
-                    $keepStudent = $students->first();
-                    $duplicates = $students->skip(1);
-                    
-                    foreach ($duplicates as $duplicate) {
-                        $duplicateName = $duplicate->full_name ?? $duplicate->name;
-                        $newEmail = $this->generateUniqueEmail($duplicateName);
-                        $this->warn("  - Would update student ID {$duplicate->id} email to: {$newEmail}");
-                        
-                        if (!$dryRun) {
-                            $duplicate->update(['email' => $newEmail]);
-                            $this->info("  - Updated student ID {$duplicate->id} email");
-                        }
-                    }
-                }
-            } else {
-                $this->info('No duplicate email addresses found');
-            }
-        } else {
-            $this->info('Email column not found in students table');
-        }
     }
 
-    // ✅ NEW: Clean up duplicate mobile numbers
     private function cleanupDuplicateMobileNumbers($dryRun = false)
     {
         $this->info('Checking for duplicate mobile numbers...');
         
-        // Check for duplicate student mobile numbers
         $duplicateStudentMobiles = Student::select('student_mobile')
             ->whereNotNull('student_mobile')
             ->where('student_mobile', '!=', '')
@@ -150,19 +104,13 @@ class CleanupImportDuplicates extends Command
             $this->warn("Found {$duplicateStudentMobiles->count()} duplicate student mobile numbers");
             
             foreach ($duplicateStudentMobiles as $mobile) {
-                $students = Student::where('student_mobile', $mobile)
-                    ->orderBy('created_at', 'asc')
-                    ->get();
-                    
+                $students = Student::where('student_mobile', $mobile)->orderBy('created_at', 'asc')->get();
                 $this->info("Processing student mobile: {$mobile}");
                 
-                // Keep the first student, clear mobile for the rest
-                $keepStudent = $students->first();
                 $duplicates = $students->skip(1);
                 
                 foreach ($duplicates as $duplicate) {
                     $this->warn("  - Would clear student mobile for student ID {$duplicate->id} ({$duplicate->name})");
-                    
                     if (!$dryRun) {
                         $duplicate->update(['student_mobile' => null]);
                         $this->info("  - Cleared student mobile for student ID {$duplicate->id}");
@@ -172,163 +120,86 @@ class CleanupImportDuplicates extends Command
         } else {
             $this->info('No duplicate student mobile numbers found');
         }
+    }
+    
+    /**
+     * ✅ CHANGED: This method now cleans up duplicate StudentFee records.
+     * A duplicate is defined as a student having the same fee category twice for the same academic year.
+     */
+    private function cleanupDuplicateStudentFees($dryRun = false)
+    {
+        $this->info('Checking for duplicate fee components...');
 
-        // Check for duplicate father mobile numbers
-        $duplicateFatherMobiles = Student::select('father_mobile')
-            ->whereNotNull('father_mobile')
-            ->where('father_mobile', '!=', '')
-            ->groupBy('father_mobile')
-            ->having(DB::raw('COUNT(*)'), '>', 1)
-            ->pluck('father_mobile');
-            
-        if ($duplicateFatherMobiles->count() > 0) {
-            $this->warn("Found {$duplicateFatherMobiles->count()} duplicate father mobile numbers");
-            
-            foreach ($duplicateFatherMobiles as $mobile) {
-                $students = Student::where('father_mobile', $mobile)
-                    ->orderBy('created_at', 'asc')
-                    ->get();
-                    
-                $this->info("Processing father mobile: {$mobile}");
-                
-                // Keep the first student, clear mobile for the rest
-                $keepStudent = $students->first();
-                $duplicates = $students->skip(1);
-                
-                foreach ($duplicates as $duplicate) {
-                    $this->warn("  - Would clear father mobile for student ID {$duplicate->id} ({$duplicate->name})");
-                    
-                    if (!$dryRun) {
-                        $duplicate->update(['father_mobile' => null]);
-                        $this->info("  - Cleared father mobile for student ID {$duplicate->id}");
-                    }
-                }
-            }
-        } else {
-            $this->info('No duplicate father mobile numbers found');
-        }
-    }
-    
-    private function cleanupDuplicateInvoices($dryRun = false)
-    {
-        $this->info('Checking for duplicate invoices...');
-        
-        // Find invoices with duplicate invoice numbers
-        $duplicateInvoiceNumbers = Invoice::select('invoice_number')
-            ->groupBy('invoice_number')
-            ->having(DB::raw('COUNT(*)'), '>', 1)
-            ->pluck('invoice_number');
-            
-        if ($duplicateInvoiceNumbers->count() > 0) {
-            $this->warn("Found {$duplicateInvoiceNumbers->count()} duplicate invoice numbers");
-            
-            foreach ($duplicateInvoiceNumbers as $invoiceNumber) {
-                $invoices = Invoice::where('invoice_number', $invoiceNumber)
-                    ->orderBy('created_at', 'asc')
-                    ->get();
-                    
-                $this->info("Processing invoice number: {$invoiceNumber}");
-                
-                // Keep the first invoice, remove the rest
-                $keepInvoice = $invoices->first();
-                $duplicates = $invoices->skip(1);
-                
-                foreach ($duplicates as $duplicate) {
-                    $this->warn("  - Would remove invoice ID {$duplicate->id} (Created: {$duplicate->created_at})");
-                    
-                    if (!$dryRun) {
-                        // Delete invoice items first (if the table exists)
-                        if (Schema::hasTable('invoice_items')) {
-                            $duplicate->items()->delete();
-                        }
-                        
-                        // Delete the duplicate invoice
-                        $duplicate->delete();
-                        
-                        $this->info("  - Removed duplicate invoice ID {$duplicate->id}");
-                    }
-                }
-            }
-        } else {
-            $this->info('No duplicate invoice numbers found');
-        }
-        
-        // Find students with multiple invoices (only check by student_id since batch_id may not exist)
-        $studentsWithMultipleInvoices = Invoice::select('student_id')
-            ->groupBy('student_id')
-            ->having(DB::raw('COUNT(*)'), '>', 1)
+        $duplicateFees = DB::table('student_fees')
+            ->select('student_id', 'fee_category_id', 'academic_year', DB::raw('COUNT(*) as count'))
+            ->groupBy('student_id', 'fee_category_id', 'academic_year')
+            ->having('count', '>', 1)
             ->get();
-            
-        if ($studentsWithMultipleInvoices->count() > 0) {
-            $this->warn("Found {$studentsWithMultipleInvoices->count()} students with multiple invoices");
-            
-            foreach ($studentsWithMultipleInvoices as $record) {
-                $invoices = Invoice::where('student_id', $record->student_id)
-                    ->orderBy('created_at', 'asc')
-                    ->get();
-                    
-                $student = Student::find($record->student_id);
-                if (!$student) {
-                    continue;
-                }
-                
-                $studentName = $student->full_name ?? $student->name;
-                $this->info("Processing student: {$studentName} (ID: {$student->id})");
-                
-                // Keep the first invoice, remove the rest
-                $keepInvoice = $invoices->first();
-                $duplicates = $invoices->skip(1);
-                
-                foreach ($duplicates as $duplicate) {
-                    $this->warn("  - Would remove invoice ID {$duplicate->id} (Created: {$duplicate->created_at})");
-                    
+
+        if ($duplicateFees->count() > 0) {
+            $this->warn("Found {$duplicateFees->count()} cases of duplicate fee components.");
+
+            foreach ($duplicateFees as $duplicate) {
+                $fees = StudentFee::where([
+                    'student_id' => $duplicate->student_id,
+                    'fee_category_id' => $duplicate->fee_category_id,
+                    'academic_year' => $duplicate->academic_year,
+                ])
+                ->orderBy('created_at', 'asc')
+                ->get();
+
+                $studentName = $fees->first()->student->name ?? 'Unknown Student';
+                $categoryName = $fees->first()->feeCategory->name ?? 'Unknown Category';
+                $this->info("Processing duplicates for Student: {$studentName}, Fee: {$categoryName}, Year: {$duplicate->academic_year}");
+
+                // Keep the first one, remove the rest
+                $duplicatesToRemove = $fees->skip(1);
+
+                foreach ($duplicatesToRemove as $feeToRemove) {
+                    $this->warn("  - Would remove duplicate StudentFee ID {$feeToRemove->id} (Created: {$feeToRemove->created_at})");
+
                     if (!$dryRun) {
-                        // Delete invoice items first (if the table exists)
-                        if (Schema::hasTable('invoice_items')) {
-                            $duplicate->items()->delete();
-                        }
-                        
-                        // Delete the duplicate invoice
-                        $duplicate->delete();
-                        
-                        $this->info("  - Removed duplicate invoice ID {$duplicate->id}");
+                        // First, delete any payment items associated with this fee to avoid constraint violations
+                        $feeToRemove->componentPaymentItems()->delete();
+                        // Then delete the duplicate fee component
+                        $feeToRemove->delete();
+                        $this->info("  - Removed duplicate StudentFee ID {$feeToRemove->id}");
                     }
                 }
             }
         } else {
-            $this->info('No students with multiple invoices found');
+            $this->info('No duplicate fee components found.');
         }
     }
     
-    private function cleanupOrphanedInvoices($dryRun = false)
+    /**
+     * ✅ CHANGED: This method now cleans up orphaned StudentFee records.
+     */
+    private function cleanupOrphanedStudentFees($dryRun = false)
     {
-        $this->info('Checking for orphaned invoices...');
+        $this->info('Checking for orphaned fee components...');
         
-        $orphanedInvoices = Invoice::whereNotExists(function ($query) {
+        $orphanedFees = StudentFee::whereNotExists(function ($query) {
             $query->select(DB::raw(1))
                 ->from('students')
-                ->whereColumn('students.id', 'invoices.student_id');
+                ->whereColumn('students.id', 'student_fees.student_id');
         })->get();
         
-        if ($orphanedInvoices->count() > 0) {
-            $this->warn("Found {$orphanedInvoices->count()} orphaned invoices");
+        if ($orphanedFees->count() > 0) {
+            $this->warn("Found {$orphanedFees->count()} orphaned fee components");
             
-            foreach ($orphanedInvoices as $invoice) {
-                $this->warn("  - Would remove orphaned invoice ID {$invoice->id} (Number: {$invoice->invoice_number})");
+            foreach ($orphanedFees as $fee) {
+                $this->warn("  - Would remove orphaned StudentFee ID {$fee->id} for non-existent student ID {$fee->student_id}");
                 
                 if (!$dryRun) {
-                    // Delete invoice items first (if the table exists)
-                    if (Schema::hasTable('invoice_items')) {
-                        $invoice->items()->delete();
-                    }
-                    
-                    $invoice->delete();
-                    
-                    $this->info("  - Removed orphaned invoice ID {$invoice->id}");
+                    // Clean up associated payment items first
+                    $fee->componentPaymentItems()->delete();
+                    $fee->delete();
+                    $this->info("  - Removed orphaned StudentFee ID {$fee->id}");
                 }
             }
         } else {
-            $this->info('No orphaned invoices found');
+            $this->info('No orphaned fee components found');
         }
     }
     

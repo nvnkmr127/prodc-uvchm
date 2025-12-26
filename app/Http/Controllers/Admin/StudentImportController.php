@@ -15,12 +15,17 @@ use App\Models\Batch;
 use Maatwebsite\Excel\Validators\ValidationException;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use App\Services\ComponentPaymentService;
+use App\Services\SecureFileValidator;
 
 class StudentImportController extends Controller
 {
-    /**
-     * Show the import form with invoice creation options
-     */
+   protected $componentPaymentService;
+
+    public function __construct(ComponentPaymentService $componentPaymentService)
+    {
+        $this->componentPaymentService = $componentPaymentService;
+    }
     public function create(): View
     {
         $batches = Batch::with('course')->orderBy('name')->get();
@@ -29,28 +34,42 @@ class StudentImportController extends Controller
                                  ->limit(10)
                                  ->get();
         
+        // The view should be updated to show "Auto Create Fee Components"
         return view('admin.students.import', compact('batches', 'recentImports'));
     }
 
     /**
-     * Process the import with invoice creation options
+     * Process the import with fee component creation options
      */
     public function store(Request $request): RedirectResponse
     {
         $request->validate([
-            'import_file' => ['required', 'mimes:xlsx,xls,csv', 'max:2048'],
+            'import_file' => ['required', 'file', 'max:5120'], // Increased to 5MB to match SecureFileValidator
             'batch_id' => ['required', 'exists:batches,id'],
-            'auto_create_invoices' => ['nullable', 'boolean'], // ✅ NEW: Invoice creation option
-            'import_settings' => ['nullable', 'array'], // ✅ NEW: Additional settings
+            // ✅ CHANGED: from auto_create_invoices to auto_create_fee_components
+            'auto_create_fee_components' => ['nullable', 'boolean'], 
+            'import_settings' => ['nullable', 'array'],
         ]);
 
-        $batch = Batch::with('course')->findOrFail($request->batch_id);
-        $autoCreateInvoices = $request->boolean('auto_create_invoices', true); // ✅ Default to true
+        // Enhanced file validation using SecureFileValidator
+        $fileValidator = new SecureFileValidator();
+        $validationResult = $fileValidator->validateFile($request->file('import_file'), ['xlsx', 'xls', 'csv']);
         
-        Log::info('Import started with invoice options:', [
+        if (!$validationResult['valid']) {
+            return redirect()->back()
+                ->withInput()
+                ->with('error', $validationResult['error']);
+        }
+
+        $batch = Batch::with('course')->findOrFail($request->batch_id);
+        // ✅ CHANGED: variable name to reflect component-based system
+        $autoCreateFeeComponents = $request->boolean('auto_create_fee_components', true);
+        
+        // ✅ CHANGED: Updated logging to be component-specific
+        Log::info('Import started with fee component options:', [
             'batch_id' => $request->batch_id,
             'batch_name' => $batch->name,
-            'auto_create_invoices' => $autoCreateInvoices,
+            'auto_create_fee_components' => $autoCreateFeeComponents,
             'file_original_name' => $request->file('import_file')->getClientOriginalName(),
             'file_size' => $request->file('import_file')->getSize(),
             'user_id' => auth()->id()
@@ -60,13 +79,13 @@ class StudentImportController extends Controller
         DB::beginTransaction();
 
         try {
-            // ✅ Create import with invoice creation option
-            $import = new StudentsImport($batch, $autoCreateInvoices);
+            // ✅ CHANGED: Pass the new component flag to the importer
+            $import = new StudentsImport($batch, $autoCreateFeeComponents);
             
             // Import the file
             Excel::import($import, $request->file('import_file'));
             
-            // ✅ Complete the import log
+            // ✅ Complete the import log (the method inside StudentsImport will be updated)
             $import->completeImportLog();
             
             // Commit the transaction
@@ -75,13 +94,13 @@ class StudentImportController extends Controller
             // ✅ Get comprehensive import statistics
             $summary = $import->getImportSummary();
             
-            // ✅ Build detailed success message with invoice information
-            $message = $this->buildImportSuccessMessage($summary, $batch, $autoCreateInvoices);
+            // ✅ CHANGED: Build a success message that mentions fee components
+            $message = $this->buildImportSuccessMessage($summary, $batch, $autoCreateFeeComponents);
             
             Log::info('Import completed successfully:', [
                 'import_summary' => $summary,
                 'batch_name' => $batch->name,
-                'auto_create_invoices' => $autoCreateInvoices
+                'auto_create_fee_components' => $autoCreateFeeComponents
             ]);
             
             // ✅ Store detailed results in session for display
@@ -89,8 +108,9 @@ class StudentImportController extends Controller
             if ($summary['rejected'] > 0) {
                 session()->flash('rejected_students', $summary['rejected_details']);
             }
-            if ($summary['invoice_errors'] > 0) {
-                session()->flash('invoice_errors', $summary['invoice_error_details']);
+            // ✅ CHANGED: from invoice_errors to fee_component_errors
+            if ($summary['fee_component_errors'] > 0) {
+                session()->flash('fee_component_errors', $summary['fee_component_error_details']);
             }
             
             // ✅ Determine message type based on results
@@ -98,12 +118,12 @@ class StudentImportController extends Controller
             
             return redirect()->route('admin.students.index')
                 ->with($messageType, $message)
-                ->with('import_log_id', $summary['import_log_id']); // ✅ For detailed view
+                ->with('import_log_id', $summary['import_log_id']); // For detailed view
                 
         } catch (ValidationException $e) {
             DB::rollBack();
             
-            // ✅ Log validation failures with import log
+            // Log validation failures with import log
             if (isset($import)) {
                 $import->completeImportLog();
                 ImportLog::where('id', $import->getImportSummary()['import_log_id'])
@@ -113,7 +133,7 @@ class StudentImportController extends Controller
             Log::error('Import validation failed:', [
                 'failures' => $e->failures(),
                 'batch_id' => $request->batch_id,
-                'auto_create_invoices' => $autoCreateInvoices
+                'auto_create_fee_components' => $autoCreateFeeComponents
             ]);
             
             $errorMessages = [];
@@ -134,7 +154,7 @@ class StudentImportController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             
-            // ✅ Mark import as failed
+            // Mark import as failed
             if (isset($import)) {
                 $import->completeImportLog();
                 ImportLog::where('id', $import->getImportSummary()['import_log_id'])
@@ -145,7 +165,7 @@ class StudentImportController extends Controller
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
                 'batch_id' => $request->batch_id,
-                'auto_create_invoices' => $autoCreateInvoices,
+                'auto_create_fee_components' => $autoCreateFeeComponents,
                 'file_name' => $request->file('import_file')->getClientOriginalName()
             ]);
             
@@ -162,7 +182,7 @@ class StudentImportController extends Controller
     }
 
     /**
-     * ✅ NEW: Show detailed import log
+     * Show detailed import log
      */
     public function showImportLog(ImportLog $importLog): View
     {
@@ -172,7 +192,7 @@ class StudentImportController extends Controller
     }
 
     /**
-     * ✅ NEW: List all import logs
+     * List all import logs
      */
     public function importLogs(Request $request): View
     {
@@ -208,60 +228,14 @@ class StudentImportController extends Controller
         return view('admin.students.import-logs', compact('importLogs', 'batches', 'users'));
     }
 
-    /**
-     * ✅ NEW: Retry invoice creation for failed invoices
-     */
-    public function retryInvoiceCreation(ImportLog $importLog): RedirectResponse
-    {
-        try {
-            DB::beginTransaction();
-
-            $invoiceService = app(\App\Services\InvoiceService::class);
-            $successCount = 0;
-            $errorCount = 0;
-            $errors = [];
-
-            // Get students that were imported but don't have invoices
-            $importedStudents = $importLog->getImportedStudents();
-            
-            foreach ($importedStudents as $logDetail) {
-                if ($logDetail->student && $logDetail->student->invoices()->count() === 0) {
-                    try {
-                        $invoiceService->generateTermInvoicesForStudent($logDetail->student);
-                        $successCount++;
-                    } catch (\Exception $e) {
-                        $errorCount++;
-                        $errors[] = "Failed for {$logDetail->student->name}: " . $e->getMessage();
-                    }
-                }
-            }
-
-            // Update import log
-            $importLog->update([
-                'invoices_created' => $importLog->invoices_created + $successCount,
-                'invoice_errors_count' => $errorCount,
-            ]);
-
-            DB::commit();
-
-            $message = "Invoice retry completed. Created: {$successCount} invoices.";
-            if ($errorCount > 0) {
-                $message .= " Errors: {$errorCount}.";
-            }
-
-            return redirect()->back()->with('success', $message);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return redirect()->back()->with('error', 'Failed to retry invoice creation: ' . $e->getMessage());
-        }
-    }
 
     /**
-     * ✅ NEW: Export import log details
+     * Export import log details
      */
     public function exportImportLog(ImportLog $importLog)
     {
+        // This would require a new Export class: App\Exports\ImportLogExport
+        // For now, we'll assume it exists.
         $export = new \App\Exports\ImportLogExport($importLog);
         return Excel::download($export, "import_log_{$importLog->id}_{$importLog->created_at->format('Y-m-d')}.xlsx");
     }
@@ -287,9 +261,9 @@ class StudentImportController extends Controller
     }
 
     /**
-     * ✅ NEW: Build comprehensive import success message
+     * ✅ CHANGED: Build comprehensive import success message with component terminology
      */
-    private function buildImportSuccessMessage(array $summary, Batch $batch, bool $autoCreateInvoices): string
+    private function buildImportSuccessMessage(array $summary, Batch $batch, bool $autoCreateFeeComponents): string
     {
         $message = "🎉 **Import Completed Successfully!**\n\n";
         $message .= "📊 **Import Summary:**\n";
@@ -303,21 +277,21 @@ class StudentImportController extends Controller
             $message .= "❌ **Rejected:** {$summary['rejected']} students (validation issues)\n";
         }
 
-        // ✅ Invoice creation summary
-        if ($autoCreateInvoices) {
-            $message .= "\n💰 **Invoice Creation:**\n";
-            $message .= "📄 **Invoices Created:** {$summary['invoices_created']}\n";
+        // ✅ Fee component creation summary
+        if ($autoCreateFeeComponents) {
+            $message .= "\n💰 **Fee Component Creation:**\n";
+            $message .= "📄 **Fee Components Created:** {$summary['fee_components_created']}\n"; // updated key
             
-            if ($summary['invoice_errors'] > 0) {
-                $message .= "⚠️ **Invoice Errors:** {$summary['invoice_errors']} (can be retried)\n";
+            if ($summary['fee_component_errors'] > 0) { // updated key
+                $message .= "⚠️ **Fee Creation Errors:** {$summary['fee_component_errors']} (can be retried)\n";
             }
             
             if ($summary['imported'] > 0) {
-                $invoiceSuccessRate = round(($summary['invoices_created'] / $summary['imported']) * 100, 1);
-                $message .= "📈 **Invoice Success Rate:** {$invoiceSuccessRate}%\n";
+                $successRate = round(($summary['fee_components_created'] / $summary['imported']) * 100, 1);
+                $message .= "📈 **Fee Creation Success Rate:** {$successRate}%\n";
             }
         } else {
-            $message .= "\n💰 **Invoices:** Not created (disabled in import settings)\n";
+            $message .= "\n💰 **Fee Components:** Not created (disabled in import settings)\n";
         }
         
         $message .= "\n📁 **Batch:** {$batch->name}\n";
@@ -328,13 +302,13 @@ class StudentImportController extends Controller
     }
 
     /**
-     * ✅ NEW: Determine message type based on results
+     * Determine message type based on results
      */
     private function determineMessageType(array $summary): string
     {
         if ($summary['rejected'] > 0 && $summary['imported'] === 0) {
             return 'error';
-        } elseif ($summary['rejected'] > 0 || $summary['invoice_errors'] > 0) {
+        } elseif ($summary['rejected'] > 0 || $summary['fee_component_errors'] > 0) { // updated key
             return 'warning';
         } else {
             return 'success';

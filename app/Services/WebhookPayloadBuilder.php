@@ -1,22 +1,24 @@
 <?php
 
-// STEP 1: Create this file: app/Services/WebhookPayloadBuilder.php
+// app/Services/WebhookPayloadBuilder.php
 
 namespace App\Services;
 
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Payment;
+use App\Models\Student;
+use App\Models\StudentFee;
+use App\Models\StudentConcession;
 
 class WebhookPayloadBuilder
 {
     /**
      * Build optimized payload from existing EloquentWebhookEvent
-     * This is the method your UniversalWebhookListener is looking for
      */
     public static function buildOptimizedPayload($event): array
     {
         try {
-            // Extract key information from the existing event structure
             $eventName = property_exists($event, 'webhookEventName') ? $event->webhookEventName : 'unknown';
             $model = property_exists($event, 'model') ? $event->model : null;
             $eventType = property_exists($event, 'eventType') ? $event->eventType : 'unknown';
@@ -32,7 +34,7 @@ class WebhookPayloadBuilder
                 'event' => $eventName,
                 'event_id' => 'evt_' . uniqid(),
                 'timestamp' => now()->toISOString(),
-                'app_name' => config('app.name', 'UVCHM'),
+                'app_name' => config('app.name', 'CollegeManagement'),
                 'environment' => app()->environment(),
                 'data' => self::buildEventData($modelType, $eventType, $model, $additionalData)
             ];
@@ -48,27 +50,33 @@ class WebhookPayloadBuilder
     }
 
     /**
-     * Build event-specific data based on model type
+     * Build event-specific data based on component models
      */
     private static function buildEventData(string $modelType, string $action, Model $model, array $additionalData = []): array
     {
-        switch ($modelType) {
-            case 'payment':
-                return self::buildPaymentData($action, $model, $additionalData);
-            case 'student':
-                return self::buildStudentData($action, $model, $additionalData);
-            case 'invoice':
-                return self::buildInvoiceData($action, $model, $additionalData);
-            default:
-                return self::buildGenericData($action, $model, $additionalData);
-        }
+        return match ($modelType) {
+            'payment' => self::buildPaymentData($action, $model, $additionalData),
+            'student' => self::buildStudentData($action, $model, $additionalData),
+            'studentfee' => self::buildStudentFeeData($action, $model, $additionalData),
+            'studentconcession' => self::buildConcessionData($action, $model, $additionalData),
+            default => self::buildGenericData($action, $model, $additionalData),
+        };
     }
 
     /**
-     * Build payment webhook data - clean and minimal
+     * ✅ FIXED: Build component-based payment webhook data with proper relationship loading
      */
     private static function buildPaymentData(string $action, Model $payment, array $additionalData = []): array
     {
+        // Force load relationships if not already loaded
+        if (!$payment->relationLoaded('student')) {
+            $payment->load('student');
+        }
+        
+        if (!$payment->relationLoaded('componentItems')) {
+            $payment->load('componentItems.studentFee.feeCategory');
+        }
+
         $data = [
             'id' => $payment->id,
             'action' => $action,
@@ -77,65 +85,72 @@ class WebhookPayloadBuilder
                 'amount' => (float) $payment->amount,
                 'formatted_amount' => '₹' . number_format($payment->amount, 2),
                 'payment_method' => $payment->payment_method,
-                'payment_date' => $payment->payment_date,
+                'payment_date' => $payment->payment_date ? $payment->payment_date->toISOString() : null,
                 'receipt_number' => $payment->receipt_number,
-                'status' => 'completed'
-            ]
+                'status' => $payment->status ?? 'completed',
+                'payment_type' => $payment->payment_type ?? 'component',
+            ],
+            'receipt_urls' => self::generatePublicReceiptUrls($payment),
+            'components_paid' => [] // Initialize empty array
         ];
 
-        // Add invoice info if payment has invoice
-        try {
-            if ($payment->invoice) {
-                // Calculate updated due amount after this payment
-                $totalPaid = $payment->invoice->paid_amount + $payment->amount;
-                $remainingDue = $payment->invoice->total_amount - $totalPaid;
-                
-                // Determine payment status
-                $paymentStatus = 'partial';
-                if ($remainingDue <= 0) {
-                    $paymentStatus = 'fully_paid';
-                } elseif ($totalPaid == $payment->amount) {
-                    $paymentStatus = 'first_payment';
-                }
-                
-                $data['invoice'] = [
-                    'id' => $payment->invoice->id,
-                    'invoice_number' => $payment->invoice->invoice_number,
-                    'total_amount' => (float) $payment->invoice->total_amount,
-                    'paid_before_this' => (float) $payment->invoice->paid_amount,
-                    'paid_now' => (float) $payment->amount,
-                    'total_paid' => (float) $totalPaid,
-                    'due_amount' => (float) max(0, $remainingDue),
-                    'status' => $payment->invoice->status,
-                    'payment_status' => $paymentStatus
-                ];
-
-                // Add student info if available
-                if ($payment->invoice->student) {
-                    $student = $payment->invoice->student;
-                    $data['student'] = [
-                        'id' => $student->id,
-                        'name' => $student->name,
-                        'enrollment_number' => $student->enrollment_number,
-                        'email' => $student->email,
-                        'mobile' => $student->student_mobile,
-                        'father_name' => $student->father_name,
-                        'father_mobile' => $student->father_mobile
-                    ];
-                }
-            }
-        } catch (\Exception $e) {
-            // If there's an error loading relations, just skip them
-            \Log::warning('Could not load payment relations for webhook', [
-                'payment_id' => $payment->id,
-                'error' => $e->getMessage()
-            ]);
+        // Add student information
+        if ($payment->student) {
+            $student = $payment->student;
+            $data['student'] = [
+                'id' => $student->id,
+                'name' => $student->name,
+                'enrollment_number' => $student->enrollment_number,
+                'email' => $student->email ?? null,
+                'mobile' => $student->student_mobile ?? null,
+                'Father mobile' => $student->father_mobile ?? null,
+            ];
         }
 
-        // Always generate public receipt URLs (override any admin URLs)
-        $data['receipt_urls'] = self::generatePublicReceiptUrls($payment);
+        // ✅ FIXED: Add component details with proper null checking
+        if ($payment->payment_type === 'component' || $payment->isComponentPayment()) {
+            try {
+                $componentItems = $payment->componentItems;
+                
+                if ($componentItems && $componentItems->count() > 0) {
+                    $data['components_paid'] = $componentItems->map(function ($item) {
+                        $categoryName = 'Unknown Category';
+                        
+                        // Safely get category name
+                        if ($item->studentFee) {
+                            if ($item->studentFee->feeCategory) {
+                                $categoryName = $item->studentFee->feeCategory->name;
+                            } elseif ($item->studentFee->relationLoaded('feeCategory')) {
+                                // Try to load the relationship if not loaded
+                                $item->studentFee->load('feeCategory');
+                                $categoryName = $item->studentFee->feeCategory->name ?? $categoryName;
+                            }
+                        }
 
-        return $data;
+                        return [
+                            'student_fee_id' => $item->student_fee_id,
+                            'category_name' => $categoryName,
+                            'amount_paid' => (float) $item->amount_paid,
+                            'fee_status_after_payment' => $item->studentFee ? $item->studentFee->status : null,
+                        ];
+                    })->toArray();
+                } else {
+                    // Log warning if no component items found for component payment
+                    \Log::warning('Component payment has no component items', [
+                        'payment_id' => $payment->id,
+                        'payment_type' => $payment->payment_type
+                    ]);
+                }
+                
+            } catch (\Exception $e) {
+                \Log::warning('Could not load component items for webhook', [
+                    'payment_id' => $payment->id,
+                    'error' => $e->getMessage()
+                ]);
+            }
+        }
+
+        return array_merge($data, $additionalData);
     }
 
     /**
@@ -143,13 +158,12 @@ class WebhookPayloadBuilder
      */
     private static function generatePublicReceiptUrls(Model $payment): array
     {
-        $baseUrl = config('app.url');
+        $baseUrl = rtrim(config('app.url'), '/');
         $receiptNumber = $payment->receipt_number;
         
         return [
             'view' => "{$baseUrl}/receipts/{$receiptNumber}",
             'download_pdf' => "{$baseUrl}/receipts/{$receiptNumber}/pdf",
-            'public' => "{$baseUrl}/receipts/{$receiptNumber}"
         ];
     }
 
@@ -166,93 +180,140 @@ class WebhookPayloadBuilder
                 'name' => $student->name,
                 'email' => $student->email,
                 'enrollment_number' => $student->enrollment_number,
-                'mobile' => $student->student_mobile,
-                'father_name' => $student->father_name,
-                'father_mobile' => $student->father_mobile,
                 'status' => $student->status,
-                'admission_date' => $student->admission_date
+                'admission_date' => $student->admission_date,
+                'mobile' => $student->student_mobile,
             ]
         ];
 
-        // Add batch info if available
         try {
             if ($student->batch) {
                 $data['batch'] = [
-                    'id' => $student->batch->id,
-                    'name' => $student->batch->name
+                    'id' => $student->batch->id, 
+                    'name' => $student->batch->name,
+                    'course_id' => $student->batch->course_id ?? null
                 ];
             }
         } catch (\Exception $e) {
-            // Skip if batch relation fails
+            // Skip if relation fails
         }
 
         return array_merge($data, $additionalData);
     }
 
     /**
-     * Build invoice webhook data
+     * Build StudentFee webhook data
      */
-    private static function buildInvoiceData(string $action, Model $invoice, array $additionalData = []): array
+    private static function buildStudentFeeData(string $action, Model $studentFee, array $additionalData = []): array
     {
         $data = [
-            'id' => $invoice->id,
+            'id' => $studentFee->id,
             'action' => $action,
-            'invoice' => [
-                'id' => $invoice->id,
-                'invoice_number' => $invoice->invoice_number,
-                'total_amount' => (float) $invoice->total_amount,
-                'due_amount' => (float) $invoice->due_amount,
-                'status' => $invoice->status,
-                'due_date' => $invoice->due_date,
-                'issue_date' => $invoice->issue_date
+            'student_fee' => [
+                'id' => $studentFee->id,
+                'amount' => (float) $studentFee->amount,
+                'paid_amount' => (float) $studentFee->paid_amount,
+                'concession_amount' => (float) ($studentFee->concession_amount ?? 0),
+                'remaining_amount' => (float) $studentFee->getRemainingAmount(),
+                'status' => $studentFee->status,
+                'due_date' => $studentFee->due_date,
+                'academic_year' => $studentFee->academic_year,
             ]
         ];
 
-        // Add student info if available
         try {
-            if ($invoice->student) {
+            if ($studentFee->student) {
                 $data['student'] = [
-                    'id' => $invoice->student->id,
-                    'name' => $invoice->student->name,
-                    'enrollment_number' => $invoice->student->enrollment_number
+                    'id' => $studentFee->student->id, 
+                    'name' => $studentFee->student->name,
+                    'enrollment_number' => $studentFee->student->enrollment_number
+                ];
+            }
+            
+            if ($studentFee->feeCategory) {
+                $data['fee_category'] = [
+                    'id' => $studentFee->feeCategory->id, 
+                    'name' => $studentFee->feeCategory->name
                 ];
             }
         } catch (\Exception $e) {
-            // Skip if student relation fails
+            // Skip if relations fail
+        }
+
+        return array_merge($data, $additionalData);
+    }
+    
+    /**
+     * Build StudentConcession webhook data
+     */
+    private static function buildConcessionData(string $action, Model $concession, array $additionalData = []): array
+    {
+        $data = [
+            'id' => $concession->id,
+            'action' => $action,
+            'concession' => [
+                'id' => $concession->id,
+                'amount' => (float) $concession->amount,
+                'reason' => $concession->reason,
+                'approved_by' => $concession->approved_by,
+                'status' => $concession->status,
+            ]
+        ];
+
+        try {
+            if ($concession->studentFee) {
+                $data['student_fee'] = [
+                    'id' => $concession->studentFee->id,
+                    'category_name' => $concession->studentFee->feeCategory->name ?? 'Unknown'
+                ];
+            }
+            
+            if (isset($concession->studentFee->student)) {
+                $data['student'] = [
+                    'id' => $concession->studentFee->student->id,
+                    'name' => $concession->studentFee->student->name
+                ];
+            }
+        } catch (\Exception $e) {
+            // Skip if relations fail
         }
 
         return array_merge($data, $additionalData);
     }
 
     /**
-     * Build generic model data for unknown types
+     * Build generic webhook data for unknown models
      */
     private static function buildGenericData(string $action, Model $model, array $additionalData = []): array
     {
         $data = [
-            'id' => $model->id,
+            'id' => $model->getKey(),
             'action' => $action,
-            'model_type' => get_class($model),
-            'model_data' => $model->only(['id', 'name', 'title', 'status', 'created_at', 'updated_at'])
+            'model_type' => class_basename($model),
+            'model_data' => $model->toArray(),
         ];
 
         return array_merge($data, $additionalData);
     }
 
     /**
-     * Build fallback payload for events without proper model data
+     * Build fallback payload when something goes wrong
      */
     private static function buildFallbackPayload($event): array
     {
         return [
-            'event' => property_exists($event, 'webhookEventName') ? $event->webhookEventName : 'unknown',
+            'event' => 'system.error',
             'event_id' => 'evt_' . uniqid(),
             'timestamp' => now()->toISOString(),
-            'app_name' => config('app.name', 'UVCHM'),
+            'app_name' => config('app.name', 'CollegeManagement'),
             'environment' => app()->environment(),
             'data' => [
+                'error' => 'Could not build webhook payload',
                 'event_class' => get_class($event),
-                'message' => 'Optimized payload could not be built, using fallback'
+                'debug_info' => [
+                    'has_model' => property_exists($event, 'model') && $event->model !== null,
+                    'model_class' => property_exists($event, 'model') && $event->model ? get_class($event->model) : null,
+                ]
             ]
         ];
     }

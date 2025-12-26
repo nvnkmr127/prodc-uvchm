@@ -7,7 +7,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use App\Services\PaymentReminderService;
+use App\Services\ComponentPaymentReminderService;
 
 class ProcessPaymentReminders implements ShouldQueue
 {
@@ -24,7 +24,7 @@ class ProcessPaymentReminders implements ShouldQueue
 
     public function handle()
     {
-        $reminderService = app(PaymentReminderService::class);
+        $reminderService = app(ComponentPaymentReminderService::class);
         
         // Process reminders in batches to avoid memory issues
         $result = $reminderService->processPendingReminders($this->batchSize, $this->filters);

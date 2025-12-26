@@ -8,7 +8,7 @@ use App\Models\Student;
 use App\Models\Course;
 use App\Models\Batch;
 use App\Models\User;
-use App\Models\Invoice;
+use App\Models\Payment; // ✅ CHANGED: Replaced Invoice with Payment model
 
 class SessionSearchController extends Controller
 {
@@ -25,7 +25,7 @@ class SessionSearchController extends Controller
                 'courses' => [],
                 'batches' => [],
                 'faculty' => [],
-                'invoices' => []
+                'payments' => [] // ✅ CHANGED: 'invoices' key is now 'payments'
             ]);
         }
 
@@ -34,7 +34,7 @@ class SessionSearchController extends Controller
             'courses' => $this->searchCourses($query),
             'batches' => $this->searchBatches($query),
             'faculty' => $this->searchFaculty($query),
-            'invoices' => $this->searchInvoices($query),
+            'payments' => $this->searchPayments($query), // ✅ CHANGED: Called the new searchPayments method
         ];
 
         return response()->json($results);
@@ -128,23 +128,25 @@ class SessionSearchController extends Controller
     }
 
     /**
-     * Search invoices
+     * ✅ REPLACED: searchInvoices method is now searchPayments.
+     * Searches for component-based payments by their receipt number.
      */
-    private function searchInvoices($query)
+    private function searchPayments($query)
     {
-        return Invoice::where('invoice_number', 'LIKE', "%{$query}%")
+        return Payment::where('payment_type', 'component')
+                     ->where('receipt_number', 'LIKE', "%{$query}%")
                      ->with('student')
                      ->limit(3)
                      ->get()
-                     ->map(function ($invoice) {
+                     ->map(function ($payment) {
                          return [
-                             'id' => $invoice->id,
-                             'invoice_number' => $invoice->invoice_number,
-                             'student_name' => $invoice->student->name,
-                             'total_amount' => $invoice->total_amount,
-                             'status' => $invoice->status,
-                             'url' => route('admin.invoices.show', $invoice),
-                             'type' => 'invoice'
+                             'id' => $payment->id,
+                             'name' => 'Receipt: ' . $payment->receipt_number,
+                             'student_name' => $payment->student->name,
+                             'amount' => $payment->amount,
+                             'date' => $payment->payment_date->format('d M, Y'),
+                             'url' => route('admin.payments.receipt.show', $payment),
+                             'type' => 'payment'
                          ];
                      });
     }

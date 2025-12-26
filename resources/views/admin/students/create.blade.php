@@ -1,9 +1,6 @@
 @extends('layouts.theme')
-
 @section('title', 'Add New Student')
-
 @section('content')
-
 {{-- 1. Page Header --}}
 <div class="d-sm-flex align-items-center justify-content-between mb-4">
     <h1 class="h3 mb-0 text-gray-800">Add New Student</h1>
@@ -51,6 +48,7 @@
                             <input type="text" id="father_name" name="father_name" class="form-control" value="{{ old('father_name') }}">
                         </div>
                     </div>
+
                     <h5 class="mb-3">Source Information</h5>
                     <div class="row">
                         <div class="col-md-6 form-group">
@@ -78,8 +76,8 @@
                                    placeholder="Enter referral person name">
                         </div>
                     </div>
+                    
                     <hr>
-
                     <h5 class="mb-3">Contact & Address</h5>
                     <div class="row">
                         <div class="col-md-6 form-group">
@@ -89,10 +87,12 @@
                         <div class="col-md-6 form-group">
                             <label for="student_mobile">Student Mobile</label>
                             <input type="text" id="student_mobile" name="student_mobile" class="form-control" value="{{ old('student_mobile') }}">
+                            <div class="validation-feedback"></div>
                         </div>
                         <div class="col-md-6 form-group">
                             <label for="father_mobile">Father Mobile</label>
                             <input type="text" id="father_mobile" name="father_mobile" class="form-control" value="{{ old('father_mobile') }}">
+                            <div class="validation-feedback"></div>
                         </div>
                         <div class="col-md-6 form-group">
                             <label for="village">Village / Address</label>
@@ -129,6 +129,26 @@
                             <option value="">-- Select a course first --</option>
                         </select>
                     </div>
+                    <div class="form-group col-md-6">
+    <label for="biometric_employee_code">Biometric Employee Code</label>
+    <input type="text" 
+           class="form-control @error('biometric_employee_code') is-invalid @enderror" 
+           id="biometric_employee_code" 
+           name="biometric_employee_code" 
+           value="{{ old('biometric_employee_code', $student->biometric_employee_code ?? '') }}"
+           placeholder="Enter biometric device employee code">
+    
+    @error('biometric_employee_code')
+        <div class="invalid-feedback">{{ $message }}</div>
+    @enderror
+    
+    <small class="form-text text-muted">
+        This code is used by biometric devices for attendance tracking. 
+        <a href="#" id="generateSuggestion" class="text-primary">Generate from enrollment number</a>
+    </small>
+</div>
+
+                    
                     <div class="form-group">
                         <label>Student Photo</label>
                         <div class="custom-file">
@@ -149,25 +169,26 @@
         </div>
     </div>
 </form>
-
 @endsection
 
 @push('scripts')
 <script>
 $(document).ready(function() {
-    // File input label handler
+    // ==========================================
+    // 1. FILE INPUT HANDLER
+    // ==========================================
     $('.custom-file-input').on('change', function() {
         let fileName = $(this).val().split('\\').pop();
         $(this).next('.custom-file-label').addClass("selected").html(fileName);
     });
 
-    // Moved content from unnecessary inner DOMContentLoaded here
+    // ==========================================
+    // 2. MOBILE VALIDATION VARIABLES & FUNCTIONS
+    // ==========================================
     const studentMobileInput = document.getElementById('student_mobile');
     const fatherMobileInput = document.getElementById('father_mobile');
-    
-    // Validation patterns
     const mobilePattern = /^[6-9]\d{9}$/;
-    
+
     // Debounce function for API calls
     function debounce(func, wait) {
         let timeout;
@@ -180,60 +201,19 @@ $(document).ready(function() {
             timeout = setTimeout(later, wait);
         };
     }
-    
-    const sourceSelect = document.getElementById('source');
-    const referralWrapper = document.getElementById('referral_name_wrapper');
-    const referralInput = document.getElementById('referral_name');
-    const referralLabel = document.getElementById('referral_name_label');
-    
-    // Sources that require referral person name
-    const sourcesRequiringName = ['Referrals', 'pro', 'list', 'Student Refer'];
 
-    function toggleReferralField() {
-        if (sourcesRequiringName.includes(sourceSelect.value)) {
-            referralWrapper.style.display = 'block';
-            referralInput.required = true;
-            
-            // Update label based on source
-            if (sourceSelect.value === 'Referrals') {
-                referralLabel.textContent = 'Referral Person Name';
-                referralInput.placeholder = 'Enter referral person name';
-            } else if (sourceSelect.value === 'pro') {
-                referralLabel.textContent = 'Pro Person Name';
-                referralInput.placeholder = 'Enter pro person name';
-            } else if (sourceSelect.value === 'list') {
-                referralLabel.textContent = 'List Person Name';
-                referralInput.placeholder = 'Enter list person name';
-            } else if (sourceSelect.value === 'Student Refer') {
-                referralLabel.textContent = 'Student Referrer Name';
-                referralInput.placeholder = 'Enter student referrer name';
-            }
-        } else {
-            referralWrapper.style.display = 'none';
-            referralInput.value = '';
-            referralInput.required = false;
-        }
-    }
-
-    sourceSelect.addEventListener('change', toggleReferralField);
-    
     // Format mobile number input (remove non-digits, limit to 10 digits)
     function formatMobileInput(input) {
         input.addEventListener('input', function(e) {
-            // Remove all non-digit characters
             let value = e.target.value.replace(/\D/g, '');
             
-            // Limit to 10 digits
             if (value.length > 10) {
                 value = value.slice(0, 10);
             }
             
             e.target.value = value;
-            
-            // Validate format
             validateMobileFormat(e.target);
             
-            // Check for duplicates if valid format
             if (mobilePattern.test(value)) {
                 debouncedDuplicateCheck(e.target);
             }
@@ -243,16 +223,11 @@ $(document).ready(function() {
     // Validate mobile number format
     function validateMobileFormat(input) {
         const value = input.value;
-        const feedbackElement = input.nextElementSibling;
         
-        // Remove existing validation classes
         input.classList.remove('is-valid', 'is-invalid');
         
         if (value === '') {
-            // Empty is allowed
-            if (feedbackElement && feedbackElement.classList.contains('validation-feedback')) {
-                feedbackElement.textContent = '';
-            }
+            showValidationMessage(input, '', 'clear');
             return;
         }
         
@@ -269,18 +244,13 @@ $(document).ready(function() {
     function checkDuplicateMobile(input) {
         const value = input.value;
         const fieldName = input.name;
-        const studentId = document.querySelector('input[name="_method"]')?.value === 'PUT' 
-            ? window.location.pathname.split('/').pop() 
-            : null;
 
         if (!value || !mobilePattern.test(value)) {
             return;
         }
 
-        // Show loading state
         showValidationMessage(input, 'Checking availability...', 'loading');
 
-        // Make AJAX request to check duplicates
         fetch('/admin/students/check-mobile-duplicate', {
             method: 'POST',
             headers: {
@@ -290,7 +260,7 @@ $(document).ready(function() {
             body: JSON.stringify({
                 mobile: value,
                 field: fieldName,
-                student_id: studentId
+                student_id: null // For create, no existing student ID
             })
         })
         .then(response => response.json())
@@ -311,21 +281,16 @@ $(document).ready(function() {
         });
     }
 
-    // Debounced duplicate check
-    const debouncedDuplicateCheck = debounce(checkDuplicateMobile, 800);
-
     // Show validation message
     function showValidationMessage(input, message, type) {
         let feedbackElement = input.nextElementSibling;
         
-        // Create feedback element if it doesn't exist
         if (!feedbackElement || !feedbackElement.classList.contains('validation-feedback')) {
             feedbackElement = document.createElement('div');
             feedbackElement.className = 'validation-feedback';
             input.parentNode.insertBefore(feedbackElement, input.nextSibling);
         }
         
-        // Set message and styling
         feedbackElement.textContent = message;
         feedbackElement.className = 'validation-feedback';
         
@@ -346,6 +311,9 @@ $(document).ready(function() {
                 feedbackElement.classList.add('text-warning');
                 feedbackElement.style.display = 'block';
                 break;
+            case 'clear':
+                feedbackElement.style.display = 'none';
+                break;
         }
     }
 
@@ -362,7 +330,10 @@ $(document).ready(function() {
         return true;
     }
 
-    // Initialize validation for both inputs
+    // Debounced duplicate check
+    const debouncedDuplicateCheck = debounce(checkDuplicateMobile, 800);
+
+    // Initialize validation for mobile inputs
     if (studentMobileInput) {
         formatMobileInput(studentMobileInput);
         studentMobileInput.addEventListener('blur', checkSameMobiles);
@@ -373,7 +344,108 @@ $(document).ready(function() {
         fatherMobileInput.addEventListener('blur', checkSameMobiles);
     }
 
-    // Form submission validation
+    // ==========================================
+    // 3. SOURCE AND REFERRAL FIELD LOGIC
+    // ==========================================
+    const sourceSelect = document.getElementById('source');
+    const referralWrapper = document.getElementById('referral_name_wrapper');
+    const referralInput = document.getElementById('referral_name');
+    const referralLabel = document.getElementById('referral_name_label');
+    
+    // ✅ UPDATED: Sources that require referral person name (Added Agent and Other)
+    const sourcesRequiringName = ['Agent', 'Referrals', 'pro', 'list', 'Student Refer', 'Other'];
+
+    function toggleReferralField() {
+        if (sourcesRequiringName.includes(sourceSelect.value)) {
+            referralWrapper.style.display = 'block';
+            referralInput.required = true;
+            
+            // ✅ COMPLETE switch statement for all source types
+            switch (sourceSelect.value) {
+                case 'Agent':
+                    referralLabel.textContent = 'Agent Name';
+                    referralInput.placeholder = 'Enter agent name';
+                    break;
+                case 'Referrals':
+                    referralLabel.textContent = 'Referral Person Name';
+                    referralInput.placeholder = 'Enter referral person name';
+                    break;
+                case 'pro':
+                    referralLabel.textContent = 'Pro Person Name';
+                    referralInput.placeholder = 'Enter pro person name';
+                    break;
+                case 'list':
+                    referralLabel.textContent = 'List Person Name';
+                    referralInput.placeholder = 'Enter list person name';
+                    break;
+                case 'Student Refer':
+                    referralLabel.textContent = 'Student Referrer Name';
+                    referralInput.placeholder = 'Enter student referrer name';
+                    break;
+                case 'Other':
+                    referralLabel.textContent = 'Contact Person Name';
+                    referralInput.placeholder = 'Enter contact person name';
+                    break;
+                default:
+                    referralLabel.textContent = 'Referral Person Name';
+                    referralInput.placeholder = 'Enter referral person name';
+            }
+        } else {
+            referralWrapper.style.display = 'none';
+            referralInput.value = '';
+            referralInput.required = false;
+        }
+    }
+
+    // Add event listener for source change
+    sourceSelect.addEventListener('change', toggleReferralField);
+    
+    // ✅ IMPORTANT: Trigger on page load to show field if value is already selected (e.g., from validation errors)
+    toggleReferralField();
+
+    // ==========================================
+    // 4. DYNAMIC BATCH LOADING
+    // ==========================================
+    const courseSelect = $('#course_id_select');
+    const batchSelect = $('#batch_id');
+
+    courseSelect.on('change', function() {
+        const courseId = $(this).val();
+        batchSelect.html('<option value="">Loading...</option>').prop('disabled', true);
+        
+        if (courseId) {
+            $.ajax({
+                url: `/admin/get-batches-for-course/${courseId}`,
+                type: 'GET',
+                success: function(data) {
+                    batchSelect.html('<option value="">-- Select a Batch --</option>');
+                    if (data.length > 0) {
+                        $.each(data, function(key, batch) {
+                            const isSelected = '{{ old("batch_id") }}' == batch.id ? 'selected' : '';
+                            batchSelect.append(`<option value="${batch.id}" ${isSelected}>${batch.name}</option>`);
+                        });
+                        batchSelect.prop('disabled', false);
+                    } else {
+                        batchSelect.html('<option value="">-- No batches found --</option>');
+                    }
+                },
+                error: function() {
+                    batchSelect.html('<option value="">-- Error loading batches --</option>');
+                }
+            });
+        } else {
+            batchSelect.html('<option value="">-- Select a course first --</option>').prop('disabled', true);
+        }
+    });
+
+    // Trigger change on page load if a course is already selected (e.g., from old input)
+    if (courseSelect.val()) {
+        courseSelect.trigger('change');
+    }
+
+    // ==========================================
+    // 5. FORM SUBMISSION VALIDATION
+    // ==========================================
     const form = document.querySelector('form');
     if (form) {
         form.addEventListener('submit', function(e) {
@@ -398,6 +470,13 @@ $(document).ready(function() {
             if (!checkSameMobiles()) {
                 isValid = false;
             }
+
+            // ✅ Check if referral field is required and filled
+            if (sourcesRequiringName.includes(sourceSelect.value) && !referralInput.value.trim()) {
+                referralInput.classList.add('is-invalid');
+                showValidationMessage(referralInput, 'This field is required for the selected source', 'error');
+                isValid = false;
+            }
             
             if (!isValid) {
                 e.preventDefault();
@@ -412,42 +491,46 @@ $(document).ready(function() {
         });
     }
 
-    // Dynamic Batch Loading
-    const courseSelect = $('#course_id_select');
-    const batchSelect = $('#batch_id');
-
-    courseSelect.on('change', function() {
-        const courseId = $(this).val();
-        batchSelect.html('<option value="">Loading...</option>').prop('disabled', true);
-
-        if (courseId) {
-            $.ajax({
-                url: `/admin/get-batches-for-course/${courseId}`,
-                type: 'GET',
-                success: function(data) {
-                    batchSelect.html('<option value="">-- Select a Batch --</option>');
-                    if (data.length > 0) {
-                        $.each(data, function(key, batch) {
-                            batchSelect.append(`<option value="${batch.id}">${batch.name}</option>`);
-                        });
-                        batchSelect.prop('disabled', false);
-                    } else {
-                        batchSelect.html('<option value="">-- No batches found --</option>');
-                    }
-                },
-                error: function() {
-                    batchSelect.html('<option value="">-- Error loading batches --</option>');
-                }
-            });
-        } else {
-            batchSelect.html('<option value="">-- Select a course first --</option>').prop('disabled', true);
-        }
+    // ==========================================
+    // 6. DEBUG LOGGING (Remove in production)
+    // ==========================================
+    form.addEventListener('submit', function(e) {
+        console.log('Form submitting with source:', sourceSelect.value);
+        console.log('Referral name:', referralInput.value);
+        console.log('Referral field required:', sourcesRequiringName.includes(sourceSelect.value));
     });
-
-    // Trigger change on page load if a course is already selected (e.g., from old input)
-    if (courseSelect.val()) {
-        courseSelect.trigger('change');
-    }
 });
 </script>
+<script>
+$(document).ready(function() {
+    // Generate biometric code suggestion from enrollment number
+    $('#generateSuggestion').click(function(e) {
+        e.preventDefault();
+        
+        var enrollmentNumber = $('#enrollment_number').val();
+        if (!enrollmentNumber) {
+            alert('Please enter enrollment number first');
+            return;
+        }
+        
+        // Generate suggestion by removing common prefixes
+        var suggestion = enrollmentNumber.replace(/^(UVCHM-|UV-|ENR-|STD-)/i, '');
+        suggestion = suggestion.replace(/[^a-zA-Z0-9\-]/g, '');
+        
+        $('#biometric_employee_code').val(suggestion);
+    });
+    
+    // Auto-generate when enrollment number changes (optional)
+    $('#enrollment_number').blur(function() {
+        var biometricField = $('#biometric_employee_code');
+        if (!biometricField.val() && $(this).val()) {
+            var suggestion = $(this).val().replace(/^(UVCHM-|UV-|ENR-|STD-)/i, '');
+            suggestion = suggestion.replace(/[^a-zA-Z0-9\-]/g, '');
+            biometricField.val(suggestion);
+        }
+    });
+});
+</script>
+
+
 @endpush

@@ -45,7 +45,7 @@ class Setting extends Model
         'updated_at' => 'datetime',
     ];
 
-    /**
+/**
      * The attributes that should be hidden for arrays.
      */
     protected $hidden = [
@@ -59,8 +59,7 @@ class Setting extends Model
         'display_value',
         'is_default',
     ];
-
-    /**
+ /**
      * Boot the model.
      */
     protected static function boot()
@@ -79,17 +78,24 @@ class Setting extends Model
         // Automatically set type based on value if not explicitly set
         static::creating(function ($setting) {
             if (empty($setting->type)) {
-                $setting->type = $setting->detectType($setting->value);
+                $setting->type = $setting->detectType($setting->getRawValue());
             }
         });
 
         static::updating(function ($setting) {
             if ($setting->isDirty('value') && $setting->type === 'auto') {
-                $setting->type = $setting->detectType($setting->value);
+                $setting->type = $setting->detectType($setting->getRawValue());
             }
+        });
+
+        // Handle encryption during save operations
+        static::saving(function ($setting) {
+            $setting->handleEncryption();
         });
     }
 
+
+  
     /**
      * Activity log configuration
      */
@@ -102,7 +108,7 @@ class Setting extends Model
             ->setDescriptionForEvent(fn(string $eventName) => "Setting {$eventName}");
     }
 
-    /**
+   /**
      * Get the display value attribute.
      * This handles decryption and type casting.
      */
@@ -122,7 +128,51 @@ class Setting extends Model
     }
 
     /**
-     * Set value attribute with automatic encryption.
+     * FIXED: Handle encryption during save operations instead of attribute setting
+     */
+    protected function handleEncryption()
+    {
+        if (!$this->is_encrypted || empty($this->attributes['value'])) {
+            return;
+        }
+
+        // Don't double-encrypt
+        if ($this->isEncryptedValue($this->attributes['value'])) {
+            return;
+        }
+
+        try {
+            $this->attributes['value'] = Crypt::encrypt($this->attributes['value']);
+            Log::debug("Encrypted setting value for key: {$this->key}");
+        } catch (\Exception $e) {
+            Log::error("Failed to encrypt setting {$this->key}: " . $e->getMessage());
+            // Continue without encryption rather than failing
+        }
+    }
+
+    /**
+     * Check if a value is already encrypted
+     */
+    protected function isEncryptedValue($value)
+    {
+        if (!is_string($value)) {
+            return false;
+        }
+
+        try {
+            // Try to decode as Laravel encrypted payload
+            $payload = json_decode(base64_decode($value), true);
+            return is_array($payload) && 
+                   isset($payload['iv']) && 
+                   isset($payload['value']) && 
+                   isset($payload['mac']);
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Set value attribute - FIXED to not encrypt during attribute setting
      */
     public function setValueAttribute($value)
     {
@@ -136,29 +186,26 @@ class Setting extends Model
             $value = $value ? '1' : '0';
         }
 
-        // Encrypt if needed
-        if ($this->is_encrypted && !is_null($value) && $value !== '') {
-            try {
-                $this->attributes['value'] = Crypt::encrypt($value);
-            } catch (\Exception $e) {
-                Log::error("Failed to encrypt setting {$this->key}: " . $e->getMessage());
-                $this->attributes['value'] = $value;
-            }
-        } else {
-            $this->attributes['value'] = $value;
-        }
+        // Store raw value - encryption happens in handleEncryption() during save
+        $this->attributes['value'] = $value;
     }
 
     /**
-     * Get value attribute with automatic decryption.
+     * Get value attribute with proper decryption
      */
     public function getValueAttribute($value)
     {
-        if ($this->is_encrypted && !is_null($value) && $value !== '') {
+        // Check if this setting should be encrypted and value exists
+        if ($this->is_encrypted && !empty($value)) {
             try {
                 return Crypt::decrypt($value);
             } catch (\Exception $e) {
-                Log::warning("Failed to decrypt setting {$this->key}: " . $e->getMessage());
+                Log::warning("Failed to decrypt setting {$this->key}", [
+                    'error' => $e->getMessage(),
+                    'value_length' => strlen($value),
+                    'value_preview' => substr($value, 0, 50) . '...'
+                ]);
+                // Return null if decryption fails
                 return null;
             }
         }
@@ -167,11 +214,19 @@ class Setting extends Model
     }
 
     /**
+     * Get raw value without decryption (for internal use)
+     */
+    public function getRawValue()
+    {
+        return $this->attributes['value'] ?? null;
+    }
+
+ /**
      * Get the typed value based on the setting type.
      */
     public function getTypedValue()
     {
-        $value = $this->value;
+        $value = $this->value; // This triggers decryption if needed
 
         if (is_null($value)) {
             return null;
@@ -218,7 +273,7 @@ class Setting extends Model
         }
     }
 
-    /**
+  /**
      * Detect type based on value.
      */
     protected function detectType($value)
@@ -239,12 +294,14 @@ class Setting extends Model
             return 'json';
         }
 
-        if (filter_var($value, FILTER_VALIDATE_EMAIL)) {
-            return 'email';
-        }
+        if (is_string($value)) {
+            if (filter_var($value, FILTER_VALIDATE_EMAIL)) {
+                return 'email';
+            }
 
-        if (filter_var($value, FILTER_VALIDATE_URL)) {
-            return 'url';
+            if (filter_var($value, FILTER_VALIDATE_URL)) {
+                return 'url';
+            }
         }
 
         return 'text';
@@ -299,8 +356,7 @@ class Setting extends Model
     {
         return $query->where('is_encrypted', true);
     }
-
-    /**
+     /**
      * Scope to search settings by key or description.
      */
     public function scopeSearch(Builder $query, string $search)
@@ -317,7 +373,9 @@ class Setting extends Model
     public static function getAllSettings($useCache = true)
     {
         if (!$useCache) {
-            return static::pluck('value', 'key')->toArray();
+            return static::all()->mapWithKeys(function ($setting) {
+                return [$setting->key => $setting->getTypedValue()];
+            })->toArray();
         }
 
         return Cache::remember('all_settings', 3600, function () {
@@ -333,7 +391,9 @@ class Setting extends Model
     public static function getByGroup(string $group, $useCache = true)
     {
         if (!$useCache) {
-            return static::byGroup($group)->pluck('value', 'key')->toArray();
+            return static::byGroup($group)->get()->mapWithKeys(function ($setting) {
+                return [$setting->key => $setting->getTypedValue()];
+            })->toArray();
         }
 
         return Cache::remember("settings_group_{$group}", 3600, function () use ($group) {
@@ -349,7 +409,9 @@ class Setting extends Model
     public static function getPublicSettings($useCache = true)
     {
         if (!$useCache) {
-            return static::public()->pluck('value', 'key')->toArray();
+            return static::public()->get()->mapWithKeys(function ($setting) {
+                return [$setting->key => $setting->getTypedValue()];
+            })->toArray();
         }
 
         return Cache::remember('public_settings', 3600, function () {
@@ -360,35 +422,71 @@ class Setting extends Model
     }
 
     /**
-     * Set a setting value.
+     * ENHANCED: Set a setting value with better encryption handling
      */
     public static function set(string $key, $value, array $attributes = [])
     {
         $setting = static::firstOrNew(['key' => $key]);
 
-        $setting->fill(array_merge([
+        // Merge default attributes
+        $defaultAttributes = [
             'value' => $value,
             'group' => 'general',
             'type' => 'text',
             'is_public' => false,
             'is_encrypted' => false,
-        ], $attributes));
+        ];
 
-        return $setting->save();
+        $setting->fill(array_merge($defaultAttributes, $attributes));
+
+        try {
+            $result = $setting->save();
+            
+            if (!$result) {
+                Log::error("Failed to save setting: {$key}");
+                return false;
+            }
+
+            // Verify the setting was saved correctly
+            $verification = static::where('key', $key)->first();
+            if (!$verification) {
+                Log::error("Setting verification failed after save: {$key}");
+                return false;
+            }
+
+            Log::debug("Setting saved successfully", [
+                'key' => $key,
+                'encrypted' => $setting->is_encrypted,
+                'value_length' => strlen($verification->getRawValue())
+            ]);
+
+            return true;
+
+        } catch (\Exception $e) {
+            Log::error("Exception while saving setting {$key}: " . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+            return false;
+        }
     }
-
-    /**
+ /**
      * Get a setting value with default.
      */
     public static function get(string $key, $default = null, $useCache = true)
     {
-        if (!$useCache) {
-            $setting = static::where('key', $key)->first();
-            return $setting ? $setting->getTypedValue() : $default;
-        }
+        try {
+            if (!$useCache) {
+                $setting = static::where('key', $key)->first();
+                return $setting ? $setting->getTypedValue() : $default;
+            }
 
-        $settings = static::getAllSettings();
-        return $settings[$key] ?? $default;
+            $settings = static::getAllSettings();
+            return $settings[$key] ?? $default;
+
+        } catch (\Exception $e) {
+            Log::error("Error retrieving setting {$key}: " . $e->getMessage());
+            return $default;
+        }
     }
 
     /**
@@ -408,7 +506,7 @@ class Setting extends Model
     }
 
     /**
-     * Import settings from array or JSON.
+     * ENHANCED: Import settings with better error handling
      */
     public static function import($data, $overwrite = false)
     {
@@ -422,38 +520,46 @@ class Setting extends Model
 
         $imported = 0;
         $skipped = 0;
+        $errors = [];
 
         foreach ($data as $item) {
             $key = $item['key'] ?? null;
 
             if (!$key) {
+                $errors[] = 'Missing key in import item';
                 continue;
             }
 
-            $exists = static::where('key', $key)->exists();
+            try {
+                $exists = static::where('key', $key)->exists();
 
-            if ($exists && !$overwrite) {
-                $skipped++;
-                continue;
+                if ($exists && !$overwrite) {
+                    $skipped++;
+                    continue;
+                }
+
+                static::updateOrCreate(
+                    ['key' => $key],
+                    [
+                        'value' => $item['value'] ?? null,
+                        'group' => $item['group'] ?? 'general',
+                        'type' => $item['type'] ?? 'text',
+                        'description' => $item['description'] ?? null,
+                        'is_public' => $item['is_public'] ?? false,
+                        'is_encrypted' => $item['is_encrypted'] ?? false,
+                        'validation_rules' => $item['validation_rules'] ?? null,
+                    ]
+                );
+
+                $imported++;
+
+            } catch (\Exception $e) {
+                $errors[] = "Failed to import {$key}: " . $e->getMessage();
+                Log::error("Setting import error for {$key}", ['error' => $e->getMessage()]);
             }
-
-            static::updateOrCreate(
-                ['key' => $key],
-                [
-                    'value' => $item['value'] ?? null,
-                    'group' => $item['group'] ?? 'general',
-                    'type' => $item['type'] ?? 'text',
-                    'description' => $item['description'] ?? null,
-                    'is_public' => $item['is_public'] ?? false,
-                    'is_encrypted' => $item['is_encrypted'] ?? false,
-                    'validation_rules' => $item['validation_rules'] ?? null,
-                ]
-            );
-
-            $imported++;
         }
 
-        return compact('imported', 'skipped');
+        return compact('imported', 'skipped', 'errors');
     }
 
     /**
@@ -474,7 +580,7 @@ class Setting extends Model
         return $query->get()->map(function ($setting) use ($includeEncrypted) {
             $data = [
                 'key' => $setting->key,
-                'value' => $includeEncrypted || !$setting->is_encrypted ? $setting->value : '[ENCRYPTED]',
+                'value' => $includeEncrypted || !$setting->is_encrypted ? $setting->getTypedValue() : '[ENCRYPTED]',
                 'group' => $setting->group,
                 'type' => $setting->type,
                 'description' => $setting->description,
@@ -489,32 +595,6 @@ class Setting extends Model
         })->toArray();
     }
 
-    /**
-     * Reset settings to default values.
-     */
-    public static function resetToDefaults($group = null)
-    {
-        $query = static::query();
-
-        if ($group) {
-            $query->where('group', $group);
-        }
-
-        $settings = $query->get();
-        $reset = 0;
-
-        foreach ($settings as $setting) {
-            $defaultValue = static::getDefaultValue($setting->key);
-
-            if ($defaultValue !== null) {
-                $setting->value = $defaultValue;
-                $setting->save();
-                $reset++;
-            }
-        }
-
-        return $reset;
-    }
 
     /**
      * Get default value for a setting key.
@@ -612,8 +692,7 @@ class Setting extends Model
 
         return $seeded;
     }
-
-    /**
+   /**
      * Detect group based on setting key.
      */
     protected static function detectGroup($key)
@@ -667,6 +746,53 @@ class Setting extends Model
         ];
 
         return in_array($key, $publicSettings);
+    }
+
+    /**
+     * ENHANCED: Test encryption functionality
+     */
+    public static function testEncryption()
+    {
+        $testKey = 'encryption_test_' . time();
+        $testValue = 'test encryption data ' . time();
+
+        try {
+            // Test storage with encryption
+            $result = static::set($testKey, $testValue, [
+                'type' => 'text',
+                'is_encrypted' => true
+            ]);
+
+            if (!$result) {
+                return ['success' => false, 'error' => 'Failed to store encrypted setting'];
+            }
+
+            // Test retrieval
+            $retrieved = static::get($testKey);
+            
+            // Cleanup
+            static::remove($testKey);
+
+            if ($retrieved === $testValue) {
+                return ['success' => true, 'message' => 'Encryption working correctly'];
+            } else {
+                return [
+                    'success' => false, 
+                    'error' => 'Encryption mismatch',
+                    'expected' => $testValue,
+                    'received' => $retrieved
+                ];
+            }
+
+        } catch (\Exception $e) {
+            // Cleanup on error
+            static::remove($testKey);
+            
+            return [
+                'success' => false,
+                'error' => 'Encryption test exception: ' . $e->getMessage()
+            ];
+        }
     }
 
     /**

@@ -1,33 +1,63 @@
 <?php
+
 namespace App\Notifications;
+
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
-use App\Models\Invoice;
+use App\Models\StudentFee; // MODIFIED: Replaced Invoice with StudentFee
 
 class FeeReminderNotification extends Notification
 {
     use Queueable;
 
-    public $invoice;
+    /**
+     * The student fee component instance.
+     *
+     * @var \App\Models\StudentFee
+     */
+    public $studentFee; // MODIFIED: Changed property from $invoice to $studentFee
 
-    public function __construct(Invoice $invoice)
+    /**
+     * Create a new notification instance.
+     *
+     * @param \App\Models\StudentFee $studentFee
+     */
+    public function __construct(StudentFee $studentFee)
     {
-        $this->invoice = $invoice;
+        // MODIFIED: The constructor now accepts a StudentFee object
+        $this->studentFee = $studentFee;
     }
 
+    /**
+     * Get the notification's delivery channels.
+     *
+     * @param object $notifiable
+     * @return array
+     */
     public function via(object $notifiable): array
     {
         return ['database']; // We will store this in the database for now. We can add 'mail' later.
     }
 
+    /**
+     * Get the array representation of the notification.
+     *
+     * @param object $notifiable
+     * @return array
+     */
     public function toArray(object $notifiable): array
     {
+        // MODIFIED: The data structure now reflects the details of a fee component
+        $feeCategoryName = $this->studentFee->feeCategory->name ?? 'Fee';
+        $remainingAmount = $this->studentFee->getRemainingAmount();
+        $dueDateFormatted = $this->studentFee->due_date->format('d M, Y');
+
         return [
-            'invoice_id' => $this->invoice->id,
-            'invoice_number' => $this->invoice->invoice_number,
-            'amount_due' => $this->invoice->due_amount,
-            'due_date' => $this->invoice->due_date->format('d M, Y'),
-            'message' => "Reminder: Payment for invoice #{$this->invoice->invoice_number} of {$this->invoice->due_amount} is due on {$this->invoice->due_date->format('d M, Y')}."
+            'student_fee_id' => $this->studentFee->id,
+            'fee_category' => $feeCategoryName,
+            'amount_due' => $remainingAmount,
+            'due_date' => $dueDateFormatted,
+            'message' => "Reminder: Payment for {$feeCategoryName} of {$remainingAmount} is due on {$dueDateFormatted}."
         ];
     }
 }

@@ -6,21 +6,20 @@ use App\Http\Controllers\Controller;
 use App\Models\Enquiry;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Carbon\Carbon;
 
 class FollowUpCalendarController extends Controller
 {
-    /**
-     * Display the follow-up calendar view and provide event data.
-     */
     public function index(Request $request)
     {
-        // Check if the request is for JSON data (from the calendar's AJAX call)
+        // 1. Handle AJAX Request from FullCalendar (JSON Response)
         if ($request->ajax()) {
             
-            $query = Enquiry::whereNotNull('next_follow_up_date');
+            // Fetch Data
+            $query = Enquiry::whereNotNull('next_follow_up_date')
+                            ->where('status', '!=', 'Admitted');
 
-            // If the user is a counselor, only show their own assigned enquiries.
-            // Admins will see all scheduled follow-ups.
+            // Role Check
             $user = Auth::user();
             if ($user->hasRole('Counselor')) {
                 $query->where('assigned_to_user_id', $user->id);
@@ -28,21 +27,68 @@ class FollowUpCalendarController extends Controller
 
             $enquiries = $query->get();
 
-            // Format the data into the structure required by FullCalendar.js
+            // Format Events
             $events = $enquiries->map(function ($enquiry) {
+                $date = $enquiry->next_follow_up_date;
+                
+                // Safe Date Parsing
+                if ($date instanceof Carbon) {
+                    $cDate = $date;
+                } else {
+                    $cDate = Carbon::parse($date);
+                }
+                
+                $start = $cDate->format('Y-m-d');
+                $isOverdue = $cDate->endOfDay()->isPast();
+                $isToday = $cDate->isToday();
+
+                // Color Logic
+                if ($isOverdue && !$isToday) {
+                    $color = '#e74a3b'; // Red
+                } elseif ($isToday) {
+                    $color = '#f6c23e'; // Orange
+                } else {
+                    $color = '#4e73df'; // Blue
+                }
+
                 return [
-                    'title' => $enquiry->student_name . ' (Follow-up)',
-                    'start' => $enquiry->next_follow_up_date,
-                    'url'   => route('admin.enquiries.edit', $enquiry),
-                    'backgroundColor' => '#ffc107', // A nice yellow color for events
-                    'borderColor' => '#ffc107',
+                    'id' => $enquiry->id,
+                    'title' => $enquiry->student_name . ' (' . $enquiry->phone_number . ')',
+                    'start' => $start,
+                    'url' => route('admin.enquiries.edit', $enquiry->id),
+                    'backgroundColor' => $color,
+                    'borderColor' => $color,
+                    'textColor' => '#fff',
+                    'allDay' => true,
+                    'extendedProps' => [
+                        'phone' => $enquiry->phone_number,
+                        'status' => $enquiry->status
+                    ]
                 ];
             });
 
             return response()->json($events);
         }
 
-        // For initial page loads, just return the view.
-        return view('admin.calendar.index');
+        // 2. Handle Initial Page Load (View Response)
+        
+        // Re-fetch enquiries if you need a list in the sidebar
+        $query = Enquiry::whereNotNull('next_follow_up_date')
+                        ->where('status', '!=', 'Admitted');
+                        
+        $user = Auth::user();
+        if ($user->hasRole('Counselor')) {
+            $query->where('assigned_to_user_id', $user->id);
+        }
+        
+        $enquiries = $query->orderBy('next_follow_up_date', 'asc')->get();
+
+        // Logic corrected: If admin view exists, return ADMIN view.
+        if (view()->exists('admin.calendar.index')) {
+             return view('admin.calendar.index', compact('enquiries'));
+        }
+        
+        // Fallback
+        return view('calendar.index', compact('enquiries'));
     }
 }

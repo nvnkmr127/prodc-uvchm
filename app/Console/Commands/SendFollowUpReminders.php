@@ -5,29 +5,23 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use App\Models\Enquiry;
 use App\Models\User;
-use App\Notifications\FollowUpReminder;
+use App\Services\NotificationService;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Log;
 
 class SendFollowUpReminders extends Command
 {
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
     protected $signature = 'app:send-follow-up-reminders';
+    protected $description = 'Sends daily follow-up reminders (System Push Only) to assigned counselors.';
 
-    /**
-     * The console command description.
-     *
-     * @var string
-     */
-    protected $description = 'Sends daily follow-up reminders to assigned counselors for enquiries due today.';
+    protected $notificationService;
 
-    /**
-     * Execute the console command.
-     */
+    public function __construct(NotificationService $notificationService)
+    {
+        parent::__construct();
+        $this->notificationService = $notificationService;
+    }
+
     public function handle()
     {
         $this->info('Checking for follow-ups scheduled for today...');
@@ -35,7 +29,7 @@ class SendFollowUpReminders extends Command
         // Find all enquiries with a follow-up date for today
         $enquiriesDueToday = Enquiry::whereDate('next_follow_up_date', Carbon::today())
                                     ->whereNotNull('assigned_to_user_id')
-                                    ->with('assignedTo') // Eager load the assigned user
+                                    ->with('assignedTo')
                                     ->get();
 
         if ($enquiriesDueToday->isEmpty()) {
@@ -52,13 +46,36 @@ class SendFollowUpReminders extends Command
             $user = $userEnquiries->first()->assignedTo;
 
             if ($user) {
-                // Send a single notification to the user with their collection of enquiries
-                $user->notify(new FollowUpReminder($userEnquiries));
-                $this->info("Reminder sent to {$user->name} for {$userEnquiries->count()} enquiries.");
+                $count = $userEnquiries->count();
+
+                // Send System Notification (In-App Push) ONLY
+                try {
+                    $this->notificationService->send([
+                        'title' => 'Follow-up Reminder',
+                        'message' => "You have {$count} follow-ups scheduled for today.",
+                        'type' => 'warning',     
+                        'category' => 'general',
+                        'priority' => 'high',   
+                        'users' => [$user->id],  
+                        
+                        // [UPDATED] Point to the correct calendar route (/admin/calendar)
+                        'action_url' => route('admin.calendar.index'), 
+                        
+                        'action_text' => 'View Calendar',
+                        'requires_action' => true,
+                        'play_sound' => true     
+                    ]);
+                    
+                    $this->info("✅ System Notification sent to {$user->name} ({$count} enquiries).");
+
+                } catch (\Exception $e) {
+                    $this->error("❌ Failed to send system notification to {$user->name}: " . $e->getMessage());
+                    Log::error("FollowUpReminder System Notification Error for {$user->id}: " . $e->getMessage());
+                }
             }
         }
 
-        $this->info('All follow-up reminders have been sent successfully.');
+        $this->info('All reminders processed.');
         return 0;
     }
 }

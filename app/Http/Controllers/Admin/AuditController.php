@@ -42,7 +42,7 @@ class AuditController extends Controller
             $query->where('asset_category_id', $request->category_id);
         }
         if ($request->filled('location')) {
-            $query->where('location', 'LIKE', '%' . $request->location . '%');
+            $query->where('location', 'LIKE', '%' . addcslashes($request->location, '%_\\') . '%');
         }
 
         $assets = $query->get();

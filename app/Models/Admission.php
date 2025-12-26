@@ -8,10 +8,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use App\Traits\WebhookEnabled;
+use App\Traits\HasAcademicYear;
+
 class Admission extends Model
 {
     use WebhookEnabled;
     use HasFactory;
+    use HasAcademicYear;
 
     protected $fillable = [
         'course_id', 'full_name', 'email', 'phone_number', 

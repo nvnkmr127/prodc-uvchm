@@ -85,6 +85,21 @@
                         @endforeach
                     </select>
                 </div>
+                <div class="form-group mt-3 p-3 bg-light rounded border">
+    <div class="custom-control custom-switch">
+        <input type="hidden" name="is_on_internship" value="0">
+        <input type="checkbox" class="custom-control-input" id="is_on_internship" 
+               name="is_on_internship" value="1"
+               {{ (isset($batch) && $batch->is_on_internship) ? 'checked' : '' }}>
+        <label class="custom-control-label font-weight-bold text-info" for="is_on_internship">
+            <i class="fas fa-briefcase mr-1"></i> Mark as "On Internship"
+        </label>
+    </div>
+    <small class="text-muted mt-2 d-block">
+        Enable this when the <strong>entire batch</strong> is away for Internship/OJT. 
+        They will be automatically <strong>excluded from Daily Absent Alerts</strong>.
+    </small>
+</div>
             </div>
         </div>
         <div class="card-footer text-right">

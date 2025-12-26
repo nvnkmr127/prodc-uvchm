@@ -14,7 +14,10 @@ class FeeStructureController extends Controller
 {
     public function index()
     {
-        $feeStructures = FeeStructure::with('batch.course', 'feeCategories')->get();
+        // Filter fee structures by academic year through batch relationship
+        $feeStructures = FeeStructure::with('batch.course', 'feeCategories')
+            ->whereHas('batch') // This filters through batch's HasAcademicYear trait
+            ->get();
         return view('admin.fee_structures.index', compact('feeStructures'));
     }
 

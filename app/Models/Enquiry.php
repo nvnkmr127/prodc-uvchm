@@ -15,18 +15,13 @@ class Enquiry extends Model
     use WebhookEnabled;
     use HasFactory, LogsActivity;
 
-    /**
-     * The attributes that are mass assignable.
-     * These now include fields that were previously on the Admission model.
-     */
     protected $fillable = [
         'student_name',
         'phone_number',
-        'email', // <-- Added from Admission
-        'gender', // <-- Added from Admission
-        'date_of_birth', // <-- Added from Admission
+        'gender',
+        'date_of_birth',
         'address',
-        'education_qualification', // <-- Added from Admission
+        'education_qualification',
         'course_id',
         'source',
         'referral_name',
@@ -41,6 +36,7 @@ class Enquiry extends Model
      */
     protected $casts = [
         'date_of_birth' => 'date',
+        'next_follow_up_date' => 'date', // <--- Added this line to fix the error
     ];
 
     public function getActivitylogOptions(): LogOptions
@@ -61,10 +57,6 @@ class Enquiry extends Model
         return $this->belongsTo(User::class, 'assigned_to_user_id');
     }
 
-    /**
-     * Get all of the follow-up notes for the enquiry.
-     * This uses the unified polymorphic relationship we built.
-     */
     public function followUps(): MorphMany
     {
         return $this->morphMany(FollowUp::class, 'followable');

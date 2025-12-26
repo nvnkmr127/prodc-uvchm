@@ -467,6 +467,30 @@ return new class extends Migration
                 'description' => 'Preferred time for system maintenance',
                 'is_public' => false
             ],
+            [
+                'key' => 'auto_cleanup',
+                'value' => '1',
+                'group' => 'backup',
+                'type' => 'toggle',
+                'description' => 'Automatically delete old backups based on retention period',
+                'is_public' => false
+            ],
+            [
+                'key' => 'backup_notifications',
+                'value' => '0',
+                'group' => 'backup',
+                'type' => 'toggle',
+                'description' => 'Send email notifications for backup status',
+                'is_public' => false
+            ],
+            [
+                'key' => 'notification_email',
+                'value' => '',
+                'group' => 'backup',
+                'type' => 'email',
+                'description' => 'Email address to receive backup notifications',
+                'is_public' => false
+            ],
 
             // Mail Settings
             [

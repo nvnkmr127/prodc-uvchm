@@ -13,21 +13,26 @@ class CourseStructureController extends Controller
     }
 
     public function store(Request $request, Course $course)
-    {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'type' => 'required|in:Academic,Training',
-            'sequence' => 'required|integer',
-        ]);
+{
+    $validated = $request->validate([
+        'name' => 'required|string|max:255',
+        'type' => 'required|in:Academic,Training',
+        'sequence' => 'required|integer|min:1',
+    ]);
 
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'start_date' => 'required|date',
-            'end_date' => 'required|date|after:start_date'
-        ]);
-        $course->terms()->create($validated);
-        return redirect()->back()->with('success', 'Term added to course structure.');
+    // Check if sequence already exists for this course
+    $existingTerm = $course->terms()->where('sequence', $validated['sequence'])->first();
+    if ($existingTerm) {
+        return redirect()->back()
+                       ->withErrors(['sequence' => 'A term with sequence ' . $validated['sequence'] . ' already exists.'])
+                       ->withInput();
     }
+
+    // Create the term
+    $course->terms()->create($validated);
+    
+    return redirect()->back()->with('success', 'Term "' . $validated['name'] . '" added to course structure successfully.');
+}
 
     public function destroy(CourseTerm $term)
     {

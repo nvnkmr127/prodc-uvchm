@@ -517,24 +517,18 @@
                 </div>
 
                 <div class="config-item">
-    <div class="font-weight-bold mb-1">Event Type:</div>
-    <div class="text-muted">
-        @if(isset($currentEventInfo) && is_array($currentEventInfo))
-            {{ isset($currentEventInfo['name']) && is_string($currentEventInfo['name']) ? $currentEventInfo['name'] : 'Unknown Event' }}
-            @if(isset($currentEventInfo['category']) && is_string($currentEventInfo['category']))
-                <br><small>Category: {{ $currentEventInfo['category'] }}</small>
-            @endif
-        @else
-            {{ isset($webhook->event_name) && is_string($webhook->event_name) ? $webhook->event_name : 'No event selected' }}
-        @endif
-    </div>
-</div>
+                    <div class="font-weight-bold mb-1">Event Type:</div>
+                    <div class="text-muted">
+                        {{ $currentEventInfo['name'] ?? $webhook->event_name ?? 'No event selected' }}
+                        @if(isset($currentEventInfo['category']))
+                            <br><small>Category: {{ $currentEventInfo['category'] }}</small>
+                        @endif
+                    </div>
+                </div>
                 <div class="config-item">
-    <div class="font-weight-bold mb-1">Endpoint:</div>
-    <div class="text-muted small" style="word-break: break-all;">
-        {{ isset($webhook->url) && is_string($webhook->url) ? $webhook->url : 'No URL set' }}
-    </div>
-</div>
+                    <div class="font-weight-bold mb-1">Endpoint:</div>
+                    <div class="text-muted small" style="word-break: break-all;">{{ $webhook->url ?? 'No URL set' }}</div>
+                </div>
                 <div class="config-item">
                     <div class="d-flex justify-content-between">
                         <span class="font-weight-bold">Created:</span>
@@ -785,7 +779,15 @@ document.addEventListener('DOMContentLoaded', function() {
         regenerateSecretBtn.disabled = true;
         regenerateSecretBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
 
-        fetch(`{{ route('admin.webhooks.regenerateSecret', '') }}/${webhookId}`, {
+        @php
+$regenerateRoute = '';
+try {
+    $regenerateRoute = route('admin.webhooks.regenerateSecret', $webhook->id ?? '');
+} catch (\Exception $e) {
+    $regenerateRoute = url('admin/webhooks/' . ($webhook->id ?? '') . '/regenerate-secret');
+}
+@endphp
+fetch(`{{ $regenerateRoute }}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

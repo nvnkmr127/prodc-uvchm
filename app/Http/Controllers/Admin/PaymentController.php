@@ -3,154 +3,120 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Payment;
 use Illuminate\Http\Request;
-use PDF;
+
+// ✅ CORRECT IMPORTS - Add these at the top of your controller
+use App\Models\ComponentPaymentItem;  // ✅ CORRECT: Model namespace
+use App\Models\Payment;               // ✅ CORRECT: Model namespace
+use App\Models\Student;               // ✅ CORRECT: Model namespace
+use App\Models\StudentFee;            // ✅ CORRECT: Model namespace
+use App\Services\ComponentPaymentService; // ✅ CORRECT: Service namespace
+
+// ❌ REMOVE any incorrect imports like:
+// use App\Http\Controllers\Admin\ComponentPaymentItem; // ❌ WRONG NAMESPACE
 
 class PaymentController extends Controller
 {
-    /**
-     * Display the payment receipt in the browser (Online View).
-     *
-     * @param  \App\Models\Payment  $payment
-     * @return \Illuminate\Http\Response
-     */
-    public function showReceipt(Payment $payment)
+    protected $componentPaymentService;
+
+    public function __construct(ComponentPaymentService $componentPaymentService)
     {
-        $payment->load('invoice.student.batch');
-
-        // Get settings
-        $settings = [
-            'college_name' => setting('college_name', 'My College'),
-            'college_address' => setting('college_address', ''),
-            'college_logo' => setting('college_logo', ''),
-            'currency_symbol' => setting('currency_symbol', '₹'),
-            'invoice_footer_text' => setting('invoice_footer_text', 'This is a computer-generated receipt.')
-        ];
-
-        // Use the online view template
-        return view('admin.receipts.online_view', compact('payment', 'settings'));
+        $this->componentPaymentService = $componentPaymentService;
     }
 
     /**
-     * Download the payment receipt as a PDF file (PDF View).
-     *
-     * @param  \App\Models\Payment  $payment
-     * @return \Illuminate\Http\Response
+     * Store a new payment
      */
-    public function downloadReceipt(Payment $payment)
+    public function store(Request $request)
     {
-        $payment->load('invoice.student.batch');
+        try {
+            // Validate the request
+            $validated = $request->validate([
+                'student_id' => 'required|exists:students,id',
+                'total_amount' => 'required|numeric|min:0.01',
+                'payment_method' => 'required|string',
+                'payment_date' => 'required|date',
+                'transaction_id' => 'nullable|string',
+                'notes' => 'nullable|string',
+                'components' => 'required|array',
+                'components.*.selected' => 'required|boolean',
+                'components.*.amount' => 'required_if:components.*.selected,1|numeric|min:0.01'
+            ]);
 
-        // Get settings
-        $settings = [
-            'college_name' => setting('college_name', 'My College'),
-            'college_address' => setting('college_address', ''),
-            'college_logo' => setting('college_logo', ''),
-            'currency_symbol' => setting('currency_symbol', '₹'),
-            'invoice_footer_text' => setting('invoice_footer_text', 'This is a computer-generated receipt.')
-        ];
+            $student = Student::findOrFail($validated['student_id']);
+            
+            // Filter selected components
+            $selectedComponents = collect($validated['components'])
+                ->filter(fn($component) => $component['selected'] == '1')
+                ->map(fn($component, $studentFeeId) => [
+                    'student_fee_id' => $studentFeeId,
+                    'amount' => (float) $component['amount']
+                ])
+                ->values()
+                ->toArray();
 
-        // Use the PDF view template
-        $pdf = PDF::loadView('admin.receipts.pdf_view', compact('payment', 'settings'));
-        
-        // Set options for better PDF rendering
-        $pdf->setOptions([
-            'isHtml5ParserEnabled' => true,
-            'isPhpEnabled' => true,
-            'defaultFont' => 'DejaVu Sans',
-            'encoding' => 'UTF-8'
-        ]);
-        
-        $fileName = 'Receipt-' . $payment->receipt_number . '.pdf';
+            if (empty($selectedComponents)) {
+                return back()->withErrors(['components' => 'Please select at least one component to pay.']);
+            }
 
-        return $pdf->download($fileName);
+            // Process the payment using the service
+            $result = $this->componentPaymentService->processPayment(
+                $student,
+                $selectedComponents,
+                [
+                    'payment_method' => $validated['payment_method'],
+                    'payment_date' => $validated['payment_date'],
+                    'transaction_id' => $validated['transaction_id'],
+                    'notes' => $validated['notes']
+                ]
+            );
+
+            if ($result['success']) {
+                return redirect()
+                    ->route('admin.students.show', $student->id)
+                    ->with('success', $result['message']);
+            } else {
+                return back()->withErrors(['payment' => $result['message']]);
+            }
+
+        } catch (\Exception $e) {
+            \Log::error('Payment creation failed', [
+                'error' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile(),
+                'student_id' => $request->student_id,
+                'request_data' => $request->all()
+            ]);
+
+            return back()->withErrors(['payment' => 'Payment processing failed. Please try again.']);
+        }
     }
 
     /**
-     * Display a public receipt by receipt number (Online View).
-     *
-     * @param string $receipt_number
-     * @return \Illuminate\Http\Response
+     * Show payment details
      */
-    public function showPublicReceipt($receipt_number)
+    public function show($paymentId)
     {
-        $payment = Payment::where('receipt_number', $receipt_number)
-                         ->with('invoice.student.batch')
-                         ->firstOrFail();
+        $payment = Payment::with([
+            'student',
+            'componentItems.studentFee.feeCategory'
+        ])->findOrFail($paymentId);
 
-        // Get settings
-        $settings = [
-            'college_name' => setting('college_name', 'My College'),
-            'college_address' => setting('college_address', ''),
-            'college_logo' => setting('college_logo', ''),
-            'currency_symbol' => setting('currency_symbol', '₹'),
-            'invoice_footer_text' => setting('invoice_footer_text', 'This is a computer-generated receipt.')
-        ];
-
-        // Use the online view template
-        return view('admin.receipts.online_view', compact('payment', 'settings'));
+        return view('admin.payments.show', compact('payment'));
     }
 
-    /**
-     * Download public receipt as PDF by receipt number (PDF View).
-     *
-     * @param string $receipt_number
-     * @return \Illuminate\Http\Response
-     */
-    public function downloadPublicReceipt($receipt_number)
-    {
-        $payment = Payment::where('receipt_number', $receipt_number)
-                         ->with('invoice.student.batch')
-                         ->firstOrFail();
-
-        // Get settings
-        $settings = [
-            'college_name' => setting('college_name', 'My College'),
-            'college_address' => setting('college_address', ''),
-            'college_logo' => setting('college_logo', ''),
-            'currency_symbol' => setting('currency_symbol', '₹'),
-            'invoice_footer_text' => setting('invoice_footer_text', 'This is a computer-generated receipt.')
-        ];
-
-        // Use the PDF view template
-        $pdf = PDF::loadView('admin.receipts.pdf_view', compact('payment', 'settings'));
-        
-        // Set options for better PDF rendering
-        $pdf->setOptions([
-            'isHtml5ParserEnabled' => true,
-            'isPhpEnabled' => true,
-            'defaultFont' => 'DejaVu Sans',
-            'encoding' => 'UTF-8'
-        ]);
-        
-        $fileName = 'Receipt-' . $payment->receipt_number . '.pdf';
-
-        return $pdf->download($fileName);
-    }
-    /**
- * Display the specified payment
- * Add this method to your existing PaymentController class
- */
-public function show(Payment $payment)
+public function receipt($paymentId)
 {
-    $payment->load([
-        'invoice.student.batch.course',
-        'invoice.items.feeCategory'
-    ]);
+    $payment = Payment::with([
+        'student.batch.course',
+        'componentItems.studentFee.feeCategory'
+    ])->findOrFail($paymentId);
 
-    // Get edit history
-    $editHistory = PaymentEditLog::where('payment_id', $payment->id)
-                                ->with('user')
-                                ->latest()
-                                ->limit(10)
-                                ->get();
+    if (!$payment->isComponentPayment()) {
+        abort(404, 'Receipt not available for this payment type.');
+    }
 
-    // Calculate payment impact on invoice
-    $otherPayments = $payment->invoice->payments()
-                            ->where('id', '!=', $payment->id)
-                            ->get();
-
-    return view('admin.payments.show', compact('payment', 'editHistory', 'otherPayments'));
+    // ✅ Use component-compatible view
+    return view('admin.receipts.component-show', compact('payment'));
 }
 }

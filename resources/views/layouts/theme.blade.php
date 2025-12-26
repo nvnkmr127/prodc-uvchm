@@ -6,20 +6,133 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     @if(Auth::check() && Auth::user()->tokens()->count() > 0)
-        <meta name="api-token" content="{{ Auth::user()->tokens()->first()->plainTextToken ?? '' }}">
+        <meta name="api-token" content="{{ Auth::user()->tokens()->first()->name ?? '' }}">
     @endif
     <title>@yield('title', 'Dashboard') - {{ setting('app_name', 'College Management System') }}</title>
 
+    <!-- Font Awesome -->
     <link href="{{ asset('admin_theme/vendor/fontawesome-free/css/all.min.css') }}" rel="stylesheet" type="text/css">
-    <link href="https://fonts.googleapis.com/css?family=Nunito:200,200i,300,300i,400,400i,600,600i,700,700i,800,800i,900,900i" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Bootstrap & Theme -->
     <link href="{{ asset('admin_theme/css/sb-admin-2.min.css') }}" rel="stylesheet">
+    <!-- External Libraries -->
     <link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/main.min.css' rel='stylesheet' />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
     <link href="{{ asset('admin_theme/vendor/datatables/dataTables.bootstrap4.min.css') }}" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/gridstack@10.1.2/dist/gridstack.min.css" rel="stylesheet"/>
     @stack('styles')
+    
     <style>
-        .sidebar .nav-item .nav-link { transition: all 0.2s; }
-        .sidebar .nav-item .nav-link:hover { background-color: rgba(255,255,255,0.1); }
+        /* Modern CSS Variables */
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --success-gradient: linear-gradient(135deg, #1cc88a 0%, #17a673 100%);
+            --warning-gradient: linear-gradient(135deg, #f6c23e 0%, #dda20a 100%);
+            --danger-gradient: linear-gradient(135deg, #e74a3b 0%, #dc3545 100%);
+            --info-gradient: linear-gradient(135deg, #36b9cc 0%, #2e96aa 100%);
+            --sidebar-gradient: linear-gradient(180deg, #2c3e50 0%, #34495e 100%);
+            --shadow: 0 4px 12px rgba(0,0,0,0.1);
+            --shadow-lg: 0 8px 25px rgba(0,0,0,0.15);
+            --border-radius: 12px;
+            --animation-speed: 0.3s;
+        }
+
+        /* Modern Body & Typography */
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #f8f9fc 0%, #e3f2fd 100%);
+            min-height: 100vh;
+        }
+
+        /* Enhanced Sidebar */
+        .sidebar {
+            background: var(--sidebar-gradient) !important;
+            box-shadow: var(--shadow-lg);
+            border-right: none;
+        }
+
+        .sidebar .nav-item .nav-link {
+            transition: all var(--animation-speed) cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 8px;
+            margin: 2px 8px;
+            font-weight: 500;
+        }
+
+        .sidebar .nav-item .nav-link:hover {
+            background: rgba(255,255,255,0.15) !important;
+            transform: translateX(4px);
+        }
+
+        .sidebar .nav-item .nav-link.active {
+            background: rgba(255,255,255,0.2) !important;
+            border-left: 4px solid #fff;
+        }
+
+        /* Modern Collapse Items */
+        .collapse-inner {
+            background: rgba(255,255,255,0.98) !important;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            border: none !important;
+            margin: 8px;
+        }
+
+        .collapse-item {
+            padding: 0.75rem 1.5rem !important;
+            transition: all var(--animation-speed) ease;
+            border-radius: 8px !important;
+            margin: 2px 8px !important;
+            display: flex;
+            align-items: center;
+        }
+
+        .collapse-item:hover {
+            background: #f8f9fc !important;
+            transform: translateX(4px);
+            color: #5a5c69 !important;
+        }
+
+        .collapse-item i {
+            margin-right: 8px;
+            width: 16px;
+            text-align: center;
+        }
+
+        /* Modern Topbar */
+        .topbar {
+            background: white !important;
+            box-shadow: var(--shadow);
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
+
+        /* Enhanced Search */
+        .navbar-search .form-control {
+            border-radius: 25px !important;
+            padding: 0.75rem 1.5rem;
+            border: 2px solid transparent;
+            transition: all var(--animation-speed) ease;
+            background: #f8f9fc;
+        }
+
+        .navbar-search .form-control:focus {
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+
+        .navbar-search .btn {
+            border-radius: 25px !important;
+            background: var(--primary-gradient);
+            border: none;
+            transition: all var(--animation-speed) ease;
+        }
+
+        .navbar-search .btn:hover {
+            transform: scale(1.05);
+        }
+
+        /* Enhanced Dropdown */
         .ajax-search-results {
             position: absolute;
             top: 100%;
@@ -27,61 +140,43 @@
             right: 0;
             z-index: 1000;
             background: white;
-            border-radius: 0.35rem;
-            box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-lg);
             display: none;
-            max-height: 300px;
+            max-height: 400px;
             overflow-y: auto;
+            margin-top: 8px;
         }
+
         .ajax-search-results .dropdown-item {
             white-space: normal;
-            padding: 0.5rem 1rem;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #f8f9fc;
+            transition: all var(--animation-speed) ease;
         }
+
         .ajax-search-results .dropdown-item:hover {
-            background-color: #f8f9fc;
-        }
-        @media print {
-            .no-print { display: none !important; }
-            .printable { display: block !important; }
+            background: #f8f9fc;
+            transform: translateX(4px);
         }
 
-        /* Enhanced Notification Styles */
-        .icon-circle {
-            height: 2.5rem;
-            width: 2.5rem;
-            border-radius: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        .ajax-search-results .dropdown-item:last-child {
+            border-bottom: none;
         }
 
-        .dropdown-list {
-            min-width: 20rem;
+        /* Modern Notification Bell */
+        .notification-bell {
+            position: relative;
         }
 
-        .notification-bell .badge-counter {
-            position: absolute;
-            transform: scale(0.9);
-            transform-origin: top right;
-            right: -.25rem;
-            top: -.25rem;
-        }
-
-        .dropdown-item:hover {
-            background-color: #f8f9fc;
-        }
-
-        .bg-light.dropdown-item {
-            background-color: #e3f2fd !important;
-        }
-
-        /* Enhanced notification bell animation */
         .notification-bell .fa-bell {
-            transition: all 0.3s ease;
+            transition: all var(--animation-speed) ease;
+            font-size: 1.2rem;
         }
 
         .notification-bell:hover .fa-bell {
             animation: bell-ring 0.5s ease-in-out;
+            color: #667eea !important;
         }
 
         @keyframes bell-ring {
@@ -90,20 +185,95 @@
             20%, 40%, 60%, 80% { transform: rotate(-10deg); }
         }
 
-        /* Notification count pulse animation */
-        #notificationCount {
+        .badge-counter {
+            position: absolute;
+            transform: scale(0.9);
+            transform-origin: top right;
+            right: -0.25rem;
+            top: -0.25rem;
             animation: pulse 2s infinite;
         }
 
         @keyframes pulse {
-            0% { transform: scale(1); }
+            0% { transform: scale(0.9); }
             50% { transform: scale(1.1); }
-            100% { transform: scale(1); }
+            100% { transform: scale(0.9); }
         }
 
-        /* Toast notification styles */
+        /* Enhanced Dropdown Menus */
+        .dropdown-menu {
+            border: none;
+            box-shadow: var(--shadow-lg);
+            border-radius: var(--border-radius);
+        }
+
+        .dropdown-item {
+            transition: all var(--animation-speed) ease;
+            padding: 0.75rem 1.5rem;
+        }
+
+        .dropdown-item:hover {
+            background: #f8f9fc;
+            transform: translateX(4px);
+        }
+
+        /* Icon Circles */
+        .icon-circle {
+            height: 2.5rem;
+            width: 2.5rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--primary-gradient);
+            color: white;
+        }
+
+        /* Modern Cards */
+        .card {
+            border: none;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            transition: all var(--animation-speed) ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        /* Quick Action Cards */
+        .quick-action-card {
+            background: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            transition: all var(--animation-speed) ease;
+            cursor: pointer;
+            padding: 1.5rem;
+            text-align: center;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+
+        .quick-action-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .quick-action-card .icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Modern Notifications */
         #notificationToastContainer {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             position: fixed;
             top: 20px;
             right: 20px;
@@ -115,14 +285,17 @@
         .notification-toast {
             pointer-events: auto;
             margin-bottom: 10px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-lg);
             opacity: 0;
             transform: translateX(100%);
-            transition: all 0.3s ease;
+            transition: all var(--animation-speed) ease;
             cursor: pointer;
             position: relative;
             overflow: hidden;
+            background: white;
+            border-left: 4px solid #667eea;
+            padding: 1rem;
         }
 
         .notification-toast.show {
@@ -130,32 +303,113 @@
             transform: translateX(0);
         }
 
-        /* Test controls styling */
-        #testControls {
-            position: fixed;
-            bottom: 20px;
-            left: 20px;
-            z-index: 9999;
-            opacity: 0.8;
-            transition: opacity 0.3s ease;
+        .notification-toast.success {
+            border-left-color: #1cc88a;
         }
 
-        #testControls:hover {
-            opacity: 1;
+        .notification-toast.warning {
+            border-left-color: #f6c23e;
         }
 
-        #testControls .btn {
-            margin-bottom: 5px;
-            min-width: 60px;
+        .notification-toast.error {
+            border-left-color: #e74a3b;
+        }
+
+        /* User Profile Enhancement */
+        .img-profile {
+            border: 3px solid #fff;
+            box-shadow: var(--shadow);
+            transition: all var(--animation-speed) ease;
+        }
+
+        .img-profile:hover {
+            transform: scale(1.1);
+        }
+
+        /* Responsive Enhancements */
+        @media (max-width: 768px) {
+            .navbar-search {
+                width: 100% !important;
+                margin: 0.5rem 0 !important;
+            }
+            
+            .quick-action-card {
+                margin-bottom: 1rem;
+            }
+        }
+
+        /* Print Styles */
+        @media print {
+            .no-print { 
+                display: none !important; 
+            }
+            .printable { 
+                display: block !important; 
+            }
+            body {
+                background: white !important;
+            }
+        }
+
+        /* Loading States */
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .spinner {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* Modern Badge Styles */
+        .badge {
+            border-radius: 20px;
+            padding: 0.375rem 0.75rem;
+            font-weight: 500;
+            font-size: 0.75rem;
+        }
+
+        /* Enhanced Tooltips */
+        [data-toggle="tooltip"] {
+            cursor: help;
+        }
+
+        /* Accessibility Enhancements */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        /* Focus States */
+        .nav-link:focus,
+        .btn:focus,
+        .form-control:focus {
+            outline: 2px solid #667eea;
+            outline-offset: 2px;
         }
     </style>
 </head>
+
 <body id="page-top">
-    <div id="notificationToastContainer"></div>
+    <!-- Toast Notification Container -->
+    <div id="notificationToastContainer" aria-live="polite" aria-atomic="true"></div>
 
     <div id="wrapper">
+        <!-- Enhanced Sidebar -->
         <ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion no-print" id="accordionSidebar">
-
+            <!-- Sidebar Brand -->
             <a class="sidebar-brand d-flex align-items-center justify-content-center" href="{{ route('admin.dashboard') }}">
                 <div class="sidebar-brand-icon rotate-n-15">
                     <i class="fas fa-university"></i>
@@ -165,6 +419,7 @@
 
             <hr class="sidebar-divider my-0">
 
+            <!-- Dashboard & Quick Links -->
             @if(auth()->user()->hasRole('super-admin'))
                 <li class="nav-item">
                     <a class="nav-link" href="{{ route('admin.dashboard') }}">
@@ -198,35 +453,71 @@
                 @endcan
             @endif
 
+            <!-- Quick Actions Section -->
             <hr class="sidebar-divider">
-
-            @if(auth()->user()->hasRole('super-admin') || auth()->user()->can('view enquiries'))
-            <div class="sidebar-heading">
-                Lead Management
-            </div>
+            <div class="sidebar-heading">Quick Actions</div>
+            
+            @can('create students')
             <li class="nav-item">
-                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseEnquiries">
+                <a class="nav-link" href="{{ route('admin.students.create') }}">
+                    <i class="fas fa-fw fa-user-plus"></i>
+                    <span>Add Student</span>
+                </a>
+            </li>
+            @endcan
+            
+            @can('view attendance')
+            <li class="nav-item">
+                <a class="nav-link" href="{{ route('admin.attendance.dashboard') }}">
+                    <i class="fas fa-fw fa-chart-line"></i>
+                    <span>View Attendance</span>
+                </a>
+            </li>
+            @endcan
+            
+            @can('view students')
+            <li class="nav-item">
+                <a class="nav-link" href="{{ route('admin.students.index') }}">
+                    <i class="fas fa-fw fa-users"></i>
+                    <span>View Students</span>
+                </a>
+                <a class="nav-link" href="{{ route('admin.enquiries.index') }}">
+                            <i class="fas fa-list"></i> <span>Manage Enquiries</span>
+                        </a>
+            </li>
+            @endcan
+
+            <!-- Lead Management -->
+            @if(auth()->user()->hasRole('super-admin') || auth()->user()->can('view enquiries'))
+            <hr class="sidebar-divider">
+            <div class="sidebar-heading">Lead Management</div>
+            <li class="nav-item">
+                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseEnquiries" aria-expanded="false">
                     <i class="fas fa-fw fa-users-cog"></i>
                     <span>Enquiries</span>
                 </a>
                 <div id="collapseEnquiries" class="collapse" data-parent="#accordionSidebar">
                     <div class="bg-white py-2 collapse-inner rounded">
-                        <a class="collapse-item" href="{{ route('admin.enquiries.index') }}">Manage Enquiries</a>
-                        <a class="collapse-item" href="{{ route('admin.enquiries.create') }}">Add New Enquiry</a>
+                        <h6 class="collapse-header">Enquiry Management</h6>
+                        
+                        <a class="collapse-item" href="{{ route('admin.enquiries.create') }}">
+                            <i class="fas fa-plus"></i> Add New Enquiry
+                        </a>
+                        <a class="collapse-item" href="{{ route('enquiry.public.create') }}">
+                            <i class="fas fa-globe"></i> Public Enquiry Form
+                        </a>
                     </div>
                 </div>
             </li>
             @endif
-        
-            <hr class="sidebar-divider">
 
+            <!-- Core Modules -->
             @if(auth()->user()->hasRole('super-admin') || auth()->user()->canAny(['view courses', 'view batches', 'view subjects']))
-            <div class="sidebar-heading">
-                Core Modules
-            </div>
+            <hr class="sidebar-divider">
+            <div class="sidebar-heading">Core Modules</div>
 
             <li class="nav-item">
-                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseAcademics">
+                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseAcademics" aria-expanded="false">
                     <i class="fas fa-fw fa-book-open"></i>
                     <span>Academics</span>
                 </a>
@@ -252,9 +543,10 @@
             </li>
             @endif
 
+            <!-- People Management -->
             @if(auth()->user()->hasRole('super-admin') || auth()->user()->canAny(['view admissions', 'view students', 'view faculty']))
             <li class="nav-item">
-                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapsePeople">
+                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapsePeople" aria-expanded="false">
                     <i class="fas fa-fw fa-users"></i>
                     <span>People</span>
                 </a>
@@ -266,14 +558,40 @@
                             <a class="collapse-item" href="{{ route('admin.faculty.index') }}">Faculty</a>
                             <a class="collapse-item" href="{{ route('admin.alumni.index') }}">Alumni Network</a>
                             <a class="collapse-item" href="{{ route('admin.enquiries.index') }}">Enquiry Hub</a>
+                            <div class="dropdown-divider"></div>
+                            <h6 class="dropdown-header">Biometric System:</h6>
+                            <a class="collapse-item" href="{{ route('admin.students.biometric-mapping') }}">
+                                <i class="fas fa-fingerprint text-primary"></i> Biometric Mapping
+                                @php
+                                    $unmappedCount = \App\Models\Student::where('status', 'active')
+                                        ->whereNull('biometric_employee_code')->count();
+                                @endphp
+                                @if($unmappedCount > 0)
+                                    <span class="badge badge-warning ml-1">{{ $unmappedCount }}</span>
+                                @endif
+                            </a>
                         @else
                             @can('view admissions')
                             <a class="collapse-item" href="{{ route('admin.admissions.index') }}">Admissions</a>
                             <a class="collapse-item" href="{{ route('admin.enquiries.index') }}">Enquiry Hub</a>
                             @endcan
+                            
                             @can('view students')
                             <a class="collapse-item" href="{{ route('admin.students.index') }}">Students</a>
+                            @can('manage students')
+                            <a class="collapse-item" href="{{ route('admin.students.biometric-mapping') }}">
+                                <i class="fas fa-fingerprint text-primary"></i> Biometric Mapping
+                                @php
+                                    $unmappedCount = \App\Models\Student::where('status', 'active')
+                                        ->whereNull('biometric_employee_code')->count();
+                                @endphp
+                                @if($unmappedCount > 0)
+                                    <span class="badge badge-warning ml-1">{{ $unmappedCount }}</span>
+                                @endif
+                            </a>
                             @endcan
+                            @endcan
+                            
                             @can('view faculty')
                             <a class="collapse-item" href="{{ route('admin.faculty.index') }}">Faculty</a>
                             @endcan
@@ -283,9 +601,10 @@
             </li>
             @endif
             
+            <!-- Financials -->
             @if(auth()->user()->hasRole('super-admin') || auth()->user()->canAny(['view financials', 'view invoices']))
             <li class="nav-item">
-                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseFinancials">
+                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseFinancials" aria-expanded="false">
                     <i class="fas fa-fw fa-dollar-sign"></i>
                     <span>Financials</span>
                 </a>
@@ -294,44 +613,51 @@
                         @if(auth()->user()->hasRole('super-admin'))
                             <a class="collapse-item" href="{{ route('admin.fee-categories.index') }}">Fee Categories</a>
                             <a class="collapse-item" href="{{ route('admin.fee-structures.index') }}">Fee Structures</a>
-                            <a class="collapse-item" href="{{ route('admin.invoices.index') }}">Invoices & Payments</a>
+                            <a class="collapse-item" href="{{ route('admin.fee-category-analysis.index') }}">Fee Category Analysis</a>
+                            <a class="collapse-item" href="{{ route('admin.component-payments.index') }}">Invoices & Payments</a>
+                           
+                            <h6 class="collapse-header">Payment Follow-up:</h6>
+                            <a class="collapse-item" href="{{ route('admin.payment-reminders.dashboard') }}">
+                                <i class="fas fa-bell text-warning"></i> Reminder Dashboard
+                            </a>
+                           
+                            <a class="collapse-item" href="{{ route('admin.payment-reminders.index') }}">
+                                <i class="fas fa-clock"></i> All Reminders
+                            </a>  
                             <a class="collapse-item" href="{{ route('admin.expense-categories.index') }}">Expense Categories</a>
                             <a class="collapse-item" href="{{ route('admin.expenses.index') }}">Log Expenses</a>
                             <div class="dropdown-divider"></div>
-    <h6 class="collapse-header">Payment Reminders:</h6>
-    <a class="collapse-item" href="{{ route('admin.payment-reminders.dashboard') }}">
-        <i class="fas fa-tachometer-alt fa-sm fa-fw mr-1"></i> Dashboard
-    </a>
-    <a class="collapse-item" href="{{ route('admin.payment-reminders.index') }}">
-        <i class="fas fa-list fa-sm fa-fw mr-1"></i> All Reminders
-    </a>
-    <a class="collapse-item" href="{{ route('admin.payment-reminders.defaulters') }}">
-        <i class="fas fa-exclamation-triangle fa-sm fa-fw mr-1"></i> Defaulters
-    </a>
-    <a class="collapse-item" href="{{ route('admin.settings.payment-reminders.index') }}">
-        <i class="fas fa-cog fa-sm fa-fw mr-1"></i> Settings
-    </a>
+                            <h6 class="collapse-header">Payment Reminders:</h6>
+                            <a class="collapse-item" href="{{ route('admin.payment-reminders.dashboard') }}">
+                                <i class="fas fa-tachometer-alt fa-sm fa-fw mr-1"></i> Dashboard
+                            </a>
+                            <a class="collapse-item" href="{{ route('admin.payment-reminders.index') }}">
+                                <i class="fas fa-list fa-sm fa-fw mr-1"></i> All Reminders
+                            </a>
+                          
+                            <a class="collapse-item" href="{{ route('admin.settings.payment-reminders.index') }}">
+                                <i class="fas fa-cog fa-sm fa-fw mr-1"></i> Settings
+                            </a>
                         @else
                             @can('view financials')
                             <a class="collapse-item" href="{{ route('admin.fee-categories.index') }}">Fee Categories</a>
                             <a class="collapse-item" href="{{ route('admin.fee-structures.index') }}">Fee Structures</a>
-                            <a class="collapse-item" href="{{ route('admin.invoices.index') }}">Invoices & Payments</a>
+                            <a class="collapse-item" href="{{ route('admin.fee-category-analysis.index') }}">Fee Category Analysis</a>
+                            <a class="collapse-item" href="{{ route('admin.component-payments.index') }}">Invoices & Payments</a>
                             <a class="collapse-item" href="{{ route('admin.expense-categories.index') }}">Expense Categories</a>
                             <a class="collapse-item" href="{{ route('admin.expenses.index') }}">Log Expenses</a>
                             <div class="dropdown-divider"></div>
-    <h6 class="collapse-header">Payment Reminders:</h6>
-    <a class="collapse-item" href="{{ route('admin.payment-reminders.dashboard') }}">
-        <i class="fas fa-tachometer-alt fa-sm fa-fw mr-1"></i> Dashboard
-    </a>
-    <a class="collapse-item" href="{{ route('admin.payment-reminders.index') }}">
-        <i class="fas fa-list fa-sm fa-fw mr-1"></i> All Reminders
-    </a>
-    <a class="collapse-item" href="{{ route('admin.payment-reminders.defaulters') }}">
-        <i class="fas fa-exclamation-triangle fa-sm fa-fw mr-1"></i> Defaulters
-    </a>
-    <a class="collapse-item" href="{{ route('admin.settings.payment-reminders.index') }}">
-        <i class="fas fa-cog fa-sm fa-fw mr-1"></i> Settings
-    </a>
+                            <h6 class="collapse-header">Payment Reminders:</h6>
+                            <a class="collapse-item" href="{{ route('admin.payment-reminders.dashboard') }}">
+                                <i class="fas fa-tachometer-alt fa-sm fa-fw mr-1"></i> Dashboard
+                            </a>
+                            <a class="collapse-item" href="{{ route('admin.payment-reminders.index') }}">
+                                <i class="fas fa-list fa-sm fa-fw mr-1"></i> All Reminders
+                            </a>
+                          
+                            <a class="collapse-item" href="{{ route('admin.settings.payment-reminders.index') }}">
+                                <i class="fas fa-cog fa-sm fa-fw mr-1"></i> Settings
+                            </a>
                             @endcan
                         @endif
                     </div>
@@ -339,15 +665,13 @@
             </li>
             @endif
 
+            <!-- Operations -->
             <hr class="sidebar-divider">
+            <div class="sidebar-heading">Operations</div>
 
-            @if(auth()->user()->hasRole('super-admin') || auth()->user()->canAny(['view timetable', 'view attendance']))
-            <div class="sidebar-heading">
-                Operations
-            </div>
-
+            <!-- Timetable -->
             <li class="nav-item">
-                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseTimetable">
+                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseTimetable" aria-expanded="false">
                     <i class="fas fa-fw fa-calendar-alt"></i>
                     <span>Timetable</span>
                 </a>
@@ -367,7 +691,7 @@
                             <a class="collapse-item" href="{{ route('admin.events.index') }}">Event Scheduler</a>
                             @endcan
                         @endif
-                        <div class="dropdown-divider"></div> {{-- Fixed: Changed from collapse-divider to dropdown-divider --}}
+                        <div class="dropdown-divider"></div>
                         <h6 class="collapse-header">Management:</h6>
                         @if(auth()->user()->hasRole('super-admin'))
                             <a class="collapse-item" href="{{ route('admin.timetable.hub') }}">Timetable Hub</a>
@@ -379,39 +703,127 @@
                     </div>
                 </div>
             </li>
-            
+
+            <!-- Attendance & Labs -->
             <li class="nav-item">
-                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseAttendance">
+                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseAttendance" aria-expanded="false">
                     <i class="fas fa-fw fa-check-square"></i>
                     <span>Attendance & Labs</span>
                 </a>
                 <div id="collapseAttendance" class="collapse" data-parent="#accordionSidebar">
                     <div class="bg-white py-2 collapse-inner rounded">
+                        <h6 class="collapse-header">Attendance Management:</h6>
+                        @can('view attendance')
+                            <a class="collapse-item" href="{{ route('attendance.index') }}">
+                                <i class="fas fa-list fa-sm fa-fw mr-1"></i> All Records
+                            </a>
+                            <a class="collapse-item" href="{{ route('admin.daily-attendance.show') }}">
+                                <i class="fas fa-broadcast-tower fa-sm fa-fw mr-1"></i> Live Attendance
+                            </a>
+                            <a class="collapse-item" href="{{ route('admin.attendance.dashboard') }}">
+                                <i class="fas fa-tachometer-alt fa-sm fa-fw mr-1"></i> Dashboard
+                            </a>
+                        @endcan
+                        
+                        @can('take attendance')
+                            <a class="collapse-item" href="{{ route('attendance.create') }}">
+                                <i class="fas fa-plus fa-sm fa-fw mr-1"></i> Take Attendance
+                            </a>
+                        @endcan
+                        
+                        @can('view attendance')
+                            <a class="collapse-item" href="{{ route('attendance.analytics.index') }}">
+                                <i class="fas fa-chart-line fa-sm fa-fw mr-1"></i> Analytics
+                            </a>
+                            <a class="collapse-item" href="{{ route('attendance.reports.index') }}">
+                                <i class="fas fa-file-alt fa-sm fa-fw mr-1"></i> Reports
+                            </a>
+                        @endcan
+                        
+                        <div class="dropdown-divider"></div>
+                        <h6 class="collapse-header">Import & Export:</h6>
+                        @can('manage attendance')
+                            <a class="collapse-item" href="{{ route('admin.attendance.import.show') }}">
+                                <i class="fas fa-upload fa-sm fa-fw mr-1"></i> Import Attendance
+                            </a>
+                            <a class="collapse-item" href="{{ route('admin.attendance.import.sample') }}">
+                                <i class="fas fa-download fa-sm fa-fw mr-1"></i> Download Sample
+                            </a>
+                        @endcan
+                        
+                        @can('export attendance')
+                            <a class="collapse-item" href="{{ route('admin.attendance.export.today') }}">
+                                <i class="fas fa-file-export fa-sm fa-fw mr-1"></i> Export Today
+                            </a>
+                        @endcan
+                
+                        <div class="dropdown-divider"></div>
+                        <h6 class="collapse-header">Notifications:</h6>
+                        @can('manage attendance')
+                            <a class="collapse-item" href="{{ route('attendance.notifications.index') }}">
+                                <i class="fas fa-bell fa-sm fa-fw mr-1"></i> Attendance Alerts
+                            </a>
+                        @endcan
+                        
+                        <div class="dropdown-divider"></div>
+                        <h6 class="collapse-header">Lab Management:</h6>
+                        @can('manage attendance')
+                            <a class="collapse-item" href="{{ route('admin.lab-allocation.index') }}">
+                                <i class="fas fa-flask fa-sm fa-fw mr-1"></i> Lab Allocation
+                            </a>
+                        @endcan
+                        
+                        <div class="dropdown-divider"></div>
+                        <h6 class="collapse-header">Document Generation:</h6>
+                        @can('manage documents')
+                            <a class="collapse-item" href="{{ route('admin.id-cards.show') }}">
+                                <i class="fas fa-id-card fa-sm fa-fw mr-1"></i> ID Card Generator
+                            </a>
+                            <a class="collapse-item" href="{{ route('admin.id-card-templates.index') }}">
+                                <i class="fas fa-id-badge fa-sm fa-fw mr-1"></i> ID Card Templates
+                            </a>
+                            <a class="collapse-item" href="{{ route('admin.certificate-templates.index') }}">
+                                <i class="fas fa-certificate fa-sm fa-fw mr-1"></i> Certificate Templates
+                            </a>
+                            <a class="collapse-item" href="{{ route('admin.certificate.generator.show') }}">
+                                <i class="fas fa-award fa-sm fa-fw mr-1"></i> Certificate Generator
+                            </a>
+                        @endcan
+                        
                         @if(auth()->user()->hasRole('super-admin'))
-                            <a class="collapse-item" href="{{ route('admin.daily-attendance.create') }}">Daily Attendance</a>
-                            <a class="collapse-item" href="{{ route('admin.lab-allocation.index') }}">Lab Allocation</a>
-                            <a class="collapse-item" href="{{ route('admin.id-cards.show') }}">ID Card Generator</a>
-                            <a class="collapse-item" href="{{ route('admin.id-card-templates.index') }}">ID Card Templates</a>
-                            <a class="collapse-item" href="{{ route('admin.certificate-templates.index') }}">Certificate Templates</a>
-                            <a class="collapse-item" href="{{ route('admin.certificate.generator.show') }}">Certificate Generator</a>
+                            <div class="dropdown-divider"></div>
+                            <h6 class="collapse-header">Admin Tools:</h6>
+                            <a class="collapse-item" href="{{ route('admin.daily-attendance.index') }}">
+                                <i class="fas fa-calendar-day fa-sm fa-fw mr-1"></i> Daily Attendance (Legacy)
+                            </a>
+                            <a class="collapse-item" href="{{ route('admin.attendance.import.show') }}">
+                                <i class="fas fa-upload fa-sm fa-fw mr-1"></i> Bulk Import
+                            </a>
+                            <a class="collapse-item" href="{{ route('admin.attendance.settings') }}">
+                                <i class="fas fa-cog fa-sm fa-fw mr-1"></i> Settings
+                            </a>
                         @else
-                            @can('view attendance')
-                            <a class="collapse-item" href="{{ route('admin.daily-attendance.create') }}">Daily Attendance</a>
-                            @endcan
-                            @can('view documents')
-                            <a class="collapse-item" href="{{ route('admin.id-cards.show') }}">ID Card Generator</a>
-                            <a class="collapse-item" href="{{ route('admin.id-card-templates.index') }}">ID Card Templates</a>
-                            <a class="collapse-item" href="{{ route('admin.certificate-templates.index') }}">Certificate Templates</a>
-                            <a class="collapse-item" href="{{ route('admin.certificate.generator.show') }}">Certificate Generator</a>
-                            @endcan
+                            @if(auth()->user()->canAny(['manage attendance', 'view id-cards', 'view certificates']))
+                                <div class="dropdown-divider"></div>
+                                <h6 class="collapse-header">Admin Tools:</h6>
+                                @can('manage attendance')
+                                    <a class="collapse-item" href="{{ route('admin.daily-attendance.create') }}">
+                                        <i class="fas fa-calendar-day fa-sm fa-fw mr-1"></i> Daily Attendance (Legacy)
+                                    </a>
+                                    <a class="collapse-item" href="{{ route('admin.attendance.import.show') }}">
+                                        <i class="fas fa-upload fa-sm fa-fw mr-1"></i> Bulk Import
+                                    </a>
+                                @endcan
+                            @endif
                         @endif
                     </div>
                 </div>
             </li>
- @endif
+
+            <!-- Inventory -->
             @if(auth()->user()->hasRole('super-admin') || auth()->user()->canAny(['view inventory', 'view assets']))
             <li class="nav-item">
-                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseInventory">
+                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseInventory" aria-expanded="false">
                     <i class="fas fa-fw fa-box"></i>
                     <span>Inventory</span>
                 </a>
@@ -433,9 +845,10 @@
             </li>
             @endif
             
+            <!-- Front Office -->
             @if(auth()->user()->hasRole('super-admin') || auth()->user()->can('view visitors'))
             <li class="nav-item">
-                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseFO">
+                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseFO" aria-expanded="false">
                     <i class="fas fa-fw fa-address-book"></i>
                     <span>Front Office</span>
                 </a>
@@ -448,9 +861,10 @@
             </li>
             @endif
 
+            <!-- HR Management -->
             @if(auth()->user()->hasRole('super-admin') || auth()->user()->can('view hr'))
             <li class="nav-item">
-                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseHR">
+                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseHR" aria-expanded="false">
                     <i class="fas fa-fw fa-briefcase"></i>
                     <span>HR Management</span>
                 </a>
@@ -475,15 +889,12 @@
             </li>
             @endif
 
+            <!-- System Administration -->
+            @if(auth()->user()->hasRole('super-admin') || auth()->user()->canAny(['view settings', 'view users', 'manage users', 'manage permissions']))
             <hr class="sidebar-divider">
-
-            <div class="sidebar-heading">
-                System
-            </div>
-
-           @if(auth()->user()->hasRole('super-admin') || auth()->user()->canAny(['view settings', 'view users', 'manage users', 'manage permissions']))
+            <div class="sidebar-heading">System</div>
             <li class="nav-item">
-                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseAdmin">
+                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseAdmin" aria-expanded="false">
                     <i class="fas fa-fw fa-cogs"></i>
                     <span>Administration</span>
                 </a>
@@ -516,22 +927,14 @@
                             <a class="collapse-item" href="{{ route('admin.backups.index') }}">
                                 <i class="fas fa-archive fa-sm fa-fw mr-1"></i> Backup & Restore
                             </a>
-                            <a class="collapse-item" href="{{ route('admin.configuration.index') }}">
-                                <i class="fas fa-sliders-h fa-sm fa-fw mr-1"></i> Configuration
-                            </a>
+                           
                             <a class="collapse-item" href="{{ route('admin.activity-log.index') }}">
                                 <i class="fas fa-history fa-sm fa-fw mr-1"></i> Activity Log
                             </a>
                             <a class="collapse-item" href="{{ route('admin.academic-years.index') }}">
                                 <i class="fas fa-calendar-alt fa-sm fa-fw mr-1"></i> Academic Years
                             </a>
-                            <a class="collapse-item" href="{{ route('admin.widgets.index') }}">
-                                <i class="fas fa-th fa-sm fa-fw mr-1"></i> Manage Widgets
-                            </a>
-                            <a class="collapse-item" href="{{ route('admin.dashboard-builder.index') }}">
-                                <i class="fas fa-desktop fa-sm fa-fw mr-1"></i> Dashboard Builder
-                            </a>
-                            
+
                             <div class="dropdown-divider"></div>
                             <h6 class="collapse-header">API Management</h6>
                             <a class="collapse-item" href="{{ route('admin.api-tokens.index') }}">
@@ -546,13 +949,13 @@
                             <a class="collapse-item" href="{{ route('admin.webhooks.index') }}">
                                 <i class="fas fa-exchange-alt fa-sm fa-fw mr-1"></i> Webhooks
                             </a>
-                           
                         @endif
                     </div>
                 </div>
             </li>
             @endif
 
+            <!-- Notifications -->
             <li class="nav-item">
                 <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseNotifications"
                     aria-expanded="true" aria-controls="collapseNotifications">
@@ -563,13 +966,13 @@
                     data-parent="#accordionSidebar">
                     <div class="bg-white py-2 collapse-inner rounded">
                         <h6 class="collapse-header">Notification Management:</h6>
-                        <a class="collapse-item" href="{{ route('admin.notifications.dashboard') }}">
+                        <a class="collapse-item" href="{{ route('admin.dashboard') }}">
                             <i class="fas fa-tachometer-alt"></i> Dashboard
                         </a>
-                        <a class="collapse-item" href="{{ route('admin.notifications.index') }}">
+                        <a class="collapse-item" href="javascript:void(0)" onclick="showNotificationMessage()">
                             <i class="fas fa-list"></i> All Notifications
                         </a>
-                        <a class="collapse-item" href="{{ route('admin.notifications.settings') }}">
+                        <a class="collapse-item" href="javascript:void(0)" onclick="showNotificationMessage()">
                             <i class="fas fa-cog"></i> Settings
                         </a>
                         <div class="dropdown-divider"></div>
@@ -587,9 +990,10 @@
                 </div>
             </li>
 
+            <!-- Reports -->
             @if(auth()->user()->hasRole('super-admin') || auth()->user()->can('view reports'))
             <li class="nav-item">
-                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseReports">
+                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseReports" aria-expanded="false">
                     <i class="fas fa-fw fa-chart-area"></i>
                     <span>Reports</span>
                 </a>
@@ -614,42 +1018,50 @@
             @endif
 
             <hr class="sidebar-divider d-none d-md-block">
-
             <div class="text-center d-none d-md-inline">
                 <button class="rounded-circle border-0" id="sidebarToggle"></button>
             </div>
-
         </ul>
+
+        <!-- Content Wrapper -->
         <div id="content-wrapper" class="d-flex flex-column">
             <div id="content">
-
+                <!-- Enhanced Topbar -->
                 <nav class="navbar navbar-expand navbar-light bg-white topbar mb-4 static-top shadow no-print">
                     <button id="sidebarToggleTop" class="btn btn-link d-md-none rounded-circle mr-3">
                         <i class="fa fa-bars"></i>
                     </button>
 
+                    <!-- Enhanced Global Search -->
                     <div class="d-none d-sm-inline-block form-inline mr-auto ml-md-3 my-2 my-md-0 mw-100 navbar-search position-relative">
                         <div class="input-group">
-                            <input type="text" id="global-search-input" class="form-control bg-light border-0 small" placeholder="Search Students (Name, Enroll #, Mobile)..." autocomplete="off">
+                            <input type="text" id="global-search-input" 
+                                   class="form-control bg-light border-0 small" 
+                                   placeholder="Search Students, Faculty, or Courses..." 
+                                   autocomplete="off">
                             <div class="input-group-append">
-                                <button class="btn btn-primary" type="button">
+                                <button class="btn btn-primary" type="button" id="searchButton">
                                     <i class="fas fa-search fa-sm"></i>
                                 </button>
                             </div>
                         </div>
-                        <div id="ajax-search-results" class="ajax-search-results card shadow" style="display:none;"></div>
+                        <div id="ajax-search-results" class="ajax-search-results" style="display:none;">
+                            <!-- Search results will be populated here -->
+                        </div>
                     </div>
                     
+                    <!-- Top Navigation -->
                     <ul class="navbar-nav ml-auto">
+                        <!-- Academic Year Switcher -->
                         @if(isset($allAcademicYears) && $allAcademicYears->isNotEmpty())
                         <li class="nav-item dropdown no-arrow mx-1">
-                            <a class="nav-link dropdown-toggle" href="#" id="yearDropdown" role="button" data-toggle="dropdown">
-                                <i class="fas fa-fw fa-calendar-alt"></i>
+                            <a class="nav-link dropdown-toggle" href="#" id="yearDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="Academic Year">
+                                <i class="fas fa-calendar-alt fa-fw text-gray-600"></i>
                                 <span class="d-none d-lg-inline text-gray-600 small">
                                     {{ $allAcademicYears->firstWhere('id', $selectedAcademicYearId)->name ?? 'Select Year' }}
                                 </span>
                             </a>
-                            <div class="dropdown-menu dropdown-menu-right shadow animated--grow-in">
+                            <div class="dropdown-menu dropdown-menu-right shadow animated--grow-in" aria-labelledby="yearDropdown">
                                 <h6 class="dropdown-header">Switch Academic Year</h6>
                                 <form action="{{ route('admin.academic-years.switch') }}" method="POST" id="academicYearForm">
                                     @csrf
@@ -665,880 +1077,355 @@
                         </li>
                         @endif
 
+                        <!-- Quick Actions -->
                         <li class="nav-item dropdown no-arrow mx-1">
                             <a class="nav-link dropdown-toggle" href="#" id="quickActionsDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="Quick Actions">
-                                <i class="fas fa-plus-circle fa-fw"></i>
+                                <i class="fas fa-plus-circle fa-fw text-gray-600"></i>
+                                <span class="d-none d-lg-inline text-gray-600 small">Quick Add</span>
                             </a>
-                            <div class="dropdown-menu dropdown-menu-right p-2 shadow animated--grow-in" aria-labelledby="quickActionsDropdown">
-                                <h6 class="dropdown-header">Quick Actions</h6>
+                            <div class="dropdown-menu dropdown-menu-right shadow animated--grow-in" aria-labelledby="quickActionsDropdown" style="min-width: 280px;">
+                                <h6 class="dropdown-header">
+                                    <i class="fas fa-bolt text-primary"></i> Quick Actions
+                                </h6>
                                 @can('create students')
-                                <a class="dropdown-item d-flex align-items-center" href="{{ route('admin.students.create') }}">
-                                    <div class="mr-3"><div class="icon-circle bg-primary"><i class="fas fa-user-plus text-white"></i></div></div>
-                                    <div><div class="small text-gray-500">Add New</div><strong>Student</strong></div>
+                                <a class="dropdown-item d-flex align-items-center py-3" href="{{ route('admin.students.create') }}">
+                                    <div class="mr-3">
+                                        <div class="icon-circle bg-success">
+                                            <i class="fas fa-user-plus text-white"></i>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="small text-gray-500">Add New</div>
+                                        <strong class="text-gray-800">Student</strong>
+                                    </div>
                                 </a>
                                 @endcan
+                                
                                 @can('take attendance')
-                                <a class="dropdown-item d-flex align-items-center" href="{{ route('admin.daily-attendance.create') }}">
-                                    <div class="mr-3"><div class="icon-circle bg-info"><i class="fas fa-user-check text-white"></i></div></div>
-                                    <div><div class="small text-gray-500">Take</div><strong>Attendance</strong></div>
+                                <a class="dropdown-item d-flex align-items-center py-3" href="{{ route('attendance.create') }}">
+                                    <div class="mr-3">
+                                        <div class="icon-circle bg-info">
+                                            <i class="fas fa-user-check text-white"></i>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="small text-gray-500">Take</div>
+                                        <strong class="text-gray-800">Attendance</strong>
+                                    </div>
                                 </a>
                                 @endcan
+                                
+                                @can('create enquiries')
+                                <a class="dropdown-item d-flex align-items-center py-3" href="{{ route('admin.enquiries.create') }}">
+                                    <div class="mr-3">
+                                        <div class="icon-circle bg-warning">
+                                            <i class="fas fa-user-plus text-white"></i>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="small text-gray-500">Add</div>
+                                        <strong class="text-gray-800">Enquiry</strong>
+                                    </div>
+                                </a>
+                                @endcan
+                                
+                                @can('manage courses')
+                                <a class="dropdown-item d-flex align-items-center py-3" href="{{ route('admin.courses.create') }}">
+                                    <div class="mr-3">
+                                        <div class="icon-circle bg-primary">
+                                            <i class="fas fa-graduation-cap text-white"></i>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="small text-gray-500">Create</div>
+                                        <strong class="text-gray-800">Course</strong>
+                                    </div>
+                                </a>
+                                @endcan
+                                
+                                <div class="dropdown-divider"></div>
+                                <a class="dropdown-item text-center small text-gray-500" href="{{ route('admin.dashboard') }}">
+                                    <i class="fas fa-tachometer-alt mr-1"></i> View Dashboard
+                                </a>
                             </div>
                         </li>
 
-                        <li class="nav-item dropdown no-arrow mx-1 notification-bell" id="notificationDropdown">
-                            <a class="nav-link dropdown-toggle" href="#" id="alertsDropdown" role="button"
-                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                <i class="fas fa-bell fa-fw"></i>
-                                <span class="badge badge-danger badge-counter" id="notificationCount" style="display: none;">0</span>
-                            </a>
-                            <div class="dropdown-list dropdown-menu dropdown-menu-right shadow animated--grow-in"
-                                aria-labelledby="alertsDropdown" style="width: 400px;">
-                                <h6 class="dropdown-header">
-                                    <i class="fas fa-bell"></i> Notifications
-                                    <button class="btn btn-sm btn-link float-right text-white" onclick="markAllNotificationsAsRead()">
-                                        Mark All Read
-                                    </button>
-                                </h6>
-                                
-                                <div id="notificationList" style="max-height: 300px; overflow-y: auto;">
-                                    <div class="text-center py-3" id="loadingNotifications">
-                                        <i class="fas fa-spinner fa-spin"></i> Loading...
-                                    </div>
-                                </div>
-                                
-                                <a class="dropdown-item text-center small text-gray-500"
-                                    href="{{ route('admin.notifications.index') }}">
-                                    Show All Notifications
-                                </a>
-                            </div>
-                        </li>
+                        <!-- Enhanced Notifications -->
+                     <li class="nav-item dropdown no-arrow mx-1" id="notificationDropdown">
+    <a class="nav-link dropdown-toggle" href="#" id="alertsDropdown" role="button"
+       data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+        <i class="fas fa-bell fa-fw"></i>
+        <span class="badge badge-danger badge-counter" id="notificationCount" style="display: none;">0</span>
+    </a>
+    
+    <div class="dropdown-list dropdown-menu dropdown-menu-right shadow animated--grow-in"
+         aria-labelledby="alertsDropdown" style="width: 350px;">
+        <h6 class="dropdown-header d-flex justify-content-between align-items-center">
+            <span>Alerts Center</span>
+            <a href="#" class="text-white small" onclick="markAllRead(event)" style="text-decoration: underline;">Mark All Read</a>
+        </h6>
+        
+        <div id="notificationList" style="max-height: 300px; overflow-y: auto;">
+            <div class="text-center py-3 text-gray-500 small">Loading...</div>
+        </div>
+        
+        <a class="dropdown-item text-center small text-gray-500" href="{{ route('admin.notifications.index') }}">Show All Alerts</a>
+    </div>
+</li>
+
+<audio id="sound_success" src="{{ asset('sounds/success.mp3') }}" preload="auto"></audio>
+<audio id="sound_warning" src="{{ asset('sounds/warning.mp3') }}" preload="auto"></audio>
+<audio id="sound_error" src="{{ asset('sounds/error.mp3') }}" preload="auto"></audio>
+<audio id="sound_info" src="{{ asset('sounds/notification.mp3') }}" preload="auto"></audio>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 1. Load immediately
+    checkNotifications();
+    
+    // 2. Poll every 30 seconds
+    setInterval(checkNotifications, 30000);
+});
+
+let previousCount = 0;
+
+function checkNotifications() {
+    fetch('{{ route("notifications.recent") }}')
+        .then(response => response.json())
+        .then(data => {
+            updateBellUI(data);
+        })
+        .catch(err => console.error('Notification poll error:', err));
+}
+
+function updateBellUI(data) {
+    const count = data.unread_count;
+    const list = data.notifications;
+    
+    // Update Badge
+    const badge = document.getElementById('notificationCount');
+    if (count > 0) {
+        badge.style.display = 'inline-block';
+        badge.innerText = count > 99 ? '99+' : count;
+        
+        // Play sound if new notifications arrived
+        if (count > previousCount) {
+            playSound(list[0]?.type || 'info');
+        }
+    } else {
+        badge.style.display = 'none';
+    }
+    previousCount = count;
+
+    // Update Dropdown List
+    const container = document.getElementById('notificationList');
+    
+    if (list.length === 0) {
+        container.innerHTML = '<div class="text-center py-3 text-gray-500 small">No new notifications</div>';
+        return;
+    }
+
+    let html = '';
+    list.forEach(notif => {
+        // Choose icon based on type
+        let icon = 'fa-info-circle';
+        let bg = 'bg-primary';
+        
+        if(notif.type === 'warning') { icon = 'fa-exclamation-triangle'; bg = 'bg-warning'; }
+        else if(notif.type === 'error') { icon = 'fa-exclamation-circle'; bg = 'bg-danger'; }
+        else if(notif.type === 'success') { icon = 'fa-check-circle'; bg = 'bg-success'; }
+
+        // Format Time
+        const time = new Date(notif.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+        html += `
+            <a class="dropdown-item d-flex align-items-center" href="${notif.action_url || '#'}" onclick="markAsRead(${notif.id})">
+                <div class="mr-3">
+                    <div class="icon-circle ${bg}">
+                        <i class="fas ${icon} text-white"></i>
+                    </div>
+                </div>
+                <div>
+                    <div class="small text-gray-500">${time}</div>
+                    <span class="font-weight-bold d-block text-truncate" style="max-width: 200px;">${notif.title}</span>
+                    <span class="small text-gray-600 text-truncate" style="max-width: 200px; display:block;">${notif.message}</span>
+                </div>
+            </a>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+function markAsRead(id) {
+    fetch(`{{ url('notifications') }}/${id}/read`, {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'Content-Type': 'application/json'
+        }
+    });
+}
+
+function markAllRead(e) {
+    e.preventDefault();
+    e.stopPropagation(); // Keep dropdown open
+    
+    fetch('{{ route("notifications.mark-all-read") }}', {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'Content-Type': 'application/json'
+        }
+    }).then(() => {
+        checkNotifications(); // Refresh UI
+    });
+}
+
+function playSound(type) {
+    const audio = document.getElementById('sound_' + type) || document.getElementById('sound_info');
+    if (audio) {
+        audio.play().catch(e => console.log('Audio autoplay blocked by browser policy'));
+    }
+}
+</script>
 
                         <div class="topbar-divider d-none d-sm-block"></div>
 
+                        <!-- Enhanced User Menu -->
                         <li class="nav-item dropdown no-arrow">
                             <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                <span class="mr-2 d-none d-lg-inline text-gray-600 small">{{ Auth::user()->name }}</span>
-                                <img class="img-profile rounded-circle" src="https://ui-avatars.com/api/?name={{ urlencode(Auth::user()->name) }}&background=4e73df&color=fff">
+                                <span class="mr-2 d-none d-lg-inline text-gray-600 small font-weight-bold">{{ Auth::user()->name }}</span>
+                                <img class="img-profile rounded-circle" 
+                                     src="https://ui-avatars.com/api/?name={{ urlencode(Auth::user()->name) }}&background=667eea&color=fff&size=32" 
+                                     alt="Profile Picture">
                             </a>
                             <div class="dropdown-menu dropdown-menu-right shadow animated--grow-in" aria-labelledby="userDropdown">
+                                <div class="dropdown-header text-center py-3">
+                                    <img class="img-profile rounded-circle mb-2" 
+                                         src="https://ui-avatars.com/api/?name={{ urlencode(Auth::user()->name) }}&background=667eea&color=fff&size=64" 
+                                         alt="Profile Picture" style="width: 64px; height: 64px;">
+                                    <div class="font-weight-bold text-gray-800">{{ Auth::user()->name }}</div>
+                                    <div class="small text-gray-500">{{ Auth::user()->email }}</div>
+                                    @if(Auth::user()->roles->isNotEmpty())
+                                        <span class="badge badge-primary mt-1">{{ Auth::user()->roles->first()->name }}</span>
+                                    @endif
+                                </div>
+                                <div class="dropdown-divider"></div>
                                 <a class="dropdown-item" href="{{ route('profile.edit') }}">
-                                    <i class="fas fa-user fa-sm fa-fw mr-2 text-gray-400"></i>Profile
+                                    <i class="fas fa-user fa-sm fa-fw mr-2 text-gray-400"></i>
+                                    Profile Settings
+                                </a>
+                                <a class="dropdown-item" href="{{ route('admin.calendar.index') }}">
+                                    <i class="fas fa-calendar fa-sm fa-fw mr-2 text-gray-400"></i>
+                                    My Calendar
                                 </a>
                                 <div class="dropdown-divider"></div>
-                                <a class="dropdown-item" href="#" data-toggle="modal" data-target="#logoutModal">
-                                    <i class="fas fa-sign-out-alt fa-sm fa-fw mr-2 text-gray-400"></i>Logout
+                                <a class="dropdown-item text-danger" href="#" data-toggle="modal" data-target="#logoutModal">
+                                    <i class="fas fa-sign-out-alt fa-sm fa-fw mr-2"></i>
+                                    Logout
                                 </a>
                             </div>
                         </li>
                     </ul>
                 </nav>
+
+                <!-- Main Content Area -->
                 <div class="container-fluid">
                     @yield('content')
                 </div>
-                </div>
+            </div>
+
+            <!-- Modern Footer -->
             <footer class="sticky-footer bg-white no-print">
                 <div class="container my-auto">
                     <div class="copyright text-center my-auto">
-                        <span>Copyright &copy; {{ setting('college_name', 'Your College') }} {{ date('Y') }}</span>
+                        <span class="text-gray-600">Copyright &copy; {{ setting('college_name', 'Your College') }} {{ date('Y') }}</span>
                     </div>
                 </div>
             </footer>
-            </div>
         </div>
+    </div>
+
+    <!-- Scroll to Top Button -->
     <a class="scroll-to-top rounded" href="#page-top">
         <i class="fas fa-angle-up"></i>
     </a>
     
+    <!-- Enhanced Logout Modal -->
     <div class="modal fade" id="logoutModal" tabindex="-1" role="dialog" aria-labelledby="logoutModalLabel" aria-hidden="true">
-        <div class="modal-dialog" role="document">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="logoutModalLabel">Ready to Leave?</h5>
-                    <button class="close" type="button" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">×</span>
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header border-0 bg-gradient-primary text-white">
+                    <h5 class="modal-title" id="logoutModalLabel">
+                        <i class="fas fa-sign-out-alt mr-2"></i>Confirm Logout
+                    </h5>
+                    <button class="close text-white" type="button" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
-                <div class="modal-body">Select "Logout" below if you are ready to end your current session.</div>
-                <div class="modal-footer">
-                    <button class="btn btn-secondary" type="button" data-dismiss="modal">Cancel</button>
-                    <form method="POST" action="{{ route('logout') }}" style="display: inline;">
+                <div class="modal-body text-center py-4">
+                    <i class="fas fa-question-circle fa-3x text-warning mb-3"></i>
+                    <h6 class="font-weight-bold text-gray-800 mb-2">Are you sure you want to logout?</h6>
+                    <p class="text-gray-600 mb-0">You will need to sign in again to access your account.</p>
+                </div>
+                <div class="modal-footer border-0 justify-content-center">
+                    <button class="btn btn-secondary px-4" type="button" data-dismiss="modal">
+                        <i class="fas fa-times mr-1"></i> Cancel
+                    </button>
+                    <form method="POST" action="{{ route('logout') }}" class="d-inline">
                         @csrf
-                        <button type="submit" class="btn btn-primary">Logout</button>
+                        <button type="submit" class="btn btn-primary px-4">
+                            <i class="fas fa-sign-out-alt mr-1"></i> Logout
+                        </button>
                     </form>
                 </div>
             </div>
         </div>
     </div>
 
- <!--<div id="testControls">-->
- <!--       <div class="btn-group-vertical">-->
- <!--           <button class="btn btn-sm btn-primary" onclick="testNotificationSystem()" title="Test Notification System">-->
- <!--               <i class="fas fa-vial"></i>-->
- <!--           </button>-->
- <!--           <button class="btn btn-sm btn-secondary" onclick="toggleNotificationSound()" title="Toggle Sound">-->
- <!--               <i class="fas fa-volume-up"></i>-->
- <!--           </button>-->
- <!--           <button class="btn btn-sm btn-success" onclick="showTestPopup('success')" title="Success Test">-->
- <!--               <i class="fas fa-check"></i>-->
- <!--           </button>-->
- <!--           <button class="btn btn-sm btn-danger" onclick="showTestPopup('error')" title="Error Test">-->
- <!--               <i class="fas fa-exclamation"></i>-->
- <!--           </button>-->
- <!--           <button class="btn btn-sm btn-warning" onclick="showTestPopup('warning')" title="Warning Test">-->
- <!--               <i class="fas fa-exclamation-triangle"></i>-->
- <!--           </button>-->
- <!--           <button class="btn btn-sm btn-info" onclick="showTestPopup('info')" title="Info Test">-->
- <!--               <i class="fas fa-info"></i>-->
- <!--           </button>-->
- <!--       </div>-->
- <!--   </div> -->
-
-    <script src="{{ asset('admin_theme/vendor/jquery/jquery.min.js') }}"></script>
+    <!-- JavaScript Files -->
+    <script src="{{ asset('admin_theme/vendor/jquery/jquery.js') }}"></script>
     <script src="{{ asset('admin_theme/vendor/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
     <script src="{{ asset('admin_theme/vendor/jquery-easing/jquery.easing.min.js') }}"></script>
     <script src="{{ asset('admin_theme/js/sb-admin-2.min.js') }}"></script>
     <script src="https://cdn.tiny.cloud/1/931v3pnok0fltk63e24f9fnlvmf94f4s3q6l93xd3hvtk3u2/tinymce/7/tinymce.min.js" referrerpolicy="origin"></script>
-    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
     <script src="{{ asset('admin_theme/vendor/datatables/jquery.dataTables.min.js') }}"></script>
     <script src="{{ asset('admin_theme/vendor/datatables/dataTables.bootstrap4.min.js') }}"></script>
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
     <script src="https://cdn.jsdelivr.net/npm/gridstack@10.1.2/dist/gridstack-all.js"></script>
 
+    <!-- Enhanced JavaScript Functionality -->
     <script>
-// Updated notification system JavaScript with proper error handling
-class EnhancedNotificationSystem {
-    constructor() {
-        this.config = window.NotificationConfig || {};
-        this.notifications = [];
-        this.unreadCount = this.config.unreadCount || 0;
-        this.currentFilter = 'all';
-        this.soundEnabled = true;
-        this.volume = 0.7;
-        this.isOnline = navigator.onLine;
-        this.retryCount = 0;
-        this.maxRetries = 3;
-        this.lastNotificationCheck = new Date().toISOString();
-        this.notificationPermission = false;
-        this.csrfToken = document.querySelector('meta[name="csrf-token"]').content; // Added: Fetch CSRF token from meta
-        
-        this.init();
-    }
-
-    async init() {
-        try {
-            this.setupEventListeners();
-            this.setupConnectionMonitoring();
-            await this.loadNotifications();
-            this.updateNotificationCount();
-            this.requestNotificationPermission();
-            this.setupKeyboardShortcuts();
-            this.startPeriodicCheck();
-            
-            console.log('Enhanced Notification System initialized');
-        } catch (error) {
-            console.error('Failed to initialize notification system:', error);
-        }
-    }
-
-    setupConnectionMonitoring() {
-        window.addEventListener('online', () => {
-            this.isOnline = true;
-            console.log('Connection restored');
-            this.retryCount = 0;
-            this.startPeriodicCheck();
-        });
-        
-        window.addEventListener('offline', () => {
-            this.isOnline = false;
-            console.log('Connection lost');
-        });
-    }
-
-    async makeRequest(url, options = {}) {
-        if (!this.isOnline) {
-            throw new Error('No internet connection');
-        }
-
-        const defaultOptions = {
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            credentials: 'same-origin'
-        };
-
-        // Add CSRF token for non-GET requests
-        if (options.method && options.method !== 'GET') {
-            defaultOptions.headers['X-CSRF-TOKEN'] = this.csrfToken; // Fixed: Use this.csrfToken instead of config
-        }
-
-        const finalOptions = {
-            ...defaultOptions,
-            ...options,
-            headers: {
-                ...defaultOptions.headers,
-                ...options.headers
-            }
-        };
-
-        try {
-            const response = await fetch(url, finalOptions);
-            
-            if (!response.ok) {
-                // Check if it's a Laravel error page (HTML instead of JSON)
-                const contentType = response.headers.get('content-type');
-                if (contentType && contentType.includes('text/html')) {
-                    console.error(`Server returned HTML instead of JSON for ${url}. Status: ${response.status}`);
-                    throw new Error(`Server error: ${response.status}. Check if the API endpoint exists.`);
-                }
-                
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-            
-            return await response.json();
-        } catch (error) {
-            console.error(`Request failed for ${url}:`, error);
-            throw error;
-        }
-    }
-
-    async updateNotificationCount() {
-        if (!this.isOnline) {
-            console.log('Offline - skipping notification count update');
-            return;
-        }
-
-        try {
-            // Try the API endpoint first
-            let data;
-            try {
-                data = await this.makeRequest('/api/notifications/unread-count');
-            } catch (error) {
-                console.log('API endpoint failed, trying web endpoint:', error.message);
-                // Fallback to web endpoint
-                data = await this.makeRequest('/notifications/unread-count');
-            }
-            
-            if (data.success) {
-                this.unreadCount = data.count;
-                this.retryCount = 0; // Reset retry count on success
-            } else {
-                console.warn('Server returned success=false:', data);
-            }
-            
-            this.renderNotificationCount();
-        } catch (error) {
-            console.error('Error updating notification count:', error);
-            this.handleRequestError(error);
-        }
-    }
-
-    handleRequestError(error) {
-        this.retryCount++;
-        
-        if (this.retryCount >= this.maxRetries) {
-            console.error(`Max retries (${this.maxRetries}) reached. Stopping periodic checks.`);
-            clearInterval(this.periodicCheckInterval);
-            this.showConnectionError();
-        } else {
-            console.log(`Retry ${this.retryCount}/${this.maxRetries} in 10 seconds...`);
-            setTimeout(() => this.updateNotificationCount(), 10000);
-        }
-    }
-
-    showConnectionError() {
-        const notificationBell = document.querySelector('.notification-bell');
-        if (notificationBell) {
-            notificationBell.classList.add('error-state');
-            notificationBell.title = 'Notification system offline - check your connection';
-        }
-    }
-
-    startPeriodicCheck() {
-        // Clear any existing interval
-        if (this.periodicCheckInterval) {
-            clearInterval(this.periodicCheckInterval);
-        }
-        
-        // Update immediately
-        this.updateNotificationCount();
-        
-        // Then update every 30 seconds
-        this.periodicCheckInterval = setInterval(() => {
-            this.updateNotificationCount();
-        }, 30000);
-    }
-
-    renderNotificationCount() {
-        const countElement = document.querySelector('#notificationCount'); // Fixed: Changed from .notification-count to #notificationCount
-        if (countElement) {
-            countElement.textContent = this.unreadCount > 9 ? '9+' : this.unreadCount;
-            countElement.style.display = this.unreadCount > 0 ? 'inline-block' : 'none';
-        }
-
-        // Update badge in title if notifications exist
-        const originalTitle = document.title.replace(/^\(\d+\) /, '');
-        document.title = this.unreadCount > 0 ? `(${this.unreadCount}) ${originalTitle}` : originalTitle;
-    }
-
-    async loadNotifications() {
-        try {
-            let data;
-            try {
-                data = await this.makeRequest('/api/notifications?limit=20');
-            } catch (error) {
-                console.log('API endpoint failed, trying web endpoint:', error.message);
-                data = await this.makeRequest('/notifications?limit=20');
-            }
-            
-            if (data.success && data.notifications) {
-                this.notifications = data.notifications;
-                this.renderNotifications();
-            }
-        } catch (error) {
-            console.error('Error loading notifications:', error);
-            this.renderNotificationError();
-        }
-    }
-
-    renderNotifications() {
-        const container = document.getElementById('notificationList');
-        if (!container) return;
-
-        if (this.notifications.length === 0) {
-            container.innerHTML = `
-                <div class="text-center py-3 text-muted">
-                    <i class="fas fa-bell-slash"></i>
-                    <p class="mb-0 mt-2">No notifications</p>
-                </div>
-            `;
-            return;
-        }
-
-        const notificationsHtml = this.notifications.map(notification => {
-            const isUnread = !notification.read_at;
-            const icon = this.getNotificationIcon(notification.type);
-            const timeAgo = this.getTimeAgo(new Date(notification.created_at));
-            
-            return `
-                <div class="notification-item ${isUnread ? 'unread' : ''}" data-id="${notification.id}">
-                    <div class="notification-icon">
-                        <i class="${icon}"></i>
-                    </div>
-                    <div class="notification-content">
-                        <div class="notification-title">${notification.title}</div>
-                        <div class="notification-message">${notification.message}</div>
-                        <div class="notification-time">${timeAgo}</div>
-                    </div>
-                    ${isUnread ? '<div class="notification-unread-dot"></div>' : ''}
-                </div>
-            `;
-        }).join('');
-
-        container.innerHTML = notificationsHtml;
-        
-        // Add click handlers
-        container.querySelectorAll('.notification-item').forEach(item => {
-            item.addEventListener('click', (e) => {
-                const notificationId = item.dataset.id;
-                this.markAsRead(notificationId);
-            });
-        });
-    }
-
-    renderNotificationError() {
-        const container = document.getElementById('notificationList');
-        if (container) {
-            container.innerHTML = `
-                <div class="text-center py-3 text-danger">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <p class="mb-0 mt-2">Failed to load notifications</p>
-                    <button class="btn btn-sm btn-outline-primary mt-2" onclick="notificationSystem.loadNotifications()">
-                        Retry
-                    </button>
-                </div>
-            `;
-        }
-    }
-
-    async markAsRead(notificationId) {
-        try {
-            let data;
-            try {
-                data = await this.makeRequest(`/api/notifications/${notificationId}/read`, {
-                    method: 'POST'
-                });
-            } catch (error) {
-                console.log('API endpoint failed, trying web endpoint:', error.message);
-                data = await this.makeRequest(`/notifications/${notificationId}/read`, {
-                    method: 'POST'
-                });
-            }
-            
-            if (data.success) {
-                // Update local state
-                const notification = this.notifications.find(n => n.id == notificationId);
-                if (notification && !notification.read_at) {
-                    notification.read_at = new Date().toISOString();
-                    this.unreadCount = Math.max(0, this.unreadCount - 1);
-                    this.renderNotificationCount();
-                    this.renderNotifications();
-                }
-            }
-        } catch (error) {
-            console.error('Error marking notification as read:', error);
-        }
-    }
-
-    async markAllAsRead() {
-        try {
-            let data;
-            try {
-                data = await this.makeRequest('/api/notifications/mark-all-read', {
-                    method: 'POST'
-                });
-            } catch (error) {
-                console.log('API endpoint failed, trying web endpoint:', error.message);
-                data = await this.makeRequest('/notifications/mark-all-read', {
-                    method: 'POST'
-                });
-            }
-            
-            if (data.success) {
-                this.notifications.forEach(n => {
-                    if (!n.read_at) {
-                        n.read_at = new Date().toISOString();
-                    }
-                });
-                this.unreadCount = 0;
-                this.renderNotificationCount();
-                this.renderNotifications();
-            }
-        } catch (error) {
-            console.error('Error marking all notifications as read:', error);
-        }
-    }
-
-    getNotificationIcon(type) {
-        const icons = {
-            'financial': 'fas fa-dollar-sign',
-            'academic': 'fas fa-graduation-cap',
-            'system': 'fas fa-cog',
-            'attendance': 'fas fa-user-check',
-            'general': 'fas fa-bell',
-            'success': 'fas fa-check-circle',
-            'warning': 'fas fa-exclamation-triangle',
-            'error': 'fas fa-times-circle',
-            'info': 'fas fa-info-circle'
-        };
-        return icons[type] || icons['general'];
-    }
-
-    getTimeAgo(date) {
-        const now = new Date();
-        const diffInSeconds = Math.floor((now - date) / 1000);
-        
-        if (diffInSeconds < 60) return 'Just now';
-        if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
-        if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
-        if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
-        
-        return date.toLocaleDateString();
-    }
-
-    requestNotificationPermission() {
-        if ('Notification' in window) {
-            if (Notification.permission === 'default') {
-                Notification.requestPermission().then(permission => {
-                    console.log('Desktop notification permission:', permission);
-                });
-            } else {
-                console.log('Desktop notification permission:', Notification.permission);
-            }
-        }
-    }
-
-    setupEventListeners() {
-        // Add any additional event listeners here
-        document.addEventListener('visibilitychange', () => {
-            if (!document.hidden && this.isOnline) {
-                this.updateNotificationCount();
-            }
-        });
-    }
-
-    setupKeyboardShortcuts() {
-        document.addEventListener('keydown', (e) => {
-            if (e.ctrlKey && e.key === 'n') {
-                e.preventDefault();
-                // Toggle notification dropdown
-                const notificationDropdown = document.querySelector('.notification-dropdown');
-                if (notificationDropdown) {
-                    notificationDropdown.click();
-                }
-            }
-        });
-    }
-
-    // Missing methods that HTML buttons are calling
-    
-    processNewNotification(notification) {
-        // Add notification to local array
-        this.notifications.unshift(notification);
-        this.unreadCount++;
-        
-        // Update UI
-        this.updateNotificationCount();
-        this.renderNotifications();
-        
-        // Show toast notification
-        const data = notification.data || notification;
-        this.showToast({
-            title: data.title || notification.title || 'New Notification',
-            message: data.message || notification.message || '',
-            type: data.type || notification.type || 'info',
-            action_url: data.action_url || notification.action_url
-        });
-        
-        // Play sound if enabled
-        if (this.soundEnabled) {
-            this.playNotificationSound(data.priority || 'normal', data.type || 'info');
-        }
-        
-        // Show desktop notification if permission granted
-        if (this.notificationPermission && data.show_desktop) {
-            this.showDesktopNotification(data);
-        }
-    }
-
-    showToast(data) {
-        // Create toast container if it doesn't exist
-        let container = document.getElementById('notificationToastContainer'); // Fixed: Changed from toastContainer to notificationToastContainer
-        if (!container) {
-            container = document.createElement('div');
-            container.id = 'notificationToastContainer';
-            container.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                z-index: 9999;
-                max-width: 350px;
-            `;
-            document.body.appendChild(container);
-        }
-
-        const toast = document.createElement('div');
-        const toastId = 'toast-' + Date.now();
-        
-        const typeStyles = {
-            success: { bg: '#d4edda', border: '#c3e6cb', text: '#155724', icon: 'fas fa-check-circle' },
-            error: { bg: '#f8d7da', border: '#f5c6cb', text: '#721c24', icon: 'fas fa-exclamation-triangle' },
-            warning: { bg: '#fff3cd', border: '#ffeaa7', text: '#856404', icon: 'fas fa-exclamation-circle' },
-            info: { bg: '#d1ecf1', border: '#bee5eb', text: '#0c5460', icon: 'fas fa-info-circle' }
-        };
-        
-        const styles = typeStyles[data.type] || typeStyles.info;
-        
-        toast.id = toastId;
-        toast.className = 'notification-toast';
-        toast.style.cssText = `
-            background: ${styles.bg};
-            border: 1px solid ${styles.border};
-            color: ${styles.text};
-            padding: 15px;
-            margin-bottom: 10px;
-            border-radius: 6px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            transform: translateX(400px);
-            transition: transform 0.3s ease;
-            cursor: ${data.action_url ? 'pointer' : 'default'};
-            position: relative;
-        `;
-        
-        toast.innerHTML = `
-            <div style="display: flex; align-items: flex-start; gap: 10px;">
-                <i class="${styles.icon}" style="margin-top: 2px; font-size: 16px;"></i>
-                <div style="flex: 1;">
-                    <strong style="font-size: 14px; display: block; margin-bottom: 4px;">${data.title || 'Notification'}</strong>
-                    <div style="font-size: 13px; opacity: 0.9; line-height: 1.4;">${data.message || ''}</div>
-                </div>
-                <button onclick="notificationSystem.closeToast('${toastId}')" style="
-                    background: none; 
-                    border: none; 
-                    font-size: 18px; 
-                    cursor: pointer; 
-                    color: ${styles.text};
-                    padding: 0;
-                    line-height: 1;
-                    opacity: 0.7;
-                ">&times;</button>
-            </div>
-        `;
-        
-        if (data.action_url) {
-            toast.addEventListener('click', (e) => {
-                if (e.target.tagName !== 'BUTTON') {
-                    window.location.href = data.action_url;
-                }
-            });
-        }
-
-        container.appendChild(toast);
-
-        // Animate in
-        setTimeout(() => {
-            toast.style.transform = 'translateX(0)';
-        }, 100);
-
-        // Auto remove after 5 seconds
-        setTimeout(() => this.closeToast(toastId), 5000);
-    }
-
-    closeToast(toastId) {
-        const toast = document.getElementById(toastId);
-        if (toast) {
-            toast.style.transform = 'translateX(400px)';
-            setTimeout(() => {
-                if (toast.parentNode) {
-                    toast.parentNode.removeChild(toast);
-                }
-            }, 300);
-        }
-    }
-
-    toggleSound() {
-        this.soundEnabled = !this.soundEnabled;
-        const message = this.soundEnabled ? 'Sound notifications enabled' : 'Sound notifications disabled';
-        const type = this.soundEnabled ? 'success' : 'info';
-        
-        this.showToast({
-            title: 'Sound Settings',
-            message: message,
-            type: type
-        });
-
-        // Update UI if there's a sound toggle button
-        const soundBtn = document.querySelector('[onclick*="toggleSound"]');
-        if (soundBtn) {
-            const icon = soundBtn.querySelector('i');
-            if (icon) {
-                icon.className = this.soundEnabled ? 'fas fa-volume-up' : 'fas fa-volume-mute';
-            }
-        }
-    }
-
-    playNotificationSound(priority = 'normal', type = 'info') {
-        if (!this.soundEnabled) return;
-
-        try {
-            let soundElement;
-            
-            // Try to find existing sound elements
-            if (priority === 'urgent') {
-                soundElement = document.getElementById('urgentSound');
-            } else {
-                soundElement = document.getElementById('notificationSound');
-            }
-            
-            // If no sound element exists, create a simple beep
-            if (!soundElement) {
-                this.createSimpleBeep(priority === 'urgent' ? 800 : 400);
-                return;
-            }
-            
-            soundElement.volume = this.volume;
-            soundElement.currentTime = 0;
-            soundElement.play().catch(error => {
-                console.log('Could not play notification sound:', error);
-                // Fallback to simple beep
-                this.createSimpleBeep(priority === 'urgent' ? 800 : 400);
-            });
-        } catch (error) {
-            console.error('Error playing notification sound:', error);
-        }
-    }
-
-    createSimpleBeep(frequency = 400) {
-        try {
-            // Create a simple beep using Web Audio API
-            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
-            
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-            
-            oscillator.frequency.value = frequency;
-            oscillator.type = 'sine';
-            
-            gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-            gainNode.gain.linearRampToValueAtTime(0.1, audioContext.currentTime + 0.01);
-            gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.3);
-            
-            oscillator.start(audioContext.currentTime);
-            oscillator.stop(audioContext.currentTime + 0.3);
-        } catch (error) {
-            console.log('Could not create audio beep:', error);
-        }
-    }
-
-    showDesktopNotification(data) {
-        if (!this.notificationPermission || !('Notification' in window)) return;
-
-        try {
-            const notification = new Notification(data.title || 'Notification', {
-                body: data.message || '',
-                icon: data.icon || '/favicon.ico',
-                badge: '/favicon.ico',
-                tag: 'college-notification',
-                renotify: true
-            });
-
-            // Auto close after 5 seconds
-            setTimeout(() => notification.close(), 5000);
-
-            // Handle click
-            notification.onclick = () => {
-                window.focus();
-                if (data.action_url) {
-                    window.location.href = data.action_url;
-                }
-                notification.close();
-            };
-        } catch (error) {
-            console.error('Error showing desktop notification:', error);
-        }
-    }
-
-    togglePanel() {
-        const panel = document.getElementById('notificationPanel');
-        if (panel) {
-            panel.classList.toggle('open');
-            if (panel.classList.contains('open')) {
-                this.loadNotifications();
-            }
-        }
-    }
-
-    // Check for new notifications periodically
-    async checkForNewNotifications() {
-        try {
-            const response = await this.makeRequest(`/api/notifications?since=${this.lastNotificationCheck}&limit=5`);
-            
-            if (response.success && response.notifications && response.notifications.length > 0) {
-                response.notifications.forEach(notification => {
-                    this.processNewNotification(notification);
-                });
-            }
-            
-            this.lastNotificationCheck = new Date().toISOString();
-        } catch (error) {
-            console.error('Error checking for new notifications:', error);
-        }
-    }
-
-    // Send test notification
-    async sendTestNotification(type = 'info') {
-        try {
-            const testData = {
-                title: 'Test Notification',
-                message: `This is a test ${type} notification sent at ${new Date().toLocaleTimeString()}`,
-                type: type,
-                priority: type === 'error' ? 'urgent' : 'normal',
-                show_desktop: true
-            };
-
-            // Process the notification locally for immediate feedback
-            this.processNewNotification({
-                id: 'test-' + Date.now(),
-                data: testData,
-                created_at: new Date().toISOString(),
-                read_at: null
-            });
-
-            // Also try to send to server if endpoint exists
-            try {
-                await this.makeRequest('/test-notification', {
-                    method: 'POST',
-                    body: JSON.stringify({ type: type })
-                });
-            } catch (error) {
-                console.log('Server test endpoint not available:', error.message);
-            }
-        } catch (error) {
-            console.error('Error sending test notification:', error);
-        }
-    }
-}
-
-// Initialize the notification system when DOM is ready
-document.addEventListener('DOMContentLoaded', function() {
-    window.notificationSystem = new EnhancedNotificationSystem();
-});
-
-// Export for testing
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = EnhancedNotificationSystem;
-}
-
-        // Instantiate the notification system
-        const notificationSystem = new EnhancedNotificationSystem();
-
-        // Global functions for inline HTML calls
-        function markAllNotificationsAsRead() {
-            notificationSystem.markAllAsRead();
-        }
-
-        function toggleNotificationSound() {
-            notificationSystem.toggleSound();
-        }
-
-        // Test functions
-        function testNotificationSystem() {
-            notificationSystem.processNewNotification({
-                data: { title: 'Test', message: 'This is a test notification.', type: 'info', show_desktop: true }
-            });
-            notificationSystem.updateNotificationCount();
-        }
-
-        function showTestPopup(type) {
-            const messages = {
-                success: 'Operation completed successfully!',
-                error: 'An unexpected error occurred.',
-                warning: 'Please check your input values.',
-                info: 'A new update is available.'
-            };
-            notificationSystem.showToast({ title: type.charAt(0).toUpperCase() + type.slice(1), message: messages[type], type: type });
-        }
-
-        // Missing functions that are referenced in the sidebar but not defined
-        function sendFeeReminders() {
-            // Implementation for sending fee reminders
-            notificationSystem.showToast({
-                title: 'Fee Reminders',
-                message: 'Fee reminder notifications sent successfully!',
-                type: 'success'
-            });
-        }
-
-        function checkSystemHealth() {
-            // Implementation for system health check
-            notificationSystem.showToast({
-                title: 'System Health',
-                message: 'System health check completed. All systems operational.',
-                type: 'success'
-            });
-        }
-
-        // General page scripts
-        jQuery(document).ready(function($) {
-            // Initialize DataTables
-            $('.dataTable').DataTable();
-
-            // Initialize Bootstrap Tooltips
+        $(document).ready(function() {
+            // Initialize tooltips
             $('[data-toggle="tooltip"]').tooltip();
+
+            // Initialize popovers
+            $('[data-toggle="popover"]').popover();
+
+            // Enhanced Global Search
+            let searchTimeout;
+            $('#global-search-input').on('input', function() {
+                clearTimeout(searchTimeout);
+                const query = $(this).val().trim();
+                
+                if (query.length >= 2) {
+                    searchTimeout = setTimeout(() => {
+                        performGlobalSearch(query);
+                    }, 300);
+                } else {
+                    $('#ajax-search-results').fadeOut();
+                }
+            });
+
+            // Hide search results when clicking outside
+            $(document).on('click', function(e) {
+                if (!$(e.target).closest('.navbar-search').length) {
+                    $('#ajax-search-results').fadeOut();
+                }
+            });
 
             // Academic Year Switcher
             $('.switch-year-btn').on('click', function(e) {
@@ -1548,119 +1435,546 @@ if (typeof module !== 'undefined' && module.exports) {
                 $('#academicYearForm').submit();
             });
 
-            // Live Search Debounce function
-            const debounce = (func, delay) => {
-                let timeoutId;
-                return (...args) => {
-                    clearTimeout(timeoutId);
-                    timeoutId = setTimeout(() => {
-                        func.apply(this, args);
-                    }, delay);
-                };
-            };
+            // Load notifications on dropdown open
+            $('#alertsDropdown').on('show.bs.dropdown', function() {
+                loadNotifications();
+            });
 
-            // Live Search Handler
-            $('#global-search-input').on('keyup', debounce(function() {
-                const query = $(this).val();
-                const resultsContainer = $('#ajax-search-results');
-                if (query.length < 3) {
-                    resultsContainer.hide().empty();
-                    return;
-                }
-                
-                // Check if the route exists before making the request
-                @if(Route::has('admin.global-search'))
-                $.ajax({
-                    url: '{{ route("admin.global-search") }}',
-                    data: { q: query },
-                    success: function(data) {
-                        resultsContainer.empty().show();
-                        if (data.length) {
-                            $.each(data, function(index, student) {
-                                const studentUrl = '{{ url("admin/students") }}/' + student.id;
-                                resultsContainer.append(`<a href="${studentUrl}" class="dropdown-item"><strong>${student.name}</strong><br><small>${student.enrollment_number} | ${student.mobile_number}</small></a>`);
-                            });
-                        } else {
-                            resultsContainer.append('<span class="dropdown-item-text text-muted p-2">No students found.</span>');
-                        }
-                    },
-                    error: function(xhr, status, error) {
-                        console.error('Search error:', error);
-                        resultsContainer.empty().show();
-                        resultsContainer.append('<span class="dropdown-item-text text-danger p-2">Search failed. Please try again.</span>');
+            // Auto-refresh notifications every 30 seconds
+            setInterval(loadNotifications, 30000);
+
+            // Load initial notifications
+            loadNotifications();
+        });
+
+        // Global Search Function - FIXED
+        function performGlobalSearch(query) {
+            $('#ajax-search-results').html('<div class="p-3 text-center"><i class="fas fa-spinner fa-spin"></i> Searching...</div>').fadeIn();
+
+            $.ajax({
+                url: '{{ route("admin.global-search") }}',
+                method: 'GET',
+                data: { q: query },
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
+                success: function(response) {
+                    let html = '';
+
+                    if (response.results && response.results.length > 0) {
+                        response.results.forEach(function(result) {
+                            // Determine icon based on type
+                            let iconClass = 'fa-search';
+                            let bgColor = 'info';
+
+                            if (result.icon) {
+                                iconClass = result.icon;
+                            }
+
+                            if (result.type === 'Student') {
+                                bgColor = 'primary';
+                            } else if (result.type === 'Faculty') {
+                                bgColor = 'success';
+                            } else if (result.type === 'Batch') {
+                                bgColor = 'warning';
+                            } else if (result.type === 'Course') {
+                                bgColor = 'info';
+                            }
+
+                            html += `
+                                <a href="${result.url}" class="dropdown-item d-flex align-items-center py-3">
+                                    <div class="mr-3">
+                                        <div class="icon-circle bg-${bgColor}">
+                                            <i class="fas ${iconClass} text-white"></i>
+                                        </div>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <div class="font-weight-bold text-gray-800">${result.title}</div>
+                                        <div class="small text-gray-500">${result.subtitle || ''}</div>
+                                        <span class="badge badge-${bgColor} badge-sm mt-1">${result.type}</span>
+                                    </div>
+                                </a>
+                            `;
+                        });
+                    } else {
+                        html = '<div class="p-3 text-center text-gray-500"><i class="fas fa-search mr-2"></i>No results found for "' + query + '"</div>';
                     }
-                });
-                @else
-                // Fallback when route doesn't exist
-                resultsContainer.empty().show();
-                resultsContainer.append('<span class="dropdown-item-text text-warning p-2">Search functionality not yet configured.</span>');
-                @endif
-            }, 300));
 
-            // Close search results when clicking outside
-            $(document).on('click', function(e) {
-                if (!$(e.target).closest('.navbar-search').length) {
-                    $('#ajax-search-results').hide();
+                    $('#ajax-search-results').html(html);
+                },
+                error: function(xhr, status, error) {
+                    console.error('Search error:', error);
+                    $('#ajax-search-results').html('<div class="p-3 text-center text-danger"><i class="fas fa-exclamation-triangle mr-2"></i>Search failed. Please try again.</div>');
                 }
             });
-        });
-function sendBulkReminders() {
-    if (confirm('This will send reminders to all defaulting students. Continue?')) {
-        fetch('/admin/payment-reminders/bulk/send', {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                'Content-Type': 'application/json',
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('Bulk reminders sent successfully!');
-            } else {
-                alert('Error sending reminders: ' + data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('An error occurred while sending reminders.');
-        });
-    }
-}
+        }
 
-function testReminderSystem() {
-    fetch('/admin/settings/payment-reminders/test', {
-        method: 'POST',
-        headers: {
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-            'Content-Type': 'application/json',
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert('Test reminder sent successfully! Check your configured test email/SMS.');
-        } else {
-            alert('Test failed: ' + data.message);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('An error occurred while testing the reminder system.');
-    });
-}
-        // Initialize TinyMCE
-        if (document.querySelector('.wysiwyg')) {
-            tinymce.init({
-                selector: '.wysiwyg',
-                plugins: 'code table lists image media link',
-                toolbar: 'undo redo | blocks | bold italic | alignleft aligncenter alignright | indent outdent | bullist numlist | code | table | image | media | link',
-                height: 300,
-                menubar: false,
-                branding: false
+        // Load Notifications
+        function loadNotifications() {
+            // Simple fallback implementation - replace with actual notification loading
+            updateNotificationCount(0);
+            updateNotificationList([]);
+            
+            // Uncomment this when you create the proper notification routes
+            /*
+            $.ajax({
+                url: '{{ url("/admin/notifications/recent") }}',
+                method: 'GET',
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
+                success: function(response) {
+                    updateNotificationCount(response.unread_count);
+                    updateNotificationList(response.notifications);
+                },
+                error: function() {
+                    $('#notificationList').html('<div class="p-3 text-center text-danger"><i class="fas fa-exclamation-triangle mr-2"></i>Failed to load notifications</div>');
+                }
             });
+            */
+        }
+
+        // Update Notification Count
+        function updateNotificationCount(count) {
+            const badge = $('#notificationCount');
+            if (count > 0) {
+                badge.text(count > 99 ? '99+' : count).show();
+            } else {
+                badge.hide();
+            }
+        }
+
+        // Update Notification List
+        function updateNotificationList(notifications) {
+            let html = '';
+            
+            if (notifications && notifications.length > 0) {
+                notifications.forEach(function(notification) {
+                    const isUnread = !notification.read_at;
+                    html += `
+                        <a href="#" class="dropdown-item d-flex align-items-center py-3 ${isUnread ? 'bg-light' : ''}" onclick="markNotificationAsRead('${notification.id}')">
+                            <div class="mr-3">
+                                <div class="icon-circle bg-${notification.type === 'success' ? 'success' : notification.type === 'warning' ? 'warning' : 'info'}">
+                                    <i class="fas fa-${notification.icon || 'bell'} text-white"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="font-weight-bold text-gray-800">${notification.title}</div>
+                                <div class="small text-gray-600">${notification.message}</div>
+                                <div class="small text-gray-400">${notification.created_at_human}</div>
+                                ${isUnread ? '<span class="badge badge-primary badge-sm">New</span>' : ''}
+                            </div>
+                        </a>
+                    `;
+                });
+            } else {
+                html = '<div class="p-3 text-center text-gray-500"><i class="fas fa-bell-slash mr-2"></i>No notifications</div>';
+            }
+            
+            $('#notificationList').html(html);
+            $('#loadingNotifications').hide();
+        }
+
+        // Mark Notification as Read
+        function markNotificationAsRead(notificationId) {
+            $.ajax({
+                url: '{{ route("admin.notifications.mark-read") }}',
+                method: 'POST',
+                data: {
+                    notification_id: notificationId,
+                    _token: $('meta[name="csrf-token"]').attr('content')
+                },
+                success: function() {
+                    loadNotifications();
+                }
+            });
+        }
+
+        // Mark All Notifications as Read
+        function markAllNotificationsAsRead() {
+            $.ajax({
+                url: '{{ route("admin.notifications.mark-all-read") }}',
+                method: 'POST',
+                data: {
+                    _token: $('meta[name="csrf-token"]').attr('content')
+                },
+                success: function() {
+                    loadNotifications();
+                    showToast('success', 'All notifications marked as read!');
+                }
+            });
+        }
+
+        // Show Toast Notification
+        function showToast(type, message, title = '') {
+            const toast = $(`
+                <div class="notification-toast ${type}">
+                    <div class="d-flex align-items-center">
+                        <div class="mr-3">
+                            <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'warning' ? 'exclamation-triangle' : 'info-circle'} fa-lg"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            ${title ? `<div class="font-weight-bold">${title}</div>` : ''}
+                            <div class="${title ? 'small' : ''}">${message}</div>
+                        </div>
+                        <button class="btn btn-sm btn-link text-gray-600 ml-2" onclick="$(this).closest('.notification-toast').removeClass('show')">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            `);
+            
+            $('#notificationToastContainer').append(toast);
+            setTimeout(() => toast.addClass('show'), 100);
+            setTimeout(() => {
+                toast.removeClass('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 5000);
+        }
+
+        // Test System Functions (to be implemented based on your needs)
+        function testNotificationSystem() {
+            showToast('info', 'Testing notification system...', 'System Test');
+        }
+
+        function sendFeeReminders() {
+            showToast('warning', 'Sending fee reminders...', 'Fee Reminders');
+        }
+
+        function checkSystemHealth() {
+            showToast('success', 'System health check completed!', 'Health Check');
+        }
+
+        function showNotificationMessage() {
+            showToast('info', 'Notification system will be implemented by your developer', 'Coming Soon');
         }
     </script>
+
+    <!-- Global Search Modal (Ctrl+K) - Enhanced Modern UI -->
+    <div class="modal fade" id="globalSearchModal" tabindex="-1" role="dialog" data-backdrop="static">
+        <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+            <div class="modal-content" style="border-radius: 16px; border: none; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden;">
+                <!-- Search Header -->
+                <div class="modal-body p-0">
+                    <!-- Search Input Area -->
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 25px 30px;">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-search text-white mr-3" style="font-size: 1.3rem; opacity: 0.9;"></i>
+                            <input type="text"
+                                   id="globalSearchInput"
+                                   class="form-control form-control-lg"
+                                   placeholder="Search students, courses, batches, faculty..."
+                                   style="border: none; background: rgba(255,255,255,0.2); color: white; font-size: 1.15rem; border-radius: 8px; padding: 12px 20px;"
+                                   autocomplete="off">
+                            <button type="button" class="btn btn-link text-white ml-2" data-dismiss="modal" style="font-size: 1.2rem; padding: 8px 12px;">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <!-- Search Tips -->
+                        <div class="mt-3 d-flex justify-content-between align-items-center" style="opacity: 0.85;">
+                            <small class="text-white">
+                                <i class="fas fa-lightbulb mr-1"></i>
+                                Start typing to search...
+                            </small>
+                            <div>
+                                <kbd style="background: rgba(255,255,255,0.25); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 3px 8px; border-radius: 4px; font-size: 0.7rem;">ESC</kbd>
+                                <span class="text-white ml-1" style="font-size: 0.8rem;">to close</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Search Results Area -->
+                    <div id="globalSearchResults" style="max-height: 65vh; overflow-y: auto; min-height: 300px; background: #f8f9fc;">
+                        <!-- Empty State -->
+                        <div class="text-center py-5 px-4" id="searchEmptyState">
+                            <div class="mb-4">
+                                <i class="fas fa-search fa-4x mb-3" style="color: #d1d3e2;"></i>
+                            </div>
+                            <h5 class="text-gray-700 mb-2">Quick Search</h5>
+                            <p class="text-gray-600 mb-4">Find students, courses, batches, and faculty members instantly</p>
+
+                            <!-- Quick Tips -->
+                            <div class="row text-left mt-4">
+                                <div class="col-md-6 mb-3">
+                                    <div class="d-flex align-items-start">
+                                        <i class="fas fa-user-graduate text-primary mr-2 mt-1"></i>
+                                        <div>
+                                            <strong class="d-block text-gray-800">Students</strong>
+                                            <small class="text-muted">Search by name, enrollment, or mobile</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <div class="d-flex align-items-start">
+                                        <i class="fas fa-book text-info mr-2 mt-1"></i>
+                                        <div>
+                                            <strong class="d-block text-gray-800">Courses</strong>
+                                            <small class="text-muted">Search by name or course code</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <div class="d-flex align-items-start">
+                                        <i class="fas fa-users text-warning mr-2 mt-1"></i>
+                                        <div>
+                                            <strong class="d-block text-gray-800">Batches</strong>
+                                            <small class="text-muted">Find batch by name</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <div class="d-flex align-items-start">
+                                        <i class="fas fa-chalkboard-teacher text-success mr-2 mt-1"></i>
+                                        <div>
+                                            <strong class="d-block text-gray-800">Faculty</strong>
+                                            <small class="text-muted">Search by name or email</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Keyboard Shortcut -->
+                            <div class="mt-4 pt-3 border-top">
+                                <small class="text-muted">
+                                    <i class="fas fa-keyboard mr-1"></i>
+                                    Press <kbd style="background: #e3e6f0; border: 1px solid #d1d3e2; padding: 2px 8px; border-radius: 4px;">Ctrl+K</kbd> to open search from anywhere
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        /* Custom scrollbar for search results */
+        #globalSearchResults::-webkit-scrollbar {
+            width: 8px;
+        }
+        #globalSearchResults::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        #globalSearchResults::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        #globalSearchResults::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        /* Search input placeholder */
+        #globalSearchInput::placeholder {
+            color: rgba(255,255,255,0.7);
+        }
+
+        /* Search result items hover effect */
+        .search-result-item {
+            transition: all 0.2s ease;
+            border-left: 3px solid transparent;
+        }
+        .search-result-item:hover {
+            background-color: #fff !important;
+            border-left-color: #667eea;
+            transform: translateX(5px);
+        }
+
+        /* Modal animation */
+        .modal.fade .modal-dialog {
+            transform: scale(0.95);
+            opacity: 0;
+            transition: all 0.2s ease-out;
+        }
+        .modal.show .modal-dialog {
+            transform: scale(1);
+            opacity: 1;
+        }
+    </style>
+
+    <script>
+    // Global Search with Ctrl+K Functionality
+    class GlobalSearch {
+        constructor() {
+            this.modal = $('#globalSearchModal');
+            this.input = $('#globalSearchInput');
+            this.resultsContainer = $('#globalSearchResults');
+            this.searchTimeout = null;
+            this.init();
+        }
+
+        init() {
+            // Keyboard shortcut: Ctrl+K or Cmd+K
+            $(document).on('keydown', (e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                    e.preventDefault();
+                    this.open();
+                }
+            });
+
+            // Handle input
+            this.input.on('input', () => {
+                clearTimeout(this.searchTimeout);
+                const query = this.input.val().trim();
+
+                if (query.length < 2) {
+                    this.showEmptyState();
+                    return;
+                }
+
+                this.showLoading();
+
+                this.searchTimeout = setTimeout(() => {
+                    this.performSearch(query);
+                }, 300);
+            });
+
+            // Handle ESC key
+            this.modal.on('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    this.close();
+                }
+            });
+
+            // Clear on modal hide
+            this.modal.on('hidden.bs.modal', () => {
+                this.input.val('');
+                this.showEmptyState();
+            });
+        }
+
+        open() {
+            this.modal.modal('show');
+            setTimeout(() => this.input.focus(), 300);
+        }
+
+        close() {
+            this.modal.modal('hide');
+        }
+
+        showLoading() {
+            this.resultsContainer.html(`
+                <div class="text-center py-5">
+                    <i class="fas fa-spinner fa-spin fa-2x text-primary mb-3"></i>
+                    <p class="text-muted">Searching...</p>
+                </div>
+            `);
+        }
+
+        showEmptyState() {
+            this.resultsContainer.html(`
+                <div class="text-center text-muted py-5">
+                    <i class="fas fa-search fa-3x mb-3" style="opacity: 0.3;"></i>
+                    <p>Type to search across students, courses, batches, and more...</p>
+                    <small class="text-muted">Press <kbd>Ctrl+K</kbd> to open search anytime</small>
+                </div>
+            `);
+        }
+
+        performSearch(query) {
+            $.ajax({
+                url: '{{ route("admin.global-search") }}',
+                method: 'GET',
+                data: { q: query },
+                success: (response) => {
+                    this.displayResults(response.results, query);
+                },
+                error: () => {
+                    this.resultsContainer.html(`
+                        <div class="text-center text-danger py-5">
+                            <i class="fas fa-exclamation-triangle fa-2x mb-3"></i>
+                            <p>Search failed. Please try again.</p>
+                        </div>
+                    `);
+                }
+            });
+        }
+
+        displayResults(results, query) {
+            if (!results || results.length === 0) {
+                this.resultsContainer.html(`
+                    <div class="text-center py-5 px-4">
+                        <div class="mb-3">
+                            <i class="fas fa-search-minus fa-4x" style="color: #d1d3e2;"></i>
+                        </div>
+                        <h6 class="text-gray-700 mb-2">No results found</h6>
+                        <p class="text-muted mb-0">No matches for "<strong class="text-gray-800">${query}</strong>"</p>
+                        <small class="text-muted">Try different keywords or check your spelling</small>
+                    </div>
+                `);
+                return;
+            }
+
+            let html = `
+                <div class="px-3 py-2 border-bottom bg-white">
+                    <small class="text-muted font-weight-bold text-uppercase">
+                        <i class="fas fa-check-circle text-success mr-1"></i>
+                        Found ${results.length} result${results.length > 1 ? 's' : ''}
+                    </small>
+                </div>
+                <div class="search-results-list">
+            `;
+
+            results.forEach((result, index) => {
+                const iconBgColors = {
+                    'Student': 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    'Course': 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                    'Batch': 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                    'Faculty': 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)'
+                };
+
+                const badgeColors = {
+                    'Student': 'badge-primary',
+                    'Course': 'badge-info',
+                    'Batch': 'badge-warning',
+                    'Faculty': 'badge-success'
+                };
+
+                html += `
+                    <a href="${result.url}"
+                       class="search-result-item d-block p-3 text-decoration-none"
+                       style="background: ${index % 2 === 0 ? '#ffffff' : '#f8f9fc'}; border-left: 3px solid transparent; transition: all 0.2s ease;">
+                        <div class="d-flex align-items-center">
+                            <div class="mr-3" style="width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; background: ${iconBgColors[result.type] || '#e3e6f0'}; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                                <i class="fas ${result.icon} text-white" style="font-size: 1.2rem;"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="mb-1 text-gray-800" style="font-weight: 600; font-size: 0.95rem;">
+                                            ${result.title}
+                                        </h6>
+                                        <p class="mb-0 text-muted" style="font-size: 0.85rem;">
+                                            <i class="fas fa-info-circle mr-1" style="font-size: 0.75rem;"></i>
+                                            ${result.subtitle || 'No additional info'}
+                                        </p>
+                                    </div>
+                                    <span class="badge ${badgeColors[result.type] || 'badge-secondary'} ml-2" style="font-size: 0.7rem; padding: 4px 10px;">
+                                        ${result.type}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="ml-2">
+                                <i class="fas fa-chevron-right text-gray-400" style="font-size: 0.8rem;"></i>
+                            </div>
+                        </div>
+                    </a>
+                `;
+            });
+
+            html += '</div>';
+            html += `<div class="text-center mt-3 mb-2"><small class="text-muted">Showing ${results.length} result(s)</small></div>`;
+
+            this.resultsContainer.html(html);
+        }
+    }
+
+    // Initialize Global Search
+    $(document).ready(function() {
+        window.globalSearch = new GlobalSearch();
+    });
+    </script>
+
     @stack('scripts')
+
 </body>
 </html>

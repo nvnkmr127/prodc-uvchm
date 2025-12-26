@@ -9,13 +9,24 @@ use Maatwebsite\Excel\Concerns\WithMapping;
 
 class StudentsExport implements FromCollection, WithHeadings, WithMapping
 {
+    protected $students;
+
     /**
-    * @return \Illuminate\Support\Collection
-    */
+     * Constructor to accept filtered students collection
+     * This fixes the 404 error by properly accepting the parameter from controller
+     */
+    public function __construct($students)
+    {
+        $this->students = $students;
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection
+     */
     public function collection()
     {
-        // Fetch all students with their related batch and course data
-        return Student::with('batch.course')->get();
+        // Return the filtered students passed from controller
+        return $this->students;
     }
 
     /**

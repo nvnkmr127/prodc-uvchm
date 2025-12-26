@@ -14,8 +14,9 @@ class LeadDistributionService
      */
     public function getNextCounselorId(): ?int
     {
-        // Get all active users with the 'Counselor' role, ordered by their creation date.
-        $counselors = User::role('Counselor')->where('is_active', true)->orderBy('id')->get();
+        // Get all active users with the 'counselor' role (lowercase), ordered by their creation date.
+        // FIXED: Changed 'is_active' to 'status' based on your User model and migration
+        $counselors = User::role('counselor')->where('status', 'active')->orderBy('id')->get();
 
         if ($counselors->isEmpty()) {
             // No counselors available to assign the lead to.

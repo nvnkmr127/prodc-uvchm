@@ -2,19 +2,20 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Casts\Attribute;
-use App\Traits\WebhookEnabled;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Auth;
 
 class SystemNotification extends Model
 {
-    use WebhookEnabled;
+    use HasFactory;
 
     protected $fillable = [
         'title', 'message', 'type', 'category', 'priority', 'data',
         'action_url', 'action_text', 'requires_action', 'play_sound',
-        'sound_file', 'is_persistent', 'expires_at', 'sent_to_roles',
-        'sent_to_users', 'read_by'
+        'sound_file', 'is_persistent', 'expires_at',
+        'sent_to_roles', 'sent_to_users', 'read_by', 'user_id'
     ];
 
     protected $casts = [
@@ -28,84 +29,88 @@ class SystemNotification extends Model
         'expires_at' => 'datetime',
     ];
 
-    // Scope to get notifications for a specific user
-    public function scopeForUser($query, $userId)
+    // --- SCOPES ---
+
+    public function scopeForUser(Builder $query, int $userId): Builder
     {
+        return $query->where(function ($q) use ($userId) {
+            $q->whereJsonContains('sent_to_users', $userId)
+              ->orWhere(function ($subQ) use ($userId) {
+                  $userRoles = \App\Models\User::find($userId)?->roles->pluck('name')->toArray() ?? [];
+                  foreach ($userRoles as $role) {
+                      $subQ->orWhereJsonContains('sent_to_roles', $role);
+                  }
+              });
+        });
+    }
+
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query->where(function ($q) {
+            $q->whereNull('expires_at')->orWhere('expires_at', '>', now());
+        });
+    }
+
+    public function scopeUnread(Builder $query, int $userId): Builder
+    {
+        return $query->where(function ($q) use ($userId) {
+            $q->whereNull('read_by')->orWhereJsonDoesntContain('read_by', $userId);
+        });
+    }
+
+    // --- METHODS ---
+
+    public static function getUnreadCountForUser(int $userId): int
+    {
+        return self::forUser($userId)->active()->unread($userId)->count();
+    }
+
+    /**
+     * Check if notification can be viewed by user
+     */
+    public function canBeViewedBy(int $userId): bool
+    {
+        // 1. Allow Super Admins to view everything
         $user = \App\Models\User::find($userId);
-        if (!$user) return $query->whereRaw('1 = 0'); // Return empty if user not found
+        if ($user && $user->hasRole(['super-admin', 'admin'])) {
+            return true;
+        }
+
+        // 2. Check if sent to user directly (Handle string/int mismatch)
+        $targetUsers = $this->sent_to_users ?? [];
+        if (in_array($userId, $targetUsers) || in_array((string)$userId, $targetUsers)) {
+            return true;
+        }
+
+        // 3. Check Roles
+        $userRoles = $user?->roles->pluck('name')->toArray() ?? [];
+        $notificationRoles = $this->sent_to_roles ?? [];
         
-        $userRoles = $user->roles ? $user->roles->pluck('name')->toArray() : [];
-        
-        return $query->where(function($q) use ($userId, $userRoles) {
-            // User-specific notifications
-            $q->whereJsonContains('sent_to_users', $userId);
-            
-            // Role-based notifications
-            if (!empty($userRoles)) {
-                $q->orWhere(function($roleQuery) use ($userRoles) {
-                    foreach ($userRoles as $role) {
-                        $roleQuery->orWhereJsonContains('sent_to_roles', $role);
-                    }
-                });
-            }
-        });
+        return !empty(array_intersect($userRoles, $notificationRoles));
     }
 
-    // Scope to get unread notifications
-    public function scopeUnread($query, $userId)
-    {
-        return $query->where(function($q) use ($userId) {
-            $q->whereNull('read_by')
-              ->orWhereRaw("JSON_SEARCH(read_by, 'one', ?, NULL, '$[*].user_id') IS NULL", [$userId]);
-        });
-    }
-
-    // Scope to filter by category
-    public function scopeByCategory($query, $category)
-    {
-        return $query->where('category', $category);
-    }
-
-    // Scope to get active notifications (not expired)
-    public function scopeActive($query)
-    {
-        return $query->where(function($q) {
-            $q->whereNull('expires_at')
-              ->orWhere('expires_at', '>', now());
-        });
-    }
-
-    // Mark notification as read by a user
-    public function markAsReadBy($userId)
+    /**
+     * Mark notification as read by a user
+     */
+    public function markAsReadBy(int $userId): bool
     {
         $readBy = $this->read_by ?? [];
-        
-        // Check if already read by this user
-        $alreadyRead = collect($readBy)->contains('user_id', $userId);
-        
-        if (!$alreadyRead) {
-            $readBy[] = [
-                'user_id' => $userId,
-                'read_at' => now()->toISOString()
-            ];
-            
-            $this->update(['read_by' => $readBy]);
+        if (!in_array($userId, $readBy)) {
+            $readBy[] = $userId;
+            $this->read_by = $readBy;
+            return $this->save();
         }
-        
         return true;
     }
 
-    // Check if notification is read by a user
-    public function isReadBy($userId): bool
+    public function getPriorityColorAttribute(): string
     {
-        if (!$this->read_by) return false;
-        
-        return collect($this->read_by)->contains('user_id', $userId);
-    }
-
-    // Get unread count for a user
-    public static function getUnreadCountForUser($userId): int
-    {
-        return static::forUser($userId)->unread($userId)->active()->count();
+        return match($this->priority) {
+            'urgent' => 'danger',
+            'high' => 'warning',
+            'normal' => 'info',
+            'low' => 'secondary',
+            default => 'info'
+        };
     }
 }

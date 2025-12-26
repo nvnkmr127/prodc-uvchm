@@ -84,10 +84,11 @@
                                         <i class="fas fa-cog"></i>
                                     </a>
                                     <div class="dropdown-menu dropdown-menu-right shadow animated--fade-in">
-                                        <a class="dropdown-item edit-batch-btn" href="#" data-toggle="modal" data-target="#editBatchModal" 
-                                           data-id="{{ $batch->id }}" 
-                                           data-name="{{ $batch->name }}" 
+                                        <a class="dropdown-item edit-batch-btn" href="#" data-toggle="modal" data-target="#editBatchModal"
+                                           data-id="{{ $batch->id }}"
+                                           data-name="{{ $batch->name }}"
                                            data-course-id="{{ $batch->course_id }}"
+                                           data-academic-year-id="{{ $batch->academic_year_id }}"
                                            data-start-date="{{ \Carbon\Carbon::parse($batch->start_date)->format('Y-m-d') }}"
                                            data-end-date="{{ \Carbon\Carbon::parse($batch->end_date)->format('Y-m-d') }}"
                                            data-action="{{ route('admin.batches.update', $batch) }}">
@@ -139,7 +140,20 @@
                 <form action="{{ route('admin.batches.store') }}" method="POST">
                     @csrf
                     <div class="row">
-                        <div class="col-md-12 form-group">
+                        <div class="col-md-6 form-group">
+                            <label>Academic Year*</label>
+                            <select name="academic_year_id" class="form-control" required>
+                                <option value="">-- Select Academic Year --</option>
+                                @if(isset($academicYears))
+                                    @foreach($academicYears as $year)
+                                        <option value="{{ $year->id }}" {{ (session('selected_academic_year_id', $year->is_current ? $year->id : null) == $year->id) ? 'selected' : '' }}>
+                                            {{ $year->name }} {{ $year->is_current ? '(Current)' : '' }}
+                                        </option>
+                                    @endforeach
+                                @endif
+                            </select>
+                        </div>
+                        <div class="col-md-6 form-group">
                             <label>Course*</label>
                             <select name="course_id" class="form-control" required>
                                 <option value="">-- Select a Course --</option>
@@ -184,7 +198,20 @@
                     @csrf
                     @method('PATCH')
                     <div class="row">
-                        <div class="col-md-12 form-group">
+                        <div class="col-md-6 form-group">
+                            <label>Academic Year*</label>
+                            <select name="academic_year_id" id="edit_academic_year_id" class="form-control" required>
+                                <option value="">-- Select Academic Year --</option>
+                                @if(isset($academicYears))
+                                    @foreach($academicYears as $year)
+                                        <option value="{{ $year->id }}">
+                                            {{ $year->name }} {{ $year->is_current ? '(Current)' : '' }}
+                                        </option>
+                                    @endforeach
+                                @endif
+                            </select>
+                        </div>
+                        <div class="col-md-6 form-group">
                             <label>Course*</label>
                             <select name="course_id" id="edit_course_id" class="form-control" required>
                                 <option value="">-- Select a Course --</option>
@@ -206,6 +233,21 @@
                             <input type="date" name="end_date" id="edit_end_date" class="form-control" required>
                         </div>
                     </div>
+                    <div class="form-group mt-3 p-3 bg-light rounded border">
+    <div class="custom-control custom-switch">
+        <input type="hidden" name="is_on_internship" value="0">
+        <input type="checkbox" class="custom-control-input" id="is_on_internship" 
+               name="is_on_internship" value="1"
+               {{ (isset($batch) && $batch->is_on_internship) ? 'checked' : '' }}>
+        <label class="custom-control-label font-weight-bold text-info" for="is_on_internship">
+            <i class="fas fa-briefcase mr-1"></i> Mark as "On Internship"
+        </label>
+    </div>
+    <small class="text-muted mt-2 d-block">
+        Enable this when the <strong>entire batch</strong> is away for Internship/OJT. 
+        They will be automatically <strong>excluded from Daily Absent Alerts</strong>.
+    </small>
+</div>
                     <div class="text-right">
                         <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
                         <button type="submit" class="btn btn-primary">Update Batch</button>
@@ -241,10 +283,12 @@
             const endDate = button.data('end-date');
             const action = button.data('action');
 
+            const academicYearId = $(this).data('academic-year-id');
             const modal = $('#editBatchModal');
             modal.find('form').attr('action', action);
             modal.find('#edit_name').val(name);
             modal.find('#edit_course_id').val(courseId);
+            modal.find('#edit_academic_year_id').val(academicYearId);
             modal.find('#edit_start_date').val(startDate);
             modal.find('#edit_end_date').val(endDate);
         });

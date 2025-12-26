@@ -58,6 +58,14 @@ class StudentFormRequest extends FormRequest
             'batch_id' => 'nullable|exists:batches,id',
             'photo' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
         ];
+        
+        'biometric_employee_code' => [
+    'nullable', 
+    'string', 
+    'max:50', 
+    'regex:/^[a-zA-Z0-9\-]+$/',
+    Rule::unique('students')->ignore($studentId)
+],
     }
 
     /**

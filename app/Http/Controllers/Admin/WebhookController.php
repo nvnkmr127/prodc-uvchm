@@ -37,6 +37,7 @@ class WebhookController extends Controller
                 }
             }
 
+            // Use paginate() to get LengthAwarePaginator which has total() method
             $webhooks = $query->orderBy('created_at', 'desc')->paginate(20);
 
             // Safely get available events
@@ -53,18 +54,22 @@ class WebhookController extends Controller
                     $categories = \App\Models\Webhook::getEventCategories();
                 }
             } catch (\Exception $e) {
-                // Fallback to basic event types
+                // Fallback to basic event types (COMPONENT-BASED) with daily.summary
                 $eventTypes = [
-                    'payment.created' => ['name' => 'Payment Created', 'description' => 'When a payment is made'],
-                    'student.created' => ['name' => 'Student Created', 'description' => 'When a student is added'],
-                    'enquiry.created' => ['name' => 'Enquiry Created', 'description' => 'When an enquiry is submitted'],
-                    'invoice.generated' => ['name' => 'Invoice Generated', 'description' => 'When an invoice is created'],
+                    'payment.created' => ['name' => 'Payment Created', 'description' => 'When a component payment is made', 'category' => 'Financial'],
+                    'student_fee.created' => ['name' => 'Student Fee Created', 'description' => 'When a new fee component is assigned to a student', 'category' => 'Financial'],
+                    'concession.applied' => ['name' => 'Concession Applied', 'description' => 'When a concession is applied to a student fee', 'category' => 'Financial'],
+                    'student.created' => ['name' => 'Student Created', 'description' => 'When a new student is added', 'category' => 'Student Management'],
+                    'enquiry.created' => ['name' => 'Enquiry Created', 'description' => 'When a new enquiry is submitted', 'category' => 'Lead Management'],
+                    'daily.summary' => ['name' => 'Daily Summary Report', 'description' => 'Automated daily report with payment totals and attendance summary. Sent at 5:00 PM on working days (Monday-Saturday)', 'category' => 'Automation'],
+              
                 ];
                 
                 $categories = [
                     'Financial' => '💰',
                     'Student Management' => '👨‍🎓',
                     'Lead Management' => '📞',
+                    'Automation' => '🤖',
                 ];
             }
 
@@ -79,8 +84,8 @@ class WebhookController extends Controller
                 'trace' => $e->getTraceAsString()
             ]);
 
-            // Return a safe fallback view
-            $webhooks = collect([]); // Empty collection
+            // Return a safe fallback view with empty paginated collection
+            $webhooks = new \Illuminate\Pagination\LengthAwarePaginator([], 0, 20);
             $eventTypes = [];
             $categories = [];
             $stats = [
@@ -119,8 +124,62 @@ class WebhookController extends Controller
      */
     public function create()
     {
-        $eventTypes = Webhook::getAvailableEvents();
-        $categories = Webhook::getEventCategories();
+        try {
+            $eventTypes = Webhook::getAvailableEvents();
+            $categories = Webhook::getEventCategories();
+        } catch (\Exception $e) {
+            // Fallback to basic event types including daily.summary
+            $eventTypes = [
+                'payment.created' => ['name' => 'Payment Created', 'description' => 'When a component payment is made', 'category' => 'Financial'],
+                'student_fee.created' => ['name' => 'Student Fee Created', 'description' => 'When a new fee component is assigned to a student', 'category' => 'Financial'],
+                'concession.applied' => ['name' => 'Concession Applied', 'description' => 'When a concession is applied to a student fee', 'category' => 'Financial'],
+                'student.created' => ['name' => 'Student Created', 'description' => 'When a new student is added', 'category' => 'Student Management'],
+                'enquiry.created' => ['name' => 'Enquiry Created', 'description' => 'When a new enquiry is submitted', 'category' => 'Lead Management'],
+                'attendance.daily_absent' => [
+        'name' => 'Daily Absent Report',
+        'description' => 'Triggers once daily after the "Present Cutoff Time". Sends a list of all students who have not marked attendance.',
+        'category' => 'Student Management'
+    ],
+                'daily.summary' => ['name' => 'Daily Summary Report', 'description' => 'Automated daily report with payment totals and attendance summary. Sent at 5:00 PM on working days (Monday-Saturday)', 'category' => 'Automation'],
+            ];
+            
+            $categories = [
+                'Financial' => [
+                    'icon' => '💰',
+                    'events' => [
+                        'payment.created' => $eventTypes['payment.created'],
+                        'student_fee.created' => $eventTypes['student_fee.created'],
+                        'concession.applied' => $eventTypes['concession.applied'],
+                    ]
+                ],
+                'Student Management' => [
+                    'icon' => '👨‍🎓',
+                    'events' => [
+                        'student.created' => $eventTypes['student.created'],
+                    ]
+                ],
+                'Lead Management' => [
+                    'icon' => '📞',
+                    'events' => [
+                        'enquiry.created' => $eventTypes['enquiry.created'],
+                    ]
+                ],
+                
+                'Student Management' => [
+        'icon' => '👨‍🎓',
+        'events' => [
+            'student.created' => $eventTypes['student.created'],
+            'attendance.daily_absent' => $eventTypes['attendance.daily_absent'], // [ADD THIS LINE]
+        ]
+    ],
+                'Automation' => [
+                    'icon' => '🤖',
+                    'events' => [
+                        'daily.summary' => $eventTypes['daily.summary'],
+                    ]
+                ],
+            ];
+        }
         
         return view('admin.webhooks.create', [
             'eventTypes' => $eventTypes ?? [],
@@ -133,12 +192,29 @@ class WebhookController extends Controller
      */
     public function store(Request $request)
     {
+        // Get available events with fallback including daily.summary
+        $availableEvents = [];
+        try {
+            $availableEvents = Webhook::getAvailableEvents();
+        } catch (\Exception $e) {
+            // Fallback events including daily.summary
+            $availableEvents = [
+                'payment.created' => [],
+                'student_fee.created' => [],
+                'concession.applied' => [],
+                'student.created' => [],
+                'enquiry.created' => [],
+                'daily.summary' => [], // Include daily.summary in validation
+                
+            ];
+        }
+$availableEvents['attendance.daily_absent'] = [];
         $request->validate([
             'url' => 'required|url|unique:webhooks,url',
             'event_name' => [
                 'required',
                 'string',
-                Rule::in(array_keys(Webhook::getAvailableEvents()))
+                Rule::in(array_keys($availableEvents))
             ],
             'description' => 'nullable|string|max:500',
             'timeout_seconds' => 'nullable|integer|min:5|max:120',
@@ -229,16 +305,26 @@ class WebhookController extends Controller
         } catch (\Exception $e) {
             \Log::error('Webhook edit error: ' . $e->getMessage());
             
-            // Fallback data - completely safe
+            // Fallback data - completely safe (COMPONENT-BASED) with daily.summary
             $eventTypes = [
                 'payment.created' => [
                     'name' => 'Payment Created', 
-                    'description' => 'When a payment is made',
+                    'description' => 'When a component payment is made',
+                    'category' => 'Financial'
+                ],
+                'student_fee.created' => [
+                    'name' => 'Student Fee Created',
+                    'description' => 'When a new fee component is assigned',
+                    'category' => 'Financial'
+                ],
+                 'concession.applied' => [
+                    'name' => 'Concession Applied',
+                    'description' => 'When a concession is applied',
                     'category' => 'Financial'
                 ],
                 'student.created' => [
                     'name' => 'Student Created', 
-                    'description' => 'When a student is added',
+                    'description' => 'When a new student is added',
                     'category' => 'Student Management'
                 ],
                 'enquiry.created' => [
@@ -246,10 +332,10 @@ class WebhookController extends Controller
                     'description' => 'When an enquiry is submitted',
                     'category' => 'Lead Management'
                 ],
-                'invoice.generated' => [
-                    'name' => 'Invoice Generated', 
-                    'description' => 'When an invoice is created',
-                    'category' => 'Financial'
+                'daily.summary' => [
+                    'name' => 'Daily Summary Report',
+                    'description' => 'Automated daily report with payment totals and attendance summary. Sent at 5:00 PM on working days (Monday-Saturday)',
+                    'category' => 'Automation'
                 ],
             ];
             
@@ -258,7 +344,8 @@ class WebhookController extends Controller
                     'icon' => '💰',
                     'events' => [
                         'payment.created' => $eventTypes['payment.created'],
-                        'invoice.generated' => $eventTypes['invoice.generated'],
+                        'student_fee.created' => $eventTypes['student_fee.created'],
+                        'concession.applied' => $eventTypes['concession.applied'],
                     ]
                 ],
                 'Student Management' => [
@@ -271,6 +358,12 @@ class WebhookController extends Controller
                     'icon' => '📞',
                     'events' => [
                         'enquiry.created' => $eventTypes['enquiry.created'],
+                    ]
+                ],
+                'Automation' => [
+                    'icon' => '🤖',
+                    'events' => [
+                        'daily.summary' => $eventTypes['daily.summary'],
                     ]
                 ],
             ];
@@ -309,6 +402,23 @@ class WebhookController extends Controller
      */
     public function update(Request $request, Webhook $webhook)
     {
+        // Get available events with fallback including daily.summary
+        $availableEvents = [];
+        try {
+            $availableEvents = Webhook::getAvailableEvents();
+        } catch (\Exception $e) {
+            // Fallback events including daily.summary
+            $availableEvents = [
+                'payment.created' => [],
+                'student_fee.created' => [],
+                'concession.applied' => [],
+                'student.created' => [],
+                'enquiry.created' => [],
+                'daily.summary' => [], // Include daily.summary in validation
+            ];
+        }
+        $availableEvents['attendance.daily_absent'] = [];
+
         $request->validate([
             'url' => [
                 'required',
@@ -318,7 +428,7 @@ class WebhookController extends Controller
             'event_name' => [
                 'required',
                 'string',
-                Rule::in(array_keys(Webhook::getAvailableEvents()))
+                Rule::in(array_keys($availableEvents))
             ],
             'description' => 'nullable|string|max:500',
             'timeout_seconds' => 'nullable|integer|min:5|max:120',
@@ -350,21 +460,41 @@ class WebhookController extends Controller
     }
 
     /**
-     * Toggle the active status of a webhook
+     * Toggle webhook active status
      */
     public function toggle(Webhook $webhook)
     {
-        $webhook->update(['is_active' => !$webhook->is_active]);
-        
-        // Reset failure count when reactivating
-        if ($webhook->is_active) {
-            $webhook->resetFailures();
+        try {
+            $webhook->update(['is_active' => !$webhook->is_active]);
+            
+            // Reset failure count when reactivating
+            if ($webhook->is_active && method_exists($webhook, 'resetFailures')) {
+                $webhook->resetFailures();
+            }
+            
+            $status = $webhook->is_active ? 'activated' : 'deactivated';
+            
+            if (request()->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => "Webhook has been {$status}.",
+                    'is_active' => $webhook->is_active
+                ]);
+            }
+            
+            return redirect()->route('admin.webhooks.index')
+                            ->with('success', "Webhook has been {$status}.");
+        } catch (\Exception $e) {
+            if (request()->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Failed to toggle webhook status'
+                ], 500);
+            }
+            
+            return redirect()->route('admin.webhooks.index')
+                            ->with('error', 'Failed to toggle webhook status.');
         }
-        
-        $status = $webhook->is_active ? 'activated' : 'deactivated';
-        
-        return redirect()->route('admin.webhooks.index')
-                        ->with('success', "Webhook has been {$status}.");
     }
 
     /**
@@ -378,17 +508,61 @@ class WebhookController extends Controller
             $eventInfo = ['name' => 'Test Event'];
         }
 
-        $payload = [
-            'event' => 'test.webhook',
-            'event_id' => uniqid('test_evt_'),
-            'created_at' => now()->toIso8601String(),
-            'app_name' => config('app.name'),
-            'data' => [
-                'message' => 'This is a test webhook notification from the admin panel.',
-                'webhook_id' => $webhook->id,
-                'test_timestamp' => now()->toIso8601String(),
-            ]
-        ];
+        // Check if this is a daily summary webhook and send appropriate test payload
+        if ($webhook->event_name === 'daily.summary') {
+            $payload = [
+                'date' => now()->format('Y-m-d'),
+                'report_day' => now()->format('l'),
+                'report_generated_at' => now()->toISOString(),
+                'payments' => [
+                    'total_amount' => 1200.50,
+                    'total_payers' => 8
+                ],
+                'attendance' => [
+                    'present' => 45,
+                    'absent' => 5,
+                    'total_students' => 50,
+                    'attendance_percentage' => 90.0
+                ]
+            ];
+        } else {
+            // Standard test payload for other events
+            $payload = [
+                'event' => 'payment.created',
+                'event_id' => 'evt_' . uniqid(),
+                'created_at' => now()->toIso8601String(),
+                'app_name' => config('app.name'),
+                'data' => [
+                    'message' => 'This is a test webhook for a component-based payment.',
+                    'webhook_id' => $webhook->id,
+                    'payment' => [
+                        'id' => rand(1000, 9999),
+                        'amount' => 5000.00,
+                        'formatted_amount' => '₹5,000.00',
+                        'payment_method' => 'online',
+                        'payment_date' => now()->toDateString(),
+                        'receipt_number' => 'RCP-2025-'.rand(100, 999),
+                        'status' => 'completed',
+                        'payment_type' => 'component'
+                    ],
+                    'student' => [
+                        'id' => rand(1, 100),
+                        'name' => 'Test Student',
+                        'enrollment_number' => 'TEST-001'
+                    ],
+                    'components_paid' => [
+                        [
+                            'category_name' => 'Tuition Fee',
+                            'amount_paid' => 4500.00
+                        ],
+                        [
+                            'category_name' => 'Library Fee',
+                            'amount_paid' => 500.00
+                        ]
+                    ]
+                ]
+            ];
+        }
 
         $startTime = microtime(true);
 
@@ -443,6 +617,78 @@ class WebhookController extends Controller
                 return response()->json(['success' => false, 'message' => $message], 500);
             }
             return redirect()->route('admin.webhooks.index')->with('error', $message);
+        }
+    }
+
+    /**
+     * Test the daily summary webhook manually
+     */
+    public function testDailySummary(Request $request)
+    {
+        try {
+            $testDate = $request->get('date', now()->format('Y-m-d'));
+            
+            // Run the artisan command in test mode
+            \Artisan::call('webhook:daily-summary', [
+                '--test' => true,
+                '--date' => $testDate
+            ]);
+            
+            $output = \Artisan::output();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Daily summary webhook test completed successfully',
+                'output' => $output,
+                'date' => $testDate
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Daily summary test failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Send daily summary webhook manually
+     */
+    public function sendDailySummary(Request $request)
+    {
+        try {
+            $date = $request->get('date', now()->format('Y-m-d'));
+            
+            // Run the artisan command with force flag for manual trigger
+            \Artisan::call('webhook:daily-summary', [
+                '--date' => $date,
+                '--force' => true // Force run even on non-working days when manually triggered
+            ]);
+            
+            $output = \Artisan::output();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Daily summary webhook sent successfully',
+                'output' => $output,
+                'date' => $date
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Daily summary send failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
         }
     }
 
@@ -604,20 +850,36 @@ class WebhookController extends Controller
     }
 
     /**
-     * Regenerate the signing secret for a webhook
+     * Regenerate webhook secret key
      */
-    public function regenerateSecret(Webhook $webhook): JsonResponse
+    public function regenerateSecret(Webhook $webhook)
     {
-        // Generate a new, secure random string
-        $newSecret = 'whsec_' . Str::random(32);
-
-        $webhook->signing_secret = $newSecret;
-        $webhook->save();
-
-        return response()->json([
-            'success' => true,
-            'secret' => $newSecret,
-        ]);
+        try {
+            $newSecret = 'whsec_' . bin2hex(random_bytes(32));
+            $webhook->update(['secret_key' => $newSecret]);
+            
+            if (request()->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'secret' => $newSecret,
+                    'message' => 'Secret regenerated successfully'
+                ]);
+            }
+            
+            return redirect()->route('admin.webhooks.index')
+                            ->with('success', 'Webhook secret regenerated successfully!');
+                            
+        } catch (\Exception $e) {
+            if (request()->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Failed to regenerate secret'
+                ], 500);
+            }
+            
+            return redirect()->route('admin.webhooks.index')
+                            ->with('error', 'Failed to regenerate webhook secret.');
+        }
     }
 
     /**

@@ -3,7 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\PaymentReminder;
-use App\Services\PaymentReminderService;
+use App\Services\ComponentPaymentReminderService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -31,7 +31,7 @@ class SendPaymentReminder implements ShouldQueue
     /**
      * Execute the job.
      */
-    public function handle(PaymentReminderService $reminderService): void
+    public function handle(ComponentPaymentReminderService $reminderService): void
     {
         try {
             Log::info('Processing payment reminder job', [
@@ -50,11 +50,31 @@ class SendPaymentReminder implements ShouldQueue
                 return;
             }
 
-            // Check if invoice is still unpaid
-            if ($this->paymentReminder->invoice && $this->paymentReminder->invoice->status === 'paid') {
-                Log::info('Skipping reminder - invoice already paid', [
+            // ✅ FIXED: Check if student fee component is still unpaid (component-based)
+            if ($this->paymentReminder->studentFee) {
+                $remainingAmount = $this->paymentReminder->studentFee->amount 
+                                 - $this->paymentReminder->studentFee->concession_amount 
+                                 - $this->paymentReminder->studentFee->paid_amount;
+                
+                if ($remainingAmount <= 0) {
+                    Log::info('Skipping reminder - fee component already paid', [
+                        'reminder_id' => $this->paymentReminder->id,
+                        'student_fee_id' => $this->paymentReminder->student_fee_id,
+                        'remaining_amount' => $remainingAmount
+                    ]);
+                    
+                    $this->paymentReminder->update(['status' => 'cancelled']);
+                    return;
+                }
+            }
+
+            // ✅ FIXED: Additional check for student status
+            if (!$this->paymentReminder->student || 
+                (isset($this->paymentReminder->student->is_active) && 
+                 !$this->paymentReminder->student->is_active)) {
+                Log::info('Skipping reminder - student not found or inactive', [
                     'reminder_id' => $this->paymentReminder->id,
-                    'invoice_id' => $this->paymentReminder->invoice_id
+                    'student_id' => $this->paymentReminder->student_id
                 ]);
                 
                 $this->paymentReminder->update(['status' => 'cancelled']);

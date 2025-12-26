@@ -6,17 +6,22 @@ use App\Http\Controllers\Controller;
 use App\Models\Subject;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\DB;
 
 class SubjectController extends Controller
 {
-   public function index()
+    
+    
+public function index()
 {
-    // withCount efficiently counts the number of related courses and faculty for each subject
-    $subjects = Subject::withCount(['courses', 'faculty'])->latest()->get();
+    // Updated to include users relationship for faculty count
+    $subjects = Subject::with(['courses', 'users'])
+        ->withCount(['courses', 'users as faculty_count'])
+        ->latest()
+        ->get();
 
     return view('admin.subjects.index', compact('subjects'));
 }
-
     public function create()
     {
         return view('admin.subjects.create');
@@ -47,6 +52,111 @@ class SubjectController extends Controller
     {
         return view('admin.subjects.edit', compact('subject'));
     }
+
+/**
+ * Get faculty data for AJAX requests
+ */
+public function getFacultyData(Subject $subject)
+{
+    try {
+        $assigned = $subject->users;
+        $allStaff = \App\Models\User::role('staff')->get();
+        
+        return response()->json([
+            'success' => true,
+            'assigned' => $assigned,
+            'available' => $allStaff,
+            'message' => 'Simple version working'
+        ]);
+        
+    } catch (\Exception $e) {
+        \Log::error('getFacultyData error: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => $e->getMessage()
+        ], 500);
+    }
+}
+
+/**
+ * Assign faculty to subject
+ */
+public function assignFaculty(Request $request, Subject $subject)
+{
+    $request->validate([
+        'faculty_id' => 'required|exists:users,id'
+    ]);
+    
+    try {
+        $faculty = \App\Models\User::findOrFail($request->faculty_id);
+        
+        // Check if faculty has staff role
+        if (!$faculty->hasRole('staff')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Selected user is not a faculty member'
+            ], 400);
+        }
+        
+        // Check if already assigned
+        if ($subject->users()->where('user_id', $faculty->id)->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Faculty is already assigned to this subject'
+            ], 400);
+        }
+        
+        // Assign faculty to subject
+        $subject->users()->attach($faculty->id);
+        
+        return response()->json([
+            'success' => true,
+            'message' => "Faculty {$faculty->name} assigned to {$subject->name} successfully"
+        ]);
+        
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error assigning faculty: ' . $e->getMessage()
+        ], 500);
+    }
+}
+
+/**
+ * Remove faculty from subject
+ */
+public function removeFaculty(Request $request, Subject $subject)
+{
+    $request->validate([
+        'faculty_id' => 'required|exists:users,id'
+    ]);
+    
+    try {
+        $faculty = \App\Models\User::findOrFail($request->faculty_id);
+        
+        // Check if faculty is assigned to this subject
+        if (!$subject->users()->where('user_id', $faculty->id)->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Faculty is not assigned to this subject'
+            ], 400);
+        }
+        
+        // Remove faculty from subject
+        $subject->users()->detach($faculty->id);
+        
+        return response()->json([
+            'success' => true,
+            'message' => "Faculty {$faculty->name} removed from {$subject->name} successfully"
+        ]);
+        
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error removing faculty: ' . $e->getMessage()
+        ], 500);
+    }
+}
 
  public function update(Request $request, Subject $subject)
 {

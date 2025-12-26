@@ -36,10 +36,21 @@ class Subject extends Model
     }
 
     // Correctly defines the many-to-many relationship with User (Faculty)
-    public function faculty(): BelongsToMany
-    {
-        return $this->belongsToMany(User::class, 'subject_user');
-    }
+    public function faculty()
+{
+    return $this->belongsToMany(User::class, 'subject_user', 'subject_id', 'user_id')
+                ->withTimestamps()
+                ->whereHas('roles', function($query) {
+                    $query->where('name', 'staff');
+                });
+}
+    
+public function users()
+{
+    return $this->belongsToMany(User::class, 'subject_user', 'subject_id', 'user_id')
+                ->withTimestamps();
+}
+
 
     // Correctly defines the one-to-many relationship with Mark
     public function marks(): HasMany

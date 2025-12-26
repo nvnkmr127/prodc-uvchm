@@ -184,35 +184,15 @@
                 </div>
             </div>
             
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="form-group icon-input">
-                        <label for="email" class="form-label">Email Address</label>
-                        <i class="fas fa-envelope"></i>
-                        <input type="email" 
-                               class="form-control @error('email') is-invalid @enderror" 
-                               id="email"
-                               name="email" 
-                               value="{{ old('email') }}"
-                               placeholder="Enter email address">
-                        @error('email') 
-                            <div class="invalid-feedback">{{ $message }}</div> 
-                        @enderror
-                    </div>
-                </div>
-                
-                <div class="col-md-6">
-                    <div class="form-group icon-input">
-                        <label for="address" class="form-label">Address / Village</label>
-                        <i class="fas fa-map-marker-alt"></i>
-                        <input type="text" 
-                               class="form-control" 
-                               id="address"
-                               name="address" 
-                               value="{{ old('address') }}"
-                               placeholder="Enter address or village">
-                    </div>
-                </div>
+            <div class="form-group icon-input">
+                <label for="address" class="form-label">Address / Village</label>
+                <i class="fas fa-map-marker-alt"></i>
+                <input type="text"
+                       class="form-control"
+                       id="address"
+                       name="address"
+                       value="{{ old('address') }}"
+                       placeholder="Enter address or village">
             </div>
         </div>
 

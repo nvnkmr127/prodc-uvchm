@@ -5,26 +5,35 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Student;
 use App\Models\Attendance;
-use App\Models\Invoice;
+use App\Models\StudentFee; // Replaced Invoice with StudentFee
+use App\Models\Payment;    // Added Payment model
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 
 class StudentApiController extends Controller
 {
     /**
-     * Get student profile with comprehensive data
+     * Get student profile with comprehensive data using the new component-based system
      */
     public function profile(Request $request, Student $student)
     {
         $student->load([
             'batch.course',
-            'invoices' => function($query) {
-                $query->latest()->limit(5);
+            // MODIFIED: Eager load studentFees instead of invoices
+            'studentFees' => function($query) {
+                $query->latest('due_date')->limit(5);
             },
             'attendances' => function($query) {
                 $query->latest()->limit(10);
             }
         ]);
+
+        // MODIFIED: Calculate financial summary from studentFees
+        $allFees = $student->studentFees;
+        $totalFeeAmount = $allFees->sum('amount');
+        $totalPaidAmount = $allFees->sum('paid_amount');
+        $totalConcession = $allFees->sum('concession_amount');
+        $totalDue = $totalFeeAmount - $totalPaidAmount - $totalConcession;
 
         return response()->json([
             'success' => true,
@@ -49,18 +58,20 @@ class StudentApiController extends Controller
                     'batch_end_date' => $student->batch->end_date ?? null,
                 ],
                 'financial_summary' => [
-                    'total_invoiced' => $student->invoices->sum('total_amount'),
-                    'total_paid' => $student->invoices->sum('paid_amount'),
-                    'total_due' => $student->invoices->sum('due_amount'),
-                    'recent_invoices' => $student->invoices->map(function($invoice) {
+                    'total_billed' => $totalFeeAmount,
+                    'total_paid' => $totalPaidAmount,
+                    'total_concession' => $totalConcession,
+                    'total_due' => $totalDue,
+                    // MODIFIED: Show recent fee components instead of invoices
+                    'recent_fees' => $student->studentFees->map(function($fee) {
                         return [
-                            'id' => $invoice->id,
-                            'invoice_number' => $invoice->invoice_number,
-                            'total_amount' => $invoice->total_amount,
-                            'paid_amount' => $invoice->paid_amount,
-                            'due_amount' => $invoice->due_amount,
-                            'status' => $invoice->status,
-                            'due_date' => $invoice->due_date,
+                            'id' => $fee->id,
+                            'fee_category' => $fee->feeCategory->name ?? 'N/A',
+                            'total_amount' => $fee->amount,
+                            'paid_amount' => $fee->paid_amount,
+                            'remaining_amount' => $fee->getRemainingAmount(),
+                            'status' => $fee->status,
+                            'due_date' => $fee->due_date->format('Y-m-d'),
                         ];
                     })
                 ],
@@ -117,48 +128,59 @@ class StudentApiController extends Controller
     }
 
     /**
-     * Get student financial details
+     * Get student financial details using the new component-based system
      */
     public function financials(Request $request, Student $student)
     {
-        $invoices = Invoice::where('student_id', $student->id)
-            ->with(['payments', 'invoiceItems'])
-            ->orderBy('issue_date', 'desc')
+        // MODIFIED: Fetch fee components and component-based payments
+        $fees = StudentFee::where('student_id', $student->id)
+            ->with('feeCategory')
+            ->orderBy('due_date', 'desc')
+            ->get();
+
+        $payments = Payment::where('student_id', $student->id)
+            ->where('payment_type', 'component')
+            ->with('componentItems.studentFee.feeCategory')
+            ->orderBy('payment_date', 'desc')
             ->get();
 
         return response()->json([
             'success' => true,
             'data' => [
                 'summary' => [
-                    'total_invoiced' => $invoices->sum('total_amount'),
-                    'total_paid' => $invoices->sum('paid_amount'),
-                    'total_due' => $invoices->sum('due_amount'),
-                    'total_invoices' => $invoices->count(),
+                    'total_billed' => $fees->sum('amount'),
+                    'total_paid' => $fees->sum('paid_amount'),
+                    'total_concession' => $fees->sum('concession_amount'),
+                    'total_due' => $fees->sum(fn($fee) => $fee->getRemainingAmount()),
+                    'total_fee_components' => $fees->count(),
                 ],
-                'invoices' => $invoices->map(function($invoice) {
+                'fee_components' => $fees->map(function($fee) {
                     return [
-                        'id' => $invoice->id,
-                        'invoice_number' => $invoice->invoice_number,
-                        'issue_date' => $invoice->issue_date,
-                        'due_date' => $invoice->due_date,
-                        'total_amount' => $invoice->total_amount,
-                        'paid_amount' => $invoice->paid_amount,
-                        'due_amount' => $invoice->due_amount,
-                        'status' => $invoice->status,
-                        'items' => $invoice->invoiceItems->map(function($item) {
+                        'id' => $fee->id,
+                        'category' => $fee->feeCategory->name ?? 'N/A',
+                        'due_date' => $fee->due_date->format('Y-m-d'),
+                        'total_amount' => $fee->amount,
+                        'paid_amount' => $fee->paid_amount,
+                        'concession' => $fee->concession_amount,
+                        'remaining_amount' => $fee->getRemainingAmount(),
+                        'status' => $fee->status,
+                    ];
+                }),
+                'payments' => $payments->map(function($payment) {
+                    return [
+                        'id' => $payment->id,
+                        'receipt_number' => $payment->receipt_number,
+                        'payment_date' => $payment->payment_date->format('Y-m-d'),
+                        'total_amount' => $payment->amount,
+                        'payment_method' => $payment->payment_method,
+                        'transaction_id' => $payment->transaction_id,
+                        'notes' => $payment->notes,
+                        'items' => $payment->componentItems->map(function($item) {
                             return [
-                                'description' => $item->description,
-                                'amount' => $item->amount,
+                                'category' => $item->studentFee->feeCategory->name ?? 'N/A',
+                                'amount_paid' => $item->amount_paid,
                             ];
                         }),
-                        'payments' => $invoice->payments->map(function($payment) {
-                            return [
-                                'amount' => $payment->amount,
-                                'payment_date' => $payment->payment_date,
-                                'payment_method' => $payment->payment_method,
-                                'receipt_number' => $payment->receipt_number,
-                            ];
-                        })
                     ];
                 })
             ]
@@ -192,7 +214,7 @@ class StudentApiController extends Controller
     }
 
     /**
-     * Get student dashboard data
+     * Get student dashboard data using the new component-based system
      */
     public function dashboard(Student $student)
     {
@@ -205,19 +227,22 @@ class StudentApiController extends Controller
             ->limit(5)
             ->get();
 
-        // Get pending dues
-        $pendingInvoices = Invoice::where('student_id', $student->id)
-            ->where('status', '!=', 'paid')
+        // MODIFIED: Get pending and overdue fees from StudentFee model
+        $pendingFees = StudentFee::where('student_id', $student->id)
+            ->whereIn('status', ['unpaid', 'partial'])
             ->where('due_date', '>=', $today)
-            ->orderBy('due_date')
             ->get();
 
-        // Get overdue invoices
-        $overdueInvoices = Invoice::where('student_id', $student->id)
-            ->where('status', '!=', 'paid')
-            ->where('due_date', '<', $today)
+        $overdueFees = StudentFee::where('student_id', $student->id)
+            ->where(function ($query) use ($today) {
+                $query->where('status', 'overdue')
+                      ->orWhere(function ($subQuery) use ($today) {
+                          $subQuery->whereIn('status', ['unpaid', 'partial'])
+                                   ->where('due_date', '<', $today);
+                      });
+            })
             ->get();
-
+            
         // Calculate attendance percentage for current month
         $monthlyAttendance = Attendance::where('student_id', $student->id)
             ->whereYear('attendance_date', substr($currentMonth, 0, 4))
@@ -249,15 +274,15 @@ class StudentApiController extends Controller
                     })
                 ],
                 'financial_stats' => [
-                    'pending_amount' => $pendingInvoices->sum('due_amount'),
-                    'overdue_amount' => $overdueInvoices->sum('due_amount'),
-                    'pending_invoices_count' => $pendingInvoices->count(),
-                    'overdue_invoices_count' => $overdueInvoices->count(),
+                    'pending_amount' => $pendingFees->sum(fn($fee) => $fee->getRemainingAmount()),
+                    'overdue_amount' => $overdueFees->sum(fn($fee) => $fee->getRemainingAmount()),
+                    'pending_fees_count' => $pendingFees->count(),
+                    'overdue_fees_count' => $overdueFees->count(),
                 ],
                 'alerts' => [
                     'low_attendance' => $attendancePercentage < 75,
-                    'overdue_payments' => $overdueInvoices->count() > 0,
-                    'upcoming_due_dates' => $pendingInvoices->where('due_date', '<=', $today->addDays(7))->count(),
+                    'overdue_payments' => $overdueFees->count() > 0,
+                    'upcoming_due_dates' => $pendingFees->where('due_date', '<=', $today->addDays(7))->count(),
                 ]
             ]
         ]);

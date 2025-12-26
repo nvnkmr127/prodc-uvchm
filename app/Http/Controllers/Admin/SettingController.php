@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 
+
 class SettingController extends Controller
 {
     /**
@@ -323,19 +324,21 @@ class SettingController extends Controller
                         'default' => '1000',
                         'help' => 'Minimum amount for partial payments'
                     ],
-                    'invoice_prefix' => [
-                        'label' => 'Invoice Number Prefix',
+                    // ✅ CHANGED: 'invoice_prefix' updated to 'component_prefix'
+                    'component_prefix' => [
+                        'label' => 'Component Number Prefix',
                         'type' => 'text',
                         'placeholder' => 'INV',
                         'default' => 'INV',
-                        'help' => 'Prefix for invoice numbers'
+                        'help' => 'Prefix for component/receipt numbers'
                     ],
-                    'invoice_footer' => [
-                        'label' => 'Invoice Footer Text',
+                    // ✅ CHANGED: 'invoice_footer' updated to 'component_footer'
+                    'component_footer' => [
+                        'label' => 'Component/Receipt Footer Text',
                         'type' => 'textarea',
                         'rows' => 3,
                         'placeholder' => 'Thank you for your payment. For any queries, contact the accounts department.',
-                        'help' => 'Text displayed at bottom of invoices'
+                        'help' => 'Text displayed at bottom of components/receipts'
                     ],
                     'receipt_footer' => [
                         'label' => 'Receipt Footer Text',
@@ -436,80 +439,74 @@ class SettingController extends Controller
                 'description' => 'Attendance tracking and requirements',
                 'fields' => [
                     'minimum_attendance_percentage' => [
-                        'label' => 'Minimum Attendance Required (%)',
-                        'type' => 'number',
-                        'min' => 0,
-                        'max' => 100,
-                        'default' => '75',
-                        'help' => 'Minimum attendance percentage required for exam eligibility'
-                    ],
-                    'attendance_grace_period' => [
-                        'label' => 'Late Arrival Grace Period (minutes)',
-                        'type' => 'number',
-                        'min' => 0,
-                        'max' => 60,
-                        'default' => '10',
-                        'help' => 'Grace period for late arrivals before marking absent'
-                    ],
-                    'attendance_auto_mark' => [
-                        'label' => 'Auto-Mark Attendance',
-                        'type' => 'toggle',
-                        'help' => 'Automatically mark attendance based on schedules',
-                        'default' => '0'
-                    ],
-                    'weekend_working' => [
-                        'label' => 'Working Weekend Days',
-                        'type' => 'multiselect',
-                        'options' => [
-                            'saturday' => 'Saturday',
-                            'sunday' => 'Sunday'
-                        ],
-                        'default' => '["saturday"]',
-                        'help' => 'Select working weekend days'
-                    ],
-                    'holiday_auto_absent' => [
-                        'label' => 'Auto-Mark Absent on Holidays',
-                        'type' => 'toggle',
-                        'help' => 'Automatically mark students absent on declared holidays',
-                        'default' => '0'
-                    ],
-                    'biometric_attendance' => [
-                        'label' => 'Enable Biometric Attendance',
-                        'type' => 'toggle',
-                        'help' => 'Use biometric devices for attendance tracking',
-                        'default' => '0'
-                    ],
-                    'biometric_api_key' => [
-                        'label' => 'Biometric API Key',
-                        'type' => 'password',
-                        'help' => 'API key for biometric device integration'
-                    ],
-                    'biometric_api_url' => [
-                        'label' => 'Biometric API URL',
-                        'type' => 'url',
-                        'placeholder' => 'https://biometric-device.local/api',
-                        'help' => 'API endpoint for biometric device'
-                    ],
-                    'attendance_sms_alerts' => [
-                        'label' => 'SMS Attendance Alerts',
-                        'type' => 'toggle',
-                        'help' => 'Send SMS alerts for attendance updates',
-                        'default' => '0'
-                    ],
-                    'attendance_email_alerts' => [
-                        'label' => 'Email Attendance Alerts',
-                        'type' => 'toggle',
-                        'help' => 'Send email alerts for low attendance',
-                        'default' => '1'
-                    ],
-                    'low_attendance_threshold' => [
-                        'label' => 'Low Attendance Alert Threshold (%)',
-                        'type' => 'number',
-                        'min' => 0,
-                        'max' => 100,
-                        'default' => '65',
-                        'help' => 'Send alerts when attendance falls below this percentage'
-                    ],
+            'label' => 'Minimum Attendance Percentage',
+            'type' => 'number',
+            'help' => 'Minimum attendance required for exam eligibility (%)',
+            'default' => '75',
+            'min' => '0',
+            'max' => '100'
+        ],
+        'attendance_grace_period' => [
+            'label' => 'Late Arrival Grace Period',
+            'type' => 'number',
+            'help' => 'Grace period for late arrivals (minutes)',
+            'default' => '10',
+            'min' => '0',
+            'max' => '60'
+        ],
+        'attendance_auto_mark' => [
+            'label' => 'Auto-Mark Attendance',
+            'type' => 'toggle',
+            'help' => 'Automatically mark attendance based on schedules',
+            'default' => '0'
+        ],
+        'weekend_working' => [
+            'label' => 'Working Weekend Days',
+            'type' => 'multiselect',
+            'options' => [
+                'saturday' => 'Saturday',
+                'sunday' => 'Sunday'
+            ],
+            'default' => '["saturday"]',
+            'help' => 'Select working weekend days'
+        ],
+        'holiday_auto_absent' => [
+            'label' => 'Auto-Mark Absent on Holidays',
+            'type' => 'toggle',
+            'help' => 'Automatically mark students absent on declared holidays',
+            'default' => '0'
+        ],
+        'attendance_sms_alerts' => [
+            'label' => 'SMS Attendance Alerts',
+            'type' => 'toggle',
+            'help' => 'Send SMS alerts for attendance updates',
+            'default' => '0'
+        ],
+        'attendance_email_alerts' => [
+            'label' => 'Email Attendance Alerts',
+            'type' => 'toggle',
+            'help' => 'Send email alerts for low attendance',
+            'default' => '1'
+        ],
+        'attendance_report_frequency' => [
+            'label' => 'Report Generation Frequency',
+            'type' => 'select',
+            'options' => [
+                'daily' => 'Daily',
+                'weekly' => 'Weekly', 
+                'monthly' => 'Monthly'
+            ],
+            'default' => 'weekly',
+            'help' => 'How often to generate attendance reports'
+        ],
+        'attendance_low_threshold' => [
+            'label' => 'Low Attendance Threshold',
+            'type' => 'number',
+            'help' => 'Send alerts when attendance falls below this percentage',
+            'default' => '80',
+            'min' => '0',
+            'max' => '100'
+        ]
                 ]
             ],
             'sms' => [
@@ -630,60 +627,8 @@ class SettingController extends Controller
                     ],
                 ]
             ],
-            'backup' => [
-                'title' => 'Backup & Maintenance',
-                'icon' => 'fas fa-database',
-                'description' => 'Data backup and system maintenance',
-                'fields' => [
-                    'auto_backup_enabled' => [
-                        'label' => 'Enable Automatic Backups',
-                        'type' => 'toggle',
-                        'help' => 'Automatically create database backups',
-                        'default' => '1'
-                    ],
-                    'backup_frequency' => [
-                        'label' => 'Backup Frequency',
-                        'type' => 'select',
-                        'options' => [
-                            'daily' => 'Daily',
-                            'weekly' => 'Weekly',
-                            'monthly' => 'Monthly',
-                        ],
-                        'default' => 'weekly'
-                    ],
-                    'backup_retention_days' => [
-                        'label' => 'Backup Retention (days)',
-                        'type' => 'number',
-                        'min' => 7,
-                        'max' => 365,
-                        'default' => '30',
-                        'help' => 'How long to keep backup files'
-                    ],
-                    'backup_storage' => [
-                        'label' => 'Backup Storage Location',
-                        'type' => 'select',
-                        'options' => [
-                            'local' => 'Local Storage',
-                            's3' => 'Amazon S3',
-                            'ftp' => 'FTP Server',
-                            'dropbox' => 'Dropbox',
-                        ],
-                        'default' => 'local'
-                    ],
-                    'maintenance_window_start' => [
-                        'label' => 'Maintenance Window Start',
-                        'type' => 'time',
-                        'default' => '02:00',
-                        'help' => 'Preferred time for system maintenance'
-                    ],
-                    'maintenance_window_end' => [
-                        'label' => 'Maintenance Window End',
-                        'type' => 'time',
-                        'default' => '04:00',
-                        'help' => 'End time for maintenance window'
-                    ],
-                ]
-            ],
+            
+          
             'api' => [
                 'title' => 'API & Integration',
                 'icon' => 'fas fa-plug',
@@ -736,6 +681,125 @@ class SettingController extends Controller
                     ],
                 ]
             ],
+            'backup' => [
+                'title' => 'Backup Settings',
+                'icon' => 'fas fa-database',
+                'description' => 'Configure backup and restore options',
+                'fields' => [
+                    'auto_backup' => [
+                        'label' => 'Enable Automatic Backups',
+                        'type' => 'toggle',
+                        'help' => 'Enable automatic database backups',
+                        'default' => '1'
+                    ],
+                    'backup_frequency' => [
+                        'label' => 'Backup Frequency',
+                        'type' => 'select',
+                        'options' => [
+                            'daily' => 'Daily',
+                            'weekly' => 'Weekly',
+                            'monthly' => 'Monthly',
+                        ],
+                        'default' => 'daily',
+                        'help' => 'How often to create automatic backups'
+                    ],
+                    'backup_retention_days' => [
+                        'label' => 'Backup Retention (days)',
+                        'type' => 'number',
+                        'min' => 1,
+                        'max' => 365,
+                        'default' => '30',
+                        'help' => 'Number of days to keep backup files'
+                    ],
+                    'maintenance_window' => [
+                        'label' => 'Backup Time',
+                        'type' => 'time',
+                        'default' => '02:00',
+                        'help' => 'Preferred time for system maintenance and backups (24-hour format)'
+                    ],
+                    'backup_local_enabled' => [
+                        'label' => 'Enable Local Backups',
+                        'type' => 'toggle',
+                        'help' => 'Store backups on local server storage',
+                        'default' => '1'
+                    ],
+                    'backup_gdrive_enabled' => [
+                        'label' => 'Enable Google Drive Backups',
+                        'type' => 'toggle',
+                        'help' => 'Store backups on Google Drive',
+                        'default' => '0'
+                    ],
+                    'gdrive_client_id' => [
+                        'label' => 'Google Drive Client ID',
+                        'type' => 'text',
+                        'help' => 'OAuth 2.0 Client ID from Google Cloud Console',
+                        'placeholder' => 'Enter Google Drive Client ID'
+                    ],
+                    'gdrive_client_secret' => [
+                        'label' => 'Google Drive Client Secret',
+                        'type' => 'password',
+                        'help' => 'OAuth 2.0 Client Secret from Google Cloud Console',
+                        'placeholder' => 'Enter Google Drive Client Secret'
+                    ],
+                    'gdrive_refresh_token' => [
+                        'label' => 'Google Drive Refresh Token',
+                        'type' => 'password',
+                        'help' => 'OAuth 2.0 Refresh Token (auto-generated after authorization)',
+                        'placeholder' => 'Auto-generated after authorization'
+                    ],
+                    'gdrive_folder_name' => [
+                        'label' => 'Google Drive Folder Name',
+                        'type' => 'text',
+                        'default' => 'College-Backups',
+                        'help' => 'Name of the folder to store backups in Google Drive',
+                        'placeholder' => 'College-Backups'
+                    ],
+                    'code_backup_enabled' => [
+                        'label' => 'Enable Code Backups',
+                        'type' => 'toggle',
+                        'help' => 'Enable automatic code backups every 15 days',
+                        'default' => '1'
+                    ],
+                    'code_backup_interval' => [
+                        'label' => 'Code Backup Interval (days)',
+                        'type' => 'number',
+                        'min' => 1,
+                        'max' => 90,
+                        'default' => '15',
+                        'help' => 'Interval in days for automatic code backups'
+                    ],
+                    'backup_notification_email' => [
+                        'label' => 'Backup Notification Email',
+                        'type' => 'email',
+                        'help' => 'Email address to receive backup status notifications',
+                        'placeholder' => 'admin@example.com'
+                    ],
+                    'backup_compress' => [
+                        'label' => 'Compress Backups',
+                        'type' => 'toggle',
+                        'help' => 'Compress backup files to save storage space',
+                        'default' => '1'
+                    ],
+                    'auto_cleanup' => [
+                        'label' => 'Auto Cleanup Old Backups',
+                        'type' => 'toggle',
+                        'help' => 'Automatically delete old backups based on retention period',
+                        'default' => '1'
+                    ],
+                    'backup_notifications' => [
+                        'label' => 'Enable Backup Notifications',
+                        'type' => 'toggle',
+                        'help' => 'Send email notifications for backup status',
+                        'default' => '0'
+                    ],
+                    'notification_email' => [
+                        'label' => 'Notification Email',
+                        'type' => 'email',
+                        'help' => 'Email address to receive backup notifications',
+                        'placeholder' => 'admin@example.com'
+                    ]
+                ]
+            ],
         ];
     }
 
@@ -759,251 +823,64 @@ class SettingController extends Controller
     }
 
 /**
- * Update settings with FIXED validation
- */
-public function update(Request $request)
-{
-    try {
-        \Log::info('Settings update started', [
-            'request_keys' => array_keys($request->all()),
-            'request_data' => $request->except(['_token', 'password'])
-        ]);
-        
-        $settingGroups = $this->getSettingGroups();
-        $rules = [];
-        $messages = [];
-        $updatedCount = 0;
-
-        // Build validation rules dynamically - ONLY for fields that are actually present in the request
-        foreach ($settingGroups as $groupKey => $group) {
-            foreach ($group['fields'] as $key => $field) {
-                // IMPORTANT: Only validate fields that are actually in the request or are required
-                if (!$request->has($key) && !$request->hasFile($key)) {
-                    // Skip validation for fields not in the request unless they're required and we're in their group
-                    $activeTab = $request->get('active_tab', 'general');
-                    if ($groupKey !== $activeTab) {
-                        continue; // Skip fields from other tabs
-                    }
-                    
-                    // Only require if it's marked as required and we're in the correct tab
-                    if (!(isset($field['required']) && $field['required'])) {
-                        continue;
-                    }
-                }
-
-                $fieldRules = [];
-
-                // Handle file uploads separately
-                if ($field['type'] === 'file') {
-                    if ($request->hasFile($key)) {
-                        $fieldRules[] = 'nullable|image|mimes:png,jpg,jpeg,gif,svg|max:2048';
-                    }
-                } else {
-                    // Required field validation - ONLY if field is present or required in current tab
-                    if (isset($field['required']) && $field['required'] && $request->has($key)) {
-                        $fieldRules[] = 'required';
-                    } else {
-                        $fieldRules[] = 'nullable';
-                    }
-
-                    // Type-specific validation
-                    switch ($field['type']) {
-                        case 'email':
-                            $fieldRules[] = 'email';
-                            break;
-                        case 'url':
-                            $fieldRules[] = 'url';
-                            break;
-                        case 'number':
-                            $fieldRules[] = 'numeric';
-                            if (isset($field['min'])) $fieldRules[] = 'min:' . $field['min'];
-                            if (isset($field['max'])) $fieldRules[] = 'max:' . $field['max'];
-                            break;
-                        case 'toggle':
-                        case 'boolean':
-                            // Don't add validation rules for toggles
-                            $fieldRules = ['nullable'];
-                            break;
-                        case 'text':
-                            if (isset($field['maxlength'])) {
-                                $fieldRules[] = 'max:' . $field['maxlength'];
-                            } else {
-                                $fieldRules[] = 'max:255';
-                            }
-                            break;
-                        case 'textarea':
-                            $fieldRules[] = 'max:2000';
-                            break;
-                        case 'password':
-                            $fieldRules[] = 'max:255';
-                            break;
-                        case 'time':
-                            $fieldRules[] = 'date_format:H:i';
-                            break;
-                        case 'select':
-                            if (isset($field['options'])) {
-                                $options = is_array($field['options']) ? array_keys($field['options']) : $field['options'];
-                                $fieldRules[] = 'in:' . implode(',', $options);
-                            }
-                            break;
-                    }
-                }
-
-                // Add rules to validation array only if we have rules
-                if (!empty($fieldRules)) {
-                    $rules[$key] = implode('|', $fieldRules);
-                    
-                    // Custom error messages
-                    $fieldLabel = $field['label'] ?? ucfirst(str_replace('_', ' ', $key));
-                    $messages[$key . '.required'] = $fieldLabel . ' is required.';
-                    $messages[$key . '.email'] = $fieldLabel . ' must be a valid email address.';
-                    $messages[$key . '.url'] = $fieldLabel . ' must be a valid URL.';
-                    $messages[$key . '.numeric'] = $fieldLabel . ' must be a number.';
-                    $messages[$key . '.max'] = $fieldLabel . ' is too long.';
-                    $messages[$key . '.in'] = $fieldLabel . ' contains an invalid value.';
-                }
-            }
-        }
-
-        \Log::info('Validation rules built', [
-            'rules_count' => count($rules),
-            'rules' => $rules
-        ]);
-
-        // Create validator but only validate the fields that are actually being submitted
-        $dataToValidate = [];
-        foreach ($rules as $field => $rule) {
-            if ($request->has($field) || $request->hasFile($field)) {
-                $dataToValidate[$field] = $request->input($field);
-            }
-        }
-
-        $validator = Validator::make($dataToValidate, $rules, $messages);
-
-        if ($validator->fails()) {
-            \Log::warning('Settings validation failed', [
-                'errors' => $validator->errors()->toArray(),
-                'validated_data' => $dataToValidate,
-                'rules_applied' => $rules
-            ]);
+     * Update settings - FIXED VERSION
+     */
+    public function update(Request $request)
+    {
+        try {
+            $settingGroups = $this->getSettingGroups();
+            $activeTab = $request->get('active_tab', 'general');
             
-            return redirect()->back()
-                ->withErrors($validator)
-                ->withInput()
-                ->with('activeTab', $request->get('active_tab', 'general'))
-                ->with('error', 'Please fix the validation errors below.');
-        }
-
-        // Start database transaction
-        DB::beginTransaction();
-
-        // Process ONLY the fields that are in the request
-        foreach ($request->all() as $key => $value) {
-            // Skip internal fields
-            if (in_array($key, ['_token', 'active_tab', '_method'])) {
-                continue;
+            if (!isset($settingGroups[$activeTab])) {
+                return back()->with('error', 'Invalid settings group.');
             }
 
-            // Find the field configuration
-            $field = null;
-            $groupKey = 'general';
-            
-            foreach ($settingGroups as $gKey => $group) {
-                if (isset($group['fields'][$key])) {
-                    $field = $group['fields'][$key];
-                    $groupKey = $gKey;
-                    break;
-                }
-            }
+            $currentGroup = $settingGroups[$activeTab];
+            $updatedCount = 0;
 
-            // Skip if field is not defined in our settings groups
-            if (!$field) {
-                \Log::warning("Unknown setting field: {$key}");
-                continue;
-            }
-
-            try {
-                // Handle file uploads
-                if ($field['type'] === 'file' && $request->hasFile($key)) {
-                    $file = $request->file($key);
-                    $filename = time() . '_' . $file->getClientOriginalName();
-                    $path = $file->storeAs('public/settings', $filename);
-                    $value = Storage::url($path);
-
-                    // Delete old file if exists
-                    $oldSetting = Setting::where('key', $key)->first();
-                    if ($oldSetting && $oldSetting->value) {
-                        $oldPath = str_replace('/storage/', 'public/', $oldSetting->value);
-                        if (Storage::exists($oldPath)) {
-                            Storage::delete($oldPath);
+            foreach ($currentGroup['fields'] as $key => $field) {
+                try {
+                    $value = $request->input($key);
+                    
+                    // FIXED: Better password field handling
+                    if ($field['type'] === 'password') {
+                        // Get current setting to check if it exists
+                        $currentSetting = Setting::where('key', $key)->first();
+                        
+                        // Check if the submitted value is the placeholder or empty
+                        $isPlaceholder = ($value === '***ENCRYPTED***');
+                        $isEmpty = empty($value);
+                        
+                        if ($isPlaceholder) {
+                            // Skip update if placeholder value - keep current password
+                            \Log::info("Skipping password field update for {$key} - placeholder value detected");
+                            continue;
+                        } elseif ($isEmpty && $currentSetting && !empty($currentSetting->value)) {
+                            // If current setting exists and new value is empty, ask user intention
+                            // For now, skip to preserve existing password
+                            \Log::info("Skipping password field update for {$key} - empty value, preserving existing");
+                            continue;
+                        } elseif ($isEmpty) {
+                            // If no current setting and empty value, set as empty
+                            $value = '';
+                        } else {
+                            // Encrypt the new password value
+                            $value = encrypt($value);
                         }
+                    } elseif ($field['type'] === 'toggle' || $field['type'] === 'boolean') {
+                        $value = $request->has($key) ? '1' : '0';
+                    } elseif ($field['type'] === 'multiselect') {
+                        $selectedValues = $request->input($key, []);
+                        $value = is_array($selectedValues) ? json_encode($selectedValues) : json_encode([]);
+                    } elseif ($value === null) {
+                        $value = '';
                     }
-                }
 
-                // Handle toggle/boolean fields
-                if ($field['type'] === 'toggle' || $field['type'] === 'boolean') {
-                    $value = $request->has($key) ? '1' : '0';
-                }
-
-                // Handle multiselect arrays
-                if ($field['type'] === 'multiselect') {
-                    $selectedValues = $request->input($key, []);
-                    $value = is_array($selectedValues) ? json_encode($selectedValues) : json_encode([]);
-                }
-
-                // Handle password fields (encrypt them)
-                if ($field['type'] === 'password' && !empty($value)) {
-                    $value = encrypt($value);
-                }
-
-                // Convert null to empty string for database
-                if ($value === null) {
-                    $value = '';
-                }
-
-                // Update or create the setting
-                $setting = Setting::updateOrCreate(
-                    ['key' => $key],
-                    [
-                        'value' => (string) $value,
-                        'group' => $groupKey,
-                        'type' => $field['type'],
-                        'description' => $field['help'] ?? $field['label'] ?? '',
-                        'is_public' => in_array($key, [
-                            'app_name', 'app_tagline', 'college_name', 'college_logo',
-                            'college_short_name', 'currency_symbol', 'currency_code'
-                        ]),
-                        'is_encrypted' => $field['type'] === 'password' && !empty($value),
-                    ]
-                );
-
-                $updatedCount++;
-                \Log::info("Setting updated: {$key}", [
-                    'value' => $field['type'] === 'password' ? '[ENCRYPTED]' : $value,
-                    'group' => $groupKey
-                ]);
-
-            } catch (\Exception $e) {
-                \Log::error("Failed to update setting {$key}", [
-                    'error' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString()
-                ]);
-                
-                // Continue with other settings
-                continue;
-            }
-        }
-
-        // Also handle toggle fields that might not be in the request (unchecked checkboxes)
-        $activeTab = $request->get('active_tab', 'general');
-        if (isset($settingGroups[$activeTab])) {
-            foreach ($settingGroups[$activeTab]['fields'] as $key => $field) {
-                if (($field['type'] === 'toggle' || $field['type'] === 'boolean') && !$request->has($key)) {
-                    // Unchecked checkbox - set to 0
-                    Setting::updateOrCreate(
+                    // Update or create the setting
+                    $setting = Setting::updateOrCreate(
                         ['key' => $key],
                         [
-                            'value' => '0',
+                            'value' => (string) $value,
                             'group' => $activeTab,
                             'type' => $field['type'],
                             'description' => $field['help'] ?? $field['label'] ?? '',
@@ -1011,41 +888,56 @@ public function update(Request $request)
                                 'app_name', 'app_tagline', 'college_name', 'college_logo',
                                 'college_short_name', 'currency_symbol', 'currency_code'
                             ]),
+                            'is_encrypted' => $field['type'] === 'password' && !empty($value),
+                        ]
+                    );
+
+                    $updatedCount++;
+                    \Log::info("Setting updated: {$key}", [
+                        'value' => $field['type'] === 'password' ? '[ENCRYPTED]' : $value,
+                        'group' => $activeTab,
+                        'is_encrypted' => $field['type'] === 'password' && !empty($value)
+                    ]);
+
+                } catch (\Exception $e) {
+                    \Log::error("Failed to update setting {$key}", [
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                    continue;
+                }
+            }
+
+            // Handle toggle fields that might not be in request (unchecked checkboxes)
+            foreach ($currentGroup['fields'] as $key => $field) {
+                if (($field['type'] === 'toggle' || $field['type'] === 'boolean') && !$request->has($key)) {
+                    Setting::updateOrCreate(
+                        ['key' => $key],
+                        [
+                            'value' => '0',
+                            'group' => $activeTab,
+                            'type' => $field['type'],
+                            'description' => $field['help'] ?? $field['label'] ?? '',
+                            'is_public' => false,
                             'is_encrypted' => false,
                         ]
                     );
                     $updatedCount++;
                 }
             }
+
+            $this->clearSettingsCache();
+
+            return back()->with('success', "Successfully updated {$updatedCount} setting(s).");
+
+        } catch (\Exception $e) {
+            \Log::error('Settings update failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return back()->with('error', 'Failed to update settings. Please try again.');
         }
-
-        // Commit the transaction
-        DB::commit();
-
-        // Clear settings cache
-        $this->clearSettingsCache();
-
-        \Log::info('Settings update completed', ['updated_count' => $updatedCount]);
-
-        return redirect()->back()
-            ->with('success', "Settings updated successfully! ({$updatedCount} settings saved)")
-            ->with('activeTab', $request->get('active_tab', 'general'));
-
-    } catch (\Exception $e) {
-        DB::rollback();
-        
-        \Log::error('Settings update failed', [
-            'error' => $e->getMessage(),
-            'trace' => $e->getTraceAsString(),
-            'request_data' => $request->except(['password', '_token'])
-        ]);
-
-        return redirect()->back()
-            ->with('error', 'Failed to update settings: ' . $e->getMessage())
-            ->withInput()
-            ->with('activeTab', $request->get('active_tab', 'general'));
     }
-}
     /**
      * Export settings as JSON
      */
@@ -1073,153 +965,205 @@ public function update(Request $request)
                 ->header('Content-Disposition', 'attachment; filename="settings-export-' . date('Y-m-d-H-i-s') . '.json"')
                 ->header('Content-Type', 'application/json');
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Failed to export settings: ' . $e->getMessage());
+            return \App\Helpers\ErrorHandler::handleWebException(
+                $e,
+                'Settings export failed',
+                'Failed to export settings. Please try again.'
+            );
         }
     }
 
     /**
      * Import settings from JSON
      */
-    public function import(Request $request)
-    {
-        $request->validate([
-            'settings_file' => 'required|file|mimes:json|max:1024',
-            'overwrite_existing' => 'boolean'
-        ]);
-
-        try {
-            $content = file_get_contents($request->file('settings_file')->path());
-            $data = json_decode($content, true);
-
-            if (!$data || !isset($data['settings'])) {
-                return redirect()->back()->with('error', 'Invalid settings file format.');
-            }
-
-            DB::beginTransaction();
-
-            $imported = 0;
-            $skipped = 0;
-            $overwrite = $request->has('overwrite_existing');
-
-            foreach ($data['settings'] as $key => $settingData) {
-                // Skip encrypted settings for security
-                if (isset($settingData['is_encrypted']) && $settingData['is_encrypted']) {
-                    $skipped++;
-                    continue;
-                }
-
-                $exists = Setting::where('key', $key)->exists();
-
-                if ($exists && !$overwrite) {
-                    $skipped++;
-                    continue;
-                }
-
-                Setting::updateOrCreate(
-                    ['key' => $key],
-                    [
-                        'value' => $settingData['value'],
-                        'group' => $settingData['group'] ?? 'general',
-                        'type' => $settingData['type'] ?? 'text',
-                        'description' => $settingData['description'] ?? '',
-                        'is_public' => $settingData['is_public'] ?? false,
-                        'is_encrypted' => false, // Never import as encrypted
-                    ]
-                );
-                $imported++;
-            }
-
-            DB::commit();
-            $this->clearSettingsCache();
-
-            $message = "Import completed! Imported: {$imported} settings";
-            if ($skipped > 0) {
-                $message .= ", Skipped: {$skipped} settings";
-            }
-
-            return redirect()->back()->with('success', $message);
-
-        } catch (\Exception $e) {
-            DB::rollback();
-            return redirect()->back()->with('error', 'Failed to import settings: ' . $e->getMessage());
-        }
-    }
-
-/**
- * Create database backup
- */
-public function createBackup(Request $request)
+public function import(Request $request)
 {
+    $request->validate([
+        'settings_file' => 'required|file|mimes:json|max:2048',
+        'overwrite_existing' => 'nullable|boolean'
+    ]);
+
     try {
-        // Simple backup creation - you can enhance this
-        $filename = 'backup_' . date('Y_m_d_H_i_s') . '.sql';
-        $path = storage_path('backups');
-        
-        if (!is_dir($path)) {
-            mkdir($path, 0755, true);
+        $file = $request->file('settings_file');
+        $content = file_get_contents($file->getPathname());
+        $settings = json_decode($content, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            return back()->with('error', 'Invalid JSON file format.');
         }
-        
-        $database = config('database.connections.mysql.database');
-        $username = config('database.connections.mysql.username');
-        $password = config('database.connections.mysql.password');
-        $host = config('database.connections.mysql.host');
-        
-        $command = "mysqldump --user={$username} --password={$password} --host={$host} {$database} > {$path}/{$filename}";
-        
-        $result = null;
-        $output = [];
-        exec($command, $output, $result);
-        
-        if ($result === 0) {
-            return response()->json([
-                'success' => true,
-                'message' => 'Backup created successfully: ' . $filename,
-                'filename' => $filename
-            ]);
-        } else {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to create backup. Check server configuration.'
-            ]);
+
+        $overwriteExisting = $request->boolean('overwrite_existing');
+        $importedCount = 0;
+        $skippedCount = 0;
+
+        foreach ($settings as $key => $value) {
+            // Check if setting already exists
+            $existingSetting = \App\Models\Setting::where('key', $key)->first();
+            
+            if ($existingSetting && !$overwriteExisting) {
+                $skippedCount++;
+                continue;
+            }
+
+            // Create or update setting
+            \App\Models\Setting::updateOrCreate(
+                ['key' => $key],
+                ['value' => $value]
+            );
+            
+            $importedCount++;
         }
+
+        $message = "Settings imported successfully. {$importedCount} settings imported";
+        if ($skippedCount > 0) {
+            $message .= ", {$skippedCount} settings skipped (already exist)";
+        }
+
+        return back()->with('success', $message);
+
     } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Backup failed: ' . $e->getMessage()
-        ]);
+        return \App\Helpers\ErrorHandler::handleWebException(
+            $e,
+            'Settings import failed',
+            'Settings import failed. Please check the file format and try again.'
+        );
     }
 }
 
 /**
- * Optimize database
+ * Create backup - FIXED VERSION
  */
-public function optimizeDatabase(Request $request)
+public function createBackup()
 {
     try {
-        // Get all tables
-        $tables = DB::select('SHOW TABLES');
-        $database = config('database.connections.mysql.database');
-        $tableKey = 'Tables_in_' . $database;
+        $backupName = 'settings_backup_' . date('Y-m-d_H-i-s') . '.json';
+        $backupPath = storage_path('app/backups');
         
-        $optimizedTables = 0;
-        
-        foreach ($tables as $table) {
-            $tableName = $table->$tableKey;
-            DB::statement("OPTIMIZE TABLE `{$tableName}`");
-            $optimizedTables++;
+        // Create backups directory if it doesn't exist
+        if (!file_exists($backupPath)) {
+            mkdir($backupPath, 0755, true);
         }
+        
+        // Get all settings
+        $settings = Setting::all()->map(function ($setting) {
+            return [
+                'key' => $setting->key,
+                'value' => $setting->value,
+                'group' => $setting->group,
+                'type' => $setting->type,
+                'description' => $setting->description,
+                'is_public' => $setting->is_public,
+            ];
+        });
+        
+        $backupData = [
+            'created_at' => now()->toISOString(),
+            'app_version' => config('app.version', '1.0.0'),
+            'laravel_version' => app()->version(),
+            'settings_count' => $settings->count(),
+            'settings' => $settings
+        ];
+        
+        $filePath = $backupPath . '/' . $backupName;
+        file_put_contents($filePath, json_encode($backupData, JSON_PRETTY_PRINT));
         
         return response()->json([
             'success' => true,
-            'message' => "Database optimized successfully. {$optimizedTables} tables optimized."
+            'message' => 'Settings backup created successfully!',
+            'filename' => $backupName,
+            'path' => $filePath,
+            'settings_count' => $settings->count(),
+            'file_size' => $this->formatBytes(filesize($filePath))
         ]);
+
     } catch (\Exception $e) {
+        Log::error('Backup creation failed: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to create backup: ' . $e->getMessage()
+        ], 500);
+    }
+}
+
+
+
+/**
+ * Optimize database - FIXED VERSION
+ */
+public function optimizeDatabase()
+{
+    try {
+        $results = [];
+        
+        // Remove duplicate settings
+        $duplicates = DB::select("
+            SELECT key, COUNT(*) as count 
+            FROM settings 
+            GROUP BY key 
+            HAVING COUNT(*) > 1
+        ");
+        
+        $duplicatesRemoved = 0;
+        foreach ($duplicates as $duplicate) {
+            // Keep the most recent one, delete the rest
+            $settingsToDelete = Setting::where('key', $duplicate->key)
+                ->orderBy('updated_at', 'desc')
+                ->skip(1)
+                ->take($duplicate->count - 1)
+                ->get();
+            
+            foreach ($settingsToDelete as $setting) {
+                $setting->delete();
+                $duplicatesRemoved++;
+            }
+        }
+        
+        // Fix settings without groups
+        $ungroupedFixed = Setting::whereNull('group')
+            ->orWhere('group', '')
+            ->update(['group' => 'general']);
+        
+        // Fix settings without types
+        $untypedFixed = Setting::whereNull('type')
+            ->orWhere('type', '')
+            ->update(['type' => 'text']);
+        
+        // Optimize database tables (MySQL specific)
+        try {
+            if (config('database.default') === 'mysql') {
+                DB::statement('OPTIMIZE TABLE settings');
+                $results[] = 'Settings table optimized';
+            }
+        } catch (\Exception $e) {
+            $results[] = 'Table optimization skipped: ' . $e->getMessage();
+        }
+        
+        // Clear settings cache
+        if (function_exists('clear_settings_cache')) {
+            clear_settings_cache();
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Database optimization completed!',
+            'details' => [
+                'duplicates_removed' => $duplicatesRemoved,
+                'ungrouped_fixed' => $ungroupedFixed,
+                'untyped_fixed' => $untypedFixed,
+                'operations' => $results
+            ]
+        ]);
+
+    } catch (\Exception $e) {
+        Log::error('Database optimization failed: ' . $e->getMessage());
         return response()->json([
             'success' => false,
             'message' => 'Database optimization failed: ' . $e->getMessage()
-        ]);
+        ], 500);
     }
 }
+
+
 
 /**
  * Test SMS configuration
@@ -1305,160 +1249,401 @@ public function resetAllSettings(Request $request)
     }
 }
 
-    /**
-     * Reset settings to defaults
-     */
-    public function resetToDefaults(Request $request)
-    {
-        $request->validate([
-            'group' => 'required|string'
+  /**
+ * Test email configuration
+ */
+public function testEmail(Request $request)
+{
+    $request->validate([
+        'test_email' => 'required|email'
+    ]);
+
+    try {
+        $testEmail = $request->input('test_email');
+        
+        // Get email settings
+        $emailSettings = \App\Models\Setting::whereIn('key', [
+            'mail_driver', 'mail_host', 'mail_port', 'mail_username', 
+            'mail_password', 'mail_encryption', 'mail_from_address', 'mail_from_name'
+        ])->pluck('value', 'key');
+
+        // Configure mail settings dynamically
+        config([
+            'mail.default' => $emailSettings['mail_driver'] ?? 'smtp',
+            'mail.mailers.smtp.host' => $emailSettings['mail_host'] ?? 'localhost',
+            'mail.mailers.smtp.port' => $emailSettings['mail_port'] ?? 587,
+            'mail.mailers.smtp.username' => $emailSettings['mail_username'] ?? '',
+            'mail.mailers.smtp.password' => $emailSettings['mail_password'] ?? '',
+            'mail.mailers.smtp.encryption' => $emailSettings['mail_encryption'] ?? 'tls',
+            'mail.from.address' => $emailSettings['mail_from_address'] ?? 'noreply@college.edu',
+            'mail.from.name' => $emailSettings['mail_from_name'] ?? 'College Management System',
         ]);
 
-        $settingGroups = $this->getSettingGroups();
-        $group = $request->get('group');
+        // Send test email
+        Mail::raw('This is a test email from your College Management System. Email configuration is working correctly!', function ($message) use ($testEmail, $emailSettings) {
+            $message->to($testEmail)
+                    ->subject('Test Email - College Management System')
+                    ->from($emailSettings['mail_from_address'] ?? 'noreply@college.edu', 
+                           $emailSettings['mail_from_name'] ?? 'College Management System');
+        });
 
-        if (!isset($settingGroups[$group])) {
-            return redirect()->back()->with('error', 'Invalid settings group.');
-        }
-
-        try {
-            DB::beginTransaction();
-
-            $resetCount = 0;
-            foreach ($settingGroups[$group]['fields'] as $key => $field) {
-                if (isset($field['default'])) {
-                    Setting::updateOrCreate(
-                        ['key' => $key],
-                        [
-                            'value' => $field['default'],
-                            'group' => $group,
-                            'type' => $field['type'],
-                            'description' => $field['help'] ?? $field['label'],
-                            'is_public' => in_array($key, [
-                                'app_name', 'app_tagline', 'college_name', 'college_logo'
-                            ]),
-                            'is_encrypted' => $field['type'] === 'password',
-                        ]
-                    );
-                    $resetCount++;
-                }
-            }
-
-            DB::commit();
-            $this->clearSettingsCache();
-
-            return redirect()->back()
-                ->with('success', "Reset {$resetCount} settings to defaults for " . $settingGroups[$group]['title'])
-                ->with('activeTab', $group);
-
-        } catch (\Exception $e) {
-            DB::rollback();
-            return redirect()->back()->with('error', 'Failed to reset settings: ' . $e->getMessage());
-        }
-    }
-
-    /**
-     * Test email configuration
-     */
-    public function testEmail(Request $request)
-    {
-        $request->validate([
-            'test_email' => 'required|email'
+        return response()->json([
+            'success' => true,
+            'message' => 'Test email sent successfully to ' . $testEmail
         ]);
 
-        try {
-            $collegeName = setting('college_name', 'College Management System');
-            $fromName = setting('mail_from_name', $collegeName);
-
-            Mail::raw(
-                "This is a test email from your college management system.\n\n" .
-                "If you received this email, your email configuration is working correctly!\n\n" .
-                "Email sent at: " . now()->format('Y-m-d H:i:s') . "\n" .
-                "From: {$fromName}",
-                function ($message) use ($request, $collegeName) {
-                    $message->to($request->test_email)
-                        ->subject('Test Email - ' . $collegeName);
-                }
-            );
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Test email sent successfully to ' . $request->test_email
-            ]);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to send email: ' . $e->getMessage()
-            ]);
-        }
+    } catch (\Exception $e) {
+        \Log::error('Test email failed: ' . $e->getMessage());
+        
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to send test email: ' . $e->getMessage()
+        ], 422);
     }
+}
 
-    /**
-     * Clear application cache
-     */
-    public function clearCache(Request $request)
-    {
+/**
+ * Clear application cache - FIXED VERSION
+ */
+public function clearCache()
+{
+    try {
+        $results = [];
+        
+        // Clear various caches with error handling
         try {
-            // Clear various caches
             Artisan::call('cache:clear');
-            Artisan::call('config:clear');
-            Artisan::call('route:clear');
-            Artisan::call('view:clear');
-
-            // Clear compiled views
-            Artisan::call('view:clear');
-
-            // Clear settings cache
-            $this->clearSettingsCache();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'All caches cleared successfully!'
-            ]);
-
+            $results[] = 'Application cache cleared';
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to clear cache: ' . $e->getMessage()
-            ]);
+            $results[] = 'Application cache: ' . $e->getMessage();
         }
-    }
-
-    /**
-     * Toggle maintenance mode
-     */
-    public function toggleMaintenance(Request $request)
-    {
+        
         try {
-            $currentMode = setting('maintenance_mode', '0');
-            $newMode = $currentMode === '1' ? '0' : '1';
-
-            Setting::updateOrCreate(
-                ['key' => 'maintenance_mode'],
-                ['value' => $newMode]
-            );
-
-            if ($newMode === '1') {
-                Artisan::call('down', ['--secret' => 'maintenance-bypass-secret']);
-            } else {
-                Artisan::call('up');
-            }
-
-            $this->clearSettingsCache();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Maintenance mode ' . ($newMode === '1' ? 'enabled' : 'disabled') . ' successfully!',
-                'mode' => $newMode === '1'
-            ]);
+            Artisan::call('config:clear');
+            $results[] = 'Configuration cache cleared';
         } catch (\Exception $e) {
+            $results[] = 'Configuration cache: ' . $e->getMessage();
+        }
+        
+        try {
+            Artisan::call('route:clear');
+            $results[] = 'Route cache cleared';
+        } catch (\Exception $e) {
+            $results[] = 'Route cache: ' . $e->getMessage();
+        }
+        
+        try {
+            Artisan::call('view:clear');
+            $results[] = 'View cache cleared';
+        } catch (\Exception $e) {
+            $results[] = 'View cache: ' . $e->getMessage();
+        }
+        
+        // Clear settings cache using helper function
+        try {
+            if (function_exists('clear_settings_cache')) {
+                clear_settings_cache();
+                $results[] = 'Settings cache cleared';
+            }
+        } catch (\Exception $e) {
+            $results[] = 'Settings cache: ' . $e->getMessage();
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Cache clearing completed!',
+            'details' => $results
+        ]);
+
+    } catch (\Exception $e) {
+        Log::error('Cache clear failed: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to clear cache: ' . $e->getMessage()
+        ], 500);
+    }
+}
+
+
+
+/**
+ * Seed default settings - FIXED VERSION
+ */
+public function seedDefaults()
+{
+    try {
+        $defaults = $this->getAllDefaultSettings();
+        $created = 0;
+        $updated = 0;
+        
+        foreach ($defaults as $group => $settings) {
+            foreach ($settings as $key => $value) {
+                $setting = Setting::where('key', $key)->first();
+                
+                if (!$setting) {
+                    Setting::create([
+                        'key' => $key,
+                        'value' => $value,
+                        'group' => $group,
+                        'type' => $this->detectSettingType($value),
+                        'description' => $this->getSettingDescription($key),
+                        'is_public' => $this->isPublicSetting($key),
+                    ]);
+                    $created++;
+                } else if (empty($setting->value)) {
+                    $setting->update(['value' => $value]);
+                    $updated++;
+                }
+            }
+        }
+
+        // Clear settings cache
+        if (function_exists('clear_settings_cache')) {
+            clear_settings_cache();
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => "Default settings seeded successfully! Created: {$created}, Updated: {$updated}",
+            'details' => [
+                'created' => $created,
+                'updated' => $updated,
+                'total_defaults' => count($defaults, COUNT_RECURSIVE) - count($defaults)
+            ]
+        ]);
+
+    } catch (\Exception $e) {
+        Log::error('Seed defaults failed: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to seed defaults: ' . $e->getMessage()
+        ], 500);
+    }
+}
+
+
+/**
+ * Get setting description
+ */
+private function getSettingDescription($key)
+{
+    $descriptions = [
+        'app_name' => 'Application name displayed throughout the system',
+        'college_name' => 'Official name of the college',
+        'college_code' => 'Unique identifier code for the college',
+        'timezone' => 'Default timezone for the application',
+        'academic_year_start' => 'Start date (MM-DD) of academic year',
+        'semester_duration' => 'Duration of each semester in months',
+        'passing_percentage' => 'Minimum percentage required to pass',
+        'mail_from_name' => 'Name shown in outgoing emails',
+        'session_lifetime' => 'Session timeout in minutes',
+        'login_attempts' => 'Maximum failed login attempts before lockout',
+    ];
+    
+    return $descriptions[$key] ?? 'System setting';
+}
+
+/**
+ * Check if setting should be public
+ */
+private function isPublicSetting($key)
+{
+    $publicSettings = [
+        'app_name', 'college_name', 'college_address', 'college_phone',
+        'college_email', 'college_website', 'timezone', 'date_format',
+        'time_format', 'currency', 'currency_symbol', 'language'
+    ];
+    
+    return in_array($key, $publicSettings);
+}
+
+/**
+ * Detect setting type from value
+ */
+private function detectSettingType($value)
+{
+    if (is_bool($value) || $value === '1' || $value === '0') {
+        return 'boolean';
+    }
+    if (is_numeric($value)) {
+        return 'number';
+    }
+    if (filter_var($value, FILTER_VALIDATE_EMAIL)) {
+        return 'email';
+    }
+    if (filter_var($value, FILTER_VALIDATE_URL)) {
+        return 'url';
+    }
+    if (strlen($value) > 100) {
+        return 'textarea';
+    }
+    return 'text';
+}
+
+
+/**
+ * Get all default settings
+ */
+private function getAllDefaultSettings()
+{
+    return [
+        'general' => [
+            'app_name' => 'College Management System',
+            'college_name' => 'Your College Name',
+            'college_code' => 'COL001',
+            'college_address' => '',
+            'college_phone' => '',
+            'college_email' => 'info@college.edu',
+            'college_website' => '',
+            'timezone' => 'Asia/Kolkata',
+            'date_format' => 'Y-m-d',
+            'time_format' => 'H:i',
+            'currency' => 'INR',
+            'currency_symbol' => '₹',
+            'language' => 'en',
+        ],
+        'academic' => [
+            'academic_year_start' => '07-01',
+            'academic_year_end' => '06-30',
+            'semester_duration' => '6',
+            'max_subjects_per_semester' => '8',
+            'passing_percentage' => '40',
+            'grading_system' => 'percentage',
+            'attendance_required' => '75',
+        ],
+        'email' => [
+            'mail_driver' => 'smtp',
+            'mail_host' => 'smtp.gmail.com',
+            'mail_port' => '587',
+            'mail_encryption' => 'tls',
+            'mail_from_name' => 'College System',
+            'mail_from_address' => 'noreply@college.edu',
+        ],
+        'security' => [
+            'session_lifetime' => '120',
+            'password_reset_expire' => '60',
+            'login_attempts' => '5',
+            'lockout_duration' => '15',
+            'force_password_change' => '90',
+        ],
+        'features' => [
+            'enable_online_admission' => '1',
+            'enable_fee_payment' => '1',
+            'enable_sms_notifications' => '0',
+            'enable_email_notifications' => '1',
+            'enable_student_portal' => '1',
+            'enable_parent_portal' => '1',
+        ]
+    ];
+}
+
+
+/**
+ * Reset settings group to defaults
+ */
+public function resetDefaults(Request $request)
+{
+    $request->validate([
+        'group' => 'required|string'
+    ]);
+
+    try {
+        $group = $request->input('group');
+        
+        // Define default settings for each group
+        $defaults = [
+            'general' => [
+                'app_name' => 'College Management System',
+                'app_description' => 'Comprehensive college management solution',
+                'timezone' => 'Asia/Kolkata',
+                'date_format' => 'Y-m-d',
+                'time_format' => 'H:i:s',
+            ],
+            'email' => [
+                'mail_driver' => 'smtp',
+                'mail_host' => 'localhost',
+                'mail_port' => '587',
+                'mail_encryption' => 'tls',
+                'mail_from_name' => 'College Management System',
+                'mail_from_address' => 'noreply@college.edu',
+            ],
+            'academic' => [
+                'academic_year_start_month' => '7',
+                'default_session_duration' => '60',
+                'attendance_marking_window' => '15',
+            ],
+            'financial' => [
+                'currency_symbol' => '₹',
+                'currency_code' => 'INR',
+                'late_fee_percentage' => '5',
+                'payment_grace_period' => '7',
+            ],
+            'notification' => [
+                'enable_email_notifications' => '1',
+                'enable_sms_notifications' => '0',
+                'notification_sender_name' => 'College Management System',
+            ]
+        ];
+
+        if (!isset($defaults[$group])) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to toggle maintenance mode: ' . $e->getMessage()
-            ]);
+                'message' => 'Invalid settings group specified'
+            ], 422);
         }
+
+        // Reset settings to defaults
+        foreach ($defaults[$group] as $key => $value) {
+            \App\Models\Setting::updateOrCreate(
+                ['key' => $key],
+                ['value' => $value, 'group' => $group]
+            );
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => ucfirst($group) . ' settings have been reset to defaults successfully!'
+        ]);
+
+    } catch (\Exception $e) {
+        \Log::error('Reset defaults failed: ' . $e->getMessage());
+        
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to reset settings: ' . $e->getMessage()
+        ], 500);
     }
+}
+
+/**
+ * Toggle maintenance mode
+ */
+public function toggleMaintenance()
+{
+    try {
+        if (app()->isDownForMaintenance()) {
+            Artisan::call('up');
+            $mode = false;
+            $message = 'Maintenance mode disabled';
+        } else {
+            Artisan::call('down', ['--secret' => 'admin-access']);
+            $mode = true;
+            $message = 'Maintenance mode enabled';
+        }
+
+        return response()->json([
+            'success' => true,
+            'mode' => $mode,
+            'message' => $message
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to toggle maintenance mode: ' . $e->getMessage()
+        ], 500);
+    }
+}
 
 /**
  * Complete system information method that matches the view
@@ -1647,39 +1832,79 @@ private function getSystemUptime()
         return 'Unknown';
     }
 }
-    /**
-     * Health check functionality
-     */
-    public function healthCheck(Request $request)
-    {
-        if ($request->wantsJson()) {
-            $checks = [
-                'database' => $this->checkDatabase(),
-                'cache' => $this->checkCache(),
-                'file_permissions' => $this->checkFilePermissions(),
-                'storage' => $this->checkStorage(),
-                'settings' => $this->checkSettings(),
-                'email' => $this->checkEmailConfiguration(),
-                'queue' => $this->checkQueue(),
-            ];
+    
+/**
+ * Run system health check
+ */
+public function healthCheck()
+{
+    try {
+        $checks = [];
+        $passed = 0;
+        $total = 0;
 
-            $overallStatus = collect($checks)->every(fn($check) => $check['status']) ? 'healthy' : 'unhealthy';
-
-            return response()->json([
-                'status' => $overallStatus,
-                'timestamp' => now()->toDateTimeString(),
-                'checks' => $checks,
-                'summary' => [
-                    'total_checks' => count($checks),
-                    'passed' => collect($checks)->where('status', true)->count(),
-                    'failed' => collect($checks)->where('status', false)->count(),
-                ]
-            ]);
+        // Database check
+        $total++;
+        try {
+            DB::connection()->getPdo();
+            $checks[] = ['name' => 'Database', 'status' => true, 'message' => 'Connected'];
+            $passed++;
+        } catch (\Exception $e) {
+            $checks[] = ['name' => 'Database', 'status' => false, 'message' => $e->getMessage()];
         }
 
-        $systemInfo = $this->systemInfo($request);
-        return view('admin.settings.system-info', compact('systemInfo'));
+        // Cache check
+        $total++;
+        try {
+            Cache::put('health_check', 'test', 5);
+            $test = Cache::get('health_check');
+            if ($test === 'test') {
+                $checks[] = ['name' => 'Cache', 'status' => true, 'message' => 'Working'];
+                $passed++;
+            } else {
+                $checks[] = ['name' => 'Cache', 'status' => false, 'message' => 'Not working'];
+            }
+        } catch (\Exception $e) {
+            $checks[] = ['name' => 'Cache', 'status' => false, 'message' => $e->getMessage()];
+        }
+
+        // Storage check
+        $total++;
+        try {
+            $testFile = storage_path('framework/cache/health_check.txt');
+            file_put_contents($testFile, 'test');
+            $content = file_get_contents($testFile);
+            unlink($testFile);
+            
+            if ($content === 'test') {
+                $checks[] = ['name' => 'Storage', 'status' => true, 'message' => 'Writable'];
+                $passed++;
+            } else {
+                $checks[] = ['name' => 'Storage', 'status' => false, 'message' => 'Not writable'];
+            }
+        } catch (\Exception $e) {
+            $checks[] = ['name' => 'Storage', 'status' => false, 'message' => $e->getMessage()];
+        }
+
+        $status = $passed === $total ? 'healthy' : 'issues';
+
+        return response()->json([
+            'status' => $status,
+            'summary' => [
+                'passed' => $passed,
+                'total_checks' => $total
+            ],
+            'checks' => $checks,
+            'message' => "System health check completed. {$passed}/{$total} checks passed."
+        ]);
+
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Health check failed: ' . $e->getMessage()
+        ], 500);
     }
+}
 
     /**
      * Validate a setting value
@@ -1851,8 +2076,8 @@ private function getSystemUptime()
         }
     }
 
-    /**
-     * Update specific setting
+  /**
+     * IMPROVED: Update specific setting via AJAX with better password handling
      */
     public function updateSetting(Request $request, $key)
     {
@@ -1883,13 +2108,31 @@ private function getSystemUptime()
                 }
             }
 
-            if ($isPassword && !empty($value)) {
-                $value = encrypt($value);
+            // IMPROVED: Better password handling for AJAX updates
+            if ($isPassword) {
+                $currentSetting = Setting::where('key', $key)->first();
+                
+                if ($value === '***ENCRYPTED***') {
+                    // Don't update if placeholder
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Cannot save placeholder value. Please enter the actual secret.'
+                    ], 422);
+                } elseif (empty($value) && $currentSetting && !empty($currentSetting->value)) {
+                    // Confirm clearing existing password
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'To clear existing secret, send explicit confirmation.',
+                        'requires_confirmation' => true
+                    ], 422);
+                } elseif (!empty($value)) {
+                    $value = encrypt($value);
+                }
             }
 
             Setting::updateOrCreate(['key' => $key], [
                 'value' => $value,
-                'is_encrypted' => $isPassword
+                'is_encrypted' => $isPassword && !empty($value)
             ]);
 
             $this->clearSettingsCache();
@@ -1903,6 +2146,11 @@ private function getSystemUptime()
                 ]
             ]);
         } catch (\Exception $e) {
+            \Log::error('Setting update failed', [
+                'key' => $key,
+                'error' => $e->getMessage()
+            ]);
+            
             return response()->json([
                 'success' => false,
                 'message' => 'Error updating setting: ' . $e->getMessage()
@@ -2106,6 +2354,8 @@ private function checkCache()
         return ['status' => false, 'message' => 'Cache check failed: ' . $e->getMessage()];
     }
 }
+
+
 
 /**
  * Check file permissions - FIXED

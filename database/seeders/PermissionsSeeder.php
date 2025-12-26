@@ -377,6 +377,30 @@ class PermissionsSeeder extends Seeder
                 'generate reports',
                 'view dashboard',
             ],
+            
+            'manage biometric mapping' => [
+    'display_name' => 'Manage Biometric Mapping',
+    'description' => 'Access biometric mapping interface',
+    'group' => 'Student Management'
+],
+
+'import biometric data' => [
+    'display_name' => 'Import Biometric Data',
+    'description' => 'Import biometric mappings from Excel/CSV',
+    'group' => 'Student Management'
+],
+
+'export biometric data' => [
+    'display_name' => 'Export Biometric Data',
+    'description' => 'Export biometric mapping reports',
+    'group' => 'Student Management'
+],
+
+'auto generate biometric codes' => [
+    'display_name' => 'Auto Generate Biometric Codes',
+    'description' => 'Auto-generate biometric codes for students',
+    'group' => 'Student Management'
+],
         ];
 
         // Create roles and assign permissions

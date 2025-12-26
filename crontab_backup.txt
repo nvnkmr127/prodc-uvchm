@@ -1,0 +1,18 @@
+MAILTO=""
+SHELL="/bin/bash"
+*/5 * * * * /bin/bash /home/digiclou/uvchm.digicloudify.com/git-autopush.sh >/dev/null 2>&1
+* * * * * /usr/bin/flock -n /home/digiclou/.cpanel/redis/redis.lock /usr/bin/redis-server /home/digiclou/.cpanel/redis/redis.conf >> /dev/null 2>&1
+* * * * * cd /home/digiclou/portal.uvchm.com && php artisan schedule:run >> /dev/null 2>&1
+*/5 * * * * cd /home/digiclou/portal.uvchm.com && php artisan queue:restart >> /dev/null 2>&1
+* * * * * cd /home/digiclou/portal.uvchm.com && php artisan queue:work --sleep=3 --tries=3 --max-time=3600 --daemon --quiet >> /home/digiclou/logs/queue-worker.log 2>&1
+0 2 * * * cd /home/digiclou/portal.uvchm.com && php artisan optimize:clear && php artisan config:cache && php artisan route:cache >> /home/digiclou/logs/db-maintenance.log 2>&1
+0 1 * * * cd /home/digiclou/portal.uvchm.com && php artisan backup:run >> /home/digiclou/logs/backup.log 2>&1
+0 3 * * * find /home/digiclou/portal.uvchm.com/storage/logs/ -name "*.log" -mtime +30 -delete
+0 4 * * 0 cd /home/digiclou/portal.uvchm.com && php artisan queue:prune-failed --hours=168 >> /home/digiclou/logs/queue-cleanup.log 2>&1
+0 */6 * * * cd /home/digiclou/portal.uvchm.com && php artisan system:health-check >> /home/digiclou/logs/health-check.log 2>&1
+0 6 * * * cd /home/digiclou/portal.uvchm.com && php artisan session:gc >> /dev/null 2>&1
+0 8 * * * cd /home/digiclou/portal.uvchm.com && php artisan payments:enhanced-reminders >> /home/digiclou/logs/payment-reminders.log 2>&1
+30 1 * * * cd /home/digiclou/portal.uvchm.com && php artisan settings:backup --clean >> /home/digiclou/logs/settings-backup.log 2>&1
+* 10 * * * cd /home/digiclou/portal.uvchm.com && php artisan analytics:analyze-defaulters >> /home/digiclou/logs/defaulters-analysis.log 2>&1
+0 9 1 * * cd /home/digiclou/portal.uvchm.com && php artisan reports:monthly-collection >> /home/digiclou/logs/monthly-reports.log 2>&1
+*/15 8-17 * * 1-6 cd /home/digiclou/portal.uvchm.com && php artisan attendance:sync-biometric >> /home/digiclou/logs/attendance-sync.log 2>&1

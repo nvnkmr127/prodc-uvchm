@@ -2,202 +2,139 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Payment Receipt #{{ $payment->receipt_number }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Receipt - {{ $payment->receipt_number }}</title>
     <style>
-        @page {
-            size: A5;
-            margin: 0;
-        }
-        body {
-            font-family: 'DejaVu Sans', 'Helvetica Neue', 'Helvetica', Helvetica, Arial, sans-serif;
-            font-size: 12px;
-            color: #333;
-            margin: 1cm;
-        }
-        .container {
-            width: 100%;
-            margin: 0 auto;
-        }
-        .header {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        .header img {
-            max-height: 70px;
-            margin-bottom: 10px;
-        }
-        .header h1 {
-            margin: 0;
-            font-size: 20px;
-            color: #222;
-        }
-        .header p {
-            margin: 4px 0;
-            font-size: 11px;
-            color: #555;
-        }
-        .details-table {
-            width: 100%;
-            margin-top: 25px;
-            border-collapse: collapse;
-        }
-        .receipt-info {
-            width: 100%;
-            margin-bottom: 25px;
-        }
-        .receipt-info td {
-            padding: 2px 0;
-            font-size: 12px;
-        }
-        .summary-table {
-            width: 100%;
-            margin-top: 25px;
-            border-collapse: collapse;
-        }
-        .summary-table th, .summary-table td {
-            border: 1px solid #ddd;
-            padding: 10px;
-            text-align: left;
-        }
-        .summary-table th {
-            background-color: #f2f2f2;
-        }
-        .text-right {
-            text-align: right;
-        }
-        .total-row strong {
-            font-size: 14px;
-        }
-        .footer {
-            margin-top: 30px;
-            font-size: 10px;
-            text-align: center;
-            color: #888;
-            border-top: 1px solid #eee;
-            padding-top: 10px;
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: Arial, sans-serif; }
+        body { font-size: 13px; line-height: 1.3; color: #333; padding: 15px; max-width: 800px; margin: 0 auto; }
+        .receipt-container { border: 1px solid #ddd; padding: 15px; }
+        
+        /* Header */
+        .header { text-align: center; padding-bottom: 10px; margin-bottom: 10px; border-bottom: 2px solid #000; }
+        .college-name { font-size: 18px; font-weight: bold; margin-bottom: 3px; }
+        .college-address, .college-contact { font-size: 11px; color: #555; margin-bottom: 2px; }
+        .receipt-title { font-size: 14px; font-weight: bold; margin-top: 5px; text-decoration: underline; }
+        
+        /* Details Table */
+        .details-table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 12px; }
+        .details-table td { padding: 6px 8px; border: 1px solid #ddd; }
+        .details-table .label { font-weight: bold; background-color: #f5f5f5; width: 20%; }
+        .amount-paid-row td { background-color: #f0f0f0; font-weight: bold; padding: 8px; }
+        
+        /* Fee Components */
+        .components-section { margin: 10px 0; }
+        .components-title { font-size: 12px; font-weight: bold; margin-bottom: 5px; }
+        .components-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+        .components-table th, .components-table td { padding: 4px 6px; border: 1px solid #ddd; }
+        .components-table th { background-color: #f5f5f5; text-align: left; }
+        .text-right { text-align: right; }
+        
+        /* Summary */
+        .summary-box { border: 1px solid #000; padding: 10px; margin: 10px 0; background-color: #f9f9f9; }
+        .summary-title { font-size: 12px; font-weight: bold; margin-bottom: 5px; text-align: center; }
+        .summary-table { width: 100%; font-size: 12px; }
+        .summary-table td { padding: 4px 0; }
+        .summary-total-due { border-top: 1px solid #000; padding-top: 6px; margin-top: 6px; font-weight: bold; }
+        
+        /* Footer */
+        .footer { margin-top: 10px; font-size: 11px; text-align: center; border-top: 1px solid #ddd; padding-top: 8px; }
+        .thank-you { font-weight: bold; margin-bottom: 3px; }
+        
+        @media print {
+            body { padding: 5px; }
+            .receipt-container { border: none; padding: 0; }
         }
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="receipt-container">
         <div class="header">
-            {{-- Display college logo with different paths for web vs PDF --}}
-            @if(!empty($settings['college_logo']))
-                @php
-                    $logoPath = $settings['college_logo'];
-                    $logoShown = false;
-                    
-                    // Detect if we're generating a PDF or viewing in browser
-                    $isPDF = request()->routeIs('*.pdf') || str_contains(request()->url(), '/pdf');
-                    
-                    if ($isPDF) {
-                        // For PDF: Use file system paths
-                        $pathsToTry = [
-                            public_path('storage/' . $logoPath),
-                            storage_path('app/public/' . $logoPath),
-                            public_path($logoPath)
-                        ];
-                        
-                        foreach ($pathsToTry as $path) {
-                            if (file_exists($path)) {
-                                echo '<img src="' . $path . '" alt="College Logo">';
-                                $logoShown = true;
-                                break;
-                            }
-                        }
-                    } else {
-                        // For web browser: Use URL paths
-                        $webLogoUrl = asset('storage/' . $logoPath);
-                        echo '<img src="' . $webLogoUrl . '" alt="College Logo" onerror="this.style.display=\'none\'">';
-                        $logoShown = true;
-                    }
-                @endphp
-                
-                @if(!$logoShown)
-                    <div style="height: 70px; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; border: 2px dashed #ccc; color: #999; font-size: 14px;">
-                        <span>{{ $settings['college_name'] ?? 'College' }} Logo</span>
-                    </div>
-                @endif
-            @endif
-            
-            <h1>{{ $settings['college_name'] ?? 'My College' }}</h1>
-            @if(!empty($settings['college_address']))
-                <p>{{ $settings['college_address'] }}</p>
-            @endif
+            <div class="college-name">{{ config('app.name', 'INSTITUTION NAME') }}</div>
+          
+            <div class="receipt-title">PAYMENT RECEIPT</div>
         </div>
-        
-        <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
 
-        <h2 style="text-align: center; font-size: 18px; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px;">Payment Receipt</h2>
-
-        <table class="receipt-info">
+        <table class="details-table">
             <tr>
-                <td><strong>Receipt No:</strong> {{ $payment->receipt_number }}</td>
-                <td class="text-right"><strong>Payment Date:</strong> {{ \Carbon\Carbon::parse($payment->payment_date)->format('d M, Y') }}</td>
+                <td class="label">Receipt No:</td>
+                <td>{{ $payment->receipt_number }}</td>
+                <td class="label">Date:</td>
+                <td>{{ $payment->payment_date->format('d-M-Y') }}</td>
             </tr>
             <tr>
-                <td><strong>Invoice No:</strong> #{{ $payment->invoice->invoice_number }}</td>
-                <td class="text-right"><strong>Payment Method:</strong> {{ $payment->payment_method }}</td>
+                <td class="label">Student Name:</td>
+                <td>{{ $student->name }}</td>
+                <td class="label">Enrollment No:</td>
+                <td>{{ $student->enrollment_number }}</td>
+            </tr>
+            @if($student->batch)
+            <tr>
+                <td class="label">Course:</td>
+                <td>{{ $student->batch->course->name ?? 'N/A' }}</td>
+                <td class="label">Batch:</td>
+                <td>{{ $student->batch->name }}</td>
+            </tr>
+            @endif
+            <tr>
+                <td class="label">Payment Method:</td>
+                <td>{{ ucfirst(str_replace('_', ' ', $payment->payment_method)) }}</td>
+                <td class="label">Payment Received:</td>
+                <td>{{ $payment->created_at->format('d-M-Y H:i') }}</td>
+            </tr>
+            <tr class="amount-paid-row">
+                <td colspan="2">AMOUNT PAID:</td>
+                <td colspan="2">Rs. {{ number_format($payment->amount, 2) }}</td>
             </tr>
         </table>
 
-        <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; border: 1px solid #eee;">
-            <h3 style="margin-top: 0; font-size: 14px; margin-bottom: 10px;">Billed To:</h3>
-            <p style="margin: 5px 0;"><strong>{{ $payment->invoice->student->name }}</strong></p>
-            <p style="margin: 5px 0;">Enrollment No: {{ $payment->invoice->student->enrollment_number }}</p>
-        </div>
-
-        <table class="summary-table">
-            <thead>
-                <tr>
-                    <th>Description</th>
-                    <th class="text-right">Amount</th>
-                </tr>
-            </thead>
-            <tbody>
-                @php 
-                    // Get currency symbol and convert to PDF-safe format
-                    $currencySymbol = $settings['currency_symbol'] ?? '₹';
-                    
-                    // Convert common currency symbols to HTML entities for PDF compatibility
-                    $currencyDisplay = match($currencySymbol) {
-                        '₹' => '&#8377;',  // Indian Rupee
-                        '$' => '&#36;',    // US Dollar
-                        '€' => '&#8364;',  // Euro
-                        '£' => '&#163;',   // British Pound
-                        '¥' => '&#165;',   // Japanese Yen
-                        default => 'Rs. '  // Fallback to "Rs. " for rupees
-                    };
-                @endphp
-                
-                <tr>
-                    <td>Payment towards Invoice #{{ $payment->invoice->invoice_number }}</td>
-                    <td class="text-right">{!! $currencyDisplay !!}{{ number_format($payment->amount, 2) }}</td>
-                </tr>
-                <tr style="background-color: #f9f9f9;">
-                    <td class="text-right">Invoice Total:</td>
-                    <td class="text-right">{!! $currencyDisplay !!}{{ number_format($payment->invoice->total_amount, 2) }}</td>
-                </tr>
-                <tr>
-                    <td class="text-right">Total Paid to Date:</td>
-                    <td class="text-right">{!! $currencyDisplay !!}{{ number_format($payment->invoice->paid_amount, 2) }}</td>
-                </tr>
-                <tr class="total-row" style="background-color: #e9f5ff; border-top: 2px solid #b0dfff;">
-                    <td class="text-right"><strong>Balance Due:</strong></td>
-                    <td class="text-right"><strong>{!! $currencyDisplay !!}{{ number_format($payment->invoice->due_amount, 2) }}</strong></td>
-                </tr>
-            </tbody>
-        </table>
-
-        @if($payment->notes)
-        <div style="margin-top: 20px; font-size: 11px;">
-            <strong>Notes:</strong>
-            <p style="margin-top: 5px; padding: 10px; background-color: #f9f9f9; border-radius: 4px;">{{ $payment->notes }}</p>
+        @if($payment->componentItems && $payment->componentItems->count() > 0)
+        <div class="components-section">
+            <div class="components-title">FEE BREAKDOWN</div>
+            <table class="components-table">
+                <thead>
+                    <tr>
+                        <th>Fee Category</th>
+                        <th class="text-right">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($payment->componentItems as $item)
+                    <tr>
+                        <td>{{ $item->studentFee->feeCategory->name ?? 'Unknown Category' }}</td>
+                        <td class="text-right">Rs. {{ number_format($item->amount_paid, 2) }}</td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
         </div>
         @endif
+        
+        @php
+            $totalFees = $student->studentFees->sum('amount');
+            $totalPaid = $student->studentFees->sum('paid_amount');
+            $dueAmount = max(0, $totalFees - $totalPaid);
+        @endphp
+        <div class="summary-box">
+            <div class="summary-title">FINANCIAL SUMMARY</div>
+            <table class="summary-table">
+                <tr>
+                    <td>Total Fees:</td>
+                    <td class="text-right">Rs. {{ number_format($totalFees, 2) }}</td>
+                </tr>
+                <tr>
+                    <td>Total Paid:</td>
+                    <td class="text-right">Rs. {{ number_format($totalPaid, 2) }}</td>
+                </tr>
+                <tr class="summary-total-due">
+                    <td>REMAINING BALANCE:</td>
+                    <td class="text-right">Rs. {{ number_format($dueAmount, 2) }}</td>
+                </tr>
+            </table>
+        </div>
 
         <div class="footer">
-            <p>{{ $settings['invoice_footer_text'] ?? 'This is a computer-generated receipt and does not require a signature.' }}</p>
+            <div class="thank-you">Thank you for your payment!</div>
+            <div>Computer generated receipt on {{ now()->format('d-M-Y H:i') }}</div>
         </div>
     </div>
 </body>

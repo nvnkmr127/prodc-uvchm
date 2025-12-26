@@ -67,4 +67,15 @@ public function switch(Request $request)
     }
 
     public function destroy(AcademicYear $academicYear) { $academicYear->delete(); return redirect()->route('admin.academic-years.index')->with('success', 'Academic Year deleted.'); }
+
+    public function setCurrent(Request $request, AcademicYear $academicYear)
+    {
+        DB::transaction(function () use ($academicYear) {
+            AcademicYear::query()->update(['is_current' => false]);
+            $academicYear->update(['is_current' => true]);
+        });
+
+        return redirect()->route('admin.academic-years.index')
+            ->with('success', 'Academic year set as current successfully.');
+    }
 }

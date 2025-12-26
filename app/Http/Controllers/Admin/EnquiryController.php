@@ -11,59 +11,102 @@ use Spatie\Activitylog\Models\Activity;
 use App\Models\Admission;
 use Carbon\Carbon;
 use App\Services\LeadDistributionService;
+// Add these imports
+use App\Imports\EnquiriesImport;
+use Maatwebsite\Excel\Facades\Excel;
+use Illuminate\Support\Facades\Log;
 
 class EnquiryController extends Controller
 {
-    public function index(Request $request)
+   public function index(Request $request)
     {
-        // --- Data for Stat Cards ---
-        $newEnquiriesCount = Enquiry::where('status', 'New')->count();
-        $todaysFollowUpsCount = Enquiry::whereDate('next_follow_up_date', Carbon::today())->count();
-        $recentlyAdmittedCount = Enquiry::where('status', 'Admitted')->where('updated_at', '>=', Carbon::now()->subDays(7))->count();
+        // --- 1. Calculate Stats ---
+        // (This part is fine as it doesn't use the join)
+        $stats = Enquiry::selectRaw('status, count(*) as count')
+            ->groupBy('status')
+            ->pluck('count', 'status')
+            ->toArray();
 
-        // --- Data for the main table ---
-        $query = Enquiry::with('course', 'assignedTo');
+        $counts = [
+            'New' => $stats['New'] ?? 0,
+            'Contacted' => $stats['Contacted'] ?? 0,
+            'Interested' => $stats['Interested'] ?? 0,
+            'Next Year' => $stats['Interested Next Year'] ?? 0,
+            'Not Interested' => $stats['Not Interested'] ?? 0,
+            'Admitted' => $stats['Admitted'] ?? 0,
+            'Follow-up' => $stats['Follow-up'] ?? 0,
+            'Total' => array_sum($stats)
+        ];
 
-        // Apply filters
+        // --- 2. Build Query ---
+        // Select only enquiry columns to avoid overwriting data (like id) from joined tables
+        $query = Enquiry::with('course', 'assignedTo')
+            ->select('enquiries.*'); 
+
+        // Search Logic
         if ($request->filled('search')) {
-            $query->where(function($q) use ($request) {
-                $q->where('student_name', 'LIKE', '%' . $request->search . '%')
-                  ->orWhere('phone_number', 'LIKE', '%' . $request->search . '%');
+            $searchTerm = $request->search;
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('enquiries.student_name', 'LIKE', '%' . $searchTerm . '%')
+                  ->orWhere('enquiries.phone_number', 'LIKE', '%' . $searchTerm . '%');
             });
         }
+
+        // [FIXED] Ambiguous Column Issue
+        // We now use 'enquiries.status' instead of just 'status'
         if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-        if ($request->filled('course_id')) {
-            $query->where('course_id', $request->course_id);
+            $query->where('enquiries.status', $request->status);
+        } else {
+            // Default: Hide 'Not Interested' unless searching
+            if (!$request->filled('search')) {
+                $query->where('enquiries.status', '!=', 'Not Interested');
+            }
         }
 
-        $enquiries = $query->latest()->get();
-        $courses = Course::orderBy('name')->get();
+        // Other Filters
+        if ($request->filled('course_id')) {
+            $query->where('enquiries.course_id', $request->course_id);
+        }
+        if ($request->filled('assigned_to_user_id')) {
+            $query->where('enquiries.assigned_to_user_id', $request->assigned_to_user_id);
+        }
+
+        // --- 3. Sorting Logic ---
+        $sortField = $request->get('sort', 'next_follow_up_date');
+        $sortDirection = $request->get('direction', 'asc');
+
+        if ($sortField === 'course_name') {
+            $query->leftJoin('courses', 'enquiries.course_id', '=', 'courses.id')
+                  ->orderBy('courses.name', $sortDirection);
+        } elseif ($sortField === 'counselor_name') {
+            // This JOIN caused the ambiguity error
+            $query->leftJoin('users', 'enquiries.assigned_to_user_id', '=', 'users.id')
+                  ->orderBy('users.name', $sortDirection);
+        } else {
+            // Ensure standard sort uses table alias if needed (optional but safe)
+            $query->orderBy('enquiries.' . $sortField, $sortDirection);
+        }
+
+        $enquiries = $query->paginate(25)->withQueryString();
+        $courses = Course::orderBy('name')->pluck('name', 'id');
         
-        // Get counselors for assignment dropdown (if needed in view)
         $counselors = User::whereHas('roles', function($q) {
-            $q->where('name', 'counselor');
-        })->orderBy('name')->get();
+            $q->whereIn('name', ['admin', 'super-admin', 'college-admin', 'counselor']);
+        })->where('status', 'active')->orderBy('name')->get();
 
         return view('admin.enquiries.index', compact(
-            'enquiries',
-            'courses',
-            'counselors',
-            'newEnquiriesCount',
-            'todaysFollowUpsCount',
-            'recentlyAdmittedCount'
+            'enquiries', 'courses', 'counselors', 'counts'
         ));
     }
 
-    public function create()
+  public function create()
     {
         $courses = Course::orderBy('name')->get();
         
-        // Get counselors for assignment dropdown
+        // FETCH FIX: Get Admins, Staff, and Counselors
         $counselors = User::whereHas('roles', function($q) {
-            $q->where('name', 'counselor');
-        })->orderBy('name')->get();
+            $q->whereIn('name', ['counselor', 'College-admin', 'admin', 'super-admin', 'staff']);
+        })->where('status', 'active')->orderBy('name')->get();
         
         return view('admin.enquiries.create', compact('courses', 'counselors'));
     }
@@ -72,13 +115,13 @@ class EnquiryController extends Controller
     {
         $validated = $request->validate([
             'student_name' => 'required|string|max:255',
-            'phone_number' => 'required|string|max:20',
+            'phone_number' => 'required|string|min:10',
             'address' => 'nullable|string',
             'course_id' => 'nullable|exists:courses,id',
             'source' => 'nullable|string|max:255',
             'referral_name' => 'nullable|string|max:255',
             'notes' => 'nullable|string',
-            'assigned_to_user_id' => 'nullable|exists:users,id', // Allow manual assignment
+            'assigned_to_user_id' => 'nullable|exists:users,id',
         ]);
 
         // Get the next counselor ID from the service if not manually assigned
@@ -89,122 +132,326 @@ class EnquiryController extends Controller
 
         $enquiry = Enquiry::create($validated + [
             'assigned_to_user_id' => $assignedTo
-            
-            
         ]);
-        // 🔥 Fire the webhook event
-        event(new \App\Events\EnquiryCreated($enquiry));
-        
-        // Redirect directly to the manage page for the new enquiry
+
+        // Handle AJAX request
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Enquiry logged successfully and assigned.',
+                'redirect' => route('admin.enquiries.edit', $enquiry)
+            ]);
+        }
+
         return redirect()->route('admin.enquiries.edit', $enquiry)->with('success', 'Enquiry logged successfully and assigned.');
     }
+    
+   // Ensure this exists in EnquiryController.php
+public function quickUpdate(Request $request, Enquiry $enquiry)
+{
+    $validated = $request->validate([
+        'field' => 'required|in:assigned_to_user_id,next_follow_up_date,status',
+        'value' => 'nullable'
+    ]);
 
-    public function edit(Enquiry $enquiry)
+    $field = $validated['field'];
+    $value = $validated['value'];
+
+    if ($field === 'next_follow_up_date') {
+        $value = $value ? \Carbon\Carbon::parse($value)->format('Y-m-d') : null;
+        // Auto status update
+        if($value && $enquiry->status === 'New') {
+             $enquiry->status = 'Contacted';
+        }
+    }
+
+    $enquiry->$field = $value;
+    $enquiry->save();
+
+    return response()->json(['success' => true, 'message' => 'Updated successfully']);
+}
+
+  public function edit(Enquiry $enquiry)
     {
-        // Eager load the follow-ups and the users who made them
         $enquiry->load('followUps.user');
-        
-        // Get courses for editing
         $courses = Course::orderBy('name')->get();
         
-        // Get counselors for reassignment
+        // FETCH FIX: Get relevant users + include the current assignee even if they lost the role
         $counselors = User::whereHas('roles', function($q) {
-            $q->where('name', 'counselor');
-        })->orderBy('name')->get();
+            $q->whereIn('name', ['admin', 'super-admin', 'college-admin']);
+        })
+        ->orWhere('id', $enquiry->assigned_to_user_id) // Always include current assignee
+        ->orderBy('name')
+        ->get()
+        ->unique('id'); // Remove duplicates
     
-        // Get all activity related to this enquiry from the activity log
+        // Activity Log Logic
         $activities = Activity::where(function($query) use ($enquiry) {
-                // Find activities where the subject is the enquiry record itself
                 $query->where('subject_type', Enquiry::class)
                       ->where('subject_id', $enquiry->id);
             })
             ->orWhere(function($query) use ($enquiry) {
-                // Also find activities where the subject is one of this enquiry's follow-up notes
                 $query->where('subject_type', \App\Models\FollowUp::class)
                       ->whereIn('subject_id', $enquiry->followUps->pluck('id'));
             })
             ->get();
     
-        // Merge the manually added follow-up notes and the automatic system activities into a single collection
         $timeline = collect($enquiry->followUps)->concat($activities)->sortByDesc('created_at');
     
         return view('admin.enquiries.edit', compact('enquiry', 'timeline', 'courses', 'counselors'));
     }
 
-    public function update(Request $request, Enquiry $enquiry)
+  public function update(Request $request, Enquiry $enquiry)
     {
         $validated = $request->validate([
-            'student_name' => 'sometimes|required|string|max:255',
-            'phone_number' => 'sometimes|required|string|max:20',
+            'student_name' => 'required|string|max:255',
+            'phone_number' => 'required|string|max:20', // Changed from strict regex to string
+            'email' => 'nullable|email|max:255', // Added email
             'address' => 'nullable|string',
             'course_id' => 'nullable|exists:courses,id',
             'source' => 'nullable|string|max:255',
             'referral_name' => 'nullable|string|max:255',
             'notes' => 'nullable|string',
-            'status' => 'required|in:New,Contacted,Interested,Not Interested,Admitted',
+           'status' => 'required|in:New,Contacted,Interested,Not Interested,Follow-up,Admitted,Interested Next Year',
             'next_follow_up_date' => 'nullable|date',
             'assigned_to_user_id' => 'nullable|exists:users,id',
+            'gender' => 'nullable|in:Male,Female,Other',
+            'date_of_birth' => 'nullable|date',
+            'education_qualification' => 'nullable|string|max:255',
         ]);
 
         $enquiry->update($validated);
         return redirect()->back()->with('success', 'Enquiry updated successfully.');
     }
 
-    public function addFollowUp(Request $request, Enquiry $enquiry)
+public function ajaxSearch(Request $request)
     {
-        $request->validate(['notes' => 'required|string']);
+        $query = $request->get('query');
+        
+        if (empty($query)) {
+            return response()->json([]);
+        }
 
-        $enquiry->followUps()->create([
-            'notes' => $request->notes,
-            'user_id' => Auth::id(),
-        ]);
+        $results = Enquiry::with('course')
+            ->where('student_name', 'LIKE', "%{$query}%")
+            ->orWhere('phone_number', 'LIKE', "%{$query}%")
+            ->limit(10)
+            ->get()
+            ->map(function($enquiry) {
+                return [
+                    'id' => $enquiry->id,
+                    'name' => $enquiry->student_name,
+                    'phone' => $enquiry->phone_number,
+                    'course' => $enquiry->course->name ?? 'N/A',
+                    'status' => $enquiry->status,
+                    'avatar' => strtoupper(substr($enquiry->student_name, 0, 1))
+                ];
+            });
 
-        return redirect()->back()->with('success', 'Follow-up note added successfully.');
+        return response()->json($results);
     }
+
+
+public function addFollowUp(Request $request, Enquiry $enquiry)
+{
+    $request->validate([
+        'notes' => 'required|string',
+        'next_follow_up_date' => 'nullable|date|after_or_equal:today',
+    ]);
+
+    // Create the note
+    $followUp = $enquiry->followUps()->create([
+        'notes' => $request->notes,
+        'user_id' => Auth::id(),
+    ]);
+
+    // Update the next follow-up date if provided
+    if ($request->filled('next_follow_up_date')) {
+        $enquiry->update([
+            'next_follow_up_date' => $request->next_follow_up_date,
+            'status' => 'Contacted'
+        ]);
+    }
+
+    // [NEW] Handle AJAX Request for "No Reload" functionality
+    if ($request->ajax()) {
+        return response()->json([
+            'success' => true,
+            'message' => 'Follow-up added successfully',
+            'data' => [
+                'user_name' => Auth::user()->name,
+                'created_at' => $followUp->created_at->format('d M, h:i A'),
+                'notes' => nl2br(e($followUp->notes)),
+                'date_formatted' => $request->filled('next_follow_up_date') ? Carbon::parse($request->next_follow_up_date)->format('d M Y') : null
+            ]
+        ]);
+    }
+
+    return redirect()->back()->with('success', 'Follow-up note added and schedule updated.');
+}
 
     public function convertToAdmission(Enquiry $enquiry)
     {
-        // Safety check to prevent converting an already admitted enquiry
-        if ($enquiry->status === 'Admitted' || $enquiry->admission()->exists()) {
+        if ($enquiry->status === 'Admitted') {
             return redirect()->back()->with('error', 'This enquiry has already been converted to an admission.');
         }
-    
-        // Redirect to the new admission finalization form, passing the enquiry ID
         return redirect()->route('admin.admissions.create', ['enquiry' => $enquiry->id]);
     }
-    private function getAvailableCounselors()
+
+// In EnquiryController.php
+
+   public function checkMobile(Request $request)
 {
-    try {
-        return User::role('counselor')->get();
-    } catch (\Exception $e) {
-        return User::all(); // Fallback
+    $phone = $request->query('phone');
+    $currentId = $request->query('id');
+
+    if (!$phone) return response()->json(['status' => 'success']);
+
+    // 1. Check Students (Student Mobile OR Father Mobile) --- UPDATED
+    $student = \App\Models\Student::where(function($q) use ($phone) {
+        $q->where('student_mobile', $phone)
+          ->orWhere('father_mobile', $phone);
+    })->first();
+    
+    if ($student) {
+        $type = ($student->student_mobile == $phone) ? 'Student' : 'Father';
+        return response()->json([
+            'status' => 'error',
+            'message' => "❌ Found in Students ({$type}): {$student->name} (Batch: " . ($student->batch->name ?? 'N/A') . ")"
+        ]);
     }
+
+    // 2. Check Enquiries (Existing Logic)
+    $query = Enquiry::where('phone_number', $phone);
+    if ($currentId) {
+        $query->where('id', '!=', $currentId);
+    }
+    $existing = $query->first();
+
+    if ($existing) {
+        $counselor = $existing->assignedTo->name ?? 'Unassigned';
+        return response()->json([
+            'status' => 'error',
+            'message' => "❌ Duplicate Enquiry: {$existing->student_name} (Assigned to: {$counselor})"
+        ]);
+    }
+
+    // 3. Check Staff (Existing Logic)
+    $staff = User::where('email', $phone)->orWhere('name', $phone)->first(); 
+    if ($staff) {
+        return response()->json([
+            'status' => 'error',
+            'message' => "❌ Number belongs to Staff: {$staff->name}"
+        ]);
+    }
+
+    return response()->json(['status' => 'success']);
 }
 
-    public function show(Enquiry $enquiry)
-    {
-        // Load related data
-        $enquiry->load('course', 'assignedTo', 'followUps.user');
+ public function show(Enquiry $enquiry)
+{
+    $enquiry->load('followUps.user');
+        $courses = Course::orderBy('name')->get();
         
-        // Get timeline data similar to edit method
-        $activities = Activity::where(function($query) use ($enquiry) {
-                $query->where('subject_type', Enquiry::class)
-                      ->where('subject_id', $enquiry->id);
-            })
-            ->orWhere(function($query) use ($enquiry) {
-                $query->where('subject_type', \App\Models\FollowUp::class)
-                      ->whereIn('subject_id', $enquiry->followUps->pluck('id'));
-            })
-            ->get();
+        // FETCH FIX: Get relevant users + include the current assignee even if they lost the role
+        $counselors = User::whereHas('roles', function($q) {
+            $q->whereIn('name', ['admin', 'super-admin', 'college-admin']);
+        })
+        ->orWhere('id', $enquiry->assigned_to_user_id) // Always include current assignee
+        ->orderBy('name')
+        ->get()
+        ->unique('id'); // Remove duplicates
+
+    // 3. Build Timeline (Existing Logic)
+    $activities = Activity::where(function($query) use ($enquiry) {
+            $query->where('subject_type', Enquiry::class)
+                  ->where('subject_id', $enquiry->id);
+        })
+        ->orWhere(function($query) use ($enquiry) {
+            $query->where('subject_type', \App\Models\FollowUp::class)
+                  ->whereIn('subject_id', $enquiry->followUps->pluck('id'));
+        })
+        ->get();
+
+    $timeline = collect($enquiry->followUps)->concat($activities)->sortByDesc('created_at');
     
-        $timeline = collect($enquiry->followUps)->concat($activities)->sortByDesc('created_at');
-        
-        return view('admin.enquiries.show', compact('enquiry', 'timeline'));
+    // 4. Pass 'counselors' and 'courses' to the view
+    return view('admin.enquiries.modal_show', compact('enquiry', 'timeline', 'courses', 'counselors'));
+}
+    // ADD THIS NEW METHOD
+    public function bulkDestroy(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'exists:enquiries,id',
+        ]);
+
+        try {
+            Enquiry::whereIn('id', $request->ids)->delete();
+            return response()->json(['success' => true, 'message' => 'Selected enquiries deleted successfully.']);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Error deleting items.']);
+        }
+    }
+    
+    public function bulkAssign(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'exists:enquiries,id',
+            'assigned_to_user_id' => 'required|exists:users,id'
+        ]);
+
+        Enquiry::whereIn('id', $request->ids)->update([
+            'assigned_to_user_id' => $request->assigned_to_user_id,
+            'updated_at' => now() // Update timestamp
+        ]);
+
+        return response()->json(['success' => true, 'message' => 'Counselor assigned successfully.']);
     }
 
+    // Ensure your destroy method looks like this (it likely already does)
     public function destroy(Enquiry $enquiry)
     {
         $enquiry->delete();
         return redirect()->route('admin.enquiries.index')->with('success', 'Enquiry deleted successfully.');
+    }
+public function import(Request $request) 
+{
+    $request->validate([
+        'file' => 'required|mimes:csv,xlsx,xls',
+        'assigned_to_user_id' => 'nullable|exists:users,id'
+    ]);
+
+    try {
+        // 1. Create the instance explicitly
+        $import = new EnquiriesImport($request->assigned_to_user_id);
+        
+        // 2. Run the import
+        Excel::import($import, $request->file('file'));
+        
+        // 3. Check results
+        if ($import->importedCount === 0) {
+            return back()->with('error', "Import finished but 0 records were added. Skipped: {$import->skippedCount}. Check your CSV headers (must be: name, mobile_number).");
+        }
+
+        return back()->with('success', "Success! Imported: {$import->importedCount}, Skipped: {$import->skippedCount} (Duplicates/Invalid).");
+
+    } catch (\Maatwebsite\Excel\Validators\ValidationException $e) {
+         $failures = $e->failures();
+         $errorMsg = "Row " . $failures[0]->row() . ": " . $failures[0]->errors()[0];
+         return back()->with('error', "Validation Error: " . $errorMsg);
+    } catch (\Exception $e) {
+        return back()->with('error', 'System Error: ' . $e->getMessage());
+    }
+}
+
+    public function downloadSample()
+    {
+        $csvData = "name,mobile_number,address,email,course,source,notes\nJohn Doe,9876543210,123 Main St Mumbai,john@example.com,B.Tech,Walk-in,Urgent follow up\nJane Smith,9988776655,456 Park Ave Delhi,,MBA,,";
+        
+        return response($csvData)
+            ->header('Content-Type', 'text/csv')
+            ->header('Content-Disposition', 'attachment; filename="enquiry_import_sample.csv"');
     }
 }

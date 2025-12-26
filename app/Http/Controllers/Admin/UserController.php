@@ -133,6 +133,7 @@ class UserController extends Controller
     ));
 }
 
+
  public function update(Request $request, User $user)
 {
     // Debug the incoming roles (remove this after fixing)
@@ -166,7 +167,7 @@ class UserController extends Controller
 
         $user->update($userData);
 
-        // Handle roles
+        // Handle roles with authorization checks
         if ($request->has('roles') && is_array($request->roles)) {
             // Filter out empty values and ensure they're integers
             $roleIds = array_filter($request->roles, function($role) {
@@ -176,11 +177,33 @@ class UserController extends Controller
             // Convert to integers
             $roleIds = array_map('intval', $roleIds);
             
+            // Authorization check: Prevent privilege escalation
+            $currentUser = auth()->user();
+            $requestedRoles = Role::whereIn('id', $roleIds)->get();
+            
+            // Check if user is trying to assign super-admin role
+            if ($requestedRoles->contains('name', 'super-admin') && !$currentUser->hasRole('super-admin')) {
+                return redirect()->back()
+                    ->withInput()
+                    ->with('error', 'You cannot assign super-admin role.');
+            }
+            
+            // Prevent users from assigning roles they don't have
+            foreach ($requestedRoles as $role) {
+                if (!$currentUser->hasRole('super-admin') && !$currentUser->hasRole($role->name)) {
+                    return redirect()->back()
+                        ->withInput()
+                        ->with('error', 'You cannot assign roles that you do not have.');
+                }
+            }
+            
             // Sync roles using role IDs
             $user->syncRoles($roleIds);
         } else {
-            // Remove all roles if none selected
-            $user->syncRoles([]);
+            // Remove all roles if none selected (only if user has permission)
+            if (auth()->user()->hasRole('super-admin') || auth()->user()->can('manage users')) {
+                $user->syncRoles([]);
+            }
         }
 
         return redirect()->route('admin.users.index')

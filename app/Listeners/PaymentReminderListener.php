@@ -2,35 +2,73 @@
 
 namespace App\Listeners;
 
-use App\Events\PaymentReceived;
-use App\Events\InvoiceGenerated;
-use App\Services\PaymentReminderService;
+// ✅ CHANGED: Imported new component-based events
+use App\Events\StudentFeePaid;
+use App\Events\StudentFeeCreated;
+// ✅ CHANGED: Using the new component-based reminder service
+use App\Services\ComponentPaymentReminderService;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Queue\InteractsWithQueue;
 
 class PaymentReminderListener implements ShouldQueue
 {
+    use InteractsWithQueue;
+
     protected $reminderService;
 
-    public function __construct(PaymentReminderService $reminderService)
+    /**
+     * Create the event listener.
+     *
+     * @param ComponentPaymentReminderService $reminderService
+     */
+    // ✅ CHANGED: Injected the new component-based service
+    public function __construct(ComponentPaymentReminderService $reminderService)
     {
         $this->reminderService = $reminderService;
     }
 
-    public function handlePaymentReceived(PaymentReceived $event)
+    /**
+     * Handle the StudentFeePaid event.
+     *
+     * @param StudentFeePaid $event
+     * @return void
+     */
+    // ✅ CHANGED: Renamed handler and updated to use StudentFeePaid event
+    public function handleStudentFeePaid(StudentFeePaid $event)
     {
-        // Cancel pending reminders for paid invoice
-        $this->reminderService->cancelRemindersForInvoice($event->invoice);
+        // Cancel pending reminders for the now-paid fee component
+        $this->reminderService->cancelRemindersForStudentFee($event->studentFee);
     }
 
-    public function handleInvoiceGenerated(InvoiceGenerated $event)
+    /**
+     * Handle the StudentFeeCreated event.
+     *
+     * @param StudentFeeCreated $event
+     * @return void
+     */
+    // ✅ CHANGED: Renamed handler and updated to use StudentFeeCreated event
+    public function handleStudentFeeCreated(StudentFeeCreated $event)
     {
-        // Setup reminder schedule for new invoice
-        $this->reminderService->setupReminderSchedule($event->student, $event->invoice);
+        // Setup a new reminder schedule for the newly created fee component
+        $this->reminderService->setupComponentReminderSchedule($event->student, $event->studentFee);
     }
 
+    /**
+     * Register the listeners for the subscriber.
+     *
+     * @param \Illuminate\Events\Dispatcher $events
+     */
     public function subscribe($events)
     {
-        $events->listen(PaymentReceived::class, [self::class, 'handlePaymentReceived']);
-        $events->listen(InvoiceGenerated::class, [self::class, 'handleInvoiceGenerated']);
+        // ✅ CHANGED: Subscribing to the new component-based events
+        $events->listen(
+            StudentFeePaid::class,
+            [self::class, 'handleStudentFeePaid']
+        );
+
+        $events->listen(
+            StudentFeeCreated::class,
+            [self::class, 'handleStudentFeeCreated']
+        );
     }
 }

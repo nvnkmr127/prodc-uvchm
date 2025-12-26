@@ -12,10 +12,19 @@ class CourseController extends Controller
 {
     public function index()
     {
-        $courses = \App\Models\Course::withSum(
-            'feeStructures',
-            'total_amount'
-        )->orderBy('created_at', 'desc')->get();
+        // Get courses with batches and students - global scopes will filter automatically
+        $courses = \App\Models\Course::with(['batches.students'])
+            ->withCount('batches') // Automatically filtered by HasAcademicYear trait on Batch
+            ->withSum('feeStructures', 'total_amount')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        // Calculate total students from loaded batches (already filtered by global scope)
+        foreach ($courses as $course) {
+            $course->students_count = $course->batches->sum(function($batch) {
+                return $batch->students->count();
+            });
+        }
 
         return view('admin.courses.index', compact('courses'));
     }

@@ -276,7 +276,13 @@
 
                         @foreach($currentGroup['fields'] as $fieldKey => $field)
                             @php
-                                $currentValue = old($fieldKey, $settings->get($fieldKey)?->value ?? ($field['default'] ?? ''));
+                                // For password fields, we need to check if there's an encrypted value without decrypting it
+                                if ($field['type'] === 'password') {
+                                    $setting = $settings->get($fieldKey);
+                                    $currentValue = $setting && !empty($setting->getAttributes()['value']) ? '***ENCRYPTED***' : '';
+                                } else {
+                                    $currentValue = old($fieldKey, $settings->get($fieldKey)?->value ?? ($field['default'] ?? ''));
+                                }
                             @endphp
 
                             <div class="form-group-enhanced">
@@ -473,10 +479,68 @@
                                             <i class="fas fa-tools mr-2"></i>Toggle Maintenance
                                         </button>
                                     @endif
+                                    
+                                    @if($activeTab === 'backup')
+                                        <div class="btn-group" role="group">
+                                            <button type="button" class="btn btn-outline-success" onclick="createManualBackup('database')">
+                                                <i class="fas fa-database mr-2"></i>Backup Database
+                                            </button>
+                                            <button type="button" class="btn btn-outline-info" onclick="createManualBackup('code')">
+                                                <i class="fas fa-code mr-2"></i>Backup Code
+                                            </button>
+                                            <button type="button" class="btn btn-outline-warning" onclick="cleanupOldBackups()">
+                                                <i class="fas fa-trash mr-2"></i>Cleanup Old
+                                            </button>
+                                        </div>
+                                    @endif
                                 </div>
                             </div>
                         </div>
                     </form>
+                    
+                    {{-- Backup Status Section --}}
+                    @if($activeTab === 'backup')
+                        <div class="row mt-4">
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">
+                                            <i class="fab fa-google-drive mr-2"></i>Google Drive Status
+                                        </h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="gdrive-status" class="mb-3">
+                                            <span class="badge badge-secondary">Checking...</span>
+                                        </div>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <button type="button" class="btn btn-primary" onclick="authorizeGoogleDrive()">
+                                                <i class="fas fa-link mr-1"></i>Authorize
+                                            </button>
+                                            <button type="button" class="btn btn-outline-primary" onclick="testGoogleDriveConnection()">
+                                                <i class="fas fa-check mr-1"></i>Test Connection
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h6 class="mb-0">
+                                            <i class="fas fa-history mr-2"></i>Recent Backups
+                                        </h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="recent-backups">
+                                            <div class="text-center text-muted">
+                                                <i class="fas fa-spinner fa-spin"></i> Loading...
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
                 @else
                     <div class="text-center py-5">
                         <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
@@ -568,27 +632,12 @@
 
 @endsection
 
+
 @push('scripts')
 <script>
-// File preview function
-function previewFile(input, fieldKey) {
-    const file = input.files[0];
-    const preview = document.getElementById('preview_' + fieldKey);
-    
-    if (file && file.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const img = preview.querySelector('img');
-            img.src = e.target.result;
-            preview.style.display = 'block';
-        }
-        reader.readAsDataURL(file);
-    } else {
-        preview.style.display = 'none';
-    }
-}
+// Settings Page JavaScript Functions - CLEANED VERSION
 
-// Test email configuration
+// Test Email Configuration
 function testEmail() {
     $('#testEmailModal').modal('show');
 }
@@ -642,11 +691,193 @@ function sendTestEmail() {
     });
 }
 
-// Clear cache
+// Clear Cache
 function clearCache() {
-    if (!confirm('This will clear all application caches. Continue?')) return;
+    if (!confirm('Clear all cache?')) return;
+    
+    const button = event?.target;
+    if (button) {
+        const originalText = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Clearing...';
+        button.disabled = true;
+        
+        setTimeout(() => {
+            button.innerHTML = originalText;
+            button.disabled = false;
+        }, 2000);
+    }
 
     fetch('{{ route("admin.settings.clear-cache") }}', {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        showAlert(data.success ? 'success' : 'error', data.message);
+        if(data.success) {
+            setTimeout(() => location.reload(), 1500);
+        }
+    })
+    .catch(error => {
+        showAlert('error', 'Error: ' + error.message);
+    });
+}
+
+// Run Health Check
+function runHealthCheck() {
+    const button = event?.target;
+    if (button) {
+        const originalText = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking...';
+        button.disabled = true;
+        
+        setTimeout(() => {
+            button.innerHTML = originalText;
+            button.disabled = false;
+        }, 3000);
+    }
+
+    fetch('{{ route("admin.settings.health-check") }}', {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        showAlert('info', data.message || 'Health check completed');
+    })
+    .catch(error => {
+        showAlert('error', 'Health check failed: ' + error.message);
+    });
+}
+
+// Optimize Database
+function optimizeDatabase() {
+    if (!confirm('Optimize database? This may take time.')) return;
+    
+    const button = event?.target;
+    if (button) {
+        const originalText = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Optimizing...';
+        button.disabled = true;
+        
+        setTimeout(() => {
+            button.innerHTML = originalText;
+            button.disabled = false;
+        }, 5000);
+    }
+
+    fetch('{{ route("admin.settings.optimize") }}', {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        showAlert(data.success ? 'success' : 'error', data.message);
+    })
+    .catch(error => {
+        showAlert('info', 'Database optimization feature not yet configured');
+    });
+}
+
+// Create Backup
+function createBackup() {
+    if (!confirm('Create a backup? This may take time.')) return;
+    
+    const button = event?.target;
+    if (button) {
+        const originalText = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
+        button.disabled = true;
+        
+        setTimeout(() => {
+            button.innerHTML = originalText;
+            button.disabled = false;
+        }, 3000);
+    }
+
+    fetch('/admin/settings/create-backup', {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        showAlert(data.success ? 'success' : 'error', data.message);
+    })
+    .catch(error => {
+        showAlert('info', 'Backup creation feature not yet configured');
+    });
+}
+
+// Seed Defaults
+function seedDefaults() {
+    if (!confirm('Seed default settings?')) return;
+    
+    const button = event?.target;
+    if (button) {
+        const originalText = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Seeding...';
+        button.disabled = true;
+        
+        setTimeout(() => {
+            button.innerHTML = originalText;
+            button.disabled = false;
+        }, 2000);
+    }
+
+    fetch('/admin/settings/seed-defaults', {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        showAlert(data.success ? 'success' : 'error', data.message);
+        if (data.success) {
+            setTimeout(() => window.location.reload(), 2000);
+        }
+    })
+    .catch(error => {
+        showAlert('info', 'Seed defaults feature not yet configured');
+    });
+}
+
+// Improved Toggle Maintenance Mode with better user guidance
+function toggleMaintenance() {
+    const currentUrl = window.location.origin;
+    const secretUrl = currentUrl + '/maintenance-bypass-secret';
+    
+    const confirmMessage = `
+    ⚠️ IMPORTANT: Maintenance Mode Toggle
+    
+    This will put your site in maintenance mode, showing a "Service Unavailable" page to all visitors.
+    
+    TO ACCESS YOUR SITE AFTER ENABLING MAINTENANCE MODE:
+    🔗 Use this secret URL: ${secretUrl}
+    
+    📝 Save this URL before proceeding!
+    
+    Do you want to continue?
+    `;
+    
+    if (!confirm(confirmMessage)) {
+        return;
+    }
+
+    const button = event?.target || document.querySelector('[onclick="toggleMaintenance()"]');
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Toggling...';
+    button.disabled = true;
+
+    fetch('{{ route("admin.settings.toggle-maintenance") }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -656,13 +887,44 @@ function clearCache() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showAlert('success', data.message);
+            if (data.mode) {
+                // Maintenance mode was enabled
+                const instructions = `
+                🔧 Maintenance Mode Enabled Successfully!
+                
+                Your site is now in maintenance mode.
+                
+                🔗 SECRET ACCESS URL (save this!):
+                ${secretUrl}
+                
+                📋 Alternative ways to disable maintenance mode:
+                1. Use the secret URL above to access admin panel
+                2. Run command: php artisan up
+                3. Delete file: storage/framework/down
+                
+                Click OK to be redirected to the secret URL.
+                `;
+                
+                alert(instructions);
+                
+                // Redirect to secret URL after a delay
+                setTimeout(() => {
+                    window.location.href = secretUrl;
+                }, 2000);
+            } else {
+                // Maintenance mode was disabled
+                showAlert('success', '✅ Maintenance mode disabled successfully!');
+            }
         } else {
-            showAlert('error', data.message);
+            showAlert('error', 'Failed to toggle maintenance mode: ' + data.message);
         }
     })
     .catch(error => {
         showAlert('error', 'Error: ' + error.message);
+    })
+    .finally(() => {
+        button.innerHTML = originalText;
+        button.disabled = false;
     });
 }
 
@@ -692,159 +954,24 @@ function resetGroupToDefaults(group) {
     });
 }
 
-// Toggle maintenance mode
-function toggleMaintenance() {
-    if (!confirm('This will toggle maintenance mode. Continue?')) return;
-
-    fetch('{{ route("admin.settings.toggle-maintenance") }}', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            const status = data.mode ? 'enabled' : 'disabled';
-            showAlert('success', `Maintenance mode ${status} successfully!`);
-        } else {
-            showAlert('error', data.message);
-        }
-    })
-    .catch(error => {
-        showAlert('error', 'Error: ' + error.message);
-    });
-}
-
-// Run health check
-function runHealthCheck() {
-    showAlert('info', 'Running health check...');
+// File preview function
+function previewFile(input, fieldKey) {
+    const file = input.files[0];
+    const preview = document.getElementById('preview_' + fieldKey);
     
-    fetch('{{ route("admin.settings.health-check") }}', {
-        method: 'GET',
-        headers: {
-            'Accept': 'application/json',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        const status = data.status === 'healthy' ? 'success' : 'warning';
-        const message = `System health: ${data.status.toUpperCase()}. ${data.summary.passed}/${data.summary.total_checks} checks passed.`;
-        showAlert(status, message);
-    })
-    .catch(error => {
-        showAlert('error', 'Health check failed: ' + error.message);
-    });
-}
-
-// Seed default settings - use existing functionality or disable
-function seedDefaults() {
-    // Check if route exists by trying the request
-    fetch('/admin/settings/seed-defaults', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-        }
-    })
-    .then(response => {
-        if (response.status === 404) {
-            // Route doesn't exist, show info message
-            showAlert('info', 'Seed defaults feature is being configured. Please add the missing routes.');
-            return Promise.reject('Route not found');
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (data.success) {
-            showAlert('success', data.message);
-            setTimeout(() => window.location.reload(), 2000);
-        } else {
-            showAlert('error', data.message);
-        }
-    })
-    .catch(error => {
-        if (error !== 'Route not found') {
-            showAlert('error', 'Error: ' + error.message);
-        }
-    });
-}
-
-// Optimize database - use existing functionality or disable  
-function optimizeDatabase() {
-    // Check if route exists by trying the request
-    fetch('/admin/settings/optimize', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-        }
-    })
-    .then(response => {
-        if (response.status === 404) {
-            // Route doesn't exist, show info message
-            showAlert('info', 'Database optimization feature is being configured. Please add the missing routes.');
-            return Promise.reject('Route not found');
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (data.success) {
-            showAlert('success', `Database optimized: ${data.details.duplicates_removed} duplicates removed, ${data.details.groups_fixed} groups fixed`);
-        } else {
-            showAlert('error', data.message);
-        }
-    })
-    .catch(error => {
-        if (error !== 'Route not found') {
-            showAlert('error', 'Error: ' + error.message);
-        }
-    });
-}
-
-// Create backup - use existing functionality or disable
-function createBackup() {
-    // Check if route exists by trying the request
-    fetch('/admin/settings/create-backup', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-        }
-    })
-    .then(response => {
-        if (response.status === 404) {
-            // Route doesn't exist, show info message
-            showAlert('info', 'Backup creation feature is being configured. Please add the missing routes.');
-            return Promise.reject('Route not found');
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (data.success) {
-            showAlert('success', `Backup created successfully: ${data.filename}`);
-            
-            // Optionally download the backup file
-            if (data.download_url) {
-                const link = document.createElement('a');
-                link.href = data.download_url;
-                link.download = data.filename;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
+    if (file && file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = preview.querySelector('img');
+            if (img) {
+                img.src = e.target.result;
+                preview.style.display = 'block';
             }
-        } else {
-            showAlert('error', data.message);
         }
-    })
-    .catch(error => {
-        if (error !== 'Route not found') {
-            showAlert('error', 'Error: ' + error.message);
-        }
-    });
-    */
+        reader.readAsDataURL(file);
+    } else if (preview) {
+        preview.style.display = 'none';
+    }
 }
 
 // Utility function to show alerts
@@ -872,8 +999,10 @@ function showAlert(type, message) {
     `;
 
     // Insert at the top of the content
-    const container = document.querySelector('.container-fluid');
-    container.insertAdjacentHTML('afterbegin', alertHtml);
+    const container = document.querySelector('.col-lg-9') || document.querySelector('.container-fluid');
+    if (container) {
+        container.insertAdjacentHTML('afterbegin', alertHtml);
+    }
 
     // Auto-remove after 5 seconds
     setTimeout(() => {
@@ -885,218 +1014,6 @@ function showAlert(type, message) {
 }
 
 // Form validation
-document.getElementById('settingsForm').addEventListener('submit', function(e) {
-    const requiredFields = this.querySelectorAll('[required]');
-    let hasErrors = false;
-
-    requiredFields.forEach(field => {
-        if (!field.value.trim()) {
-            field.classList.add('is-invalid');
-            hasErrors = true;
-        } else {
-            field.classList.remove('is-invalid');
-        }
-    });
-
-    if (hasErrors) {
-        e.preventDefault();
-        showAlert('error', 'Please fill in all required fields.');
-        return false;
-    }
-});
-
-
-<!-- Add this JavaScript to your settings view or create a separate JS file -->
-<script>
-// Settings Page JavaScript Functions
-
-// Test Email Configuration
-function testEmail() {
-    const emailInput = document.getElementById('test_email');
-    const email = emailInput ? emailInput.value : prompt('Enter test email address:');
-    
-    if (!email || !email.includes('@')) {
-        alert('Please enter a valid email address');
-        return;
-    }
-    
-    const button = event.target;
-    const originalText = button.innerHTML;
-    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
-    button.disabled = true;
-    
-    fetch('/admin/settings/test-email', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-        },
-        body: JSON.stringify({ test_email: email })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert('✅ Test email sent successfully to ' + email);
-        } else {
-            alert('❌ Failed to send email: ' + data.message);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('❌ Error sending test email: ' + error.message);
-    })
-    .finally(() => {
-        button.innerHTML = originalText;
-        button.disabled = false;
-    });
-}
-
-// Create Database Backup
-function createBackup() {
-    if (!confirm('Are you sure you want to create a backup? This may take a few minutes.')) {
-        return;
-    }
-    
-    const button = event.target;
-    const originalText = button.innerHTML;
-    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating Backup...';
-    button.disabled = true;
-    
-    fetch('/admin/settings/create-backup', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert('✅ Backup created successfully!');
-        } else {
-            alert('❌ Failed to create backup: ' + data.message);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('❌ Error creating backup: ' + error.message);
-    })
-    .finally(() => {
-        button.innerHTML = originalText;
-        button.disabled = false;
-    });
-}
-
-// Optimize Database
-function optimizeDatabase() {
-    if (!confirm('Are you sure you want to optimize the database? This may take a few minutes.')) {
-        return;
-    }
-    
-    const button = event.target;
-    const originalText = button.innerHTML;
-    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Optimizing...';
-    button.disabled = true;
-    
-    fetch('/admin/settings/optimize-database', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert('✅ Database optimized successfully!');
-        } else {
-            alert('❌ Failed to optimize database: ' + data.message);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('❌ Error optimizing database: ' + error.message);
-    })
-    .finally(() => {
-        button.innerHTML = originalText;
-        button.disabled = false;
-    });
-}
-
-// Clear Cache
-function clearCache() {
-    if (!confirm('Are you sure you want to clear all caches?')) {
-        return;
-    }
-    
-    const button = event.target;
-    const originalText = button.innerHTML;
-    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Clearing...';
-    button.disabled = true;
-    
-    fetch('/admin/settings/clear-cache', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert('✅ Cache cleared successfully!');
-        } else {
-            alert('❌ Failed to clear cache: ' + data.message);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('❌ Error clearing cache: ' + error.message);
-    })
-    .finally(() => {
-        button.innerHTML = originalText;
-        button.disabled = false;
-    });
-}
-
-// Toggle Maintenance Mode
-function toggleMaintenance() {
-    if (!confirm('Are you sure you want to toggle maintenance mode?')) {
-        return;
-    }
-    
-    const button = event.target;
-    const originalText = button.innerHTML;
-    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Toggling...';
-    button.disabled = true;
-    
-    fetch('/admin/settings/toggle-maintenance', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert('✅ Maintenance mode toggled successfully!');
-            location.reload(); // Reload to reflect changes
-        } else {
-            alert('❌ Failed to toggle maintenance mode: ' + data.message);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('❌ Error toggling maintenance mode: ' + error.message);
-    })
-    .finally(() => {
-        button.innerHTML = originalText;
-        button.disabled = false;
-    });
-}
-
-// Settings Form Validation
 function validateSettingsForm() {
     const form = document.getElementById('settingsForm');
     if (!form) return true;
@@ -1114,51 +1031,15 @@ function validateSettingsForm() {
     });
     
     if (!isValid) {
-        alert('Please fill in all required fields');
+        showAlert('error', 'Please fill in all required fields');
     }
     
     return isValid;
 }
 
-// Auto-save functionality (optional)
-let autoSaveTimer;
-function autoSaveDraft() {
-    clearTimeout(autoSaveTimer);
-    autoSaveTimer = setTimeout(() => {
-        const formData = new FormData(document.getElementById('settingsForm'));
-        const draftData = {};
-        
-        for (let [key, value] of formData.entries()) {
-            if (key !== '_token') {
-                draftData[key] = value;
-            }
-        }
-        
-        try {
-            localStorage.setItem('settings_draft', JSON.stringify(draftData));
-            console.log('Draft saved locally');
-        } catch (error) {
-            console.log('Local draft save failed:', error);
-        }
-    }, 3000);
-}
-
-// Fix notification system errors by disabling it on settings page
-function disableNotificationSystem() {
-    // Override the notification system to prevent 401 errors
-    if (window.EnhancedNotificationSystem) {
-        window.EnhancedNotificationSystem = {
-            init: () => console.log('Notification system disabled on settings page'),
-            updateNotificationCount: () => {},
-            loadNotifications: () => {}
-        };
-    }
-}
-
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
-    // Disable notification system on settings page to prevent 401 errors
-    disableNotificationSystem();
+    console.log('Settings page JavaScript initialized');
     
     // Add form validation
     const settingsForm = document.getElementById('settingsForm');
@@ -1167,13 +1048,6 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!validateSettingsForm()) {
                 e.preventDefault();
             }
-        });
-        
-        // Add auto-save functionality
-        const formInputs = settingsForm.querySelectorAll('input, select, textarea');
-        formInputs.forEach(input => {
-            input.addEventListener('input', autoSaveDraft);
-            input.addEventListener('change', autoSaveDraft);
         });
     }
     
@@ -1187,74 +1061,477 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
-    
-    console.log('Settings page JavaScript initialized');
-});
 
-// Global error handler for settings page
-window.addEventListener('error', function(e) {
-    if (e.filename && e.filename.includes('settings')) {
-        console.error('Settings page error:', e.error);
-        // Don't show alerts for every error, just log them
-    }
-});
-
-// Prevent form double submission
-document.addEventListener('submit', function(e) {
-    const submitButton = e.target.querySelector('button[type="submit"]');
-    if (submitButton) {
-        setTimeout(() => {
-            submitButton.disabled = true;
-            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
-        }, 100);
-    }
-});
-
-// Real-time validation
-document.querySelectorAll('input[required], select[required], textarea[required]').forEach(field => {
-    field.addEventListener('blur', function() {
-        if (!this.value.trim()) {
-            this.classList.add('is-invalid');
-        } else {
-            this.classList.remove('is-invalid');
+    // Prevent form double submission
+    document.addEventListener('submit', function(e) {
+        if (e.target.id === 'settingsForm') {
+            const submitButton = e.target.querySelector('button[type="submit"]');
+            if (submitButton && !submitButton.disabled) {
+                setTimeout(() => {
+                    submitButton.disabled = true;
+                    submitButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Saving...';
+                }, 100);
+            }
         }
     });
 });
 
-// Auto-save draft functionality (optional) - simplified version
-let autoSaveTimer;
-function autoSaveDraft() {
-    // Simplified auto-save without server calls for now
-    clearTimeout(autoSaveTimer);
-    autoSaveTimer = setTimeout(() => {
-        // For now, just save to localStorage as a draft
-        const formData = new FormData(document.getElementById('settingsForm'));
-        const draftData = {};
-        
-        for (let [key, value] of formData.entries()) {
-            draftData[key] = value;
-        }
-        
-        try {
-            localStorage.setItem('settings_draft', JSON.stringify(draftData));
-            
-            // Show subtle indication that draft was saved locally
-            const saveButton = document.querySelector('.btn-primary');
-            const originalText = saveButton.innerHTML;
-            saveButton.innerHTML = '<i class="fas fa-check mr-2"></i>Draft Saved';
-            setTimeout(() => {
-                saveButton.innerHTML = originalText;
-            }, 2000);
-        } catch (error) {
-            console.log('Local draft save failed:', error);
-        }
-    }, 3000); // Save after 3 seconds of inactivity
+// Disable notification system on settings page to prevent 401 errors
+if (typeof window.EnhancedNotificationSystem !== 'undefined') {
+    window.EnhancedNotificationSystem = {
+        init: () => console.log('Notification system disabled on settings page'),
+        updateNotificationCount: () => {},
+        loadNotifications: () => {}
+    };
 }
 
-// Attach auto-save to form inputs
-document.querySelectorAll('#settingsForm input, #settingsForm select, #settingsForm textarea').forEach(field => {
-    field.addEventListener('input', autoSaveDraft);
-    field.addEventListener('change', autoSaveDraft);
+// Backup-specific functions
+function authorizeGoogleDrive() {
+    const button = event.target;
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Authorizing...';
+    button.disabled = true;
+
+    fetch('{{ route("admin.backups.gdrive.authorize") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.auth_url) {
+            window.open(data.auth_url, '_blank');
+            showAlert('info', 'Please complete authorization in the new window, then test the connection.');
+        } else {
+            showAlert('error', data.message || 'Failed to get authorization URL');
+        }
+    })
+    .catch(error => {
+        showAlert('error', 'Error: ' + error.message);
+    })
+    .finally(() => {
+        button.innerHTML = originalText;
+        button.disabled = false;
+    });
+}
+
+function testGoogleDriveConnection() {
+    const button = event.target;
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing...';
+    button.disabled = true;
+
+    fetch('{{ route("admin.backups.gdrive.test") }}', {
+        method: 'GET',
+        headers: {
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('success', 'Google Drive connection successful!');
+        } else {
+            showAlert('error', data.message || 'Google Drive connection failed');
+        }
+    })
+    .catch(error => {
+        showAlert('error', 'Error: ' + error.message);
+    })
+    .finally(() => {
+        button.innerHTML = originalText;
+        button.disabled = false;
+    });
+}
+
+function createManualBackup(type) {
+    const button = event.target;
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
+    button.disabled = true;
+
+    fetch('{{ route("admin.backups.manual") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        },
+        body: JSON.stringify({ type: type })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('success', `${type.charAt(0).toUpperCase() + type.slice(1)} backup created successfully!`);
+        } else {
+            showAlert('error', data.message || `Failed to create ${type} backup`);
+        }
+    })
+    .catch(error => {
+        showAlert('error', 'Error: ' + error.message);
+    })
+    .finally(() => {
+        button.innerHTML = originalText;
+        button.disabled = false;
+    });
+}
+
+function cleanupOldBackups() {
+    if (!confirm('This will delete old backup files based on your retention settings. Continue?')) {
+        return;
+    }
+
+    const button = event.target;
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cleaning...';
+    button.disabled = true;
+
+    fetch('{{ route("admin.backups.cleanup") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('success', `Cleanup completed! Deleted ${data.deleted_count || 0} old backup files.`);
+        } else {
+            showAlert('error', data.message || 'Failed to cleanup backups');
+        }
+    })
+    .catch(error => {
+        showAlert('error', 'Error: ' + error.message);
+    })
+    .finally(() => {
+        button.innerHTML = originalText;
+        button.disabled = false;
+    });
+}
+
+// Load backup status information
+function loadBackupStatus() {
+    // Load Google Drive status
+    fetch('{{ route("admin.backups.gdrive.test") }}', {
+        method: 'GET',
+        headers: {
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        const statusElement = document.getElementById('gdrive-status');
+        if (data.success) {
+            statusElement.innerHTML = '<span class="badge badge-success"><i class="fas fa-check mr-1"></i>Connected</span>';
+        } else {
+            statusElement.innerHTML = '<span class="badge badge-danger"><i class="fas fa-times mr-1"></i>Not Connected</span>';
+        }
+    })
+    .catch(error => {
+        const statusElement = document.getElementById('gdrive-status');
+        statusElement.innerHTML = '<span class="badge badge-warning"><i class="fas fa-exclamation-triangle mr-1"></i>Error</span>';
+    });
+
+    // Load recent backups
+    fetch('{{ route("admin.backups.gdrive.list") }}', {
+        method: 'GET',
+        headers: {
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        const recentElement = document.getElementById('recent-backups');
+        if (data.success && data.backups && data.backups.length > 0) {
+            let html = '<div class="list-group list-group-flush">';
+            data.backups.slice(0, 5).forEach(backup => {
+                const date = new Date(backup.created_time).toLocaleDateString();
+                const size = backup.size ? (backup.size / 1024 / 1024).toFixed(2) + ' MB' : 'Unknown';
+                html += `
+                    <div class="list-group-item px-0 py-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <small class="font-weight-bold">${backup.name}</small><br>
+                                <small class="text-muted">${date} • ${size}</small>
+                            </div>
+                            <span class="badge badge-primary badge-sm">GDrive</span>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            recentElement.innerHTML = html;
+        } else {
+            recentElement.innerHTML = '<div class="text-center text-muted"><i class="fas fa-inbox"></i><br>No recent backups found</div>';
+        }
+    })
+    .catch(error => {
+        const recentElement = document.getElementById('recent-backups');
+        recentElement.innerHTML = '<div class="text-center text-muted"><i class="fas fa-exclamation-triangle"></i><br>Error loading backups</div>';
+    });
+}
+
+// Handle backup frequency changes
+function handleBackupFrequencyChange() {
+    const frequencySelect = document.querySelector('select[name="backup_frequency"]');
+    const timeField = document.querySelector('input[name="maintenance_window"]');
+    const timeLabel = document.querySelector('label[for="maintenance_window"]');
+    
+    if (frequencySelect && timeField && timeLabel) {
+        const updateTimeLabel = () => {
+            const frequency = frequencySelect.value;
+            switch(frequency) {
+                case 'daily':
+                    timeLabel.textContent = 'Daily Backup Time';
+                    const dailyHelp = timeField.parentElement.querySelector('.form-help');
+                    if (dailyHelp) dailyHelp.innerHTML = '<i class="fas fa-info-circle mr-1"></i>Time to run daily backups (24-hour format)';
+                    break;
+                case 'weekly':
+                    timeLabel.textContent = 'Weekly Backup Time';
+                    const weeklyHelp = timeField.parentElement.querySelector('.form-help');
+                    if (weeklyHelp) weeklyHelp.innerHTML = '<i class="fas fa-info-circle mr-1"></i>Time to run weekly backups on Sundays (24-hour format)';
+                    break;
+                case 'monthly':
+                    timeLabel.textContent = 'Monthly Backup Time';
+                    const monthlyHelp = timeField.parentElement.querySelector('.form-help');
+                    if (monthlyHelp) monthlyHelp.innerHTML = '<i class="fas fa-info-circle mr-1"></i>Time to run monthly backups on the 1st day (24-hour format)';
+                    break;
+            }
+        };
+        
+        frequencySelect.addEventListener('change', updateTimeLabel);
+        updateTimeLabel(); // Initialize on page load
+    }
+}
+
+// Load backup status when backup tab is active
+if (window.location.hash === '#backup' || new URLSearchParams(window.location.search).get('tab') === 'backup') {
+    document.addEventListener('DOMContentLoaded', () => {
+        loadBackupStatus();
+        handleBackupFrequencyChange();
+    });
+}
+
+// Global error handler
+window.addEventListener('error', function(e) {
+    if (e.filename && e.filename.includes('settings')) {
+        console.error('Settings page error:', e.error);
+    }
 });
+</script>
+<script>
+// FIXED: Global showAlert function
+function showAlert(type, message) {
+    const alertClass = type === 'success' ? 'alert-success' : 
+                     type === 'error' ? 'alert-danger' : 
+                     type === 'warning' ? 'alert-warning' : 'alert-info';
+    
+    const iconClass = type === 'success' ? 'fa-check-circle' : 
+                     type === 'error' ? 'fa-exclamation-triangle' : 
+                     type === 'warning' ? 'fa-exclamation-triangle' : 'fa-info-circle';
+
+    const alertHtml = `
+        <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+            <i class="fas ${iconClass} mr-2"></i>${message}
+            <button type="button" class="close" data-dismiss="alert">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+    `;
+
+    // Remove existing alerts
+    document.querySelectorAll('.alert').forEach(alert => alert.remove());
+    
+    // Insert new alert at the top of the content
+    const container = document.querySelector('.col-lg-9') || document.querySelector('.container-fluid');
+    if (container) {
+        container.insertAdjacentHTML('afterbegin', alertHtml);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => {
+            const alert = document.querySelector('.alert');
+            if (alert) alert.remove();
+        }, 5000);
+    }
+}
+
+// FIXED: Load backup status with better error handling
+function loadBackupStatus() {
+    // Load Google Drive status
+    fetch('{{ route("admin.backups.gdrive.test") }}', {
+        method: 'GET',
+        headers: {
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(data => {
+        const statusElement = document.getElementById('gdrive-status');
+        if (statusElement) {
+            if (data.success) {
+                statusElement.innerHTML = '<span class="badge badge-success"><i class="fas fa-check mr-1"></i>Connected</span>';
+                if (data.user_email) {
+                    statusElement.innerHTML += `<small class="d-block text-muted mt-1">${data.user_email}</small>`;
+                }
+            } else {
+                statusElement.innerHTML = '<span class="badge badge-danger"><i class="fas fa-times mr-1"></i>Not Connected</span>';
+                statusElement.innerHTML += `<small class="d-block text-muted mt-1">${data.message || 'Connection failed'}</small>`;
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Google Drive status check failed:', error);
+        const statusElement = document.getElementById('gdrive-status');
+        if (statusElement) {
+            statusElement.innerHTML = '<span class="badge badge-warning"><i class="fas fa-exclamation-triangle mr-1"></i>Error</span>';
+            statusElement.innerHTML += '<small class="d-block text-muted mt-1">Status check failed</small>';
+        }
+    });
+
+    // Load recent backups with error handling
+    fetch('{{ route("admin.backups.gdrive.list") }}', {
+        method: 'GET',
+        headers: {
+            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(data => {
+        const recentElement = document.getElementById('recent-backups');
+        if (recentElement) {
+            if (data.success && data.backups && data.backups.length > 0) {
+                let html = '<div class="list-group list-group-flush">';
+                data.backups.slice(0, 5).forEach(backup => {
+                    const date = new Date(backup.created_time || backup.created_at).toLocaleDateString();
+                    const size = backup.size ? formatFileSize(backup.size) : 'Unknown';
+                    html += `
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">${backup.filename || backup.name || 'Unknown'}</h6>
+                                <small class="text-muted">${date} • ${size}</small>
+                            </div>
+                            <span class="badge badge-secondary">${backup.type || 'backup'}</span>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                recentElement.innerHTML = html;
+            } else {
+                recentElement.innerHTML = '<p class="text-muted mb-0">No recent backups found.</p>';
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Recent backups load failed:', error);
+        const recentElement = document.getElementById('recent-backups');
+        if (recentElement) {
+            recentElement.innerHTML = '<p class="text-muted mb-0">Failed to load recent backups.</p>';
+        }
+    });
+}
+
+// FIXED: Helper function for file sizes
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// FIXED: Handle backup frequency changes
+function handleBackupFrequencyChange() {
+    const frequencySelect = document.getElementById('backup_frequency');
+    const timeField = document.getElementById('maintenance_window');
+    const timeLabel = document.querySelector('label[for="maintenance_window"]');
+    
+    if (!frequencySelect || !timeField || !timeLabel) {
+        console.warn('Backup frequency elements not found');
+        return;
+    }
+    
+    const updateTimeLabel = () => {
+        const frequency = frequencySelect.value;
+        switch(frequency) {
+            case 'daily':
+                timeLabel.textContent = 'Daily Backup Time';
+                break;
+            case 'weekly':
+                timeLabel.textContent = 'Weekly Backup Time (Sundays)';
+                break;
+            case 'monthly':
+                timeLabel.textContent = 'Monthly Backup Time (1st of month)';
+                break;
+            default:
+                timeLabel.textContent = 'Backup Time';
+        }
+    };
+    
+    frequencySelect.addEventListener('change', updateTimeLabel);
+    updateTimeLabel(); // Initialize
+}
+
+// FIXED: Initialize when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Backup settings page loaded');
+    
+    // Initialize backup-specific functionality if on backup tab
+    const urlParams = new URLSearchParams(window.location.search);
+    const isBackupTab = urlParams.get('tab') === 'backup' || window.location.hash === '#backup';
+    
+    if (isBackupTab) {
+        // Add small delay to ensure DOM is fully ready
+        setTimeout(() => {
+            loadBackupStatus();
+            handleBackupFrequencyChange();
+        }, 100);
+    }
+    
+    // Add global error handler for this page
+    window.addEventListener('unhandledrejection', function(event) {
+        console.error('Unhandled promise rejection:', event.reason);
+        if (event.reason.message && event.reason.message.includes('fetch')) {
+            showAlert('error', 'Network request failed. Please check your connection.');
+        }
+    });
+});
+
+// FIXED: Add missing DOM elements check
+function checkRequiredElements() {
+    const required = ['gdrive-status', 'recent-backups'];
+    const missing = [];
+    
+    required.forEach(id => {
+        if (!document.getElementById(id)) {
+            missing.push(id);
+        }
+    });
+    
+    if (missing.length > 0) {
+        console.warn('Missing required DOM elements:', missing);
+        // Create placeholder elements if missing
+        missing.forEach(id => {
+            const placeholder = document.createElement('div');
+            placeholder.id = id;
+            placeholder.innerHTML = `<p class="text-muted">Element #${id} not found</p>`;
+            document.body.appendChild(placeholder);
+        });
+    }
+}
+
+// Run check after DOM is loaded
+document.addEventListener('DOMContentLoaded', checkRequiredElements);
 </script>
 @endpush

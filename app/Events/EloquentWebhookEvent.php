@@ -10,8 +10,7 @@ use Illuminate\Queue\SerializesModels;
 
 /**
  * Synthetic event for Eloquent model events to trigger webhooks
- * 
- * This event is automatically created when Eloquent models fire their
+ * * This event is automatically created when Eloquent models fire their
  * built-in events (creating, created, updating, updated, etc.)
  */
 class EloquentWebhookEvent
@@ -205,8 +204,8 @@ class EloquentWebhookEvent
      */
     public function getPriority(): string
     {
-        // Define priority based on model and event type
-        $highPriorityModels = ['Payment', 'Invoice', 'User'];
+        // ✅ CHANGED: Added component models to high priority list
+        $highPriorityModels = ['Payment', 'StudentFee', 'StudentConcession', 'User'];
         $highPriorityEvents = ['created', 'deleted'];
         
         if (in_array($this->modelName, $highPriorityModels)) {
@@ -225,7 +224,8 @@ class EloquentWebhookEvent
      */
     public function shouldNotifyImmediately(): bool
     {
-        $immediateModels = ['Payment', 'Invoice'];
+        // ✅ CHANGED: Added component models to immediate notification list
+        $immediateModels = ['Payment', 'StudentFee'];
         $immediateEvents = ['created'];
         
         return in_array($this->modelName, $immediateModels) && 
@@ -334,12 +334,12 @@ class EloquentWebhookEvent
     {
         $cleanData = [];
         
-        // Only include specific useful data
+        // ✅ CHANGED: Updated allowed keys for component system
         $allowedKeys = [
             'receipt_urls',
             'formatted_amount',
             'payment_status',
-            'invoice_status',
+            'fee_status',
             'student_status',
             'notification_sent',
             'metadata'
@@ -372,7 +372,7 @@ class EloquentWebhookEvent
     }
 
 /**
- * Build payment-specific clean data
+ * ✅ CHANGED: Build payment-specific clean data for the component system
  */
 public function buildPaymentData(): array
 {
@@ -389,30 +389,31 @@ public function buildPaymentData(): array
         'payment_method' => $payment->payment_method,
         'payment_date' => $payment->payment_date,
         'receipt_number' => $payment->receipt_number,
-        'status' => 'completed'
+        'status' => 'completed',
+        'payment_type' => $payment->payment_type,
     ];
 
-    // Add invoice info if available
-    if ($payment->invoice) {
-        $data['invoice'] = [
-            'id' => $payment->invoice->id,
-            'invoice_number' => $payment->invoice->invoice_number,
-            'total_amount' => (float) $payment->invoice->total_amount,
-            'due_amount' => (float) $payment->invoice->due_amount,
-            'status' => $payment->invoice->status
+    // Add student info if available
+    if ($payment->student) {
+        $student = $payment->student;
+        $data['student'] = [
+            'id' => $student->id,
+            'name' => $student->name,
+            'enrollment_number' => $student->enrollment_number,
+            'email' => $student->email,
+            'mobile' => $student->student_mobile
         ];
+    }
 
-        // Add student info if available
-        if ($payment->invoice->student) {
-            $student = $payment->invoice->student;
-            $data['student'] = [
-                'id' => $student->id,
-                'name' => $student->name,
-                'enrollment_number' => $student->enrollment_number,
-                'email' => $student->email,
-                'mobile' => $student->student_mobile
+    // Add component details if it's a component payment
+    if ($payment->isComponentPayment() && $payment->componentItems) {
+        $data['components_paid'] = $payment->componentItems->map(function ($item) {
+            return [
+                'student_fee_id' => $item->student_fee_id,
+                'category_name' => $item->studentFee->feeCategory->name ?? 'Unknown',
+                'amount_paid' => (float) $item->amount_paid,
             ];
-        }
+        });
     }
 
     return $data;
@@ -451,37 +452,89 @@ public function buildStudentData(): array
 }
 
 /**
- * Build invoice-specific clean data
+ * ✅ NEW: Build StudentFee-specific clean data
  */
-public function buildInvoiceData(): array
+public function buildStudentFeeData(): array
 {
-    if (!$this->model || !($this->model instanceof \App\Models\Invoice)) {
+    if (!$this->model || !($this->model instanceof \App\Models\StudentFee)) {
         return [];
     }
 
-    $invoice = $this->model;
-    
+    $studentFee = $this->model;
+
     $data = [
-        'id' => $invoice->id,
-        'invoice_number' => $invoice->invoice_number,
-        'total_amount' => (float) $invoice->total_amount,
-        'due_amount' => (float) $invoice->due_amount,
-        'status' => $invoice->status,
-        'due_date' => $invoice->due_date,
-        'issue_date' => $invoice->issue_date
+        'id' => $studentFee->id,
+        'amount' => (float) $studentFee->amount,
+        'paid_amount' => (float) $studentFee->paid_amount,
+        'concession_amount' => (float) $studentFee->concession_amount,
+        'remaining_amount' => (float) $studentFee->getRemainingAmount(),
+        'status' => $studentFee->status,
+        'due_date' => $studentFee->due_date,
+        'academic_year' => $studentFee->academic_year,
+        'installment' => "{$studentFee->installment_number} of {$studentFee->total_installments}",
     ];
 
-    // Add student info if available
-    if ($invoice->student) {
+    if ($studentFee->student) {
         $data['student'] = [
-            'id' => $invoice->student->id,
-            'name' => $invoice->student->name,
-            'enrollment_number' => $invoice->student->enrollment_number
+            'id' => $studentFee->student->id,
+            'name' => $studentFee->student->name,
+            'enrollment_number' => $studentFee->student->enrollment_number,
+        ];
+    }
+
+    if ($studentFee->feeCategory) {
+        $data['fee_category'] = [
+            'id' => $studentFee->feeCategory->id,
+            'name' => $studentFee->feeCategory->name,
         ];
     }
 
     return $data;
 }
+
+/**
+ * ✅ NEW: Build StudentConcession-specific clean data
+ */
+public function buildConcessionData(): array
+{
+    if (!$this->model || !($this->model instanceof \App\Models\StudentConcession)) {
+        return [];
+    }
+
+    $concession = $this->model;
+
+    $data = [
+        'id' => $concession->id,
+        'concession_amount' => (float) $concession->concession_amount,
+        'concession_type' => $concession->concession_type,
+        'notes' => $concession->notes,
+        'applied_at' => $concession->applied_at,
+    ];
+
+    if ($concession->student) {
+        $data['student'] = [
+            'id' => $concession->student->id,
+            'name' => $concession->student->name,
+        ];
+    }
+
+    if ($concession->feeCategory) {
+        $data['fee_category'] = [
+            'id' => $concession->feeCategory->id,
+            'name' => $concession->feeCategory->name,
+        ];
+    }
+    
+    if ($concession->appliedBy) {
+        $data['applied_by'] = [
+            'id' => $concession->appliedBy->id,
+            'name' => $concession->appliedBy->name,
+        ];
+    }
+
+    return $data;
+}
+
 
 /**
  * Get model-specific optimized data based on model type
@@ -494,13 +547,16 @@ public function getModelSpecificData(): array
 
     $modelClass = get_class($this->model);
     
+    // ✅ CHANGED: Updated switch statement for component models
     switch (class_basename($modelClass)) {
         case 'Payment':
             return $this->buildPaymentData();
         case 'Student':
             return $this->buildStudentData();
-        case 'Invoice':
-            return $this->buildInvoiceData();
+        case 'StudentFee':
+            return $this->buildStudentFeeData();
+        case 'StudentConcession':
+            return $this->buildConcessionData();
         default:
             return $this->getCleanModelData();
     }

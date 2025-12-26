@@ -3,211 +3,422 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Services\PaymentReminderService;
-use App\Models\PaymentReminder;
-use App\Models\PaymentReminderTemplate;
-use App\Models\PaymentDefaulter;
-use App\Models\Student;
-use App\Models\Invoice;
-use App\Jobs\SendPaymentReminder;
-use App\Jobs\ProcessPendingReminders;
+use App\Services\ComponentPaymentService;
+use App\Models\{PaymentReminder, PaymentReminderTemplate, Student, StudentFee, FeeCategory};
+use App\Jobs\{SendPaymentReminder, ProcessPendingReminders};
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
 use Illuminate\Http\Response;
+use Carbon\Carbon;
 
 class PaymentReminderController extends Controller
 {
-    public function __construct(
-        private PaymentReminderService $reminderService
-    ) {}
+    protected $reminderService;
+    protected $paymentService;
+
+    public function __construct(ComponentPaymentService $paymentService)
+    {
+        $this->paymentService = $paymentService;
+        
+        // ✅ FIXED: Use ComponentPaymentReminderService instead of PaymentReminderService
+        if (class_exists('\App\Services\ComponentPaymentReminderService')) {
+            $this->reminderService = app(\App\Services\ComponentPaymentReminderService::class);
+        } else {
+            $this->reminderService = null;
+        }
+    }
 
     /**
-     * Dashboard with reminder statistics
+     * Dashboard with reminder statistics (Component-based)
      */
-    public function dashboard(): View
+  public function dashboard()
     {
-        $stats = $this->reminderService->getReminderStatistics();
-        $collectionEfficiency = $this->reminderService->getCollectionEfficiency();
-        $recentReminders = PaymentReminder::with(['student', 'feeCategory'])
-            ->latest('created_at')
-            ->limit(10)
-            ->get();
+        $stats = [
+            'total_reminders' => 0,
+            'total' => 0,
+            'sent_reminders' => 0,
+            'pending_reminders' => 0,
+            'failed_reminders' => 0,
+            'total_active' => 0,
+            'success_rate' => 0,
+        ];
 
-        return view('payment-reminders.dashboard', compact(
-            'stats',
-            'collectionEfficiency', 
-            'recentReminders'
+        try {
+            $serviceStats = $this->reminderService->getReminderStats();
+            $stats = array_merge($stats, $serviceStats);
+            $stats['total'] = $stats['total_reminders'];
+        } catch (\Exception $e) {
+            \Log::error('Error in payment reminder dashboard: ' . $e->getMessage());
+        }
+
+        $dashboardData = [
+            'stats' => $stats,
+            'collection_efficiency' => $this->getCollectionEfficiency(),
+            'component_overview' => $this->paymentService->getComponentReminderOverview(),
+            'recent_reminders' => $this->getRecentReminders(),
+            'overdue_by_component' => $this->getOverdueByComponent(),
+            'reminder_effectiveness' => $this->getReminderEffectiveness(),
+        ];
+
+        return view('admin.payment-reminders.dashboard', $dashboardData);
+    }
+
+    /**
+     * Display a listing of payment reminders
+     */
+ public function index(Request $request)
+    {
+        // Initialize stats with ALL required keys
+        $stats = [
+            'total_reminders' => 0,
+            'total' => 0, // ✅ Add missing 'total' key
+            'sent_reminders' => 0,
+            'pending_reminders' => 0,
+            'failed_reminders' => 0,
+            'total_active' => 0,
+            'success_rate' => 0,
+        ];
+
+        try {
+            // Get stats from service with fallback
+            $serviceStats = $this->reminderService->getReminderStats();
+            $stats = array_merge($stats, $serviceStats);
+            
+            // Ensure 'total' key is set (alias for total_reminders)
+            $stats['total'] = $stats['total_reminders'];
+
+        } catch (\Exception $e) {
+            \Log::error('Error calculating payment reminder stats: ' . $e->getMessage());
+        }
+
+        $reminders = collect();
+        
+        try {
+            $remindersQuery = PaymentReminder::with(['student.batch.course', 'feeCategory'])
+                ->orderBy('created_at', 'desc');
+
+            // Apply filters
+            if ($request->filled('status')) {
+                $remindersQuery->where('status', $request->status);
+            }
+
+            if ($request->filled('channel')) {
+                $remindersQuery->where('channel', $request->channel);
+            }
+
+            if ($request->filled('reminder_type')) {
+                $remindersQuery->where('reminder_type', $request->reminder_type);
+            }
+
+            if ($request->filled('fee_category_id')) {
+                $remindersQuery->where('fee_category_id', $request->fee_category_id);
+            }
+
+            $reminders = $remindersQuery->paginate(20);
+
+        } catch (\Exception $e) {
+            \Log::error('Error fetching payment reminders: ' . $e->getMessage());
+        }
+
+        $feeCategories = FeeCategory::all();
+
+        return view('admin.payment-reminders.index', compact('reminders', 'stats', 'feeCategories'));
+    }
+    
+     /**
+     * Show defaulters
+     */
+  public function defaulters(Request $request)
+    {
+        // Initialize stats with safe defaults
+        $stats = [
+            'total_defaulters' => 0,
+            'total_active' => 0,
+            'total_amount' => 0,
+            'chronic_defaulters' => 0,
+            'severe_defaulters' => 0,
+            'moderate_defaulters' => 0,
+            'resolved_defaulters' => 0,
+            'total_overdue_amount' => 0,
+            'recovery_rate' => 0,
+        ];
+
+        try {
+            $serviceStats = $this->reminderService->getDefaulterStats();
+            $stats = array_merge($stats, $serviceStats);
+            $stats['total_amount'] = $stats['total_overdue_amount'];
+        } catch (\Exception $e) {
+            \Log::error('Error getting defaulter stats: ' . $e->getMessage());
+        }
+
+        return view('admin.payment-defaulters.index', compact('stats'));
+    }
+
+    /**
+     * Show the form for creating a new reminder (Component-based)
+     */
+    public function create(Request $request): View
+    {
+        $students = Student::with('batch.course')->orderBy('name')->get();
+        $feeCategories = FeeCategory::orderBy('name')->get();
+        
+        // Pre-select student if provided in query parameter
+        $selectedStudentId = $request->get('student_id');
+        $selectedStudent = null;
+        
+        if ($selectedStudentId) {
+            $selectedStudent = Student::with(['studentFees.feeCategory'])
+                ->find($selectedStudentId);
+        }
+
+        return view('admin.payment-reminders.create', compact(
+            'students', 
+            'feeCategories', 
+            'selectedStudentId',
+            'selectedStudent'
         ));
     }
 
     /**
-     * List all payment reminders with filters
+     * Store a newly created reminder (Component-based)
      */
-    public function index(Request $request): View
+    public function store(Request $request)
     {
-        $query = PaymentReminder::with(['student.batch.course', 'feeCategory', 'invoice']);
-
-        // Apply filters
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-
-        if ($request->filled('channel')) {
-            $query->where('channel', $request->channel);
-        }
-
-        if ($request->filled('reminder_type')) {
-            $query->where('reminder_type', $request->reminder_type);
-        }
-
-        if ($request->filled('date_from')) {
-            $query->whereDate('scheduled_date', '>=', $request->date_from);
-        }
-
-        if ($request->filled('date_to')) {
-            $query->whereDate('scheduled_date', '<=', $request->date_to);
-        }
-
-        if ($request->filled('student_search')) {
-            $query->whereHas('student', function($q) use ($request) {
-                $q->where('name', 'like', '%' . $request->student_search . '%')
-                  ->orWhere('enrollment_number', 'like', '%' . $request->student_search . '%');
-            });
-        }
-
-        $reminders = $query->orderBy('scheduled_date', 'desc')->paginate(20);
-
-        return view('payment-reminders.index', compact('reminders'));
-    }
-
-    /**
-     * Show payment reminder details
-     */
-    public function show(PaymentReminder $reminder): View
-    {
-        $reminder->load(['student.batch.course', 'feeCategory', 'invoice', 'logs.performedBy']);
-        
-        return view('payment-reminders.show', compact('reminder'));
-    }
-
-    /**
-     * Show payment defaulters list
-     */
-    public function defaulters(Request $request): View
-    {
-        $defaulters = $this->reminderService->generateDefaultersList();
-        
-        // Apply filters
-        if ($request->filled('category')) {
-            $defaulters = array_filter($defaulters, function($defaulter) use ($request) {
-                return $defaulter['defaulter_category'] === $request->category;
-            });
-        }
-
-        if ($request->filled('min_amount')) {
-            $defaulters = array_filter($defaulters, function($defaulter) use ($request) {
-                return $defaulter['total_overdue_amount'] >= $request->min_amount;
-            });
-        }
-
-        if ($request->filled('course')) {
-            $defaulters = array_filter($defaulters, function($defaulter) use ($request) {
-                return stripos($defaulter['course'], $request->course) !== false;
-            });
-        }
-
-        return view('payment-reminders.defaulters', compact('defaulters'));
-    }
-
-    /**
-     * Send test reminder
-     */
-    public function sendTestReminder(Request $request): JsonResponse
-    {
-        $request->validate([
-            'channel' => 'required|in:email,sms,whatsapp',
-            'recipient' => 'required|string',
-            'message' => 'required|string|max:1000'
+        $validated = $request->validate([
+            'student_id' => 'required|exists:students,id',
+            'student_fee_id' => 'nullable|exists:student_fees,id', // Component-based reference
+            'fee_category_id' => 'nullable|exists:fee_categories,id',
+            'reminder_type' => 'required|in:upcoming_due,overdue,escalation,final_notice',
+            'channel' => 'required|in:email,sms,whatsapp,phone_call',
+            'scheduled_date' => 'required|date|after_or_equal:now',
+            'status' => 'required|in:pending,scheduled',
+            'message_content' => 'nullable|string|max:1000'
         ]);
 
-        $result = $this->reminderService->sendTestReminder(
-            $request->channel,
-            $request->recipient,
-            $request->message
-        );
-
-        return response()->json($result);
-    }
-
-    /**
-     * Send individual reminder
-     */
-    public function sendReminder(PaymentReminder $reminder): JsonResponse
-    {
-        $result = $this->reminderService->sendSingleReminder($reminder);
+        $student = Student::findOrFail($validated['student_id']);
         
-        return response()->json($result);
+        // Generate recipient details
+        $recipientDetails = [
+            'email' => $student->email,
+            'phone' => $student->student_mobile ?: $student->father_mobile,
+            'student_name' => $student->name,
+            'enrollment_number' => $student->enrollment_number
+        ];
+
+        // Get overdue amount for specific component or total
+        $overdueAmount = 0;
+        if ($validated['fee_category_id']) {
+            $overdueAmount = $this->paymentService->getStudentOverdueAmount($student, $validated['fee_category_id']);
+        } else {
+            $overdueAmount = method_exists($student, 'getTotalOverdueAmount') ? 
+                $student->getTotalOverdueAmount() : 0;
+        }
+
+        $reminder = PaymentReminder::create(array_merge($validated, [
+            'recipient_details' => $recipientDetails,
+            'overdue_amount' => $overdueAmount,
+            'status' => $request->has('send_now') ? 'pending' : $validated['status']
+        ]));
+
+        // If send_now is requested, attempt to send immediately
+        if ($request->has('send_now') && $this->reminderService) {
+            $result = $this->reminderService->sendReminder($reminder);
+            
+            if ($result['success']) {
+                return redirect()->route('admin.payment-reminders.index')
+                               ->with('success', 'Reminder created and sent successfully!');
+            } else {
+                return redirect()->route('admin.payment-reminders.index')
+                               ->with('warning', 'Reminder created but failed to send: ' . $result['error']);
+            }
+        }
+
+        return redirect()->route('admin.payment-reminders.index')
+                       ->with('success', 'Payment reminder created successfully!');
     }
 
     /**
-     * Send reminder via queue
+     * Show the form for editing the specified reminder (Component-based)
      */
-    public function queueReminder(PaymentReminder $reminder): JsonResponse
+    public function edit(PaymentReminder $paymentReminder): View
     {
-        try {
-            SendPaymentReminder::dispatch($reminder);
+        $paymentReminder->load(['student.studentFees.feeCategory', 'feeCategory']);
+        $feeCategories = FeeCategory::orderBy('name')->get();
+        
+        // Get student's outstanding fees for context
+        $outstandingFees = [];
+        if (method_exists($this->paymentService, 'getStudentOutstandingFees')) {
+            $outstandingFees = $this->paymentService->getStudentOutstandingFees($paymentReminder->student);
+        }
+        
+        return view('admin.payment-reminders.edit', compact(
+            'paymentReminder', 
+            'feeCategories',
+            'outstandingFees'
+        ))->with('reminder', $paymentReminder);
+    }
+
+    /**
+     * Update the specified reminder
+     */
+    public function update(Request $request, PaymentReminder $paymentReminder)
+    {
+        $validated = $request->validate([
+            'student_fee_id' => 'nullable|exists:student_fees,id',
+            'fee_category_id' => 'nullable|exists:fee_categories,id',
+            'reminder_type' => 'required|in:upcoming_due,overdue,escalation,final_notice',
+            'channel' => 'required|in:email,sms,whatsapp,phone_call',
+            'scheduled_date' => 'required|date',
+            'status' => 'required|in:pending,scheduled,sent,failed,cancelled',
+            'message_content' => 'nullable|string|max:1000'
+        ]);
+
+        $paymentReminder->update($validated);
+
+        // Handle immediate actions
+        $action = $request->input('action');
+        if ($action && $this->reminderService) {
+            $result = $this->handleReminderAction($paymentReminder, $action);
             
-            $reminder->update(['status' => 'processing']);
+            if ($result['success']) {
+                return redirect()->route('admin.payment-reminders.show', $paymentReminder)
+                               ->with('success', "Reminder updated and {$action} successfully!");
+            } else {
+                return redirect()->route('admin.payment-reminders.show', $paymentReminder)
+                               ->with('warning', "Reminder updated but failed to {$action}: " . $result['error']);
+            }
+        }
+
+        return redirect()->route('admin.payment-reminders.show', $paymentReminder)
+                       ->with('success', 'Payment reminder updated successfully!');
+    }
+
+    /**
+     * Display the specified reminder
+     */
+    public function show(PaymentReminder $paymentReminder): View
+    {
+        $paymentReminder->load([
+            'student.batch.course', 
+            'student.studentFees.feeCategory',
+            'feeCategory'
+        ]);
+
+        return view('admin.payment-reminders.show', compact('paymentReminder'));
+    }
+
+    /**
+     * Remove the specified reminder
+     */
+    public function destroy(PaymentReminder $paymentReminder)
+    {
+        $paymentReminder->delete();
+
+        return redirect()->route('admin.payment-reminders.index')
+                       ->with('success', 'Payment reminder deleted successfully!');
+    }
+    
+     /**
+     * Send test reminder
+     */
+    public function sendTestReminder(Request $request)
+    {
+        $request->validate([
+            'type' => 'required|in:email,sms,whatsapp',
+            'recipient' => 'required|string',
+            'message' => 'required|string',
+        ]);
+
+        try {
+            $result = $this->reminderService->sendTestReminder(
+                $request->type,
+                $request->recipient,
+                $request->message
+            );
+
+            if ($result['success']) {
+                return response()->json(['success' => true, 'message' => 'Test reminder sent successfully.']);
+            } else {
+                return response()->json(['success' => false, 'message' => $result['message']]);
+            }
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+
+    /**
+     * Send a specific reminder
+     */
+    public function send(PaymentReminder $paymentReminder): JsonResponse
+    {
+        if (!$this->reminderService) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Reminder service not available'
+            ], 500);
+        }
+
+        try {
+            $result = $this->reminderService->sendReminder($paymentReminder);
             
             return response()->json([
-                'success' => true,
-                'message' => 'Reminder queued successfully'
+                'success' => $result['success'],
+                'message' => $result['success'] ? 'Reminder sent successfully!' : $result['error']
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'error' => $e->getMessage()
+                'message' => 'Failed to send reminder: ' . $e->getMessage()
             ], 500);
         }
     }
 
     /**
-     * Cancel a reminder
+     * Cancel a specific reminder
      */
-    public function cancelReminder(PaymentReminder $reminder): JsonResponse
+    public function cancel(PaymentReminder $paymentReminder): JsonResponse
     {
         try {
-            $reminder->update(['status' => 'cancelled']);
+            $paymentReminder->update(['status' => 'cancelled']);
             
             return response()->json([
                 'success' => true,
-                'message' => 'Reminder cancelled successfully'
+                'message' => 'Reminder cancelled successfully!'
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'error' => $e->getMessage()
+                'message' => 'Failed to cancel reminder: ' . $e->getMessage()
             ], 500);
         }
     }
 
     /**
-     * Delete a reminder
+     * Queue reminder for processing
      */
-    public function deleteReminder(PaymentReminder $reminder): JsonResponse
+    public function queueReminder(PaymentReminder $paymentReminder): JsonResponse
     {
         try {
-            $reminder->delete();
-            
-            return response()->json([
-                'success' => true,
-                'message' => 'Reminder deleted successfully'
-            ]);
+            if (class_exists('\App\Jobs\SendPaymentReminder')) {
+                SendPaymentReminder::dispatch($paymentReminder);
+                $paymentReminder->update(['status' => 'processing']);
+                
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Reminder queued successfully'
+                ]);
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Queue job not available'
+                ], 500);
+            }
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'error' => $e->getMessage()
+                'message' => 'Failed to queue reminder: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -215,368 +426,481 @@ class PaymentReminderController extends Controller
     /**
      * Process pending reminders
      */
-    public function processPendingReminders(): JsonResponse
+    public function processPending(): JsonResponse
     {
-        try {
-            ProcessPendingReminders::dispatch();
-            
+        if (!$this->reminderService) {
             return response()->json([
-                'success' => true,
-                'message' => 'Processing job queued successfully'
-            ]);
+                'success' => false,
+                'message' => 'Reminder service not available'
+            ], 500);
+        }
+
+        try {
+            if (method_exists($this->reminderService, 'processPendingReminders')) {
+                $result = $this->reminderService->processPendingReminders();
+                
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Processing completed',
+                    'data' => $result
+                ]);
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'processPendingReminders method not available'
+                ], 500);
+            }
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'error' => $e->getMessage()
+                'message' => 'Failed to process reminders: ' . $e->getMessage()
             ], 500);
         }
     }
 
     /**
-     * Bulk actions on reminders
+     * Get reminder statistics
+     */
+    private function getReminderStats(): array
+    {
+        try {
+            if ($this->reminderService && method_exists($this->reminderService, 'getReminderStatistics')) {
+                return $this->reminderService->getReminderStatistics();
+            }
+            
+            // Fallback to basic stats
+            return [
+                'total_reminders' => PaymentReminder::count(),
+                'pending_reminders' => PaymentReminder::where('status', 'pending')->count(),
+                'sent_today' => PaymentReminder::where('status', 'sent')->whereDate('sent_at', today())->count(),
+                'failed_today' => PaymentReminder::where('status', 'failed')->whereDate('updated_at', today())->count(),
+            ];
+        } catch (\Exception $e) {
+            return [
+                'total_reminders' => 0,
+                'pending_reminders' => 0,
+                'sent_today' => 0,
+                'failed_today' => 0,
+            ];
+        }
+    }
+
+    /**
+     * Get collection efficiency
+     */
+    private function getCollectionEfficiency(): array
+    {
+        try {
+            if ($this->reminderService && method_exists($this->reminderService, 'getCollectionEfficiency')) {
+                return $this->reminderService->getCollectionEfficiency();
+            }
+            
+            // Fallback calculation
+            return [
+                'overall_rate' => 0,
+                'this_month' => 0,
+                'last_month' => 0,
+            ];
+        } catch (\Exception $e) {
+            return [
+                'overall_rate' => 0,
+                'this_month' => 0,
+                'last_month' => 0,
+            ];
+        }
+    }
+
+    /**
+     * Get recent reminders
+     */
+    private function getRecentReminders()
+    {
+        try {
+            return PaymentReminder::with(['student.batch.course', 'feeCategory'])
+                ->latest('created_at')
+                ->limit(10)
+                ->get();
+        } catch (\Exception $e) {
+            return collect([]);
+        }
+    }
+
+    /**
+     * Get overdue by component
+     */
+    private function getOverdueByComponent(): array
+    {
+        try {
+            if (method_exists($this->paymentService, 'getOverdueByComponent')) {
+                return $this->paymentService->getOverdueByComponent();
+            }
+            
+            // Fallback calculation
+            return FeeCategory::with('studentFees')
+                ->get()
+                ->map(function ($category) {
+                    $overdueFees = $category->studentFees()
+                        ->where('due_date', '<', now())
+                        ->whereIn('status', ['unpaid', 'partial', 'overdue'])
+                        ->get();
+                    
+                    return [
+                        'category' => $category->name,
+                        'count' => $overdueFees->count(),
+                        'amount' => $overdueFees->sum(function($fee) {
+                            return ($fee->amount ?? 0) - ($fee->paid_amount ?? 0);
+                        })
+                    ];
+                })
+                ->toArray();
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+
+    /**
+     * Get reminder effectiveness
+     */
+    private function getReminderEffectiveness(): array
+    {
+        try {
+            // Calculate basic effectiveness metrics
+            $totalSent = PaymentReminder::where('status', 'sent')->count();
+            $totalResponses = PaymentReminder::where('status', 'sent')
+                ->whereHas('student.studentFees', function($q) {
+                    $q->where('paid_amount', '>', 0);
+                })
+                ->count();
+            
+            $effectiveness = $totalSent > 0 ? ($totalResponses / $totalSent) * 100 : 0;
+            
+            return [
+                'overall_effectiveness' => round($effectiveness, 2),
+                'total_sent' => $totalSent,
+                'total_responses' => $totalResponses,
+                'by_channel' => $this->getEffectivenessByChannel()
+            ];
+        } catch (\Exception $e) {
+            return [
+                'overall_effectiveness' => 0,
+                'total_sent' => 0,
+                'total_responses' => 0,
+                'by_channel' => []
+            ];
+        }
+    }
+
+    /**
+     * Get effectiveness by channel
+     */
+    private function getEffectivenessByChannel(): array
+    {
+        try {
+            return PaymentReminder::selectRaw('
+                    channel,
+                    COUNT(*) as total_sent,
+                    SUM(CASE WHEN status = "sent" THEN 1 ELSE 0 END) as successful_sent,
+                    SUM(CASE WHEN status = "failed" THEN 1 ELSE 0 END) as failed
+                ')
+                ->groupBy('channel')
+                ->get()
+                ->mapWithKeys(function($item) {
+                    $successRate = $item->total_sent > 0 ? 
+                        ($item->successful_sent / $item->total_sent) * 100 : 0;
+                    
+                    return [$item->channel => [
+                        'total_sent' => $item->total_sent,
+                        'successful_sent' => $item->successful_sent,
+                        'failed' => $item->failed,
+                        'success_rate' => round($successRate, 2)
+                    ]];
+                })
+                ->toArray();
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+
+    /**
+     * Get upcoming reminders
+     */
+    private function getUpcomingReminders()
+    {
+        try {
+            return PaymentReminder::with(['student.batch.course', 'feeCategory'])
+                ->where('status', 'scheduled')
+                ->where('scheduled_date', '>=', now())
+                ->where('scheduled_date', '<=', now()->addDays(7))
+                ->orderBy('scheduled_date')
+                ->limit(20)
+                ->get();
+        } catch (\Exception $e) {
+            return collect([]);
+        }
+    }
+
+    /**
+     * Get defaulter trends
+     */
+    private function getDefaulterTrends(): array
+    {
+        try {
+            if (method_exists($this->paymentService, 'getDefaulterTrends')) {
+                return $this->paymentService->getDefaulterTrends();
+            }
+            
+            // Fallback calculation
+            return [
+                'this_month' => 0,
+                'last_month' => 0,
+                'trend' => 'stable'
+            ];
+        } catch (\Exception $e) {
+            return [
+                'this_month' => 0,
+                'last_month' => 0,
+                'trend' => 'stable'
+            ];
+        }
+    }
+
+    /**
+     * Handle reminder actions
+     */
+    private function handleReminderAction(PaymentReminder $reminder, string $action): array
+    {
+        try {
+            switch ($action) {
+                case 'send':
+                    if ($this->reminderService && method_exists($this->reminderService, 'sendReminder')) {
+                        return $this->reminderService->sendReminder($reminder);
+                    }
+                    break;
+                
+                case 'cancel':
+                    $reminder->update(['status' => 'cancelled']);
+                    return ['success' => true, 'message' => 'Reminder cancelled'];
+                
+                case 'reschedule':
+                    $reminder->update([
+                        'status' => 'scheduled',
+                        'scheduled_date' => now()->addHours(24)
+                    ]);
+                    return ['success' => true, 'message' => 'Reminder rescheduled'];
+                
+                default:
+                    return ['success' => false, 'error' => 'Unknown action'];
+            }
+            
+            return ['success' => false, 'error' => 'Action not available'];
+        } catch (\Exception $e) {
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+    
+    /**
+     * Reschedule a reminder
+     */
+    public function reschedule(Request $request, PaymentReminder $paymentReminder)
+    {
+        $request->validate([
+            'scheduled_date' => 'required|date|after:now',
+        ]);
+
+        if ($paymentReminder->status === 'sent') {
+            return back()->with('error', 'Cannot reschedule a sent reminder.');
+        }
+
+        $paymentReminder->update([
+            'scheduled_date' => $request->scheduled_date,
+            'status' => 'pending',
+        ]);
+
+        return back()->with('success', 'Reminder rescheduled successfully.');
+    }
+
+
+    /**
+     * Bulk operations
      */
     public function bulkAction(Request $request): JsonResponse
     {
-        $request->validate([
-            'action' => 'required|in:send,cancel,delete',
+        $validated = $request->validate([
             'reminder_ids' => 'required|array',
-            'reminder_ids.*' => 'exists:payment_reminders,id'
+            'reminder_ids.*' => 'exists:payment_reminders,id',
+            'action' => 'required|in:send,cancel,delete,reschedule'
         ]);
 
-        $reminders = PaymentReminder::whereIn('id', $request->reminder_ids)->get();
-        $results = [
-            'success' => 0,
-            'failed' => 0,
-            'errors' => []
-        ];
+        try {
+            $reminders = PaymentReminder::whereIn('id', $validated['reminder_ids'])->get();
+            $results = ['success' => 0, 'failed' => 0, 'errors' => []];
 
-        foreach ($reminders as $reminder) {
-            try {
-                switch ($request->action) {
-                    case 'send':
-                        SendPaymentReminder::dispatch($reminder);
-                        $reminder->update(['status' => 'processing']);
-                        $results['success']++;
-                        break;
-                        
-                    case 'cancel':
-                        $reminder->update(['status' => 'cancelled']);
-                        $results['success']++;
-                        break;
-                        
-                    case 'delete':
-                        $reminder->delete();
-                        $results['success']++;
-                        break;
+            foreach ($reminders as $reminder) {
+                try {
+                    switch ($validated['action']) {
+                        case 'send':
+                            if ($this->reminderService && method_exists($this->reminderService, 'sendReminder')) {
+                                $result = $this->reminderService->sendReminder($reminder);
+                                if ($result['success']) {
+                                    $results['success']++;
+                                } else {
+                                    $results['failed']++;
+                                    $results['errors'][] = "Reminder {$reminder->id}: {$result['error']}";
+                                }
+                            } else {
+                                $results['failed']++;
+                                $results['errors'][] = "Reminder service not available";
+                            }
+                            break;
+
+                        case 'cancel':
+                            $reminder->update(['status' => 'cancelled']);
+                            $results['success']++;
+                            break;
+
+                        case 'delete':
+                            $reminder->delete();
+                            $results['success']++;
+                            break;
+
+                        case 'reschedule':
+                            $reminder->update([
+                                'status' => 'scheduled',
+                                'scheduled_date' => now()->addHours(24)
+                            ]);
+                            $results['success']++;
+                            break;
+                    }
+                } catch (\Exception $e) {
+                    $results['failed']++;
+                    $results['errors'][] = "Reminder {$reminder->id}: {$e->getMessage()}";
                 }
-            } catch (\Exception $e) {
-                $results['failed']++;
-                $results['errors'][] = "Reminder {$reminder->id}: " . $e->getMessage();
             }
+
+            return response()->json([
+                'success' => true,
+                'message' => "Bulk action completed. Success: {$results['success']}, Failed: {$results['failed']}",
+                'results' => $results
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Bulk action failed: ' . $e->getMessage()
+            ], 500);
         }
-
-        return response()->json([
-            'success' => true,
-            'results' => $results
-        ]);
     }
-
+    
     /**
-     * Setup reminder schedule for student
+     * Update defaulters
      */
-    public function setupSchedule(Request $request): JsonResponse
+    public function updateDefaulters(Request $request)
     {
         $request->validate([
-            'student_id' => 'required|exists:students,id',
-            'invoice_id' => 'required|exists:invoices,id'
+            'student_ids' => 'required|array|min:1',
+            'student_ids.*' => 'exists:students,id',
+            'action' => 'required|in:send_reminder,mark_contacted,extend_deadline',
+            'reminder_type' => 'required_if:action,send_reminder|in:email,sms,whatsapp',
+            'message' => 'required_if:action,send_reminder|string',
+            'new_deadline' => 'required_if:action,extend_deadline|date|after:today',
         ]);
 
         try {
-            $student = Student::findOrFail($request->student_id);
-            $invoice = Invoice::findOrFail($request->invoice_id);
+            $result = $this->reminderService->updateDefaulters($request->all());
             
-            $this->reminderService->setupReminderSchedule($student, $invoice);
+            return back()->with('success', $result['message']);
+        } catch (\Exception $e) {
+            return back()->with('error', 'Failed to update defaulters: ' . $e->getMessage());
+        }
+    }
+    
+ /**
+     * Health check
+     */
+    public function healthCheck()
+    {
+        try {
+            $healthData = $this->reminderService->performHealthCheck();
             
             return response()->json([
                 'success' => true,
-                'message' => 'Reminder schedule created successfully'
+                'data' => $healthData
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'error' => $e->getMessage()
-            ], 500);
+                'message' => 'Health check failed: ' . $e->getMessage()
+            ]);
         }
     }
-
     /**
-     * Cancel reminders for paid invoice
+     * Export reminders
      */
-    public function cancelForInvoice(Invoice $invoice): JsonResponse
+    public function export(Request $request)
     {
         try {
-            $this->reminderService->cancelRemindersForInvoice($invoice);
-            
-            return response()->json([
-                'success' => true,
-                'message' => 'Reminders cancelled successfully'
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
+            $query = PaymentReminder::with(['student.batch.course', 'feeCategory']);
 
-    /**
-     * Get reminder statistics (API)
-     */
-    public function statistics(): JsonResponse
-    {
-        $stats = $this->reminderService->getReminderStatistics();
-        $collectionEfficiency = $this->reminderService->getCollectionEfficiency();
-        
-        return response()->json([
-            'reminder_stats' => $stats,
-            'collection_efficiency' => $collectionEfficiency
-        ]);
-    }
+            // Apply same filters as index
+            if ($request->filled('status')) {
+                $query->where('status', $request->status);
+            }
 
-    /**
-     * Update defaulter records
-     */
-    public function updateDefaulters(): JsonResponse
-    {
-        try {
-            $this->reminderService->updateDefaulterRecords();
-            
-            return response()->json([
-                'success' => true,
-                'message' => 'Defaulter records updated successfully'
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
+            if ($request->filled('channel')) {
+                $query->where('channel', $request->channel);
+            }
 
-    /**
-     * Cleanup old records
-     */
-    public function cleanup(Request $request): JsonResponse
-    {
-        $request->validate([
-            'days' => 'integer|min:1|max:365'
-        ]);
+            if ($request->filled('date_from')) {
+                $query->whereDate('scheduled_date', '>=', $request->date_from);
+            }
 
-        try {
-            $deletedCount = $this->reminderService->cleanupOldRecords(
-                $request->input('days', 30)
-            );
-            
-            return response()->json([
-                'success' => true,
-                'message' => "Cleaned up {$deletedCount} old records"
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
+            if ($request->filled('date_to')) {
+                $query->whereDate('scheduled_date', '<=', $request->date_to);
+            }
 
-    /**
-     * Get templates for reminder type and channel
-     */
-    public function getTemplates(Request $request): JsonResponse
-    {
-        $request->validate([
-            'reminder_type' => 'required|string',
-            'channel' => 'required|string'
-        ]);
+            $reminders = $query->get();
 
-        $templates = PaymentReminderTemplate::where('is_active', true)
-            ->where('reminder_type', $request->reminder_type)
-            ->where('channel', $request->channel)
-            ->get(['id', 'name', 'message_template', 'subject_template']);
+            // Create CSV export
+            $filename = 'payment_reminders_' . now()->format('Y_m_d_His') . '.csv';
+            $headers = [
+                'Content-Type' => 'text/csv',
+                'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+            ];
 
-        return response()->json($templates);
-    }
-
-    /**
-     * Export defaulters list
-     */
-    public function exportDefaulters(Request $request): Response
-    {
-        $defaulters = $this->reminderService->generateDefaultersList();
-        
-        // Filter by selected IDs if provided
-        if ($request->filled('selected_defaulters')) {
-            $selectedIds = $request->input('selected_defaulters');
-            $defaulters = array_filter($defaulters, function($defaulter) use ($selectedIds) {
-                return in_array($defaulter['student_id'], $selectedIds);
-            });
-        }
-        
-        $filename = 'payment_defaulters_' . now()->format('Y_m_d_His') . '.csv';
-        
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-        ];
-
-        $callback = function() use ($defaulters) {
-            $file = fopen('php://output', 'w');
-            
-            // CSV headers
-            fputcsv($file, [
-                'Student Name',
-                'Enrollment Number',
-                'Course',
-                'Batch',
-                'Total Overdue Amount',
-                'Overdue Days',
-                'Overdue Invoices',
-                'Category',
-                'Contact Phone',
-                'Contact Email',
-                'Last Payment Date',
-                'Fee Types'
-            ]);
-            
-            // CSV data
-            foreach ($defaulters as $defaulter) {
+            $callback = function() use ($reminders) {
+                $file = fopen('php://output', 'w');
+                
+                // CSV headers
                 fputcsv($file, [
-                    $defaulter['student_name'],
-                    $defaulter['enrollment_number'],
-                    $defaulter['course'],
-                    $defaulter['batch'],
-                    $defaulter['total_overdue_amount'],
-                    $defaulter['overdue_days'],
-                    $defaulter['overdue_invoice_count'],
-                    $defaulter['defaulter_category'],
-                    $defaulter['contact_phone'],
-                    $defaulter['contact_email'],
-                    $defaulter['last_payment_date'],
-                    implode(', ', $defaulter['overdue_fee_types'])
+                    'ID', 'Student Name', 'Enrollment Number', 'Fee Category',
+                    'Reminder Type', 'Channel', 'Status', 'Scheduled Date',
+                    'Sent Date', 'Overdue Amount', 'Message Content'
                 ]);
-            }
-            
-            fclose($file);
-        };
 
-        return response()->stream($callback, 200, $headers);
-    }
+                // CSV data
+                foreach ($reminders as $reminder) {
+                    fputcsv($file, [
+                        $reminder->id,
+                        $reminder->student->name ?? 'N/A',
+                        $reminder->student->enrollment_number ?? 'N/A',
+                        $reminder->feeCategory->name ?? 'All Categories',
+                        $reminder->reminder_type,
+                        $reminder->channel,
+                        $reminder->status,
+                        $reminder->scheduled_date,
+                        $reminder->sent_at,
+                        $reminder->overdue_amount,
+                        $reminder->message_content
+                    ]);
+                }
 
-    /**
-     * Get student's unpaid invoices (for AJAX)
-     */
-    public function getStudentUnpaidInvoices(Student $student): JsonResponse
-    {
-        $invoices = $student->invoices()
-            ->where('status', '!=', 'paid')
-            ->get(['id', 'invoice_number', 'total_amount', 'due_date'])
-            ->map(function($invoice) {
-                return [
-                    'id' => $invoice->id,
-                    'invoice_number' => $invoice->invoice_number,
-                    'total_amount' => number_format($invoice->total_amount, 2),
-                    'due_date' => $invoice->due_date->format('M d, Y')
-                ];
-            });
+                fclose($file);
+            };
 
-        return response()->json($invoices);
-    }
+            return response()->stream($callback, 200, $headers);
 
-    /**
-     * Get student payment details (for modal)
-     */
-    public function getStudentPaymentDetails(Student $student): View
-    {
-        $student->load(['batch.course', 'invoices.payments', 'paymentReminders']);
-        
-        $overdueInvoices = $student->invoices()
-            ->where('due_date', '<', now())
-            ->where('status', '!=', 'paid')
-            ->get();
-
-        $totalOverdue = $overdueInvoices->sum('total_amount');
-        $reminderCount = $student->paymentReminders()->count();
-        $lastPayment = $student->invoices()
-            ->whereHas('payments')
-            ->with('payments')
-            ->get()
-            ->flatMap->payments
-            ->sortByDesc('payment_date')
-            ->first();
-
-        return view('payment-reminders.partials.student-details', compact(
-            'student',
-            'overdueInvoices',
-            'totalOverdue',
-            'reminderCount',
-            'lastPayment'
-        ));
-    }
-
-    /**
-     * Send individual reminder with custom options
-     */
-    public function sendIndividualReminder(Request $request): JsonResponse
-    {
-        $request->validate([
-            'student_id' => 'required|exists:students,id',
-            'channel' => 'required|in:email,sms,whatsapp',
-            'reminder_type' => 'required|in:upcoming_due,overdue,escalation,final_notice',
-            'message' => 'nullable|string|max:1000'
-        ]);
-
-        try {
-            $student = Student::findOrFail($request->student_id);
-            
-            // Get the latest unpaid invoice for this student
-            $invoice = $student->invoices()
-                ->where('status', '!=', 'paid')
-                ->orderBy('due_date', 'asc')
-                ->first();
-
-            if (!$invoice) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'No unpaid invoices found for this student'
-                ]);
-            }
-
-            // Create a reminder record
-            $reminder = PaymentReminder::create([
-                'student_id' => $student->id,
-                'invoice_id' => $invoice->id,
-                'reminder_type' => $request->reminder_type,
-                'channel' => $request->channel,
-                'scheduled_date' => now(),
-                'status' => 'pending',
-                'message_content' => $request->message,
-                'recipient_details' => [
-                    'email' => $student->email,
-                    'phone' => $student->student_mobile ?? $student->father_mobile,
-                    'student_name' => $student->name,
-                    'enrollment_number' => $student->enrollment_number,
-                ]
-            ]);
-
-            // Send the reminder
-            $result = $this->reminderService->sendSingleReminder($reminder);
-            
-            return response()->json($result);
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'error' => $e->getMessage()
-            ], 500);
+            return back()->with('error', 'Export failed: ' . $e->getMessage());
         }
     }
 }

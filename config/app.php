@@ -67,7 +67,7 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    'timezone' => env('APP_TIMEZONE', 'Asia/Kolkata'),
 
     /*
     |--------------------------------------------------------------------------
@@ -196,6 +196,8 @@ return [
         App\Providers\SettingsServiceProvider::class,
         //App\Providers\AutoWebhookServiceProvider::class,
         App\Providers\NotificationServiceProvider::class,
+       
+    
     ],
 
     /*

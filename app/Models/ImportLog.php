@@ -11,6 +11,11 @@ class ImportLog extends Model
 {
     use HasFactory;
 
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array
+     */
     protected $fillable = [
         'batch_id',
         'batch_name',
@@ -19,21 +24,28 @@ class ImportLog extends Model
         'user_name',
         'import_type',
         'status',
-        'auto_create_invoices',
+        // MODIFIED: Renamed invoice-related fields to be component/fee-based
+        'auto_create_fees',
         'total_rows',
         'imported_count',
         'skipped_count',
         'rejected_count',
-        'invoices_created',
-        'invoice_errors_count',
+        'fees_created',
+        'fee_errors_count',
         'settings',
         'summary',
         'started_at',
         'completed_at',
     ];
 
+    /**
+     * The attributes that should be cast.
+     *
+     * @var array
+     */
     protected $casts = [
-        'auto_create_invoices' => 'boolean',
+        // MODIFIED: Renamed cast attribute
+        'auto_create_fees' => 'boolean',
         'settings' => 'array',
         'summary' => 'array',
         'started_at' => 'datetime',
@@ -111,13 +123,18 @@ class ImportLog extends Model
         };
     }
 
-    public function getInvoiceSuccessRateAttribute()
+    /**
+     * MODIFIED: Renamed accessor and updated logic for fee components.
+     *
+     * @return float
+     */
+    public function getFeeSuccessRateAttribute()
     {
         if ($this->imported_count === 0) {
             return 0;
         }
         
-        return round(($this->invoices_created / $this->imported_count) * 100, 2);
+        return round(($this->fees_created / $this->imported_count) * 100, 2);
     }
 
     // Helper methods

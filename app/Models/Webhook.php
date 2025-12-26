@@ -452,11 +452,12 @@ class Webhook extends Model
      */
     public static function createCommonIntegrations(): array
     {
+        // MODIFIED: Replaced 'invoice.generated' with 'student_fee.created' for component-based system
         $commonIntegrations = [
             [
                 'name' => 'Payment Notifications',
-                'events' => ['payment.created', 'invoice.generated'],
-                'description' => 'Get notified when payments are made or invoices are generated'
+                'events' => ['payment.created', 'student_fee.created'],
+                'description' => 'Get notified when payments are made or fee components are generated'
             ],
             [
                 'name' => 'Student Management',
@@ -478,25 +479,22 @@ class Webhook extends Model
         return $commonIntegrations;
     }
 
-    /**
-     * Boot method to set default secret key and register event discovery
-     */
-    protected static function boot()
-    {
-        parent::boot();
+   protected static function boot()
+{
+    parent::boot();
+    
+    static::creating(function ($webhook) {
+        if (empty($webhook->secret_key)) {
+            $webhook->secret_key = 'whsec_' . bin2hex(random_bytes(32));
+        }
         
-        static::creating(function ($webhook) {
-            if (empty($webhook->signing_secret)) {
-                $webhook->signing_secret = self::generateSecretKey();
-            }
-        });
-
-        // Ensure event discovery is cached when webhooks are accessed
-        static::retrieved(function ($webhook) {
-            // Trigger event discovery caching if not already cached
-            if (!cache()->has('webhook_available_events')) {
-                self::getAvailableEvents();
-            }
-        });
-    }
+        if (is_null($webhook->timeout_seconds)) {
+            $webhook->timeout_seconds = 30;
+        }
+        
+        if (is_null($webhook->consecutive_failures)) {
+            $webhook->consecutive_failures = 0;
+        }
+    });
+}
 }

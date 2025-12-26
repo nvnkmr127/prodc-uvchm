@@ -43,5 +43,14 @@ class DatabaseSeeder extends Seeder
         $this->command->info('Email: admin@uvchm.com');
         $this->command->info('Password: password');
         $this->command->info('API Token: ' . $token->plainTextToken);
+
+        // Call additional seeders
+        $this->call([
+            RolesAndPermissionsSeeder::class,
+            DashboardPermissionSeeder::class,
+            WidgetCategorySeeder::class,
+            WidgetSeeder::class,
+            DashboardSeeder::class,
+        ]);
     }
 }

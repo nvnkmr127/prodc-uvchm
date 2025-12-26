@@ -255,23 +255,30 @@
                                             <tr>
                                                 <td>
                                                     <i class="fas fa-file-archive text-primary mr-2"></i>
-                                                    <strong>{{ $backup['name'] }}</strong>
+                                                    <strong>{{ $backup['filename'] }}</strong>
                                                 </td>
                                                 <td>
                                                     <span class="badge badge-{{ $backup['type'] === 'Database' ? 'info' : ($backup['type'] === 'Files' ? 'secondary' : 'success') }}">
                                                         {{ $backup['type'] }}
                                                     </span>
                                                 </td>
-                                                <td>{{ $backup['size'] }}</td>
-                                                <td>{{ $backup['date'] }}</td>
+                                                <td>{{ formatFileSize($backup['size']) }}</td>
+                                                <td>{{ $backup['created_at']->format('M j, Y g:i A') }}</td>
                                                 <td>
                                                     <div class="btn-group btn-group-sm" role="group">
-                                                        <a href="/admin/backups/download/{{ $backup['name'] }}" 
+                                                        <a href="/admin/backups/download/{{ $backup['filename'] }}" 
                                                            class="btn btn-success" title="Download">
                                                             <i class="fas fa-download"></i>
                                                         </a>
+                                                        @if($backup['type'] === 'Database')
+                                                        <button class="btn btn-warning" 
+                                                                onclick="restoreDatabase('{{ $backup['filename'] }}')" 
+                                                                title="Restore Database">
+                                                            <i class="fas fa-undo"></i>
+                                                        </button>
+                                                        @endif
                                                         <button class="btn btn-danger" 
-                                                                onclick="deleteBackup('{{ $backup['name'] }}')" 
+                                                                onclick="deleteBackup('{{ $backup['filename'] }}')" 
                                                                 title="Delete">
                                                             <i class="fas fa-trash"></i>
                                                         </button>
@@ -310,26 +317,26 @@
                                             <tr>
                                                 <td>
                                                     <i class="fas fa-file-code text-warning mr-2"></i>
-                                                    <strong>{{ $backup['name'] }}</strong>
+                                                    <strong>{{ $backup['filename'] }}</strong>
                                                 </td>
                                                 <td>
                                                     <span class="badge badge-warning">{{ $backup['type'] }}</span>
                                                 </td>
-                                                <td>{{ $backup['size'] }}</td>
-                                                <td>{{ $backup['date'] }}</td>
+                                                <td>{{ formatFileSize($backup['size']) }}</td>
+                                                <td>{{ $backup['created_at']->format('M j, Y g:i A') }}</td>
                                                 <td>
                                                     <div class="btn-group btn-group-sm" role="group">
-                                                        <a href="/admin/backups/download/{{ $backup['name'] }}" 
+                                                        <a href="/admin/backups/download/{{ $backup['filename'] }}" 
                                                            class="btn btn-success" title="Download">
                                                             <i class="fas fa-download"></i>
                                                         </a>
                                                         <button class="btn btn-info" 
-                                                                onclick="restoreSettings('{{ $backup['name'] }}')" 
+                                                                onclick="restoreSettings('{{ $backup['filename'] }}')" 
                                                                 title="Restore">
                                                             <i class="fas fa-undo"></i>
                                                         </button>
                                                         <button class="btn btn-danger" 
-                                                                onclick="deleteBackup('{{ $backup['name'] }}')" 
+                                                                onclick="deleteBackup('{{ $backup['filename'] }}')" 
                                                                 title="Delete">
                                                             <i class="fas fa-trash"></i>
                                                         </button>
@@ -367,7 +374,7 @@
                 </button>
             </div>
             <div class="modal-body">
-                <form id="createBackupForm" method="POST" action="/admin/backups/create">
+                <form id="createBackupForm" method="POST" action="/admin/backups">
                     @csrf
                     <div class="form-group">
                         <label>Select Backup Type:</label>
@@ -658,6 +665,36 @@ function cleanupBackups() {
             },
             error: function() {
                 showAlert('error', 'Failed to cleanup backups.');
+            }
+        });
+    }
+}
+
+function restoreDatabase(fileName) {
+    if (confirm('Are you sure you want to restore the database from this backup? This will overwrite your current database!')) {
+        const loadingBtn = event.target.closest('button');
+        const originalHtml = loadingBtn.innerHTML;
+        loadingBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        loadingBtn.disabled = true;
+        
+        $.ajax({
+            url: '/admin/backups/restore/database',
+            method: 'POST',
+            data: {
+                _token: '{{ csrf_token() }}',
+                backup_file: fileName
+            },
+            success: function(response) {
+                showAlert('success', 'Database restored successfully!');
+                setTimeout(() => location.reload(), 2000);
+            },
+            error: function(xhr) {
+                const message = xhr.responseJSON?.message || 'Failed to restore database.';
+                showAlert('error', message);
+            },
+            complete: function() {
+                loadingBtn.innerHTML = originalHtml;
+                loadingBtn.disabled = false;
             }
         });
     }

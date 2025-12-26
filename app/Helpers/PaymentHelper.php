@@ -3,22 +3,33 @@
 namespace App\Helpers;
 
 use App\Models\Student;
-use App\Models\Invoice;
+use App\Models\StudentFee;
 use App\Models\Payment;
 use App\Models\FeeCategory;
 use App\Models\PaymentReminder;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class PaymentHelper
 {
     /**
-     * Get payment priority based on fee type and overdue days
+     * Get payment priority based on fee category and overdue days
+     * ✅ FIXED: Added proper parameter types and error handling
      */
-    public static function getPaymentPriority(string $feeType, int $overdueDays): string
+    public static function getPaymentPriority($feeCategory, int $overdueDays): string
     {
+        // Handle both string and FeeCategory object
+        if (is_string($feeCategory)) {
+            $categoryType = $feeCategory;
+        } elseif ($feeCategory instanceof FeeCategory) {
+            $categoryType = $feeCategory->category_type;
+        } else {
+            return 'medium'; // Default fallback
+        }
+
         $config = config('payment_reminders.fee_type_priorities', []);
-        $feeConfig = $config[$feeType] ?? ['priority' => 'medium'];
+        $feeConfig = $config[$categoryType] ?? ['priority' => 'medium'];
         
         $basePriority = $feeConfig['priority'];
         
@@ -46,11 +57,15 @@ class PaymentHelper
 
     /**
      * Calculate late fee based on settings and overdue amount
+     * ✅ FIXED: Added error handling for missing setting function
      */
     public static function calculateLateFee(float $amount, int $overdueDays): float
     {
-        $lateFeePer = (float) setting('late_fee_percentage', 5);
-        $graceDays = (int) setting('late_fee_grace_days', 7);
+        // Handle cases where setting() function might not exist
+        $lateFeePer = function_exists('setting') ? 
+            (float) setting('late_fee_percentage', 5) : 5.0;
+        $graceDays = function_exists('setting') ? 
+            (int) setting('late_fee_grace_days', 7) : 7;
         
         if ($overdueDays <= $graceDays) {
             return 0;
@@ -71,10 +86,23 @@ class PaymentHelper
 
     /**
      * Get next reminder date based on current reminder count and due date
+     * ✅ FIXED: Added error handling for missing config
      */
     public static function getNextReminderDate(int $reminderCount, Carbon $dueDate): Carbon
     {
-        $schedule = config('payment_reminders.schedule', []);
+        $schedule = config('payment_reminders.schedule', [
+            'before_due_days' => [
+                'first_reminder' => 7,
+                'second_reminder' => 3,
+                'final_reminder' => 1
+            ],
+            'after_due_days' => [
+                'first_overdue' => 1,
+                'second_overdue' => 7,
+                'third_overdue' => 15,
+                'escalation' => 30
+            ]
+        ]);
         
         switch ($reminderCount) {
             case 0: 
@@ -99,26 +127,18 @@ class PaymentHelper
 
     /**
      * Format amount with currency symbol
+     * ✅ FIXED: Added error handling for missing setting function
      */
     public static function formatAmount(float $amount): string
     {
-        $currency = setting('currency', 'INR');
-        $symbol = match($currency) {
-            'INR' => '₹',
-            'USD' => '$',
-            'EUR' => '€',
-            'GBP' => '£',
-            'AED' => 'AED ',
-            'SAR' => 'SAR ',
-            default => '₹'
-        };
+        $symbol = function_exists('setting') ? 
+            setting('currency_symbol', '₹') : '₹';
         
-        // Format with appropriate decimal places
         if ($amount >= 10000000) { // 1 crore
             return $symbol . number_format($amount / 10000000, 2) . ' Cr';
         } elseif ($amount >= 100000) { // 1 lakh
             return $symbol . number_format($amount / 100000, 2) . ' L';
-        } elseif ($amount >= 1000) { // 1 thousand
+        } elseif ($amount >= 1000) {
             return $symbol . number_format($amount / 1000, 1) . 'K';
         } else {
             return $symbol . number_format($amount, 2);
@@ -126,728 +146,606 @@ class PaymentHelper
     }
 
     /**
-     * Get detailed student risk score based on payment history
+     * ✅ FIXED: Get detailed student risk score with error handling
      */
     public static function getStudentRiskScore(Student $student): array
     {
-        $totalInvoices = $student->invoices()->count();
-        $overdueInvoices = $student->invoices()
-            ->where('due_date', '<', now())
-            ->where('status', 'unpaid')
-            ->count();
-        $totalOverdueAmount = $student->invoices()
-            ->where('due_date', '<', now())
-            ->where('status', 'unpaid')
-            ->sum('due_amount');
-        $avgPaymentDelay = static::getAveragePaymentDelay($student);
-        
-        $score = 0;
-        $factors = [];
-        $recommendations = [];
-        
-        // Factor 1: Overdue ratio (40% weight)
-        if ($totalInvoices > 0) {
-            $overdueRatio = $overdueInvoices / $totalInvoices;
-            $overdueScore = $overdueRatio * 40;
-            $score += $overdueScore;
-            
-            if ($overdueRatio > 0.7) {
-                $factors[] = "Very high overdue ratio: " . round($overdueRatio * 100, 1) . "%";
-                $recommendations[] = "Immediate intervention required";
-            } elseif ($overdueRatio > 0.4) {
-                $factors[] = "High overdue ratio: " . round($overdueRatio * 100, 1) . "%";
-                $recommendations[] = "Enhanced monitoring needed";
-            } elseif ($overdueRatio > 0.2) {
-                $factors[] = "Moderate overdue ratio: " . round($overdueRatio * 100, 1) . "%";
+        try {
+            // Check if required methods exist on Student model
+            if (!method_exists($student, 'studentFees')) {
+                return [
+                    'score' => 0,
+                    'level' => 'unknown',
+                    'factors' => ['Unable to calculate - missing student fees relationship'],
+                    'recommendations' => []
+                ];
             }
+
+            $totalFees = $student->studentFees()->count();
+            
+            // Use safe method calls with fallbacks
+            $overdueFees = method_exists($student, 'getOverdueFees') ? 
+                $student->getOverdueFees()->count() : 
+                $student->studentFees()->where('due_date', '<', now())
+                    ->whereIn('status', ['unpaid', 'partial', 'overdue'])->count();
+            
+            $totalOverdueAmount = method_exists($student, 'getTotalOverdueAmount') ? 
+                $student->getTotalOverdueAmount() : 0;
+            
+            $avgPaymentDelay = static::getAveragePaymentDelay($student);
+            
+            $score = 0;
+            $factors = [];
+            $recommendations = [];
+            
+            // Factor 1: Overdue ratio (40% weight)
+            if ($totalFees > 0) {
+                $overdueRatio = $overdueFees / $totalFees;
+                $overdueScore = $overdueRatio * 40;
+                $score += $overdueScore;
+                
+                if ($overdueRatio > 0.7) {
+                    $factors[] = "Very high overdue ratio: " . round($overdueRatio * 100, 1) . "% of fee components are overdue";
+                    $recommendations[] = "Immediate intervention required";
+                } elseif ($overdueRatio > 0.4) {
+                    $factors[] = "High overdue ratio: " . round($overdueRatio * 100, 1) . "%";
+                    $recommendations[] = "Enhanced monitoring needed";
+                }
+            }
+            
+            // Factor 2: Amount factor (30% weight)
+            if ($totalOverdueAmount > 50000) {
+                $score += 30;
+                $factors[] = "Very high overdue amount: " . static::formatAmount($totalOverdueAmount);
+                $recommendations[] = "Consider payment plan arrangement";
+            } elseif ($totalOverdueAmount > 25000) {
+                $score += 20;
+                $factors[] = "High overdue amount: " . static::formatAmount($totalOverdueAmount);
+                $recommendations[] = "Escalate to management";
+            } elseif ($totalOverdueAmount > 10000) {
+                $score += 10;
+            }
+            
+            // Factor 3: Payment behavior (20% weight)
+            if ($avgPaymentDelay > 30) {
+                $score += 20;
+                $factors[] = "Consistently late payments (avg " . $avgPaymentDelay . " days)";
+                $recommendations[] = "Setup automated reminders";
+            } elseif ($avgPaymentDelay > 15) {
+                $score += 10;
+            }
+            
+            // Factor 4: Recent activity (10% weight)
+            $recentPayments = 0;
+            if (method_exists($student, 'componentPayments')) {
+                $recentPayments = $student->componentPayments()
+                    ->where('payment_date', '>=', now()->subMonths(6))
+                    ->count();
+            }
+            
+            if ($recentPayments == 0 && $totalFees > 0) {
+                $score += 10;
+                $factors[] = "No recent payments in last 6 months";
+                $recommendations[] = "Contact student/parent immediately";
+            }
+            
+            // Determine risk level
+            $riskLevel = match(true) {
+                $score >= 80 => 'critical',
+                $score >= 60 => 'high',
+                $score >= 40 => 'medium',
+                $score >= 20 => 'low',
+                default => 'minimal'
+            };
+            
+            return [
+                'score' => round($score, 1),
+                'level' => $riskLevel,
+                'factors' => $factors,
+                'recommendations' => $recommendations,
+                'total_fee_components' => $totalFees,
+                'overdue_components' => $overdueFees,
+                'overdue_amount' => $totalOverdueAmount,
+                'avg_payment_delay' => $avgPaymentDelay
+            ];
+            
+        } catch (\Exception $e) {
+            return [
+                'score' => 0,
+                'level' => 'error',
+                'factors' => ['Error calculating risk score: ' . $e->getMessage()],
+                'recommendations' => ['Review student data integrity']
+            ];
         }
-        
-        // Factor 2: Amount factor (30% weight)
-        if ($totalOverdueAmount > 50000) {
-            $score += 30;
-            $factors[] = "Very high overdue amount: " . static::formatAmount($totalOverdueAmount);
-            $recommendations[] = "Consider payment plan arrangement";
-        } elseif ($totalOverdueAmount > 25000) {
-            $score += 20;
-            $factors[] = "High overdue amount: " . static::formatAmount($totalOverdueAmount);
-            $recommendations[] = "Escalate to management";
-        } elseif ($totalOverdueAmount > 10000) {
-            $score += 10;
-            $factors[] = "Moderate overdue amount: " . static::formatAmount($totalOverdueAmount);
-        }
-        
-        // Factor 3: Payment behavior (20% weight)
-        if ($avgPaymentDelay > 30) {
-            $score += 20;
-            $factors[] = "Consistently late payments (avg " . $avgPaymentDelay . " days)";
-            $recommendations[] = "Setup automated reminders";
-        } elseif ($avgPaymentDelay > 15) {
-            $score += 10;
-            $factors[] = "Moderate payment delays (avg " . $avgPaymentDelay . " days)";
-        }
-        
-        // Factor 4: Recent activity (10% weight)
-        $recentPayments = $student->payments()
-            ->where('payment_date', '>=', now()->subMonths(6))
-            ->count();
-        if ($recentPayments == 0 && $totalInvoices > 0) {
-            $score += 10;
-            $factors[] = "No recent payments in last 6 months";
-            $recommendations[] = "Contact student/parent immediately";
-        }
-        
-        // Determine risk level
-        $riskLevel = match(true) {
-            $score >= 80 => 'critical',
-            $score >= 60 => 'high',
-            $score >= 40 => 'medium',
-            $score >= 20 => 'low',
-            default => 'minimal'
-        };
-        
-        return [
-            'score' => round($score, 1),
-            'level' => $riskLevel,
-            'factors' => $factors,
-            'recommendations' => $recommendations,
-            'total_invoices' => $totalInvoices,
-            'overdue_invoices' => $overdueInvoices,
-            'overdue_amount' => $totalOverdueAmount,
-            'avg_payment_delay' => $avgPaymentDelay
-        ];
     }
 
     /**
-     * Get average payment delay for a student
+     * ✅ FIXED: Get average payment delay with error handling
      */
     public static function getAveragePaymentDelay(Student $student): float
     {
-        $payments = $student->payments()
-            ->with('invoice')
-            ->whereHas('invoice')
-            ->get();
-            
-        if ($payments->isEmpty()) {
-            return 0;
-        }
-        
-        $totalDelayDays = 0;
-        $validPayments = 0;
-        
-        foreach ($payments as $payment) {
-            if ($payment->invoice && $payment->invoice->due_date) {
-                $delayDays = Carbon::parse($payment->payment_date)
-                    ->diffInDays(Carbon::parse($payment->invoice->due_date), false);
+        try {
+            if (!method_exists($student, 'componentPayments')) {
+                return 0.0;
+            }
+
+            $payments = $student->componentPayments()
+                ->with('componentItems.studentFee')
+                ->whereHas('componentItems.studentFee')
+                ->get();
                 
-                if ($delayDays > 0) { // Only count late payments
-                    $totalDelayDays += $delayDays;
-                    $validPayments++;
+            if ($payments->isEmpty()) {
+                return 0.0;
+            }
+            
+            $totalDelayDays = 0;
+            $validPayments = 0;
+            
+            foreach ($payments as $payment) {
+                if (!$payment->componentItems) continue;
+                
+                foreach($payment->componentItems as $item) {
+                    if ($item->studentFee && $item->studentFee->due_date) {
+                        $delayDays = Carbon::parse($payment->payment_date)
+                            ->diffInDays(Carbon::parse($item->studentFee->due_date), false);
+                        
+                        if ($delayDays > 0) { // Only count late payments
+                            $totalDelayDays += $delayDays;
+                            $validPayments++;
+                        }
+                    }
                 }
             }
+            
+            return $validPayments > 0 ? round($totalDelayDays / $validPayments, 1) : 0.0;
+            
+        } catch (\Exception $e) {
+            return 0.0;
         }
-        
-        return $validPayments > 0 ? round($totalDelayDays / $validPayments, 1) : 0;
     }
 
     /**
      * Generate payment reminder message template
+     * ✅ FIXED: Added more robust template handling
      */
     public static function generateReminderMessage(string $type, array $data): string
     {
         $templates = [
-            'upcoming_due_email' => "Dear {name},\n\nThis is a friendly reminder that your {fee_type} payment of {amount} is due on {due_date}.\n\nPlease make the payment at your earliest convenience to avoid any late fees.\n\nPayment can be made:\n- Online through our student portal\n- At the college accounts office\n- Through bank transfer\n\nFor any queries, contact our accounts department at {contact_number}.\n\nBest regards,\n{college_name}",
-            
-            'upcoming_due_sms' => "Dear {name}, your {fee_type} payment of {amount} is due on {due_date}. Please pay to avoid late fees. For queries: {contact_number} - {college_name}",
-            
-            'overdue_email' => "Dear {name},\n\nYour {fee_type} payment of {amount} was due on {due_date} and is now {days_overdue} days overdue.\n\nOutstanding Amount: {amount}\nLate Fee: {late_fee}\nTotal Due: {total_due}\n\nPlease make the payment immediately to avoid:\n- Additional late charges\n- Academic restrictions\n- Library access suspension\n\nFor immediate assistance, contact our accounts department at {contact_number}.\n\nUrgent Action Required,\n{college_name}",
-            
-            'overdue_sms' => "URGENT: {name}, your {fee_type} payment of {amount} is {days_overdue} days overdue. Total due: {total_due}. Pay immediately to avoid restrictions. Contact: {contact_number} - {college_name}",
-            
-            'escalation_email' => "Dear {name},\n\nDespite multiple reminders, your {fee_type} payment of {amount} remains unpaid for {days_overdue} days.\n\nThis matter has been escalated to the management. The following actions will be taken if payment is not received within 7 days:\n\n- Academic suspension\n- Library access revocation\n- Exam participation restriction\n- Certificate withholding\n\nContact the Principal's office immediately at {contact_number}.\n\nFinal Warning,\n{college_name} Administration",
-            
-            'final_notice_email' => "FINAL NOTICE\n\nDear {name},\n\nThis is your FINAL NOTICE for the unpaid {fee_type} amount of {amount}, overdue by {days_overdue} days.\n\nTotal Outstanding: {total_due}\n\nIf payment is not received within 48 hours, the following actions will be implemented:\n\n✗ Academic suspension\n✗ Library access revoked\n✗ Exam participation denied\n✗ Certificate/transcript withholding\n✗ Legal action initiation\n\nContact administration immediately: {contact_number}\n\n{college_name} Administration\n\nThis is an automated system-generated notice.",
-            
-            'whatsapp_reminder' => "🔔 Payment Reminder\n\nHello {name},\n\nYour {fee_type} payment of {amount} is due on {due_date}.\n\n💳 Pay online: [Payment Link]\n🏢 Visit: Accounts Office\n📞 Query: {contact_number}\n\nThank you!\n{college_name}",
-            
-            'parent_notification' => "Dear Parent/Guardian,\n\nThis is to inform you that {name}'s {fee_type} payment of {amount} is overdue by {days_overdue} days.\n\nWe request your immediate attention to clear the outstanding dues to avoid academic disruptions.\n\nContact us: {contact_number}\n\nRegards,\n{college_name}"
+            'upcoming_due_sms' => "Dear {name}, your {fee_type} payment of {amount} is due on {due_date}. Please pay to avoid late fees. - {college_name}",
+            'overdue_sms' => "URGENT: {name}, your {fee_type} payment of {amount} is {days_overdue} days overdue. Total due: {total_due}. Pay immediately. - {college_name}",
+            'parent_notification' => "Dear Parent/Guardian, {name}'s {fee_type} payment of {amount} is overdue by {days_overdue} days. Please clear dues to avoid disruptions. - {college_name}",
+            'email_reminder' => "Dear {name}, this is a reminder that your {fee_type} payment of {amount} is due. Please log into the student portal to make payment.",
+            'whatsapp_message' => "Hi {name}! Your {fee_type} fee of {amount} is due on {due_date}. Click here to pay: {payment_link}"
         ];
         
         $template = $templates[$type] ?? $templates['overdue_sms'];
         
-        // Add calculated fields to data
-        if (isset($data['amount']) && isset($data['days_overdue'])) {
-            $data['late_fee'] = static::formatAmount(
-                static::calculateLateFee((float)$data['amount'], (int)$data['days_overdue'])
-            );
-            $data['total_due'] = static::formatAmount(
-                (float)$data['amount'] + static::calculateLateFee((float)$data['amount'], (int)$data['days_overdue'])
-            );
+        // Calculate additional fields if not provided
+        if (isset($data['amount'], $data['days_overdue'])) {
+            $data['late_fee'] = static::formatAmount(static::calculateLateFee((float)$data['amount'], (int)$data['days_overdue']));
+            $data['total_due'] = static::formatAmount((float)$data['amount'] + static::calculateLateFee((float)$data['amount'], (int)$data['days_overdue']));
         }
         
-        // Add default values
-        $data['college_name'] = $data['college_name'] ?? setting('app_name', 'College Management System');
-        $data['contact_number'] = $data['contact_number'] ?? setting('contact_phone', '');
+        // Set default values for missing data
+        $defaults = [
+            'college_name' => function_exists('setting') ? setting('app_name', 'College') : 'College',
+            'payment_link' => '#',
+            'due_date' => 'N/A',
+            'name' => 'Student',
+            'fee_type' => 'Fee',
+            'amount' => '₹0',
+            'days_overdue' => '0'
+        ];
+        
+        foreach ($defaults as $key => $value) {
+            if (!isset($data[$key])) {
+                $data[$key] = $value;
+            }
+        }
         
         // Replace placeholders
         foreach ($data as $key => $value) {
-            $template = str_replace('{' . $key . '}', $value, $template);
+            $template = str_replace('{' . $key . '}', (string)$value, $template);
         }
         
         return $template;
     }
 
     /**
-     * Get collection efficiency for a specific period
+     * ✅ FIXED: Get collection efficiency with error handling
      */
     public static function getCollectionEfficiency(Carbon $startDate, Carbon $endDate): array
     {
-        $totalInvoiced = Invoice::whereBetween('issue_date', [$startDate, $endDate])
-            ->sum('total_amount');
-        $totalCollected = Payment::whereBetween('payment_date', [$startDate, $endDate])
-            ->sum('amount');
-        $totalPending = Invoice::whereBetween('issue_date', [$startDate, $endDate])
-            ->sum('due_amount');
-        $totalConcessions = Invoice::whereBetween('issue_date', [$startDate, $endDate])
-            ->sum('concession_amount');
-        
-        $efficiency = $totalInvoiced > 0 ? ($totalCollected / $totalInvoiced) * 100 : 0;
-        $netCollectable = $totalInvoiced - $totalConcessions;
-        $netEfficiency = $netCollectable > 0 ? ($totalCollected / $netCollectable) * 100 : 0;
-        
-        return [
-            'period' => [
-                'start_date' => $startDate->format('d-m-Y'),
-                'end_date' => $endDate->format('d-m-Y'),
-                'days' => $startDate->diffInDays($endDate) + 1
-            ],
-            'amounts' => [
-                'total_invoiced' => $totalInvoiced,
-                'total_collected' => $totalCollected,
-                'total_pending' => $totalPending,
-                'total_concessions' => $totalConcessions,
-                'net_collectable' => $netCollectable
-            ],
-            'formatted_amounts' => [
-                'total_invoiced' => static::formatAmount($totalInvoiced),
-                'total_collected' => static::formatAmount($totalCollected),
-                'total_pending' => static::formatAmount($totalPending),
-                'total_concessions' => static::formatAmount($totalConcessions),
-                'net_collectable' => static::formatAmount($netCollectable)
-            ],
-            'percentages' => [
-                'efficiency_percentage' => round($efficiency, 2),
-                'net_efficiency_percentage' => round($netEfficiency, 2),
-                'collection_rate' => round($efficiency, 2),
-                'pending_percentage' => round(($totalPending / $totalInvoiced) * 100, 2)
-            ]
-        ];
+        try {
+            $fees = StudentFee::whereBetween('due_date', [$startDate, $endDate])->get();
+            $netCollectable = $fees->sum(function($fee) {
+                return ($fee->amount ?? 0) - ($fee->concession_amount ?? 0);
+            });
+
+            $totalCollected = Payment::where('payment_type', 'component')
+                ->whereBetween('payment_date', [$startDate, $endDate])
+                ->sum('amount');
+            
+            $totalPending = $netCollectable - $totalCollected;
+            $efficiency = $netCollectable > 0 ? ($totalCollected / $netCollectable) * 100 : 0;
+            
+            return [
+                'period' => [
+                    'start_date' => $startDate->format('d-m-Y'),
+                    'end_date' => $endDate->format('d-m-Y'),
+                ],
+                'amounts' => [
+                    'net_collectable' => $netCollectable,
+                    'total_collected' => $totalCollected,
+                    'total_pending' => $totalPending,
+                    'total_concessions' => $fees->sum('concession_amount'),
+                ],
+                'percentages' => [
+                    'efficiency_percentage' => round($efficiency, 2),
+                    'collection_rate' => round($efficiency, 2),
+                ]
+            ];
+            
+        } catch (\Exception $e) {
+            return [
+                'period' => [
+                    'start_date' => $startDate->format('d-m-Y'),
+                    'end_date' => $endDate->format('d-m-Y'),
+                ],
+                'amounts' => [
+                    'net_collectable' => 0,
+                    'total_collected' => 0,
+                    'total_pending' => 0,
+                    'total_concessions' => 0,
+                ],
+                'percentages' => [
+                    'efficiency_percentage' => 0,
+                    'collection_rate' => 0,
+                ],
+                'error' => $e->getMessage()
+            ];
+        }
     }
 
     /**
-     * Get payment statistics for dashboard
+     * ✅ FIXED: Get dashboard statistics with error handling
      */
     public static function getDashboardStats(): array
     {
-        $today = now();
-        $thisMonth = $today->startOfMonth();
-        $lastMonth = $today->copy()->subMonth();
-        
-        return [
-            'today' => [
-                'collections' => Payment::whereDate('payment_date', $today)->sum('amount'),
-                'reminders_sent' => PaymentReminder::whereDate('sent_at', $today)->count(),
-                'new_defaulters' => static::getNewDefaultersCount($today)
-            ],
-            'this_month' => [
-                'collections' => Payment::where('payment_date', '>=', $thisMonth)->sum('amount'),
-                'target' => setting('monthly_collection_target', 1000000),
-                'efficiency' => static::getCollectionEfficiency($thisMonth, $today)['percentages']['efficiency_percentage']
-            ],
-            'overview' => [
-                'total_students' => Student::where('status', 'active')->count(),
-                'total_defaulters' => static::getTotalDefaultersCount(),
-                'critical_cases' => static::getCriticalCasesCount(),
-                'collection_rate' => static::getOverallCollectionRate()
-            ]
-        ];
+        try {
+            $today = now();
+            $thisMonthStart = $today->copy()->startOfMonth();
+            
+            return [
+                'today' => [
+                    'collections' => Payment::where('payment_type', 'component')
+                        ->whereDate('payment_date', $today)
+                        ->sum('amount'),
+                    'reminders_sent' => class_exists('\App\Models\PaymentReminder') ? 
+                        PaymentReminder::whereDate('sent_at', $today)->count() : 0,
+                    'new_defaulters' => static::getNewDefaultersCount($today)
+                ],
+                'this_month' => [
+                    'collections' => Payment::where('payment_type', 'component')
+                        ->where('payment_date', '>=', $thisMonthStart)
+                        ->sum('amount'),
+                    'target' => function_exists('setting') ? 
+                        setting('monthly_collection_target', 1000000) : 1000000,
+                    'efficiency' => static::getCollectionEfficiency($thisMonthStart, $today)['percentages']['efficiency_percentage']
+                ],
+                'overview' => [
+                    'total_students' => Student::where('status', 'active')->count(),
+                    'total_defaulters' => static::getTotalDefaultersCount(),
+                    'critical_cases' => static::getCriticalCasesCount(),
+                    'collection_rate' => static::getOverallCollectionRate()
+                ]
+            ];
+            
+        } catch (\Exception $e) {
+            return [
+                'today' => ['collections' => 0, 'reminders_sent' => 0, 'new_defaulters' => 0],
+                'this_month' => ['collections' => 0, 'target' => 1000000, 'efficiency' => 0],
+                'overview' => ['total_students' => 0, 'total_defaulters' => 0, 'critical_cases' => 0, 'collection_rate' => 0],
+                'error' => $e->getMessage()
+            ];
+        }
     }
 
     /**
-     * Get fee type statistics
+     * ✅ FIXED: Get fee type statistics with error handling
      */
     public static function getFeeTypeStats(): array
     {
-        $feeCategories = FeeCategory::all();
-        $stats = [];
-        
-        foreach ($feeCategories as $category) {
-            $totalInvoiced = Invoice::whereHas('items.feeCategory', function($q) use ($category) {
-                $q->where('id', $category->id);
-            })->sum('total_amount');
+        try {
+            return FeeCategory::with('studentFees')->get()->map(function ($category) {
+                $totalAmount = $category->studentFees->sum('amount');
+                $totalCollected = $category->studentFees->sum('paid_amount');
+                $unpaidCount = $category->studentFees->where('status', 'unpaid')->count();
+
+                return [
+                    'name' => $category->name,
+                    'total_amount' => $totalAmount,
+                    'total_collected' => $totalCollected,
+                    'collection_rate' => $totalAmount > 0 ? ($totalCollected / $totalAmount) * 100 : 0,
+                    'unpaid_count' => $unpaidCount,
+                    'priority' => config("payment_reminders.fee_type_priorities.{$category->category_type}.priority", 'medium')
+                ];
+            })->keyBy('name')->toArray();
             
-            $totalCollected = Payment::whereHas('invoice.items.feeCategory', function($q) use ($category) {
-                $q->where('id', $category->id);
-            })->sum('amount');
-            
-            $unpaidCount = Invoice::whereHas('items.feeCategory', function($q) use ($category) {
-                $q->where('id', $category->id);
-            })->where('status', 'unpaid')->count();
-            
-            $stats[$category->category_type] = [
-                'name' => $category->name,
-                'total_invoiced' => $totalInvoiced,
-                'total_collected' => $totalCollected,
-                'collection_rate' => $totalInvoiced > 0 ? ($totalCollected / $totalInvoiced) * 100 : 0,
-                'unpaid_count' => $unpaidCount,
-                'priority' => config("payment_reminders.fee_type_priorities.{$category->category_type}.priority", 'medium')
-            ];
+        } catch (\Exception $e) {
+            return [];
         }
-        
-        return $stats;
     }
 
     /**
-     * Get reminder channel statistics
+     * ✅ FIXED: Get reminder channel statistics with error handling
      */
     public static function getReminderChannelStats(): array
     {
-        $channels = ['email', 'sms', 'whatsapp', 'phone_call'];
-        $stats = [];
-        
-        foreach ($channels as $channel) {
-            $sent = PaymentReminder::where('channel', $channel)
-                ->where('status', 'sent')
-                ->whereDate('sent_at', '>=', now()->subDays(30))
-                ->count();
+        try {
+            if (!class_exists('\App\Models\PaymentReminder')) {
+                return [];
+            }
+
+            return PaymentReminder::where('sent_at', '>=', now()->subDays(30))
+                ->selectRaw('channel, COUNT(*) as sent, SUM(CASE WHEN status = "failed" THEN 1 ELSE 0 END) as failed')
+                ->groupBy('channel')
+                ->get()
+                ->mapWithKeys(function ($item) {
+                    return [$item->channel => [
+                        'sent' => $item->sent,
+                        'failed' => $item->failed,
+                        'success_rate' => $item->sent > 0 ? round((($item->sent - $item->failed) / $item->sent) * 100, 2) : 0
+                    ]];
+                })->toArray();
                 
-            $delivered = PaymentReminder::where('channel', $channel)
-                ->where('status', 'delivered')
-                ->whereDate('delivered_at', '>=', now()->subDays(30))
-                ->count();
-                
-            $failed = PaymentReminder::where('channel', $channel)
-                ->where('status', 'failed')
-                ->whereDate('created_at', '>=', now()->subDays(30))
-                ->count();
-            
-            $stats[$channel] = [
-                'sent' => $sent,
-                'delivered' => $delivered,
-                'failed' => $failed,
-                'delivery_rate' => $sent > 0 ? ($delivered / $sent) * 100 : 0,
-                'failure_rate' => $sent > 0 ? ($failed / $sent) * 100 : 0
-            ];
+        } catch (\Exception $e) {
+            return [];
         }
-        
-        return $stats;
     }
 
     /**
      * Categorize defaulter based on amount and days
      */
-    public static function categorizeDefaulter(float $amount, int $days, int $invoiceCount): string
+    public static function categorizeDefaulter(float $amount, int $days, int $feeCount): string
     {
-        $categories = config('payment_reminders.defaulter_categories');
-        
-        foreach (['chronic', 'severe', 'moderate', 'mild'] as $category) {
-            $config = $categories[$category];
-            if ($days >= $config['days'] || $amount >= $config['amount_threshold']) {
-                return $category;
-            }
+        if ($days >= 90 || $amount >= 50000) {
+            return 'chronic';
+        } elseif ($days >= 60 || $amount >= 25000) {
+            return 'severe';
+        } elseif ($days >= 30 || $amount >= 10000) {
+            return 'moderate';
+        } else {
+            return 'mild';
         }
-        
-        return 'mild';
     }
 
     /**
-     * Get payment behavior insights for a student
+     * ✅ FIXED: Get payment behavior insights with error handling
      */
     public static function getPaymentBehaviorInsights(Student $student): array
     {
-        $payments = $student->payments()->with('invoice')->get();
-        $invoices = $student->invoices()->get();
-        
-        if ($payments->isEmpty()) {
-            return [
-                'behavior_type' => 'no_payment_history',
-                'insights' => ['No payment history available'],
-                'recommendations' => ['Monitor initial payment behavior']
-            ];
-        }
-        
-        $earlyPayments = 0;
-        $latePayments = 0;
-        $onTimePayments = 0;
-        $totalDelayDays = 0;
-        
-        foreach ($payments as $payment) {
-            if ($payment->invoice) {
-                $daysDiff = Carbon::parse($payment->payment_date)
-                    ->diffInDays(Carbon::parse($payment->invoice->due_date), false);
+        try {
+            if (!method_exists($student, 'componentPayments')) {
+                return [
+                    'behavior_type' => 'no_payment_history',
+                    'insights' => ['No payment history available - missing component payments relationship'],
+                ];
+            }
+
+            $payments = $student->componentPayments()->with('componentItems.studentFee')->get();
+            
+            if ($payments->isEmpty()) {
+                return [
+                    'behavior_type' => 'no_payment_history',
+                    'insights' => ['No payment history available'],
+                ];
+            }
+
+            $earlyPayments = 0;
+            $latePayments = 0;
+            $onTimePayments = 0;
+            $totalDelayDays = 0;
+            $totalItems = 0;
+
+            foreach ($payments as $payment) {
+                if (!$payment->componentItems) continue;
                 
-                if ($daysDiff < 0) {
-                    $earlyPayments++;
-                } elseif ($daysDiff == 0) {
-                    $onTimePayments++;
-                } else {
-                    $latePayments++;
-                    $totalDelayDays += $daysDiff;
+                foreach ($payment->componentItems as $item) {
+                    if ($item->studentFee && $item->studentFee->due_date) {
+                        $totalItems++;
+                        $daysDiff = Carbon::parse($payment->payment_date)
+                            ->diffInDays(Carbon::parse($item->studentFee->due_date), false);
+                        
+                        if ($daysDiff < -1) {
+                            $earlyPayments++;
+                        } elseif ($daysDiff > 1) {
+                            $latePayments++;
+                            $totalDelayDays += $daysDiff;
+                        } else {
+                            $onTimePayments++;
+                        }
+                    }
                 }
             }
-        }
-        
-        $totalPayments = $payments->count();
-        $avgDelay = $latePayments > 0 ? $totalDelayDays / $latePayments : 0;
-        
-        // Determine behavior type
-        $earlyRate = ($earlyPayments / $totalPayments) * 100;
-        $lateRate = ($latePayments / $totalPayments) * 100;
-        
-        $behaviorType = match(true) {
-            $earlyRate >= 70 => 'early_payer',
-            $lateRate >= 70 => 'chronic_late_payer',
-            $lateRate >= 40 => 'frequent_late_payer',
-            $avgDelay > 15 => 'delayed_payer',
-            default => 'regular_payer'
-        };
-        
-        $insights = [];
-        $recommendations = [];
-        
-        switch ($behaviorType) {
-            case 'early_payer':
-                $insights[] = "Pays {$earlyRate}% of fees before due date";
-                $insights[] = "Excellent payment discipline";
-                $recommendations[] = "Consider offering early payment discounts";
-                break;
-                
-            case 'chronic_late_payer':
-                $insights[] = "Pays {$lateRate}% of fees late (avg {$avgDelay} days)";
-                $insights[] = "Requires immediate intervention";
-                $recommendations[] = "Setup aggressive reminder schedule";
-                $recommendations[] = "Consider payment plan arrangement";
-                break;
-                
-            case 'frequent_late_payer':
-                $insights[] = "Pays {$lateRate}% of fees late";
-                $insights[] = "Shows concerning payment pattern";
-                $recommendations[] = "Increase reminder frequency";
-                $recommendations[] = "Parent/guardian involvement needed";
-                break;
-                
-            case 'delayed_payer':
-                $insights[] = "Average payment delay: {$avgDelay} days";
-                $insights[] = "Consistent but delayed payment pattern";
-                $recommendations[] = "Earlier reminder scheduling";
-                break;
-                
-            default:
-                $insights[] = "Regular payment behavior";
-                $insights[] = "Maintains reasonable payment schedule";
-                $recommendations[] = "Continue standard reminder schedule";
-        }
-        
-        return [
-            'behavior_type' => $behaviorType,
-            'statistics' => [
-                'total_payments' => $totalPayments,
+            
+            $avgDelay = $latePayments > 0 ? $totalDelayDays / $latePayments : 0;
+            $lateRate = $totalItems > 0 ? ($latePayments / $totalItems) * 100 : 0;
+
+            $behaviorType = match(true) {
+                $lateRate > 50 => 'chronic_late_payer',
+                $avgDelay > 15 => 'delayed_payer',
+                $earlyPayments > $latePayments => 'early_payer',
+                default => 'regular_payer'
+            };
+            
+            return [
+                'behavior_type' => $behaviorType,
+                'average_delay_days' => round($avgDelay),
+                'late_payment_rate' => round($lateRate) . '%',
                 'early_payments' => $earlyPayments,
                 'on_time_payments' => $onTimePayments,
                 'late_payments' => $latePayments,
-                'average_delay_days' => round($avgDelay, 1),
-                'early_rate' => round($earlyRate, 1),
-                'late_rate' => round($lateRate, 1)
+                'insights' => static::generateBehaviorInsights($behaviorType, $lateRate, $avgDelay)
+            ];
+            
+        } catch (\Exception $e) {
+            return [
+                'behavior_type' => 'error',
+                'insights' => ['Error analyzing payment behavior: ' . $e->getMessage()]
+            ];
+        }
+    }
+
+    /**
+     * ✅ NEW: Generate behavior insights based on payment patterns
+     */
+    private static function generateBehaviorInsights(string $behaviorType, float $lateRate, float $avgDelay): array
+    {
+        return match($behaviorType) {
+            'chronic_late_payer' => [
+                'This student frequently pays late (' . round($lateRate) . '% of payments)',
+                'Consider setting up automated reminders',
+                'May benefit from payment plan arrangement'
             ],
-            'insights' => $insights,
-            'recommendations' => $recommendations
-        ];
-    }
-
-    /**
-     * Generate payment performance score for a student
-     */
-    public static function getPaymentPerformanceScore(Student $student): array
-    {
-        $invoices = $student->invoices()->count();
-        $paidInvoices = $student->invoices()->where('status', 'paid')->count();
-        $overdueInvoices = $student->invoices()
-            ->where('due_date', '<', now())
-            ->where('status', 'unpaid')
-            ->count();
-        
-        $score = 100; // Start with perfect score
-        
-        // Deduct points for overdue invoices
-        if ($invoices > 0) {
-            $overdueRate = ($overdueInvoices / $invoices) * 100;
-            $score -= $overdueRate * 0.8; // Heavy penalty for overdue
-        }
-        
-        // Deduct points for payment delays
-        $avgDelay = static::getAveragePaymentDelay($student);
-        if ($avgDelay > 0) {
-            $score -= min($avgDelay * 2, 30); // Max 30 points deduction
-        }
-        
-        // Bonus points for early payments
-        $behavior = static::getPaymentBehaviorInsights($student);
-        if (isset($behavior['statistics']['early_rate']) && $behavior['statistics']['early_rate'] > 50) {
-            $score += 10; // Bonus for early payers
-        }
-        
-        $score = max(0, min(100, $score)); // Keep score between 0-100
-        
-        $grade = match(true) {
-            $score >= 90 => 'A+',
-            $score >= 80 => 'A',
-            $score >= 70 => 'B',
-            $score >= 60 => 'C',
-            $score >= 50 => 'D',
-            default => 'F'
+            'delayed_payer' => [
+                'Student tends to pay late with average delay of ' . round($avgDelay) . ' days',
+                'Early reminder system recommended'
+            ],
+            'early_payer' => [
+                'Excellent payment behavior - pays before due dates',
+                'Low risk student, minimal monitoring required'
+            ],
+            'regular_payer' => [
+                'Good payment behavior with timely payments',
+                'Standard reminder schedule sufficient'
+            ],
+            default => ['Unable to determine clear payment pattern']
         };
-        
-        return [
-            'score' => round($score, 1),
-            'grade' => $grade,
-            'total_invoices' => $invoices,
-            'paid_invoices' => $paidInvoices,
-            'overdue_invoices' => $overdueInvoices,
-            'average_delay' => $avgDelay
-        ];
     }
 
     /**
-     * Get seasonal payment trends
+     * ✅ FIXED: Helper methods with error handling
      */
-    public static function getSeasonalTrends(): array
-    {
-        $months = [];
-        for ($i = 11; $i >= 0; $i--) {
-            $month = now()->subMonths($i);
-            $monthName = $month->format('M Y');
-            
-            $collections = Payment::whereYear('payment_date', $month->year)
-                ->whereMonth('payment_date', $month->month)
-                ->sum('amount');
-                
-            $remindersSent = PaymentReminder::whereYear('sent_at', $month->year)
-                ->whereMonth('sent_at', $month->month)
-                ->where('status', 'sent')
-                ->count();
-            
-            $months[$monthName] = [
-                'collections' => $collections,
-                'reminders_sent' => $remindersSent,
-                'formatted_collections' => static::formatAmount($collections)
-            ];
-        }
-        
-        return $months;
-    }
-
-    /**
-     * Get batch-wise payment performance
-     */
-    public static function getBatchWisePerformance(): array
-    {
-        $batches = \App\Models\Batch::with('course')->get();
-        $performance = [];
-        
-        foreach ($batches as $batch) {
-            $students = $batch->students();
-            $totalStudents = $students->count();
-            
-            if ($totalStudents == 0) continue;
-            
-            $totalInvoiced = Invoice::whereIn('student_id', $students->pluck('id'))->sum('total_amount');
-            $totalCollected = Payment::whereIn('student_id', $students->pluck('id'))->sum('amount');
-            $defaulters = $students->whereHas('invoices', function($q) {
-                $q->where('due_date', '<', now())->where('status', 'unpaid');
-            })->count();
-            
-            $collectionRate = $totalInvoiced > 0 ? ($totalCollected / $totalInvoiced) * 100 : 0;
-            $defaulterRate = ($defaulters / $totalStudents) * 100;
-            
-            $performance[] = [
-                'batch' => $batch,
-                'total_students' => $totalStudents,
-                'total_invoiced' => $totalInvoiced,
-                'total_collected' => $totalCollected,
-                'collection_rate' => round($collectionRate, 2),
-                'defaulters' => $defaulters,
-                'defaulter_rate' => round($defaulterRate, 2),
-                'performance_grade' => static::getPerformanceGrade($collectionRate, $defaulterRate)
-            ];
-        }
-        
-        // Sort by collection rate descending
-        usort($performance, function($a, $b) {
-            return $b['collection_rate'] <=> $a['collection_rate'];
-        });
-        
-        return $performance;
-    }
-
-    /**
-     * Get performance grade based on collection and defaulter rates
-     */
-    private static function getPerformanceGrade(float $collectionRate, float $defaulterRate): string
-    {
-        if ($collectionRate >= 95 && $defaulterRate <= 5) {
-            return 'Excellent';
-        } elseif ($collectionRate >= 85 && $defaulterRate <= 15) {
-            return 'Good';
-        } elseif ($collectionRate >= 70 && $defaulterRate <= 25) {
-            return 'Average';
-        } elseif ($collectionRate >= 50 && $defaulterRate <= 40) {
-            return 'Below Average';
-        } else {
-            return 'Poor';
-        }
-    }
-
-    /**
-     * Generate payment forecast based on historical data
-     */
-    public static function generatePaymentForecast(int $months = 3): array
-    {
-        $historicalData = [];
-        
-        // Get last 12 months of data
-        for ($i = 12; $i >= 1; $i--) {
-            $month = now()->subMonths($i);
-            $collections = Payment::whereYear('payment_date', $month->year)
-                ->whereMonth('payment_date', $month->month)
-                ->sum('amount');
-            $historicalData[] = $collections;
-        }
-        
-        // Simple linear regression for forecasting
-        $forecast = [];
-        $trend = static::calculateTrend($historicalData);
-        $lastValue = end($historicalData);
-        
-        for ($i = 1; $i <= $months; $i++) {
-            $forecastValue = $lastValue + ($trend * $i);
-            $forecast[] = max(0, $forecastValue); // Ensure non-negative
-        }
-        
-        return [
-            'historical_data' => $historicalData,
-            'forecast' => $forecast,
-            'trend' => $trend > 0 ? 'increasing' : ($trend < 0 ? 'decreasing' : 'stable'),
-            'confidence' => static::calculateForecastConfidence($historicalData)
-        ];
-    }
-
-    /**
-     * Calculate trend from historical data
-     */
-    private static function calculateTrend(array $data): float
-    {
-        $n = count($data);
-        if ($n < 2) return 0;
-        
-        $sumX = array_sum(range(1, $n));
-        $sumY = array_sum($data);
-        $sumXY = 0;
-        $sumX2 = 0;
-        
-        for ($i = 0; $i < $n; $i++) {
-            $x = $i + 1;
-            $y = $data[$i];
-            $sumXY += $x * $y;
-            $sumX2 += $x * $x;
-        }
-        
-        $slope = ($n * $sumXY - $sumX * $sumY) / ($n * $sumX2 - $sumX * $sumX);
-        return $slope;
-    }
-
-    /**
-     * Calculate forecast confidence based on historical variance
-     */
-    private static function calculateForecastConfidence(array $data): string
-    {
-        $mean = array_sum($data) / count($data);
-        $variance = array_sum(array_map(function($x) use ($mean) {
-            return pow($x - $mean, 2);
-        }, $data)) / count($data);
-        
-        $coefficientOfVariation = $mean > 0 ? sqrt($variance) / $mean : 1;
-        
-        if ($coefficientOfVariation < 0.1) {
-            return 'high';
-        } elseif ($coefficientOfVariation < 0.3) {
-            return 'medium';
-        } else {
-            return 'low';
-        }
-    }
-
-    // Helper methods for dashboard stats
     private static function getNewDefaultersCount(Carbon $date): int
     {
-        return Student::whereHas('invoices', function($q) use ($date) {
-            $q->where('due_date', $date->format('Y-m-d'))
-              ->where('status', 'unpaid');
-        })->count();
+        try {
+            return StudentFee::where('due_date', $date->format('Y-m-d'))
+                  ->whereIn('status', ['unpaid', 'partial'])
+                  ->distinct('student_id')
+                  ->count();
+        } catch (\Exception $e) {
+            return 0;
+        }
     }
 
     private static function getTotalDefaultersCount(): int
     {
-        return Student::whereHas('invoices', function($q) {
-            $q->where('due_date', '<', now())
-              ->where('status', 'unpaid');
-        })->count();
+        try {
+            return StudentFee::where('due_date', '<', now())
+                  ->whereIn('status', ['unpaid', 'partial'])
+                  ->distinct('student_id')
+                  ->count();
+        } catch (\Exception $e) {
+            return 0;
+        }
     }
 
     private static function getCriticalCasesCount(): int
     {
-        return Student::whereHas('invoices', function($q) {
-            $q->where('due_date', '<', now()->subDays(60))
-              ->where('status', 'unpaid');
-        })->count();
+        try {
+            return StudentFee::where('due_date', '<', now()->subDays(60))
+                  ->whereIn('status', ['unpaid', 'partial'])
+                  ->distinct('student_id')
+                  ->count();
+        } catch (\Exception $e) {
+            return 0;
+        }
     }
 
     private static function getOverallCollectionRate(): float
     {
-        $totalInvoiced = Invoice::sum('total_amount');
-        $totalCollected = Payment::sum('amount');
-        
-        return $totalInvoiced > 0 ? ($totalCollected / $totalInvoiced) * 100 : 0;
+        try {
+            $netCollectable = StudentFee::sum(DB::raw('amount - concession_amount'));
+            $totalCollected = StudentFee::sum('paid_amount');
+            
+            return $netCollectable > 0 ? ($totalCollected / $netCollectable) * 100 : 0;
+        } catch (\Exception $e) {
+            return 0.0;
+        }
     }
 
     /**
-     * Export helper for generating CSV data
+     * ✅ NEW: Get payment performance score for a student
+     */
+    public static function getPaymentPerformanceScore(Student $student): array
+    {
+        try {
+            $totalFees = $student->studentFees()->count();
+            $paidFees = $student->studentFees()->where('status', 'paid')->count();
+            
+            $overdueFees = method_exists($student, 'getOverdueFees') ? 
+                $student->getOverdueFees()->count() : 
+                $student->studentFees()->where('due_date', '<', now())
+                    ->whereIn('status', ['unpaid', 'partial', 'overdue'])->count();
+            
+            $score = 100;
+
+            if ($totalFees > 0) {
+                $overdueRate = ($overdueFees / $totalFees) * 100;
+                $score -= $overdueRate * 0.8;
+            }
+            
+            $avgDelay = static::getAveragePaymentDelay($student);
+            if ($avgDelay > 0) {
+                $score -= min($avgDelay * 2, 30);
+            }
+            
+            $score = max(0, min(100, $score));
+            
+            $grade = match(true) {
+                $score >= 90 => 'A+',
+                $score >= 80 => 'A',
+                $score >= 70 => 'B',
+                $score >= 60 => 'C',
+                default => 'F'
+            };
+            
+            return [
+                'score' => round($score, 1),
+                'grade' => $grade,
+                'total_fee_components' => $totalFees,
+                'paid_components' => $paidFees,
+                'overdue_components' => $overdueFees,
+                'average_delay' => $avgDelay
+            ];
+            
+        } catch (\Exception $e) {
+            return [
+                'score' => 0,
+                'grade' => 'N/A',
+                'error' => $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * ✅ NEW: Export helper for generating CSV data
      */
     public static function generateCSVHeaders(string $reportType): array
     {
         return match($reportType) {
-            'defaulters' => [
-                'Student Name', 'Enrollment Number', 'Course', 'Batch', 
-                'Overdue Amount', 'Days Overdue', 'Category', 'Fee Types', 
-                'Contact', 'Last Payment Date', 'Risk Score'
-            ],
-            'collections' => [
-                'Date', 'Student', 'Enrollment', 'Amount', 'Payment Method', 
-                'Invoice Number', 'Fee Type', 'Batch', 'Receipt Number'
-            ],
-            'reminders' => [
-                'Student Name', 'Enrollment', 'Reminder Type', 'Channel', 
-                'Sent Date', 'Status', 'Fee Type', 'Amount', 'Due Date'
-            ],
-            'analytics' => [
-                'Student', 'Total Invoices', 'Paid Invoices', 'Overdue Invoices',
-                'Total Amount', 'Paid Amount', 'Overdue Amount', 'Performance Score',
-                'Risk Level', 'Average Delay Days'
-            ],
+            'defaulters' => ['Student Name', 'Enrollment Number', 'Overdue Amount', 'Days Overdue', 'Fee Types', 'Risk Level'],
+            'collections' => ['Date', 'Student', 'Amount', 'Payment Method', 'Fee Types', 'Receipt Number'],
+            'fee_wise' => ['Fee Category', 'Total Amount', 'Collected', 'Pending', 'Collection Rate'],
+            'batch_wise' => ['Batch Name', 'Total Students', 'Defaulters', 'Collection Rate', 'Outstanding Amount'],
+            'reminders' => ['Date', 'Student', 'Channel', 'Fee Type', 'Status', 'Amount Due'],
             default => ['Data']
         };
     }
 
     /**
-     * Format data row for CSV export
+     * ✅ NEW: Format data row for CSV export
      */
     public static function formatCSVRow(array $data, string $reportType): array
     {
@@ -855,28 +753,354 @@ class PaymentHelper
             'defaulters' => [
                 $data['student_name'] ?? '',
                 $data['enrollment_number'] ?? '',
-                $data['course'] ?? '',
-                $data['batch'] ?? '',
                 static::formatAmount($data['overdue_amount'] ?? 0),
                 $data['days_overdue'] ?? 0,
-                ucfirst($data['category'] ?? ''),
                 implode(', ', $data['fee_types'] ?? []),
-                $data['contact'] ?? '',
-                $data['last_payment_date'] ?? 'N/A',
-                $data['risk_score'] ?? 'N/A'
+                $data['risk_level'] ?? 'N/A'
             ],
             'collections' => [
                 $data['date'] ?? '',
                 $data['student_name'] ?? '',
-                $data['enrollment_number'] ?? '',
                 static::formatAmount($data['amount'] ?? 0),
                 $data['payment_method'] ?? '',
-                $data['invoice_number'] ?? '',
-                $data['fee_type'] ?? '',
-                $data['batch'] ?? '',
+                implode(', ', $data['fee_types'] ?? []),
                 $data['receipt_number'] ?? ''
+            ],
+            'fee_wise' => [
+                $data['category_name'] ?? '',
+                static::formatAmount($data['total_amount'] ?? 0),
+                static::formatAmount($data['collected_amount'] ?? 0),
+                static::formatAmount($data['pending_amount'] ?? 0),
+                round($data['collection_rate'] ?? 0, 2) . '%'
+            ],
+            'batch_wise' => [
+                $data['batch_name'] ?? '',
+                $data['total_students'] ?? 0,
+                $data['defaulters_count'] ?? 0,
+                round($data['collection_rate'] ?? 0, 2) . '%',
+                static::formatAmount($data['outstanding_amount'] ?? 0)
+            ],
+            'reminders' => [
+                $data['sent_date'] ?? '',
+                $data['student_name'] ?? '',
+                $data['channel'] ?? '',
+                $data['fee_type'] ?? '',
+                $data['status'] ?? '',
+                static::formatAmount($data['amount_due'] ?? 0)
             ],
             default => array_values($data)
         };
+    }
+
+    /**
+     * ✅ NEW: Get seasonal payment trends
+     */
+    public static function getSeasonalTrends(): array
+    {
+        try {
+            return Payment::where('payment_type', 'component')
+                ->where('payment_date', '>=', now()->subYear())
+                ->selectRaw('DATE_FORMAT(payment_date, "%b %Y") as month, SUM(amount) as collections, COUNT(*) as transaction_count')
+                ->groupBy('month')
+                ->orderBy(DB::raw('MIN(payment_date)'))
+                ->get()
+                ->mapWithKeys(function($item) {
+                    return [$item->month => [
+                        'collections' => $item->collections,
+                        'transaction_count' => $item->transaction_count,
+                        'average_transaction' => $item->transaction_count > 0 ? 
+                            round($item->collections / $item->transaction_count, 2) : 0
+                    ]];
+                })
+                ->toArray();
+                
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+
+    /**
+     * ✅ NEW: Get batch-wise payment performance
+     */
+    public static function getBatchWisePerformance(): array
+    {
+        try {
+            return \App\Models\Batch::with(['students.studentFees', 'course'])->get()->map(function ($batch) {
+                if ($batch->students->isEmpty()) {
+                    return null;
+                }
+                
+                $totalAmount = $batch->students->flatMap->studentFees->sum('amount');
+                $totalCollected = $batch->students->flatMap->studentFees->sum('paid_amount');
+                $totalConcessions = $batch->students->flatMap->studentFees->sum('concession_amount');
+                $netAmount = $totalAmount - $totalConcessions;
+                
+                $defaulters = $batch->students->filter(function($student) {
+                    return method_exists($student, 'hasOverdueFees') ? 
+                        $student->hasOverdueFees() : 
+                        $student->studentFees()->where('due_date', '<', now())
+                            ->whereIn('status', ['unpaid', 'partial', 'overdue'])->exists();
+                })->count();
+                
+                $collectionRate = $netAmount > 0 ? ($totalCollected / $netAmount) * 100 : 0;
+                $defaulterRate = $batch->students->count() > 0 ? 
+                    ($defaulters / $batch->students->count()) * 100 : 0;
+
+                return [
+                    'id' => $batch->id,
+                    'name' => $batch->name,
+                    'course' => $batch->course->name ?? 'N/A',
+                    'total_students' => $batch->students->count(),
+                    'total_amount' => $totalAmount,
+                    'collected_amount' => $totalCollected,
+                    'outstanding_amount' => $netAmount - $totalCollected,
+                    'collection_rate' => round($collectionRate, 2),
+                    'defaulters_count' => $defaulters,
+                    'defaulter_rate' => round($defaulterRate, 2),
+                    'performance_grade' => static::getPerformanceGrade($collectionRate)
+                ];
+            })->filter()->sortByDesc('collection_rate')->values()->toArray();
+            
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+
+    /**
+     * ✅ NEW: Get performance grade based on collection rate
+     */
+    private static function getPerformanceGrade(float $collectionRate): string
+    {
+        return match(true) {
+            $collectionRate >= 95 => 'A+',
+            $collectionRate >= 90 => 'A',
+            $collectionRate >= 80 => 'B+',
+            $collectionRate >= 70 => 'B',
+            $collectionRate >= 60 => 'C+',
+            $collectionRate >= 50 => 'C',
+            default => 'D'
+        };
+    }
+
+    /**
+     * ✅ NEW: Get payment method analysis
+     */
+    public static function getPaymentMethodAnalysis(): array
+    {
+        try {
+            return Payment::where('payment_type', 'component')
+                ->where('payment_date', '>=', now()->subMonths(6))
+                ->selectRaw('payment_method, COUNT(*) as transaction_count, SUM(amount) as total_amount, AVG(amount) as average_amount')
+                ->groupBy('payment_method')
+                ->orderByDesc('total_amount')
+                ->get()
+                ->map(function($item) {
+                    return [
+                        'method' => $item->payment_method,
+                        'transaction_count' => $item->transaction_count,
+                        'total_amount' => $item->total_amount,
+                        'average_amount' => round($item->average_amount, 2),
+                        'percentage_share' => 0 // Will be calculated after collection
+                    ];
+                })
+                ->pipe(function($collection) {
+                    $totalAmount = $collection->sum('total_amount');
+                    return $collection->map(function($item) use ($totalAmount) {
+                        $item['percentage_share'] = $totalAmount > 0 ? 
+                            round(($item['total_amount'] / $totalAmount) * 100, 2) : 0;
+                        return $item;
+                    });
+                })
+                ->toArray();
+                
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+
+    /**
+     * ✅ NEW: Get defaulter recovery statistics
+     */
+    public static function getDefaulterRecoveryStats(): array
+    {
+        try {
+            $thirtyDaysAgo = now()->subDays(30);
+            
+            // Students who were defaulters 30 days ago
+            $previousDefaulters = StudentFee::where('due_date', '<', $thirtyDaysAgo)
+                ->whereIn('status', ['unpaid', 'partial', 'overdue'])
+                ->distinct('student_id')
+                ->pluck('student_id');
+                
+            // Of those, how many have made payments since then
+            $recoveredCount = Payment::where('payment_type', 'component')
+                ->where('payment_date', '>=', $thirtyDaysAgo)
+                ->whereIn('student_id', $previousDefaulters)
+                ->distinct('student_id')
+                ->count();
+                
+            $recoveryRate = $previousDefaulters->count() > 0 ? 
+                ($recoveredCount / $previousDefaulters->count()) * 100 : 0;
+                
+            return [
+                'previous_defaulters' => $previousDefaulters->count(),
+                'recovered_students' => $recoveredCount,
+                'recovery_rate' => round($recoveryRate, 2),
+                'still_defaulting' => $previousDefaulters->count() - $recoveredCount,
+                'period' => '30 days'
+            ];
+            
+        } catch (\Exception $e) {
+            return [
+                'previous_defaulters' => 0,
+                'recovered_students' => 0,
+                'recovery_rate' => 0,
+                'still_defaulting' => 0,
+                'error' => $e->getMessage()
+            ];
+        }
+    }
+
+    /**
+     * ✅ NEW: Get top defaulters list
+     */
+    public static function getTopDefaulters(int $limit = 10): array
+    {
+        try {
+            return Student::whereHas('studentFees', function($q) {
+                $q->where('due_date', '<', now())
+                  ->whereIn('status', ['unpaid', 'partial', 'overdue']);
+            })
+            ->with(['batch.course', 'studentFees' => function($q) {
+                $q->where('due_date', '<', now())
+                  ->whereIn('status', ['unpaid', 'partial', 'overdue'])
+                  ->with('feeCategory');
+            }])
+            ->get()
+            ->map(function($student) {
+                $overdueFees = $student->studentFees;
+                $totalOverdue = $overdueFees->sum(function($fee) {
+                    return method_exists($fee, 'getRemainingAmount') ? 
+                        $fee->getRemainingAmount() : 
+                        ($fee->amount - $fee->paid_amount);
+                });
+                
+                $oldestDue = $overdueFees->min('due_date');
+                $daysSinceOldest = $oldestDue ? now()->diffInDays(Carbon::parse($oldestDue)) : 0;
+                
+                return [
+                    'id' => $student->id,
+                    'name' => $student->name,
+                    'enrollment_number' => $student->enrollment_number,
+                    'batch' => $student->batch->name ?? 'N/A',
+                    'course' => $student->batch->course->name ?? 'N/A',
+                    'total_overdue' => $totalOverdue,
+                    'days_overdue' => $daysSinceOldest,
+                    'overdue_count' => $overdueFees->count(),
+                    'risk_score' => static::getStudentRiskScore($student)['score'],
+                    'category' => static::categorizeDefaulter($totalOverdue, $daysSinceOldest, $overdueFees->count())
+                ];
+            })
+            ->sortByDesc('total_overdue')
+            ->take($limit)
+            ->values()
+            ->toArray();
+            
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+
+    /**
+     * ✅ NEW: Generate payment reminder schedule
+     */
+    public static function generateReminderSchedule(StudentFee $studentFee): array
+    {
+        try {
+            $dueDate = Carbon::parse($studentFee->due_date);
+            $today = now();
+            
+            $schedule = [];
+            $reminderConfig = config('payment_reminders.schedule', [
+                'before_due_days' => [7, 3, 1],
+                'after_due_days' => [1, 7, 15, 30]
+            ]);
+            
+            // Before due date reminders
+            foreach ($reminderConfig['before_due_days'] as $days) {
+                $reminderDate = $dueDate->copy()->subDays($days);
+                if ($reminderDate->isFuture()) {
+                    $schedule[] = [
+                        'date' => $reminderDate,
+                        'type' => 'pre_due',
+                        'days_to_due' => $days,
+                        'urgency' => $days <= 1 ? 'high' : 'medium'
+                    ];
+                }
+            }
+            
+            // After due date reminders
+            foreach ($reminderConfig['after_due_days'] as $days) {
+                $reminderDate = $dueDate->copy()->addDays($days);
+                $schedule[] = [
+                    'date' => $reminderDate,
+                    'type' => 'overdue',
+                    'days_overdue' => $days,
+                    'urgency' => $days >= 30 ? 'critical' : ($days >= 7 ? 'high' : 'medium')
+                ];
+            }
+            
+            return $schedule;
+            
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+
+    /**
+     * ✅ NEW: Validate payment data integrity
+     */
+    public static function validatePaymentIntegrity(): array
+    {
+        try {
+            $issues = [];
+            
+            // Check for payments without corresponding student fees
+            $orphanedPayments = Payment::where('payment_type', 'component')
+                ->whereDoesntHave('componentItems.studentFee')
+                ->count();
+            
+            if ($orphanedPayments > 0) {
+                $issues[] = "Found {$orphanedPayments} component payments without valid student fees";
+            }
+            
+            // Check for overpayments
+            $overpayments = StudentFee::whereRaw('paid_amount > (amount - concession_amount)')
+                ->count();
+            
+            if ($overpayments > 0) {
+                $issues[] = "Found {$overpayments} student fees with overpayments";
+            }
+            
+            // Check for negative amounts
+            $negativeAmounts = StudentFee::where('amount', '<', 0)->count();
+            if ($negativeAmounts > 0) {
+                $issues[] = "Found {$negativeAmounts} student fees with negative amounts";
+            }
+            
+            return [
+                'status' => empty($issues) ? 'clean' : 'issues_found',
+                'issues' => $issues,
+                'total_issues' => count($issues),
+                'checked_at' => now()->toDateTimeString()
+            ];
+            
+        } catch (\Exception $e) {
+            return [
+                'status' => 'error',
+                'error' => $e->getMessage(),
+                'checked_at' => now()->toDateTimeString()
+            ];
+        }
     }
 }

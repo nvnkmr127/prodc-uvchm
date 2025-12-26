@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
@@ -10,28 +9,14 @@ use Exception;
 
 class SyncDashboardWidgets extends Command
 {
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
-    protected $signature = 'widgets:sync';
+    protected $signature = 'dashboard:sync-widgets {--clean : Remove widgets that no longer have blade files}';
+    protected $description = 'Sync dashboard widgets from Blade template files';
 
-    /**
-     * The console command description.
-     *
-     * @var string
-     */
-    protected $description = 'Discovers, syncs, and cleans up dashboard widgets from their Blade files.';
-
-    /**
-     * Execute the console command.
-     */
     public function handle()
     {
-        $this->info('Starting dashboard widget sync...');
+        $this->info('🔄 Syncing dashboard widgets from Blade files...');
 
-        $widgetPath = resource_path('views/admin/dashboard/widgets');
+        $widgetPath = resource_path('views/dashboard/widgets');
         
         if (!File::isDirectory($widgetPath)) {
             $this->warn("Directory not found. Creating: {$widgetPath}");
@@ -45,48 +30,81 @@ class SyncDashboardWidgets extends Command
         $this->info("Found " . count($widgetFiles) . " widget files to process.");
 
         foreach ($widgetFiles as $file) {
-            // ** THE FIX IS HERE **
-            // This robustly gets the filename before the ".blade.php" extension.
             $fileName = Str::before(basename($file), '.blade.php');
-            
-            $viewPath = 'admin.dashboard.widgets.' . $fileName;
-            $widgetName = Str::title(str_replace('_', ' ', $fileName));
+            $viewPath = 'dashboard.widgets.' . $fileName;
+            $widgetName = Str::title(str_replace(['-', '_'], ' ', $fileName));
             
             $foundViewPaths[] = $viewPath;
 
             try {
-                Widget::updateOrCreate(
-                    ['view_path' => $viewPath],
+                $widget = Widget::updateOrCreate(
+                    ['component' => $viewPath],
                     [
                         'name' => $widgetName,
-                        'description' => "Displays the {$widgetName}.",
+                        'slug' => Str::slug($fileName),
+                        'type' => $this->guessWidgetType($fileName),
+                        'description' => "Auto-generated widget: {$widgetName}",
+                        'is_active' => true
                     ]
                 );
-                $this->line("  [OK] Synced: {$widgetName}");
+                
+                $this->line("  [OK] Synced: {$widgetName} ({$viewPath})");
                 $syncedCount++;
             } catch (Exception $e) {
                 $this->error("  [ERROR] Failed to sync {$widgetName}: " . $e->getMessage());
             }
         }
 
-        // --- Automatic Cleanup ---
-        $this->info("\nChecking for obsolete widgets to remove...");
-        $obsoleteWidgets = Widget::whereNotIn('view_path', $foundViewPaths)->get();
-        $removedCount = 0;
+        // Clean up obsolete widgets if requested
+        if ($this->option('clean')) {
+            $this->info("\n🧹 Checking for obsolete widgets to remove...");
+            $obsoleteWidgets = Widget::whereNotIn('component', $foundViewPaths)->get();
+            $removedCount = 0;
 
-        if ($obsoleteWidgets->isEmpty()) {
-            $this->info("No obsolete widgets found.");
-        } else {
-            foreach ($obsoleteWidgets as $widget) {
-                $this->warn("  [REMOVING] Obsolete widget: {$widget->name} ({$widget->view_path})");
-                $widget->delete();
-                $removedCount++;
+            if ($obsoleteWidgets->isEmpty()) {
+                $this->info("No obsolete widgets found.");
+            } else {
+                foreach ($obsoleteWidgets as $widget) {
+                    if ($this->confirm("Remove obsolete widget: {$widget->name} ({$widget->component})?")) {
+                        $widget->delete();
+                        $this->warn("  [REMOVED] {$widget->name}");
+                        $removedCount++;
+                    }
+                }
             }
         }
 
         $this->info("\n✅ Sync Complete!");
-        $this->info("Summary: {$syncedCount} widgets synced, {$removedCount} obsolete widgets removed.");
+        $this->info("Summary: {$syncedCount} widgets synced" . 
+                   ($this->option('clean') ? ", {$removedCount} widgets removed" : ""));
         
         return Command::SUCCESS;
+    }
+
+    private function guessWidgetType($fileName)
+    {
+        $fileName = strtolower($fileName);
+        
+        if (Str::contains($fileName, ['chart', 'graph', 'analytics'])) {
+            return 'chart';
+        }
+        
+        if (Str::contains($fileName, ['total', 'count', 'kpi', 'metric'])) {
+            return 'kpi';
+        }
+        
+        if (Str::contains($fileName, ['list', 'table', 'recent'])) {
+            return 'list';
+        }
+        
+        if (Str::contains($fileName, ['action', 'quick', 'button'])) {
+            return 'action';
+        }
+        
+        if (Str::contains($fileName, ['status', 'progress', 'health'])) {
+            return 'status';
+        }
+        
+        return 'general';
     }
 }

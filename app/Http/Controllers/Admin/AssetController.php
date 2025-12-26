@@ -33,7 +33,21 @@ class AssetController extends Controller
         $categories = AssetCategory::pluck('name', 'id');
         return view('admin.assets.create', compact('categories'));
     }
+public function import(Request $request)
+{
+    $request->validate([
+        'file' => 'required|file|mimes:xlsx,xls,csv',
+    ]);
 
+    try {
+        // Process import using maatwebsite/excel
+        Excel::import(new AssetsImport, $request->file('file'));
+        
+        return back()->with('success', 'Assets imported successfully.');
+    } catch (\Exception $e) {
+        return back()->with('error', 'Import failed: ' . $e->getMessage());
+    }
+}
     /**
      * Store a newly created resource in storage.
      */
@@ -127,16 +141,31 @@ class AssetController extends Controller
     /**
      * Handle bulk deletion of assets.
      */
-    public function bulkDestroy(Request $request)
-    {
-        $request->validate([
-            'ids' => 'required|array',
-            'ids.*' => 'exists:assets,id',
-        ]);
+public function bulkDestroy(Request $request)
+{
+    try {
+        $assetIds = $request->input('asset_ids', []);
+        
+        if (empty($assetIds)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No assets selected for deletion.'
+            ]);
+        }
 
-        Asset::whereIn('id', $request->ids)->delete();
-        return redirect()->route('admin.assets.index')->with('success', 'Selected assets have been deleted.');
+        $deletedCount = \App\Models\Asset::whereIn('id', $assetIds)->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => "{$deletedCount} assets deleted successfully."
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to delete assets: ' . $e->getMessage()
+        ]);
     }
+}
      /**
      * Handle the bulk import of assets from an Excel/CSV file.
      */

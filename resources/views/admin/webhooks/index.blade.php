@@ -68,13 +68,21 @@
         <p class="mb-0 text-muted">Monitor and manage automated notifications to external systems</p>
     </div>
     <div class="d-flex gap-2">
-        <button class="btn btn-sm btn-outline-primary" data-toggle="modal" data-target="#webhookDocsModal">
-            <i class="fas fa-book fa-sm"></i> Documentation
-        </button>
-        <a href="{{ route('admin.webhooks.create') }}" class="btn btn-sm btn-primary shadow-sm">
-            <i class="fas fa-plus fa-sm text-white-50"></i> Add Webhook
-        </a>
-    </div>
+    {{-- ADD THESE NEW BUTTONS: --}}
+    <button type="button" class="btn btn-sm btn-outline-info" onclick="testDailySummary()" title="Test Daily Summary Webhook">
+        <i class="fas fa-calendar-check fa-sm"></i> Test Daily Summary
+    </button>
+    <button type="button" class="btn btn-sm btn-outline-success" onclick="sendDailySummary()" title="Send Daily Summary Now">
+        <i class="fas fa-paper-plane fa-sm"></i> Send Summary Now
+    </button>
+    {{-- EXISTING BUTTONS: --}}
+    <button class="btn btn-sm btn-outline-primary" data-toggle="modal" data-target="#webhookDocsModal">
+        <i class="fas fa-book fa-sm"></i> Documentation
+    </button>
+    <a href="{{ route('admin.webhooks.create') }}" class="btn btn-sm btn-primary shadow-sm">
+        <i class="fas fa-plus fa-sm text-white-50"></i> Add Webhook
+    </a>
+</div>
 </div>
 
 {{-- Alert Messages --}}
@@ -231,14 +239,25 @@
             </div>
         </div>
         <div class="col-md-3 mb-2">
-            <select name="event_type" class="form-control">
-                <option value="">All Event Types</option>
-                @foreach(['user.created', 'user.updated', 'order.created', 'payment.success', 'email.sent'] as $event)
-                    <option value="{{ $event }}" {{ request('event_type') == $event ? 'selected' : '' }}>
-                        {{ ucfirst(str_replace('.', ' ', $event)) }}
-                    </option>
-                @endforeach
-            </select>
+          <select name="event_type" class="form-control">
+    <option value="">All Event Types</option>
+    <option value="payment.created" {{ request('event_type') == 'payment.created' ? 'selected' : '' }}>
+        Payment Created
+    </option>
+    <option value="student.created" {{ request('event_type') == 'student.created' ? 'selected' : '' }}>
+        Student Created
+    </option>
+    <option value="admission.approved" {{ request('event_type') == 'admission.approved' ? 'selected' : '' }}>
+        Admission Approved
+    </option>
+    <option value="enquiry.created" {{ request('event_type') == 'enquiry.created' ? 'selected' : '' }}>
+        Enquiry Created
+    </option>
+    {{-- ADD THIS NEW OPTION: --}}
+    <option value="daily.summary" {{ request('event_type') == 'daily.summary' ? 'selected' : '' }}>
+        Daily Summary
+    </option>
+</select>
         </div>
         <div class="col-md-2 mb-2">
             <select name="status" class="form-control">
@@ -495,33 +514,63 @@
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
-            <div class="modal-body">
-                <h6>What are Webhooks?</h6>
-                <p>Webhooks are HTTP callbacks that automatically notify external systems when specific events occur in your application.</p>
-                
-                <h6>Available Events</h6>
-                <ul>
-                    <li><strong>user.created</strong> - Triggered when a new user registers</li>
-                    <li><strong>user.updated</strong> - Triggered when user information is modified</li>
-                    <li><strong>order.created</strong> - Triggered when a new order is placed</li>
-                    <li><strong>payment.success</strong> - Triggered when a payment is successful</li>
-                    <li><strong>email.sent</strong> - Triggered when an email is sent</li>
-                </ul>
+          <div class="modal-body">
+    <h6>What are Webhooks?</h6>
+    <p>Webhooks are HTTP callbacks that automatically notify external systems when specific events occur in your application.</p>
+    
+    <h6>Available Events</h6>
+    <ul>
+        <li><strong>payment.created</strong> - Triggered when a payment is recorded</li>
+        <li><strong>student.created</strong> - Triggered when a new student is added</li>
+        <li><strong>admission.approved</strong> - Triggered when an admission is approved</li>
+        <li><strong>enquiry.created</strong> - Triggered when an enquiry is submitted</li>
+        {{-- ADD THIS NEW EVENT DOCUMENTATION: --}}
+        <li><strong>daily.summary</strong> - Automated daily report sent at 5:00 PM (Monday-Saturday)</li>
+    </ul>
 
-                <h6>Payload Structure</h6>
-                <pre class="bg-light p-3 rounded"><code>{
-  "event": "user.created",
+    <h6>Daily Summary Payload</h6>
+    <p>The daily summary webhook sends a comprehensive report with payment and attendance data:</p>
+    <pre class="bg-light p-3 rounded"><code>{
+  "date": "2025-09-15",
+  "report_day": "Monday",
+  "report_generated_at": "2025-09-15T17:00:00+05:30",
+  "payments": {
+    "total_amount": 1200.50,
+    "total_payers": 8
+  },
+  "attendance": {
+    "present": 45,
+    "absent": 5,
+    "total_students": 50,
+    "attendance_percentage": 90.0
+  }
+}</code></pre>
+
+    <h6>Standard Event Payload</h6>
+    <p>Other webhooks follow this general structure:</p>
+    <pre class="bg-light p-3 rounded"><code>{
+  "event": "student.created",
   "timestamp": "2024-01-15T10:30:00Z",
   "data": {
-    "user_id": 123,
-    "email": "user@example.com"
+    "student_id": 123,
+    "name": "John Doe",
+    "email": "john@example.com"
   },
   "webhook_id": "webhook-uuid"
 }</code></pre>
 
-                <h6>Security</h6>
-                <p>Use webhook secrets to verify request authenticity. The secret is sent in the <code>X-Webhook-Signature</code> header.</p>
-            </div>
+    <h6>Security</h6>
+    <p>Use webhook secrets to verify request authenticity. The secret is sent in the <code>X-Webhook-Signature</code> header using HMAC-SHA256.</p>
+    
+    {{-- ADD THIS NEW SECTION: --}}
+    <h6>Daily Summary Schedule</h6>
+    <ul>
+        <li><strong>Time:</strong> 5:00 PM daily</li>
+        <li><strong>Days:</strong> Monday through Saturday</li>
+        <li><strong>Skip:</strong> Sundays and configured holidays</li>
+        <li><strong>Timezone:</strong> {{ config('app.timezone', 'UTC') }}</li>
+    </ul>
+</div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
             </div>
@@ -597,6 +646,75 @@ function deleteWebhook(button) {
         });
     }
 }
+
+function testDailySummary() {
+    if (confirm('Test the daily summary webhook? This will send a test payload to all active daily.summary webhooks.')) {
+        const btn = event.target;
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing...';
+        
+        fetch('/admin/webhooks/test-daily-summary', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({ test_mode: true })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Daily summary test completed successfully!\n\nCheck your webhook endpoints to verify they received the test data.');
+            } else {
+                alert('Test failed: ' + (data.error || 'Unknown error occurred'));
+            }
+        })
+        .catch(error => {
+            console.error('Test failed:', error);
+            alert('Test failed: ' + error.message);
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        });
+    }
+}
+
+function sendDailySummary() {
+    if (confirm('Send the daily summary webhook immediately? This will trigger the actual daily summary for today.')) {
+        const btn = event.target;
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+        
+        fetch('/admin/webhooks/send-daily-summary', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({ date: new Date().toISOString().split('T')[0] })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Daily summary sent successfully!\n\nWebhooks have been triggered with today\'s payment and attendance data.');
+            } else {
+                alert('Send failed: ' + (data.error || 'Unknown error occurred'));
+            }
+        })
+        .catch(error => {
+            console.error('Send failed:', error);
+            alert('Send failed: ' + error.message);
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        });
+    }
+}
+
 </script>
 @endpush
 

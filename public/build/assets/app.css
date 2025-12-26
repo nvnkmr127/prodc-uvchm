@@ -1,9 +1,0 @@
-cat > public/build/assets/app.css << 'EOF'
-/* Basic styles fallback */
-.p-8 { padding: 2rem; }
-.text-center { text-align: center; }
-.text-2xl { font-size: 1.5rem; }
-.font-bold { font-weight: bold; }
-.mb-4 { margin-bottom: 1rem; }
-.text-gray-600 { color: #6b7280; }
-EOF

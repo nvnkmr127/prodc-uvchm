@@ -7,16 +7,12 @@ use Doctrine\Common\Annotations\Annotation;
 
 /**
  * Webhook annotation for marking methods or classes that should trigger webhook events
- * 
- * Usage examples:
- * 
- * @Webhook("payment.processed", description="Payment was successfully processed", priority="high")
+ * * Usage examples:
+ * * @Webhook("payment.processed", description="Payment was successfully processed", priority="high")
  * public function processPayment() { ... }
- * 
- * @Webhook(event="student.graduated", description="Student completed their course", category="academic", immediate=true)
+ * * @Webhook(event="student.graduated", description="Student completed their course", category="academic", immediate=true)
  * public function graduateStudent() { ... }
- * 
- * @Annotation
+ * * @Annotation
  * @Target({"CLASS", "METHOD"})
  */
 class Webhook
@@ -139,7 +135,8 @@ class Webhook
         $eventLower = strtolower($this->event);
         
         $categories = [
-            'financial' => ['payment', 'invoice', 'receipt', 'fee', 'billing', 'refund'],
+            // MODIFIED: Removed 'invoice' from the keywords for the financial category.
+            'financial' => ['payment', 'receipt', 'fee', 'billing', 'refund'],
             'student' => ['student', 'admission', 'enrollment', 'certificate', 'graduation'],
             'academic' => ['attendance', 'exam', 'grade', 'assignment', 'course', 'subject'],
             'hr' => ['leave', 'payroll', 'staff', 'faculty', 'employee'],

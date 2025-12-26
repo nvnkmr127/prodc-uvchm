@@ -50,6 +50,9 @@
                                 <option value="fee.reminder.sent" {{ old('event_name') == 'fee.reminder.sent' ? 'selected' : '' }}>
                                     Fee Reminder Sent
                                 </option>
+                                <option value="daily.summary" {{ old('event_name') == 'daily.summary' ? 'selected' : '' }}>
+                                    Daily Summary Report (5:00 PM weekdays)
+                                </option>
                             </optgroup>
 
                             <optgroup label="👨‍🎓 Student Management">
@@ -64,6 +67,11 @@
                                 </option>
                                 <option value="certificate.generated" {{ old('event_name') == 'certificate.generated' ? 'selected' : '' }}>
                                     Certificate Generated
+                                </option>
+                                
+                                {{-- [NEW] Added Daily Absent Report --}}
+                                <option value="attendance.daily_absent" {{ old('event_name') == 'attendance.daily_absent' ? 'selected' : '' }}>
+                                    Daily Absent Report (Once Daily)
                                 </option>
                             </optgroup>
 
@@ -194,12 +202,16 @@ document.getElementById('event_name').addEventListener('change', function() {
         'attendance.marked': 'Triggered when attendance is marked for students.',
         'leave.application.created': 'Triggered when a staff member applies for leave.',
         'leave.application.status.changed': 'Triggered when leave application status changes.',
-        'certificate.generated': 'Triggered when certificates are generated for students.'
+        'certificate.generated': 'Triggered when certificates are generated for students.',
+        'daily.summary': 'Automated daily report with payment totals and attendance summary. Sent at 5:00 PM on working days (Monday-Saturday). Includes payment amounts, student counts, and attendance percentages.',
+        // [NEW] Added Absent Report Description
+        'attendance.daily_absent': 'Triggers once daily after the "Present Cutoff Time". Sends a list of all students who have not marked attendance.'
     };
     
     const description = eventDescriptions[this.value];
     if (description) {
         document.getElementById('description').placeholder = description;
+        document.getElementById('description').value = description; // Auto-fill value too
     }
 });
 </script>

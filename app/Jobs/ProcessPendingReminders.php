@@ -3,7 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\PaymentReminder;
-use App\Services\PaymentReminderService;
+use App\Services\ComponentPaymentReminderService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -16,124 +16,84 @@ class ProcessPendingReminders implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public $timeout = 1800; // 30 minutes timeout
+    public $timeout = 1800; // 30 minutes
     public $tries = 2;
 
-    private int $batchSize;
-    private bool $dispatchIndividualJobs;
-
-    /**
-     * Create a new job instance.
-     */
-    public function __construct(int $batchSize = 50, bool $dispatchIndividualJobs = true)
-    {
-        $this->batchSize = $batchSize;
-        $this->dispatchIndividualJobs = $dispatchIndividualJobs;
-        
-        // Set queue name
-        $this->onQueue('reminders');
-    }
-
-    /**
-     * Execute the job.
-     */
-    public function handle(PaymentReminderService $reminderService): void
+    public function handle(ComponentPaymentReminderService $reminderService): void
     {
         try {
-            Log::info('Starting to process pending payment reminders', [
-                'batch_size' => $this->batchSize,
-                'dispatch_individual_jobs' => $this->dispatchIndividualJobs,
-                'timestamp' => now()->toDateTimeString()
-            ]);
+            Log::info('Starting to process pending payment reminders');
 
             $processedCount = 0;
-            $successCount = 0;
+            $sentCount = 0;
             $failedCount = 0;
+            $skippedCount = 0;
             $errors = [];
 
-            do {
-                // Get batch of pending reminders
-                $pendingReminders = PaymentReminder::where('status', 'pending')
-                    ->where('scheduled_date', '<=', now())
-                    ->with(['student', 'feeCategory', 'invoice'])
-                    ->limit($this->batchSize)
-                    ->get();
+            // Get pending reminders that are due for processing
+            $pendingReminders = PaymentReminder::with(['student', 'studentFee'])
+                ->where('status', 'pending')
+                ->where('scheduled_date', '<=', now())
+                ->orderBy('scheduled_date')
+                ->limit(500) // Process in batches
+                ->get();
 
-                if ($pendingReminders->isEmpty()) {
-                    break;
-                }
+            Log::info('Found pending reminders to process', [
+                'count' => $pendingReminders->count()
+            ]);
 
-                Log::info('Processing batch of reminders', [
-                    'batch_count' => $pendingReminders->count(),
-                    'total_processed' => $processedCount
-                ]);
-
-                foreach ($pendingReminders as $reminder) {
+            foreach ($pendingReminders as $reminder) {
+                try {
                     $processedCount++;
 
-                    try {
-                        // Skip if reminder is too old or invalid
-                        if ($this->shouldSkipReminder($reminder)) {
-                            $reminder->update(['status' => 'cancelled']);
-                            continue;
-                        }
-
-                        if ($this->dispatchIndividualJobs) {
-                            // Dispatch individual job for each reminder
-                            SendPaymentReminder::dispatch($reminder)
-                                ->delay($this->calculateDelay($reminder))
-                                ->onQueue('reminders');
-                            
-                            $successCount++;
-                            
-                            // Mark as processing to avoid duplicate processing
-                            $reminder->update(['status' => 'processing']);
-                            
-                        } else {
-                            // Process directly in this job
-                            $result = $reminderService->sendReminder($reminder);
-                            
-                            if ($result['success']) {
-                                $successCount++;
-                            } else {
-                                $failedCount++;
-                                $errors[] = [
-                                    'reminder_id' => $reminder->id,
-                                    'student' => $reminder->student->name ?? 'Unknown',
-                                    'error' => $result['error']
-                                ];
-                            }
-                        }
-
-                    } catch (\Exception $e) {
-                        $failedCount++;
-                        $errors[] = [
-                            'reminder_id' => $reminder->id,
-                            'student' => $reminder->student->name ?? 'Unknown',
-                            'error' => $e->getMessage()
-                        ];
-
-                        Log::error('Failed to process individual reminder', [
-                            'reminder_id' => $reminder->id,
-                            'error' => $e->getMessage()
-                        ]);
+                    // Check if reminder should be skipped
+                    if ($this->shouldSkipReminder($reminder)) {
+                        $skippedCount++;
+                        continue;
                     }
-                }
 
-                // Add small delay between batches to prevent overwhelming the system
-                if ($pendingReminders->count() === $this->batchSize) {
-                    sleep(2);
-                }
+                    // Process the reminder
+                    if (config('payment_reminders.use_queue', false)) {
+                        // Dispatch individual jobs with delay
+                        SendPaymentReminder::dispatch($reminder)
+                            ->delay($this->calculateDelay($reminder));
+                        $sentCount++;
+                        
+                        Log::info('Reminder queued for processing', [
+                            'reminder_id' => $reminder->id,
+                            'student_id' => $reminder->student_id
+                        ]);
+                    } else {
+                        // Process directly
+                        $result = $reminderService->sendReminder($reminder);
+                        
+                        if ($result['success']) {
+                            $sentCount++;
+                        } else {
+                            $failedCount++;
+                            $errors[] = "Reminder {$reminder->id}: " . ($result['error'] ?? 'Unknown error');
+                        }
+                    }
 
-            } while ($pendingReminders->count() === $this->batchSize);
+                } catch (\Exception $e) {
+                    $failedCount++;
+                    $errors[] = "Reminder {$reminder->id}: " . $e->getMessage();
+                    
+                    Log::error('Error processing individual reminder', [
+                        'reminder_id' => $reminder->id,
+                        'error' => $e->getMessage()
+                    ]);
+                }
+            }
 
             // Log final results
-            Log::info('Completed processing pending payment reminders', [
-                'total_processed' => $processedCount,
-                'successful' => $successCount,
+            Log::info('Completed processing pending reminders', [
+                'processed' => $processedCount,
+                'sent' => $sentCount,
                 'failed' => $failedCount,
-                'errors_count' => count($errors),
-                'dispatch_mode' => $this->dispatchIndividualJobs ? 'individual_jobs' : 'direct_processing'
+                'skipped' => $skippedCount,
+                'processing_method' => config('payment_reminders.use_queue', false) 
+                    ? 'individual_jobs' : 'direct_processing'
             ]);
 
             // Log errors if any
@@ -144,7 +104,9 @@ class ProcessPendingReminders implements ShouldQueue
             }
 
             // Update defaulter records after processing
-            $reminderService->updateDefaulterRecords();
+            if (method_exists($reminderService, 'updateComponentDefaulterRecords')) {
+                $reminderService->updateComponentDefaulterRecords();
+            }
 
         } catch (\Exception $e) {
             Log::error('Failed to process pending reminders', [
@@ -157,7 +119,7 @@ class ProcessPendingReminders implements ShouldQueue
     }
 
     /**
-     * Determine if a reminder should be skipped
+     * Determine if a reminder should be skipped (Component-based checks)
      */
     private function shouldSkipReminder(PaymentReminder $reminder): bool
     {
@@ -167,6 +129,7 @@ class ProcessPendingReminders implements ShouldQueue
                 'reminder_id' => $reminder->id,
                 'scheduled_date' => $reminder->scheduled_date
             ]);
+            $reminder->update(['status' => 'expired']);
             return true;
         }
 
@@ -176,16 +139,25 @@ class ProcessPendingReminders implements ShouldQueue
                 'reminder_id' => $reminder->id,
                 'student_id' => $reminder->student_id
             ]);
+            $reminder->update(['status' => 'cancelled']);
             return true;
         }
 
-        // Skip if invoice is already paid
-        if ($reminder->invoice && $reminder->invoice->status === 'paid') {
-            Log::info('Skipping reminder - invoice already paid', [
-                'reminder_id' => $reminder->id,
-                'invoice_id' => $reminder->invoice_id
-            ]);
-            return true;
+        // ✅ FIXED: Check if student fee component is already paid (component-based)
+        if ($reminder->studentFee) {
+            $remainingAmount = $reminder->studentFee->amount 
+                             - $reminder->studentFee->concession_amount 
+                             - $reminder->studentFee->paid_amount;
+            
+            if ($remainingAmount <= 0) {
+                Log::info('Skipping reminder - fee component already paid', [
+                    'reminder_id' => $reminder->id,
+                    'student_fee_id' => $reminder->student_fee_id,
+                    'remaining_amount' => $remainingAmount
+                ]);
+                $reminder->update(['status' => 'cancelled']);
+                return true;
+            }
         }
 
         // Skip if student is inactive
@@ -194,6 +166,7 @@ class ProcessPendingReminders implements ShouldQueue
                 'reminder_id' => $reminder->id,
                 'student_id' => $reminder->student_id
             ]);
+            $reminder->update(['status' => 'cancelled']);
             return true;
         }
 
@@ -226,19 +199,9 @@ class ProcessPendingReminders implements ShouldQueue
      */
     public function failed(\Throwable $exception): void
     {
-        Log::error('ProcessPendingReminders job failed permanently', [
+        Log::error('ProcessPendingReminders job failed', [
             'error' => $exception->getMessage(),
-            'attempts' => $this->attempts(),
-            'timestamp' => now()->toDateTimeString()
+            'trace' => $exception->getTraceAsString()
         ]);
-    }
-
-    /**
-     * Calculate the number of seconds to wait before retrying the job.
-     */
-    public function backoff(): array
-    {
-        // Wait 5 minutes before retry
-        return [300];
     }
 }
