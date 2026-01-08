@@ -599,38 +599,32 @@
                         </h6>
                     </div>
                     <div class="card-body p-4">
-                        @php
-                            $recentPayments = \App\Models\Payment::where('student_id', $student->id)
-                                ->where('payment_type', 'component')
-                                ->orderBy('payment_date', 'desc')
-                                ->limit(5)
-                                ->get();
-                        @endphp
-
-                        @forelse($recentPayments as $payment)
-                            <div class="recent-payment-item">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <div class="fw-bold text-success">₹{{ number_format($payment->amount ?? 0, 2) }}</div>
-                                        <div class="small text-muted">
-                                            {{ $payment->payment_date ? $payment->payment_date->format('d M Y') : 'N/A' }}
+                        @if($recentPayments->count() > 0)
+                            @foreach($recentPayments as $payment)
+                                <div class="recent-payment-item">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div class="fw-bold text-success">₹{{ number_format($payment->amount ?? 0, 2) }}</div>
+                                            <div class="small text-muted">
+                                                {{ $payment->payment_date ? $payment->payment_date->format('d M Y') : 'N/A' }}
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div class="text-end">
-                                        <div class="small fw-semibold">#{{ $payment->receipt_number ?? 'N/A' }}</div>
-                                        <div class="small text-muted text-capitalize">
-                                            {{ $payment->payment_method ? str_replace('_', ' ', $payment->payment_method) : 'N/A' }}
+                                        <div class="text-end">
+                                            <div class="small fw-semibold">#{{ $payment->receipt_number ?? 'N/A' }}</div>
+                                            <div class="small text-muted text-capitalize">
+                                                {{ $payment->payment_method ? str_replace('_', ' ', $payment->payment_method) : 'N/A' }}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        @empty
+                            @endforeach
+                        @else
                             <div class="text-center py-4">
                                 <i class="fas fa-receipt fa-2x text-muted mb-3"></i>
                                 <div class="text-muted">No recent payments found</div>
                                 <small class="text-muted">This will be the first payment for this student</small>
                             </div>
-                        @endforelse
+                        @endif
 
                         @if($recentPayments->count() > 0)
                             <div class="text-center mt-3">
@@ -845,15 +839,15 @@
                     type === 'warning' ? 'alert-warning' : 'alert-info';
 
             const alert = $(`
-            <div class="alert ${alertClass} alert-dismissible fade show position-fixed" 
-                 role="alert" style="top: 20px; right: 20px; z-index: 9999; min-width: 300px; border-radius: 10px;">
-                <div class="d-flex align-items-center">
-                    <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-triangle' : type === 'warning' ? 'exclamation-triangle' : 'info-circle'} me-2"></i>
-                    ${message}
+                <div class="alert ${alertClass} alert-dismissible fade show position-fixed" 
+                     role="alert" style="top: 20px; right: 20px; z-index: 9999; min-width: 300px; border-radius: 10px;">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-triangle' : type === 'warning' ? 'exclamation-triangle' : 'info-circle'} me-2"></i>
+                        ${message}
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        `);
+            `);
 
             $('body').append(alert);
 

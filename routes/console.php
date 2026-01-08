@@ -28,29 +28,30 @@ Artisan::command('inspire', function () {
  * Simple, reliable scheduler logger
  */
 if (!function_exists('logSchedulerActivity')) {
-    function logSchedulerActivity(string $command, string $description, string $phase, array $additionalData = []): void {
+    function logSchedulerActivity(string $command, string $description, string $phase, array $additionalData = []): void
+    {
         try {
             $timestamp = Carbon::now();
             $memory = round(memory_get_usage(true) / 1024 / 1024, 2);
-            
+
             $logEntry = "[{$timestamp->format('Y-m-d H:i:s')}] {$command} | {$phase} | {$description} | Memory: {$memory}MB";
-            
+
             if (!empty($additionalData)) {
                 $logEntry .= " | Data: " . json_encode($additionalData);
             }
-            
+
             $logEntry .= PHP_EOL;
-            
+
             // Ensure logs directory exists
             $logsDir = storage_path('logs');
             if (!is_dir($logsDir)) {
                 mkdir($logsDir, 0755, true);
             }
-            
+
             // Write to main scheduler log
             $logFile = storage_path('logs/scheduler.log');
             error_log($logEntry, 3, $logFile);
-            
+
             // Also use Laravel's built-in logging for critical events
             if ($phase === 'FAILED') {
                 Log::error("Scheduler: {$command} failed", [
@@ -58,7 +59,7 @@ if (!function_exists('logSchedulerActivity')) {
                     'data' => $additionalData
                 ]);
             }
-            
+
         } catch (\Exception $e) {
             Log::error('Scheduler logging failed', [
                 'command' => $command,
@@ -72,25 +73,26 @@ if (!function_exists('logSchedulerActivity')) {
  * System health monitoring
  */
 if (!function_exists('checkSystemHealth')) {
-    function checkSystemHealth(): array {
+    function checkSystemHealth(): array
+    {
         $health = [
             'status' => 'healthy',
             'timestamp' => now()->toDateTimeString(),
             'issues' => []
         ];
-        
+
         try {
             // Database check
             DB::connection()->getPdo();
             $health['database'] = 'connected';
-            
+
             // Disk space check
             $freeSpace = disk_free_space(storage_path());
             $totalSpace = disk_total_space(storage_path());
             $usagePercent = round((($totalSpace - $freeSpace) / $totalSpace) * 100, 2);
-            
+
             $health['disk_usage_percent'] = $usagePercent;
-            
+
             if ($usagePercent > 90) {
                 $health['issues'][] = "Disk usage critical: {$usagePercent}%";
                 $health['status'] = 'critical';
@@ -98,12 +100,12 @@ if (!function_exists('checkSystemHealth')) {
                 $health['issues'][] = "Disk usage warning: {$usagePercent}%";
                 $health['status'] = 'warning';
             }
-            
+
         } catch (\Exception $e) {
             $health['status'] = 'error';
             $health['issues'][] = "Health check failed: " . $e->getMessage();
         }
-        
+
         return $health;
     }
 }
@@ -112,13 +114,14 @@ if (!function_exists('checkSystemHealth')) {
  * Ensure required directories exist
  */
 if (!function_exists('ensureDirectoriesExist')) {
-    function ensureDirectoriesExist(): void {
+    function ensureDirectoriesExist(): void
+    {
         $directories = [
             storage_path('logs'),
             storage_path('app/backups'),
             storage_path('framework/cache'),
         ];
-        
+
         foreach ($directories as $dir) {
             if (!is_dir($dir)) {
                 mkdir($dir, 0755, true);
@@ -131,15 +134,16 @@ if (!function_exists('ensureDirectoriesExist')) {
  * Helper function to add directory to ZIP
  */
 if (!function_exists('addDirectoryToZip')) {
-    function addDirectoryToZip($zip, $directory, $localPath) {
+    function addDirectoryToZip($zip, $directory, $localPath)
+    {
         $fileCount = 0;
         $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($directory));
-        
+
         foreach ($iterator as $file) {
             if ($file->isFile()) {
                 $filePath = $file->getRealPath();
                 $relativePath = $localPath . '/' . substr($filePath, strlen($directory) + 1);
-                
+
                 // Skip certain file types
                 $skipExtensions = ['log', 'cache', 'tmp'];
                 $extension = pathinfo($filePath, PATHINFO_EXTENSION);
@@ -149,7 +153,7 @@ if (!function_exists('addDirectoryToZip')) {
                 }
             }
         }
-        
+
         return $fileCount;
     }
 }
@@ -163,66 +167,13 @@ ensureDirectoriesExist();
 |--------------------------------------------------------------------------
 */
 
-Schedule::command('reminders:process')
-    ->everyFifteenMinutes()
-    ->between('08:00', '18:00')
-    ->name('payment-reminders-process')
-    ->withoutOverlapping()
-    ->before(function () {
-        logSchedulerActivity('reminders:process', 'Payment Reminders Processing', 'STARTING');
-    })
-    ->after(function () {
-        logSchedulerActivity('reminders:process', 'Payment Reminders Processing', 'COMPLETED');
-    })
-    ->onFailure(function () {
-        logSchedulerActivity('reminders:process', 'Payment Reminders Processing', 'FAILED');
-    })
-    ->appendOutputTo(storage_path('logs/payment-reminders.log'));
 
-Schedule::command('payments:enhanced-reminders')
-    ->dailyAt('09:00')
-    ->name('enhanced-payment-reminders')
-    ->withoutOverlapping()
-    ->before(function () {
-        logSchedulerActivity('payments:enhanced-reminders', 'Enhanced Payment Reminders', 'STARTING');
-    })
-    ->after(function () {
-        logSchedulerActivity('payments:enhanced-reminders', 'Enhanced Payment Reminders', 'COMPLETED');
-    })
-    ->onFailure(function () {
-        logSchedulerActivity('payments:enhanced-reminders', 'Enhanced Payment Reminders', 'FAILED');
-    })
-    ->appendOutputTo(storage_path('logs/fee-reminders.log'));
 
-Schedule::command('app:send-follow-up-reminders')
-    ->dailyAt('10:00')
-    ->name('follow-up-reminders')
-    ->withoutOverlapping()
-    ->before(function () {
-        logSchedulerActivity('app:send-follow-up-reminders', 'Follow-up Reminders', 'STARTING');
-    })
-    ->after(function () {
-        logSchedulerActivity('app:send-follow-up-reminders', 'Follow-up Reminders', 'COMPLETED');
-    })
-    ->onFailure(function () {
-        logSchedulerActivity('app:send-follow-up-reminders', 'Follow-up Reminders', 'FAILED');
-    })
-    ->appendOutputTo(storage_path('logs/follow-up-reminders.log'));
 
-Schedule::command('app:send-fee-reminders')
-    ->dailyAt('09:00')
-    ->name('standard-fee-reminders')
-    ->withoutOverlapping()
-    ->before(function () {
-        logSchedulerActivity('app:send-fee-reminders', 'Standard Fee Reminders', 'STARTING');
-    })
-    ->after(function () {
-        logSchedulerActivity('app:send-fee-reminders', 'Standard Fee Reminders', 'COMPLETED');
-    })
-    ->onFailure(function () {
-        logSchedulerActivity('app:send-fee-reminders', 'Standard Fee Reminders', 'FAILED');
-    })
-    ->appendOutputTo(storage_path('logs/app-fee-reminders.log'));
+
+
+
+
 
 // Urgent payment reminders (twice daily)
 Schedule::command('payments:enhanced-reminders', ['--fee-type=urgent'])
@@ -246,8 +197,9 @@ Schedule::command('payments:enhanced-reminders', ['--fee-type=urgent'])
 |--------------------------------------------------------------------------
 */
 Schedule::command('attendance:send-daily-absent-webhook')
-    ->everyThirtyMinutes() // Checks every 30 mins
-    ->between('09:00', '17:30') // Only during college hours
+    ->everyThreeHours() // Checks every 3 hours
+    ->days([1, 2, 3, 4, 5, 6]) // Working days (Mon-Sat)
+    ->between('09:00', '18:00') // Working hours
     ->withoutOverlapping()
     ->before(function () {
         logSchedulerActivity('attendance:send-daily-absent-webhook', 'Daily Absent Webhook Check', 'STARTING');
@@ -261,20 +213,7 @@ Schedule::command('attendance:send-daily-absent-webhook')
     ->appendOutputTo(storage_path('logs/attendance-webhook.log'));
 
 // Tuition fee reminders (high priority)
-Schedule::command('payments:enhanced-reminders', ['--fee-type=tuition_fee'])
-    ->dailyAt('09:30')
-    ->name('tuition-fee-reminders')
-    ->withoutOverlapping()
-    ->before(function () {
-        logSchedulerActivity('payments:enhanced-reminders --tuition', 'Tuition Fee Reminders', 'STARTING');
-    })
-    ->after(function () {
-        logSchedulerActivity('payments:enhanced-reminders --tuition', 'Tuition Fee Reminders', 'COMPLETED');
-    })
-    ->onFailure(function () {
-        logSchedulerActivity('payments:enhanced-reminders --tuition', 'Tuition Fee Reminders', 'FAILED');
-    })
-    ->appendOutputTo(storage_path('logs/tuition-reminders.log'));
+
 
 // Daily webhook summary
 Schedule::command('webhook:daily-summary')
@@ -294,20 +233,7 @@ Schedule::command('webhook:daily-summary')
     ->appendOutputTo(storage_path('logs/daily-summary-webhook.log'));
 
 // Defaulter analysis
-Schedule::command('defaulters:analyze')
-    ->dailyAt('08:00')
-    ->name('defaulter-analysis')
-    ->withoutOverlapping()
-    ->before(function () {
-        logSchedulerActivity('defaulters:analyze', 'Defaulter Analysis', 'STARTING');
-    })
-    ->after(function () {
-        logSchedulerActivity('defaulters:analyze', 'Defaulter Analysis', 'COMPLETED');
-    })
-    ->onFailure(function () {
-        logSchedulerActivity('defaulters:analyze', 'Defaulter Analysis', 'FAILED');
-    })
-    ->appendOutputTo(storage_path('logs/defaulter-analysis.log'));
+
 
 /*
 |--------------------------------------------------------------------------
@@ -318,19 +244,19 @@ Schedule::command('defaulters:analyze')
 // Settings backup - Every 14 days (FIXED)
 Schedule::call(function () {
     logSchedulerActivity('backup:settings', 'Settings Backup (14-day schedule)', 'STARTING');
-    
+
     try {
         // Check if it's time for settings backup (every 14 days)
         $lastBackupSetting = null;
         $shouldRunBackup = false;
-        
+
         try {
             if (class_exists('App\Models\Setting')) {
                 $lastBackupSetting = \App\Models\Setting::where('key', 'last_settings_backup_date')->first();
             } else {
                 $lastBackupSetting = DB::table('settings')->where('key', 'last_settings_backup_date')->first();
             }
-            
+
             if (!$lastBackupSetting || !$lastBackupSetting->value) {
                 $shouldRunBackup = true; // No previous backup
             } else {
@@ -341,12 +267,12 @@ Schedule::call(function () {
         } catch (Exception $e) {
             $shouldRunBackup = true; // Run backup if we can't determine last backup date
         }
-        
+
         if (!$shouldRunBackup) {
             logSchedulerActivity('backup:settings', 'Settings backup not due yet (14-day interval)', 'SKIPPED');
             return;
         }
-        
+
         // Ensure backup directory exists
         $backupDir = storage_path('app/backups');
         if (!is_dir($backupDir)) {
@@ -359,7 +285,7 @@ Schedule::call(function () {
 
         // Get all settings from database
         $settings = [];
-        
+
         try {
             // Try to get settings from Settings model
             if (class_exists('App\Models\Setting')) {
@@ -415,7 +341,7 @@ Schedule::call(function () {
                     // Continue even if we can't update the setting
                     Log::warning('Could not update last_settings_backup_date setting', ['error' => $e->getMessage()]);
                 }
-                
+
                 logSchedulerActivity('backup:settings', 'Settings Backup (14-day schedule)', 'COMPLETED', [
                     'file' => $filename,
                     'settings_count' => count($settings),
@@ -441,7 +367,7 @@ Schedule::call(function () {
 // Database backup (Daily - IMPROVED)
 Schedule::call(function () {
     logSchedulerActivity('backup:database', 'Daily Database Backup', 'STARTING');
-    
+
     try {
         // Check if backups are enabled
         $backupEnabled = '1'; // Default to enabled
@@ -454,12 +380,12 @@ Schedule::call(function () {
         } catch (Exception $e) {
             // Continue with backup if we can't check the setting
         }
-        
+
         if ($backupEnabled !== '1') {
             logSchedulerActivity('backup:database', 'Backups disabled in settings', 'SKIPPED');
             return;
         }
-        
+
         // Ensure backup directory exists
         $backupDir = storage_path('app/backups');
         if (!is_dir($backupDir)) {
@@ -485,14 +411,14 @@ Schedule::call(function () {
             '/usr/local/bin/mysqldump',
             'mysqldump' // Try PATH
         ];
-        
+
         $mysqldumpSuccess = false;
-        
+
         foreach ($mysqldumpPaths as $mysqldumpPath) {
             // Check if mysqldump is available
             $checkCommand = "which $mysqldumpPath 2>/dev/null";
             exec($checkCommand, $output, $returnCode);
-            
+
             if ($returnCode === 0 || is_executable($mysqldumpPath)) {
                 $command = sprintf(
                     '%s --host=%s --port=%s --user=%s --password=%s --single-transaction --routines --triggers --add-drop-table %s > %s 2>&1',
@@ -526,7 +452,7 @@ Schedule::call(function () {
         // Fallback to PHP method if mysqldump failed
         if (!$mysqldumpSuccess) {
             Log::info('mysqldump not available, using PHP fallback method');
-            
+
             // Get all tables
             $tables = DB::select('SHOW TABLES');
             $tableColumn = 'Tables_in_' . $database;
@@ -540,7 +466,7 @@ Schedule::call(function () {
 
                 foreach ($tables as $table) {
                     $tableName = $table->$tableColumn;
-                    
+
                     try {
                         // Get table structure
                         $createTable = DB::select("SHOW CREATE TABLE `{$tableName}`");
@@ -552,14 +478,14 @@ Schedule::call(function () {
 
                         // Get table data in chunks to prevent memory issues
                         $sql .= "-- Data for table `{$tableName}`\n";
-                        
+
                         $chunkSize = 1000;
                         $offset = 0;
                         $hasData = false;
-                        
+
                         do {
                             $rows = DB::table($tableName)->offset($offset)->limit($chunkSize)->get();
-                            
+
                             if ($rows->isNotEmpty()) {
                                 if (!$hasData) {
                                     $hasData = true;
@@ -568,19 +494,20 @@ Schedule::call(function () {
                                     $columnsList = '`' . implode('`, `', $columns) . '`';
                                     $sql .= "INSERT INTO `{$tableName}` ({$columnsList}) VALUES\n";
                                 }
-                                
+
                                 $values = [];
                                 foreach ($rows as $row) {
                                     $rowData = (array) $row;
-                                    $escapedValues = array_map(function($value) {
-                                        if ($value === null) return 'NULL';
+                                    $escapedValues = array_map(function ($value) {
+                                        if ($value === null)
+                                            return 'NULL';
                                         return "'" . addslashes($value) . "'";
                                     }, $rowData);
                                     $values[] = '(' . implode(', ', $escapedValues) . ')';
                                 }
-                                
+
                                 $sql .= implode(",\n", $values);
-                                
+
                                 if ($rows->count() < $chunkSize) {
                                     // Last chunk
                                     $sql .= ";\n\n";
@@ -588,14 +515,14 @@ Schedule::call(function () {
                                     $sql .= ",\n";
                                 }
                             }
-                            
+
                             $offset += $chunkSize;
                         } while ($rows->count() === $chunkSize);
-                        
+
                         if (!$hasData) {
                             $sql .= "-- No data found for table `{$tableName}`\n\n";
                         }
-                        
+
                     } catch (Exception $tableError) {
                         $sql .= "-- Error backing up table `{$tableName}`: " . $tableError->getMessage() . "\n\n";
                         Log::warning("Error backing up table {$tableName}", ['error' => $tableError->getMessage()]);
@@ -633,7 +560,7 @@ Schedule::call(function () {
 // Code backup (weekly on Sundays) - IMPROVED
 Schedule::call(function () {
     logSchedulerActivity('backup:code', 'Weekly Code Backup', 'STARTING');
-    
+
     try {
         // Check if ZIP extension is available
         if (!class_exists('ZipArchive')) {
@@ -658,7 +585,7 @@ Schedule::call(function () {
         // Directories to include
         $includeDirs = [
             'app',
-            'config', 
+            'config',
             'database/migrations',
             'database/seeders',
             'routes',
@@ -715,13 +642,13 @@ Schedule::call(function () {
     ->name('code-backup-weekly')
     ->withoutOverlapping()
     ->description('Weekly code backup');
-    
-    
+
+
 
 // Google Drive upload for database backups (FIXED)
 Schedule::call(function () {
     logSchedulerActivity('backup:upload-database', 'Database Upload to Google Drive', 'STARTING');
-    
+
     try {
         // Check if Google Drive is enabled
         $gdriveEnabled = '0';
@@ -734,47 +661,47 @@ Schedule::call(function () {
         } catch (Exception $e) {
             // Default to disabled if we can't check
         }
-        
+
         if ($gdriveEnabled !== '1') {
             logSchedulerActivity('backup:upload-database', 'Google Drive upload disabled in settings', 'SKIPPED');
             return;
         }
-        
+
         $backupDir = storage_path('app/backups');
-        
+
         // Find recent database backups (last 3 hours to catch today's backup)
         $dbBackups = glob($backupDir . '/backup_daily_*.sql');
-        $recentBackups = array_filter($dbBackups, function($file) {
-            return filemtime($file) > (time() - 3*3600); // Last 3 hours
+        $recentBackups = array_filter($dbBackups, function ($file) {
+            return filemtime($file) > (time() - 3 * 3600); // Last 3 hours
         });
-        
+
         if (empty($recentBackups)) {
             logSchedulerActivity('backup:upload-database', 'No recent database backups found to upload', 'SKIPPED');
             return;
         }
-        
+
         // Get the most recent backup
-        usort($recentBackups, function($a, $b) {
+        usort($recentBackups, function ($a, $b) {
             return filemtime($b) - filemtime($a);
         });
-        
+
         $latestBackup = $recentBackups[0];
         $filename = basename($latestBackup);
         $fileSize = round(filesize($latestBackup) / 1024 / 1024, 2);
-        
+
         // Try multiple service classes (FIXED)
         $serviceClasses = [
             'App\Services\BackupService',
             'App\Services\GoogleDriveService'
         ];
-        
+
         $uploadSuccess = false;
-        
+
         foreach ($serviceClasses as $serviceClass) {
             if (class_exists($serviceClass)) {
                 try {
                     $service = app($serviceClass);
-                    
+
                     // Different method names for different services
                     if (method_exists($service, 'uploadToGoogleDrive')) {
                         $result = $service->uploadToGoogleDrive($latestBackup, $filename);
@@ -783,7 +710,7 @@ Schedule::call(function () {
                     } else {
                         continue;
                     }
-                    
+
                     if (is_array($result) && isset($result['success']) && $result['success']) {
                         if (isset($result['skipped']) && $result['skipped']) {
                             logSchedulerActivity('backup:upload-database', 'Database already exists in Google Drive', 'SKIPPED', [
@@ -812,7 +739,7 @@ Schedule::call(function () {
                         $uploadSuccess = true;
                         break;
                     }
-                    
+
                 } catch (Exception $serviceError) {
                     Log::warning("Google Drive service {$serviceClass} failed", [
                         'error' => $serviceError->getMessage(),
@@ -822,7 +749,7 @@ Schedule::call(function () {
                 }
             }
         }
-        
+
         if (!$uploadSuccess) {
             throw new Exception('No working Google Drive service found or all upload attempts failed');
         }
@@ -842,7 +769,7 @@ Schedule::call(function () {
 // Google Drive upload for settings backups (FIXED)
 Schedule::call(function () {
     logSchedulerActivity('backup:upload-settings', 'Settings Upload to Google Drive', 'STARTING');
-    
+
     try {
         // Check if Google Drive is enabled
         $gdriveEnabled = '0';
@@ -855,47 +782,47 @@ Schedule::call(function () {
         } catch (Exception $e) {
             // Default to disabled if we can't check
         }
-        
+
         if ($gdriveEnabled !== '1') {
             logSchedulerActivity('backup:upload-settings', 'Google Drive upload disabled in settings', 'SKIPPED');
             return;
         }
-        
+
         $backupDir = storage_path('app/backups');
-        
+
         // Find recent settings backups (last 24 hours)
         $settingsBackups = glob($backupDir . '/settings-backup-*.json');
-        $recentBackups = array_filter($settingsBackups, function($file) {
-            return filemtime($file) > (time() - 24*3600); // Last 24 hours
+        $recentBackups = array_filter($settingsBackups, function ($file) {
+            return filemtime($file) > (time() - 24 * 3600); // Last 24 hours
         });
-        
+
         if (empty($recentBackups)) {
             logSchedulerActivity('backup:upload-settings', 'No recent settings backups found to upload', 'SKIPPED');
             return;
         }
-        
+
         // Get the most recent backup
-        usort($recentBackups, function($a, $b) {
+        usort($recentBackups, function ($a, $b) {
             return filemtime($b) - filemtime($a);
         });
-        
+
         $latestBackup = $recentBackups[0];
         $filename = basename($latestBackup);
         $fileSize = round(filesize($latestBackup) / 1024, 2); // Size in KB
-        
+
         // Try multiple service classes (same fix as database)
         $serviceClasses = [
             'App\Services\BackupService',
             'App\Services\GoogleDriveService'
         ];
-        
+
         $uploadSuccess = false;
-        
+
         foreach ($serviceClasses as $serviceClass) {
             if (class_exists($serviceClass)) {
                 try {
                     $service = app($serviceClass);
-                    
+
                     // Different method names for different services
                     if (method_exists($service, 'uploadToGoogleDrive')) {
                         $result = $service->uploadToGoogleDrive($latestBackup, $filename);
@@ -904,7 +831,7 @@ Schedule::call(function () {
                     } else {
                         continue;
                     }
-                    
+
                     if (is_array($result) && isset($result['success']) && $result['success']) {
                         if (isset($result['skipped']) && $result['skipped']) {
                             logSchedulerActivity('backup:upload-settings', 'Settings backup already exists in Google Drive', 'SKIPPED', [
@@ -933,7 +860,7 @@ Schedule::call(function () {
                         $uploadSuccess = true;
                         break;
                     }
-                    
+
                 } catch (Exception $serviceError) {
                     Log::warning("Google Drive service {$serviceClass} failed", [
                         'error' => $serviceError->getMessage(),
@@ -943,7 +870,7 @@ Schedule::call(function () {
                 }
             }
         }
-        
+
         if (!$uploadSuccess) {
             // Don't throw error for settings backup upload failure
             logSchedulerActivity('backup:upload-settings', 'No working Google Drive service found', 'SKIPPED');
@@ -988,19 +915,19 @@ Schedule::command('backup:run')
 // System health monitoring
 Schedule::call(function () {
     $health = checkSystemHealth();
-    
+
     logSchedulerActivity('system:health-check', 'System Health Check', 'MONITORING', [
         'status' => $health['status'],
         'issues_count' => count($health['issues'])
     ]);
-    
+
     // Log critical issues
     if ($health['status'] === 'critical') {
         Log::critical('System Health Critical', $health);
     } elseif ($health['status'] === 'warning') {
         Log::warning('System Health Warning', $health);
     }
-    
+
 })->hourly()->name('system-health-monitor')->description('System health monitoring');
 
 // Scheduler heartbeat
@@ -1008,22 +935,26 @@ Schedule::call(function () {
     // Simple heartbeat to verify scheduler is running
     $heartbeatFile = storage_path('app/scheduler-heartbeat.txt');
     file_put_contents($heartbeatFile, now()->toDateTimeString());
-    
+
     // Cache the heartbeat for quick access
     cache(['last_schedule_run' => now()], now()->addMinutes(10));
-    
+
     // Only log heartbeat every hour to reduce noise
     if (now()->minute === 0) {
         logSchedulerActivity('scheduler:heartbeat', 'Scheduler Running', 'MONITORING', [
             'memory_mb' => round(memory_get_usage(true) / 1024 / 1024, 2)
         ]);
     }
-})->everyMinute()->name('scheduler-heartbeat')->description('Scheduler heartbeat');
+})
+    ->everyThreeHours()
+    ->days([1, 2, 3, 4, 5, 6])
+    ->between('09:00', '18:00')
+    ->name('scheduler-heartbeat')->description('Scheduler heartbeat');
 
 // Backup cleanup (weekly) - IMPROVED
 Schedule::call(function () {
     logSchedulerActivity('backup:clean', 'Backup Cleanup', 'STARTING');
-    
+
     try {
         $backupDir = storage_path('app/backups');
         if (!is_dir($backupDir)) {
@@ -1045,10 +976,10 @@ Schedule::call(function () {
 
         $allBackups = glob($backupDir . '/*');
         $cutoffTime = time() - ($retentionDays * 24 * 3600);
-        
+
         $deletedCount = 0;
         $deletedSize = 0;
-        
+
         foreach ($allBackups as $backupFile) {
             if (is_file($backupFile) && filemtime($backupFile) < $cutoffTime) {
                 $fileSize = filesize($backupFile);
@@ -1060,7 +991,7 @@ Schedule::call(function () {
         }
 
         $remainingBackups = count(glob($backupDir . '/*'));
-        
+
         logSchedulerActivity('backup:clean', 'Backup Cleanup', 'COMPLETED', [
             'deleted_files' => $deletedCount,
             'deleted_size_mb' => round($deletedSize / 1024 / 1024, 2),
@@ -1097,9 +1028,9 @@ Schedule::call(function () {
             storage_path('logs/scheduler.log'),
             storage_path('logs/laravel.log'),
         ];
-        
+
         $rotatedCount = 0;
-        
+
         foreach ($logFiles as $logFile) {
             if (file_exists($logFile) && filesize($logFile) > 50 * 1024 * 1024) { // 50MB
                 // Rotate the log file
@@ -1112,26 +1043,26 @@ Schedule::call(function () {
                 }
             }
         }
-        
+
         if ($rotatedCount > 0) {
             logSchedulerActivity('log:rotation', "Rotated {$rotatedCount} log files", 'COMPLETED');
         }
-        
+
         // Clean old rotated logs (older than 30 days)
         $oldLogs = glob(storage_path('logs/*.log.*'));
         $cleanedCount = 0;
         foreach ($oldLogs as $oldLog) {
-            if (filemtime($oldLog) < (time() - 30*24*3600)) {
+            if (filemtime($oldLog) < (time() - 30 * 24 * 3600)) {
                 if (unlink($oldLog)) {
                     $cleanedCount++;
                 }
             }
         }
-        
+
         if ($cleanedCount > 0) {
             logSchedulerActivity('log:cleanup', "Cleaned {$cleanedCount} old log files", 'COMPLETED');
         }
-        
+
     } catch (Exception $e) {
         Log::error('Log rotation failed', ['error' => $e->getMessage()]);
     }
@@ -1139,7 +1070,9 @@ Schedule::call(function () {
 
 // ETimeOffice Auto-Sync (using the correct command)
 Schedule::command('etimeoffice:auto-sync', ['--range=today'])
-    ->everyFiveMinutes()
+    ->everyThreeHours()
+    ->days([1, 2, 3, 4, 5, 6])
+    ->between('09:00', '18:00')
     ->name('etimeoffice-auto-sync')
     ->withoutOverlapping(10)
     ->when(function () {
@@ -1165,9 +1098,9 @@ Schedule::command('etimeoffice:auto-sync', ['--range=today'])
     })
     ->appendOutputTo(storage_path('logs/etimeoffice-sync.log'))
     ->description('ETimeOffice attendance auto-sync');
-    
-    
-   /*
+
+
+/*
 |--------------------------------------------------------------------------
 | Notification Cleanup Schedule
 |--------------------------------------------------------------------------
@@ -1177,20 +1110,20 @@ Schedule::call(function () {
     // 1. Older than 3 days
     // 2. Have been read (read_by is not empty)
     // 3. Are user-specific (safer to delete than global ones)
-    
+
     $deleted = SystemNotification::where('created_at', '<', now()->subDays(3))
         ->whereNotNull('user_id') // Only personal notifications
         ->whereNotNull('read_by') // Must be read
         ->delete();
-        
+
     // Optional: Force clean very old notifications (e.g., 30 days) even if unread
     SystemNotification::where('created_at', '<', now()->subDays(30))->delete();
-    
+
     \Illuminate\Support\Facades\Log::info("Cleaned up $deleted old notifications.");
-    
-})->dailyAt('04:00'); 
-    
-    
+
+})->dailyAt('04:00');
+
+
 
 /*
 |--------------------------------------------------------------------------

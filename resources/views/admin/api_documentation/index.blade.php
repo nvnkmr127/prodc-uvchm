@@ -201,9 +201,6 @@
                   <a href="mailto:support@uvchm.com" class="btn btn-light btn-lg font-weight-bold">
                     <i class="fas fa-envelope me-2"></i>Contact Support
                   </a>
-                  <a href="#" class="btn btn-outline-light btn-lg font-weight-bold">
-                    <i class="fab fa-discord me-2"></i>Join Community
-                  </a>
                 </div>
               </div>
             </div>

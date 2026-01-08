@@ -1,16 +1,5 @@
 @forelse($enquiries as $enquiry)
-    @php
-        $date = $enquiry->next_follow_up_date;
-        $isUrgent = false;
-        if ($date && $enquiry->status != 'Admitted') {
-            $followUpDate = \Carbon\Carbon::parse($date)->format('Y-m-d');
-            $today = now()->format('Y-m-d');
-            if ($followUpDate <= $today) {
-                $isUrgent = true;
-            }
-        }
-    @endphp
-    <tr class="{{ $isUrgent ? 'row-urgent' : '' }}">
+    <tr class="{{ $enquiry->is_urgent ? 'row-urgent' : '' }}">
         <td class="pl-3">
             <div class="custom-control custom-checkbox">
                 <input type="checkbox" class="custom-control-input enquiry-checkbox" id="check_{{ $enquiry->id }}"
@@ -21,7 +10,7 @@
         <td>
             <div class="student-trigger" onclick="openEnquiryModal({{ $enquiry->id }})">
                 <div class="student-avatar-small">
-                    {{ strtoupper(substr($enquiry->student_name, 0, 1)) }}
+                    {{ $enquiry->initials }}
                 </div>
                 <div>
                     <h6 class="mb-0 font-weight-bold text-gray-800">{{ $enquiry->student_name }}
@@ -48,8 +37,8 @@
             </select>
         </td>
         <td>
-            <input type="date" class="inline-edit {{ $isUrgent ? 'text-urgent' : '' }}"
-                value="{{ $enquiry->next_follow_up_date ? \Carbon\Carbon::parse($enquiry->next_follow_up_date)->format('Y-m-d') : '' }}"
+            <input type="date" class="inline-edit {{ $enquiry->is_urgent ? 'text-urgent' : '' }}"
+                value="{{ $enquiry->next_follow_up_date ? $enquiry->next_follow_up_date->format('Y-m-d') : '' }}"
                 onchange="quickUpdate({{ $enquiry->id }}, 'next_follow_up_date', this.value)">
         </td>
         <td class="text-center">
@@ -70,13 +59,15 @@
                     class="btn btn-light btn-sm btn-circle" title="WhatsApp">
                     <i class="fab fa-whatsapp text-warning"></i>
                 </a>
-                <form action="{{ route('admin.enquiries.destroy', $enquiry->id) }}" method="POST" class="d-inline"
-                    onsubmit="return confirm('Delete?');">
-                    @csrf @method('DELETE')
-                    <button type="submit" class="btn btn-light btn-sm btn-circle" title="Delete">
-                        <i class="fas fa-trash text-danger"></i>
-                    </button>
-                </form>
+                @hasanyrole('admin|super-admin|college-admin')
+                    <form action="{{ route('admin.enquiries.destroy', $enquiry->id) }}" method="POST" class="d-inline"
+                        onsubmit="return confirm('Delete?');">
+                        @csrf @method('DELETE')
+                        <button type="submit" class="btn btn-light btn-sm btn-circle" title="Delete">
+                            <i class="fas fa-trash text-danger"></i>
+                        </button>
+                    </form>
+                @endhasanyrole
             </div>
         </td>
     </tr>

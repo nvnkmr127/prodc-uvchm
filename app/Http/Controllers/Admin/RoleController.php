@@ -11,6 +11,10 @@ use Illuminate\Validation\Rule;
 
 class RoleController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:manage roles');
+    }
     /**
      * Display a listing of roles
      */
@@ -27,7 +31,7 @@ class RoleController extends Controller
     {
         $permissions = Permission::all();
         $groupedPermissions = $this->groupPermissions($permissions);
-        
+
         return view('admin.roles.create', compact('permissions', 'groupedPermissions'));
     }
 
@@ -64,28 +68,28 @@ class RoleController extends Controller
     {
         $role = Role::with('permissions', 'users')->findOrFail($id);
         $groupedPermissions = $this->groupPermissions($role->permissions);
-        
+
         return view('admin.roles.show', compact('role', 'groupedPermissions'));
     }
-    
+
     /**
      * Show the form for editing the specified role
      */
     public function edit(Role $role)
     {
         $allPermissions = Permission::all();
-        
-        $groupedPermissions = $allPermissions->groupBy(function($permission) {
+
+        $groupedPermissions = $allPermissions->groupBy(function ($permission) {
             $parts = explode(' ', $permission->name);
             return $parts[1] ?? 'general';
         });
-        
+
         $rolePermissions = $role->permissions->pluck('name')->toArray();
         $allRoles = Role::all();
-        
+
         return view('admin.roles.edit', compact(
             'role',
-            'groupedPermissions', 
+            'groupedPermissions',
             'rolePermissions',
             'allRoles'
         ));
@@ -95,61 +99,61 @@ class RoleController extends Controller
      * Update the specified role
      */
     public function update(Request $request, Role $role)
-{
-    // DEBUG: Log the incoming request
-    \Log::info('Role Update Debug', [
-        'role_id' => $role->id,
-        'role_name' => $role->name,
-        'request_permissions' => $request->permissions,
-        'request_permissions_type' => gettype($request->permissions),
-        'request_all' => $request->all(),
-        'has_permissions_key' => $request->has('permissions'),
-    ]);
+    {
+        // DEBUG: Log the incoming request
+        \Log::info('Role Update Debug', [
+            'role_id' => $role->id,
+            'role_name' => $role->name,
+            'request_permissions' => $request->permissions,
+            'request_permissions_type' => gettype($request->permissions),
+            'request_all' => $request->all(),
+            'has_permissions_key' => $request->has('permissions'),
+        ]);
 
-    $request->validate([
-        'name' => [
-            'required',
-            'string',
-            'max:255',
-            Rule::unique('roles')->ignore($role->id),
-        ],
-        'description' => 'nullable|string|max:500',
-        'permissions' => 'nullable|array',
-        'permissions.*' => 'string|exists:permissions,name'
-    ]);
+        $request->validate([
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('roles')->ignore($role->id),
+            ],
+            'description' => 'nullable|string|max:500',
+            'permissions' => 'nullable|array',
+            'permissions.*' => 'string|exists:permissions,name'
+        ]);
 
-    // Update role basic info
-    $role->update([
-        'name' => $request->name,
-        'description' => $request->description
-    ]);
+        // Update role basic info
+        $role->update([
+            'name' => $request->name,
+            'description' => $request->description
+        ]);
 
-    // DEBUG: Log before permission sync
-    \Log::info('Before Permission Sync', [
-        'role_id' => $role->id,
-        'current_permissions' => $role->permissions->pluck('name')->toArray(),
-        'incoming_permissions' => $request->permissions ?? [],
-        'permissions_to_sync' => $request->has('permissions') ? $request->permissions : []
-    ]);
+        // DEBUG: Log before permission sync
+        \Log::info('Before Permission Sync', [
+            'role_id' => $role->id,
+            'current_permissions' => $role->permissions->pluck('name')->toArray(),
+            'incoming_permissions' => $request->permissions ?? [],
+            'permissions_to_sync' => $request->has('permissions') ? $request->permissions : []
+        ]);
 
-    // Sync permissions
-    if ($request->has('permissions')) {
-        $role->syncPermissions($request->permissions);
-    } else {
-        $role->syncPermissions([]);
+        // Sync permissions
+        if ($request->has('permissions')) {
+            $role->syncPermissions($request->permissions);
+        } else {
+            $role->syncPermissions([]);
+        }
+
+        // DEBUG: Log after permission sync
+        $role->refresh();
+        \Log::info('After Permission Sync', [
+            'role_id' => $role->id,
+            'final_permissions' => $role->permissions->pluck('name')->toArray(),
+            'permission_count' => $role->permissions->count()
+        ]);
+
+        return redirect()->route('admin.roles.index')
+            ->with('success', 'Role updated successfully.');
     }
-
-    // DEBUG: Log after permission sync
-    $role->refresh();
-    \Log::info('After Permission Sync', [
-        'role_id' => $role->id,
-        'final_permissions' => $role->permissions->pluck('name')->toArray(),
-        'permission_count' => $role->permissions->count()
-    ]);
-
-    return redirect()->route('admin.roles.index')
-        ->with('success', 'Role updated successfully.');
-}
 
     /**
      * Remove the specified role
@@ -157,7 +161,7 @@ class RoleController extends Controller
     public function destroy($id)
     {
         $role = Role::findOrFail($id);
-        
+
         // Prevent deletion of core system roles
         if (in_array($role->name, ['super-admin', 'student', 'staff', 'college-admin', 'accountant'])) {
             return back()->with('error', 'Cannot delete core system roles.');
@@ -169,7 +173,7 @@ class RoleController extends Controller
         }
 
         $role->delete();
-        
+
         return back()->with('success', 'Role deleted successfully.');
     }
 
@@ -269,7 +273,7 @@ class RoleController extends Controller
                         ->get();
 
                     $deletedCount = $rolesToDelete->count();
-                    
+
                     foreach ($rolesToDelete as $role) {
                         $role->delete();
                     }
@@ -333,7 +337,7 @@ class RoleController extends Controller
     public function import(Request $request)
     {
         $request->validate([
-            'import_file' => 'required|file|mimes:json',
+            'import_file' => 'required|file|mimes:json|max:2048',
             'role_id' => 'required|exists:roles,id'
         ]);
 
@@ -403,20 +407,20 @@ class RoleController extends Controller
     private function groupPermissions($permissions)
     {
         $grouped = [];
-        
+
         foreach ($permissions as $permission) {
             // Extract module name from permission name
             // E.g., "view students" -> "students", "manage admissions" -> "admissions"
             $parts = explode(' ', $permission->name);
-            
+
             if (count($parts) >= 2) {
                 $action = $parts[0]; // view, create, edit, delete, manage
                 $module = $parts[1]; // students, courses, etc.
-                
+
                 if (!isset($grouped[$module])) {
                     $grouped[$module] = [];
                 }
-                
+
                 $grouped[$module][] = $permission;
             } else {
                 // Handle single word permissions
@@ -426,10 +430,10 @@ class RoleController extends Controller
                 $grouped['general'][] = $permission;
             }
         }
-        
+
         // Sort modules alphabetically
         ksort($grouped);
-        
+
         return $grouped;
     }
 
@@ -445,7 +449,7 @@ class RoleController extends Controller
 
         $modules = $request->modules ?? ['users', 'students', 'courses'];
         $template = $request->template;
-        
+
         $permissions = [];
 
         foreach ($modules as $module) {
@@ -453,7 +457,7 @@ class RoleController extends Controller
                 case 'viewer':
                     $permissions[] = "view {$module}";
                     break;
-                
+
                 case 'editor':
                     $permissions = array_merge($permissions, [
                         "view {$module}",
@@ -461,7 +465,7 @@ class RoleController extends Controller
                         "edit {$module}"
                     ]);
                     break;
-                
+
                 case 'manager':
                     $permissions = array_merge($permissions, [
                         "view {$module}",
@@ -470,7 +474,7 @@ class RoleController extends Controller
                         "delete {$module}"
                     ]);
                     break;
-                
+
                 case 'admin':
                     $permissions = array_merge($permissions, [
                         "view {$module}",

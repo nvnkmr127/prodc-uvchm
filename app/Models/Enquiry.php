@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
 use App\Traits\WebhookEnabled;
+use Carbon\Carbon;
 
 class Enquiry extends Model
 {
@@ -38,6 +39,21 @@ class Enquiry extends Model
         'date_of_birth' => 'date',
         'next_follow_up_date' => 'date', // <--- Added this line to fix the error
     ];
+
+    public function getIsUrgentAttribute(): bool
+    {
+        if (!$this->next_follow_up_date || $this->status === 'Admitted') {
+            return false;
+        }
+        /** @var Carbon $date */
+        $date = $this->next_follow_up_date;
+        return $date->lte(now());
+    }
+
+    public function getInitialsAttribute(): string
+    {
+        return strtoupper(substr($this->student_name, 0, 1));
+    }
 
     public function getActivitylogOptions(): LogOptions
     {

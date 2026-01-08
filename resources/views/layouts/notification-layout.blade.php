@@ -1,16 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'College Management System')</title>
-    
+
     <!-- Bootstrap CSS from CDN -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome from CDN -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    
+
     <!-- Custom Notification CSS -->
     <style>
         :root {
@@ -23,7 +24,7 @@
             --text-color: #333;
             --border-color: #e9ecef;
             --bg-light: #f8f9fa;
-            --shadow: 0 4px 12px rgba(0,0,0,0.1);
+            --shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
 
         body {
@@ -95,15 +96,33 @@
         }
 
         @keyframes bellRing {
-            0%, 100% { transform: rotate(0); }
-            25% { transform: rotate(15deg); }
-            75% { transform: rotate(-15deg); }
+
+            0%,
+            100% {
+                transform: rotate(0);
+            }
+
+            25% {
+                transform: rotate(15deg);
+            }
+
+            75% {
+                transform: rotate(-15deg);
+            }
         }
 
         @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.2); }
-            100% { transform: scale(1); }
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.2);
+            }
+
+            100% {
+                transform: scale(1);
+            }
         }
 
         /* Notification Panel */
@@ -114,7 +133,7 @@
             width: 420px;
             height: 100vh;
             background: white;
-            box-shadow: -5px 0 25px rgba(0,0,0,0.15);
+            box-shadow: -5px 0 25px rgba(0, 0, 0, 0.15);
             transition: right 0.3s ease;
             z-index: 999;
             display: flex;
@@ -147,7 +166,7 @@
         }
 
         .btn-icon {
-            background: rgba(255,255,255,0.2);
+            background: rgba(255, 255, 255, 0.2);
             border: none;
             color: white;
             padding: 8px;
@@ -157,7 +176,7 @@
         }
 
         .btn-icon:hover {
-            background: rgba(255,255,255,0.3);
+            background: rgba(255, 255, 255, 0.3);
         }
 
         .close-panel {
@@ -172,7 +191,7 @@
         }
 
         .close-panel:hover {
-            background: rgba(255,255,255,0.2);
+            background: rgba(255, 255, 255, 0.2);
         }
 
         /* Notification Filters */
@@ -273,10 +292,21 @@
             border-radius: 50%;
         }
 
-        .priority-urgent { background: var(--error-color); }
-        .priority-high { background: var(--warning-color); }
-        .priority-normal { background: var(--success-color); }
-        .priority-low { background: #6c757d; }
+        .priority-urgent {
+            background: var(--error-color);
+        }
+
+        .priority-high {
+            background: var(--warning-color);
+        }
+
+        .priority-normal {
+            background: var(--success-color);
+        }
+
+        .priority-low {
+            background: #6c757d;
+        }
 
         .notification-content {
             margin-right: 20px;
@@ -328,10 +358,25 @@
             text-transform: capitalize;
         }
 
-        .category-financial { background: #ffeaa7; color: #d63031; }
-        .category-academic { background: #a8e6cf; color: #00b894; }
-        .category-system { background: #fab1a0; color: #e17055; }
-        .category-attendance { background: #fd79a8; color: #e84393; }
+        .category-financial {
+            background: #ffeaa7;
+            color: #d63031;
+        }
+
+        .category-academic {
+            background: #a8e6cf;
+            color: #00b894;
+        }
+
+        .category-system {
+            background: #fab1a0;
+            color: #e17055;
+        }
+
+        .category-attendance {
+            background: #fd79a8;
+            color: #e84393;
+        }
 
         .notification-action {
             padding: 4px 8px;
@@ -350,7 +395,8 @@
         }
 
         /* Loading and Empty States */
-        .loading, .no-notifications {
+        .loading,
+        .no-notifications {
             text-align: center;
             padding: 40px 20px;
             color: #6c757d;
@@ -368,8 +414,13 @@
         }
 
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
 
         .no-notifications i {
@@ -406,10 +457,21 @@
             opacity: 1;
         }
 
-        .toast-success { border-left-color: var(--success-color); }
-        .toast-error { border-left-color: var(--error-color); }
-        .toast-warning { border-left-color: var(--warning-color); }
-        .toast-info { border-left-color: var(--info-color); }
+        .toast-success {
+            border-left-color: var(--success-color);
+        }
+
+        .toast-error {
+            border-left-color: var(--error-color);
+        }
+
+        .toast-warning {
+            border-left-color: var(--warning-color);
+        }
+
+        .toast-info {
+            border-left-color: var(--info-color);
+        }
 
         .toast-header {
             display: flex;
@@ -487,10 +549,25 @@
             transition: all 0.2s ease;
         }
 
-        .demo-btn.success { background: var(--success-color); color: white; }
-        .demo-btn.error { background: var(--error-color); color: white; }
-        .demo-btn.warning { background: var(--warning-color); color: #333; }
-        .demo-btn.info { background: var(--info-color); color: white; }
+        .demo-btn.success {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .demo-btn.error {
+            background: var(--error-color);
+            color: white;
+        }
+
+        .demo-btn.warning {
+            background: var(--warning-color);
+            color: #333;
+        }
+
+        .demo-btn.info {
+            background: var(--info-color);
+            color: white;
+        }
 
         .demo-btn:hover {
             transform: translateY(-2px);
@@ -503,24 +580,25 @@
                 top: 10px;
                 right: 10px;
             }
-            
+
             .notification-panel {
                 width: 100vw;
                 right: -100vw;
             }
-            
+
             .toast-container {
                 left: 10px;
                 right: 10px;
                 max-width: none;
             }
-            
+
             .demo-controls {
                 grid-template-columns: 1fr;
             }
         }
     </style>
 </head>
+
 <body>
     <!-- Notification Bell -->
     <div class="notification-bell" onclick="toggleNotificationPanel()">
@@ -580,22 +658,26 @@
 
     <!-- Audio Elements -->
     <audio id="notificationSound" preload="auto" style="display: none;">
-        <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+Dyvmk_" type="audio/wav">
+        <source
+            src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+Dyvmk_"
+            type="audio/wav">
     </audio>
-    
+
     <audio id="urgentSound" preload="auto" style="display: none;">
-        <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+Dyvmk_" type="audio/wav">
+        <source
+            src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+Dyvmk_"
+            type="audio/wav">
     </audio>
 
     <!-- JavaScript -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
+
     <script>
         // Global Configuration
         window.NotificationConfig = {
             userId: {{ auth()->id() ?? 'null' }},
             userRoles: @json(auth()->user()->roles->pluck('name') ?? []),
-            unreadCount: {{ \App\Models\SystemNotification::getUnreadCountForUser(auth()->id() ?? 0) }},
+            unreadCount: {{ $unreadNotificationCount ?? 0 }},
             soundEnabled: true,
             apiEndpoints: {
                 notifications: '{{ route("notifications.index") }}',
@@ -616,7 +698,7 @@
                 this.currentFilter = 'all';
                 this.soundEnabled = true;
                 this.volume = 0.7;
-                
+
                 this.init();
             }
 
@@ -628,7 +710,7 @@
                     this.requestNotificationPermission();
                     this.setupKeyboardShortcuts();
                     this.simulateRealTimeUpdates();
-                    
+
                     console.log('🔔 College Notification System initialized');
                 } catch (error) {
                     console.error('Failed to initialize notification system:', error);
@@ -647,7 +729,7 @@
             simulateRandomNotification() {
                 const types = [
                     'financial_payment_received',
-                    'academic_new_admission', 
+                    'academic_new_admission',
                     'system_maintenance',
                     'financial_fee_reminder'
                 ];
@@ -680,20 +762,20 @@
                 // Add to local storage
                 this.notifications.unshift(notification);
                 this.unreadCount++;
-                
+
                 // Update UI
                 this.updateNotificationCount();
                 this.renderNotifications();
                 this.animateBell();
-                
+
                 // Show toast
                 this.showToast(notification.title, notification.message, notification.type);
-                
+
                 // Play sound
                 if (notification.play_sound && this.soundEnabled) {
                     this.playNotificationSound(notification.priority);
                 }
-                
+
                 // Show desktop notification
                 if (this.hasNotificationPermission()) {
                     this.showDesktopNotification(notification);
@@ -708,12 +790,12 @@
                             'Accept': 'application/json'
                         }
                     });
-                    
+
                     if (response.ok) {
                         const data = await response.json();
                         this.notifications = data.notifications.data || [];
                         this.unreadCount = data.unread_count || 0;
-                        
+
                         this.updateNotificationCount();
                         this.renderNotifications();
                     } else {
@@ -765,7 +847,7 @@
                         action_text: 'View Ledger'
                     }
                 ];
-                
+
                 this.unreadCount = this.notifications.filter(n => !n.read_at).length;
                 this.updateNotificationCount();
                 this.renderNotifications();
@@ -782,13 +864,13 @@
                             'Content-Type': 'application/json'
                         }
                     });
-                    
+
                     if (response.ok) {
                         const notification = this.notifications.find(n => n.id === notificationId);
                         if (notification && !notification.read_at) {
                             notification.read_at = new Date().toISOString();
                             this.unreadCount = Math.max(0, this.unreadCount - 1);
-                            
+
                             if (updateUI) {
                                 this.updateNotificationCount();
                                 this.renderNotifications();
@@ -809,18 +891,18 @@
                             'Accept': 'application/json'
                         }
                     });
-                    
+
                     if (response.ok) {
                         this.notifications.forEach(notification => {
                             if (!notification.read_at) {
                                 notification.read_at = new Date().toISOString();
                             }
                         });
-                        
+
                         this.unreadCount = 0;
                         this.updateNotificationCount();
                         this.renderNotifications();
-                        
+
                         this.showToast('Success', 'All notifications marked as read', 'success', 2000);
                     }
                 } catch (error) {
@@ -832,13 +914,13 @@
             renderNotifications() {
                 const container = document.getElementById('notificationList');
                 if (!container) return;
-                
+
                 let filteredNotifications = this.notifications;
-                
+
                 if (this.currentFilter !== 'all') {
                     filteredNotifications = this.notifications.filter(n => n.category === this.currentFilter);
                 }
-                
+
                 if (filteredNotifications.length === 0) {
                     container.innerHTML = `
                         <div class="no-notifications">
@@ -848,13 +930,13 @@
                     `;
                     return;
                 }
-                
+
                 container.innerHTML = filteredNotifications.map(notification => {
                     const isUnread = !notification.read_at;
                     const timeAgo = this.getTimeAgo(new Date(notification.created_at));
                     const priorityClass = `priority-${notification.priority}`;
                     const categoryClass = `category-${notification.category}`;
-                    
+
                     return `
                         <div class="notification-item ${isUnread ? 'unread' : ''} ${notification.priority === 'urgent' ? 'urgent' : ''}" 
                              onclick="notificationSystem.markAsRead(${notification.id})" 
@@ -885,7 +967,7 @@
             showToast(title, message, type = 'info', duration = 5000) {
                 const toast = document.createElement('div');
                 toast.className = `toast toast-${type}`;
-                
+
                 toast.innerHTML = `
                     <div class="toast-header">
                         <strong class="toast-title">
@@ -897,14 +979,14 @@
                     </div>
                     <div class="toast-body">${message}</div>
                 `;
-                
+
                 const container = document.getElementById('toastContainer');
                 if (container) {
                     container.appendChild(toast);
-                    
+
                     // Animate in
                     setTimeout(() => toast.classList.add('show'), 100);
-                    
+
                     // Auto remove
                     setTimeout(() => {
                         toast.classList.remove('show');
@@ -919,7 +1001,7 @@
 
             playNotificationSound(priority = 'normal') {
                 if (!this.soundEnabled) return;
-                
+
                 try {
                     let soundElement;
                     if (priority === 'urgent') {
@@ -927,7 +1009,7 @@
                     } else {
                         soundElement = document.getElementById('notificationSound');
                     }
-                    
+
                     if (soundElement) {
                         soundElement.volume = this.volume;
                         soundElement.currentTime = 0;
@@ -942,16 +1024,16 @@
 
             showDesktopNotification(notification) {
                 if (!this.hasNotificationPermission()) return;
-                
+
                 const options = {
                     body: notification.message,
                     icon: '/favicon.ico',
                     tag: `notification-${notification.id}`,
                     requireInteraction: notification.priority === 'urgent'
                 };
-                
+
                 const desktopNotification = new Notification(notification.title, options);
-                
+
                 desktopNotification.onclick = () => {
                     window.focus();
                     if (notification.action_url && notification.action_url !== '#') {
@@ -959,7 +1041,7 @@
                     }
                     desktopNotification.close();
                 };
-                
+
                 if (!notification.requires_action) {
                     setTimeout(() => desktopNotification.close(), 5000);
                 }
@@ -969,7 +1051,7 @@
                 const countElement = document.getElementById('notificationCount');
                 if (countElement) {
                     countElement.textContent = this.unreadCount;
-                    
+
                     if (this.unreadCount > 0) {
                         countElement.classList.add('show');
                         if (this.unreadCount > 99) {
@@ -991,7 +1073,7 @@
 
             setFilter(filter) {
                 this.currentFilter = filter;
-                
+
                 // Update active tab
                 document.querySelectorAll('.filter-tab').forEach(tab => {
                     tab.classList.remove('active');
@@ -999,7 +1081,7 @@
                         tab.classList.add('active');
                     }
                 });
-                
+
                 this.renderNotifications();
             }
 
@@ -1010,12 +1092,12 @@
                         this.setFilter(e.target.dataset.filter);
                     }
                 });
-                
+
                 // Click outside to close panel
                 document.addEventListener('click', (e) => {
                     const panel = document.getElementById('notificationPanel');
                     const bell = document.querySelector('.notification-bell');
-                    
+
                     if (panel && bell && !panel.contains(e.target) && !bell.contains(e.target)) {
                         panel.classList.remove('open');
                     }
@@ -1029,13 +1111,13 @@
                         e.preventDefault();
                         this.togglePanel();
                     }
-                    
+
                     // Ctrl+Shift+M - Mark all as read
                     if (e.ctrlKey && e.shiftKey && e.key === 'M') {
                         e.preventDefault();
                         this.markAllAsRead();
                     }
-                    
+
                     // Escape - Close panel
                     if (e.key === 'Escape') {
                         const panel = document.getElementById('notificationPanel');
@@ -1115,7 +1197,7 @@
         // Global functions
         let notificationSystem;
 
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             notificationSystem = new CollegeNotificationSystem();
         });
 
@@ -1153,4 +1235,5 @@
 
     @stack('scripts')
 </body>
+
 </html>

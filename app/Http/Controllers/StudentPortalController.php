@@ -129,7 +129,7 @@ class StudentPortalController extends Controller
         ];
 
         if ($fieldGroup === 'photo') {
-            $rules['photo'] = 'required|image|mimes:jpeg,png,jpg'; // Size check handled manually
+            $rules['photo'] = 'required|image|mimes:jpeg,png,jpg|max:5120'; // Size check handled manually but max limit enforced
         } elseif ($fieldGroup === 'address') {
             $rules['address'] = 'required|string|min:10';
         } elseif ($fieldGroup === 'personal') {

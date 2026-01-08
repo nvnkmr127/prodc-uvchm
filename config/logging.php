@@ -66,7 +66,7 @@ return [
         'webhook-events' => [
             'driver' => 'single',
             'path' => storage_path('logs/webhook-events.log'),
-            'level' => env('LOG_WEBHOOK_EVENTS_LEVEL', 'info'),
+            'level' => env('LOG_WEBHOOK_EVENTS_LEVEL', 'debug'),
         ],
 
         'cron' => [

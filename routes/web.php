@@ -61,10 +61,9 @@ use App\Http\Controllers\Admin\IntegrationController;
 use App\Http\Controllers\Admin\LabAllocationController;
 use App\Http\Controllers\Admin\LeaveTypeController;
 use App\Http\Controllers\Admin\PayslipController;
-use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\PaymentReminderController;
 use App\Http\Controllers\Admin\PaymentReminderSettingsController;
-use App\Http\Controllers\Admin\PaymentReportsController;
+
 use App\Http\Controllers\Admin\PermissionController;
 use App\Http\Controllers\Admin\PermissionManagementController;
 use App\Http\Controllers\Admin\RoleController;
@@ -453,6 +452,11 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
 
     // --- Financial Management ---
     Route::middleware(['permission:manage financials'])->group(function () {
+        // Financial Hub
+        Route::get('financials', [ComponentPaymentController::class, 'financialIndex'])->name('financials.index');
+        Route::get('invoices/create', [ComponentPaymentController::class, 'invoiceCreate'])->name('invoices.create');
+        Route::get('invoices/{invoice}', [ComponentPaymentController::class, 'invoiceShow'])->name('invoices.show'); // Stub
+
         // Component-Based Payments
         Route::resource('component-payments', ComponentPaymentController::class);
 
@@ -625,13 +629,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
             ->name('timetable.show')
             ->where('timetable', '[0-9]+');
 
-        // Legacy route support
-        Route::delete('timetable/{id}', [TimetableController::class, 'deleteClass'])
-            ->name('timetable.delete')
-            ->where('id', '[0-9]+');
-        Route::delete('timetable/class/{id}', [TimetableController::class, 'deleteClass'])
-            ->name('timetable.deleteClass')
-            ->where('id', '[0-9]+');
+
 
         // Infrastructure Management
         Route::resource('classrooms', ClassroomController::class);
@@ -816,19 +814,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
         Route::delete('activity-log/cleanup', [ActivityLogController::class, 'destroy'])->name('activity-log.cleanup');
     });
 
-    // Debug Subject-Faculty Route
-    Route::get('/debug/subject-faculty/{subject}', function (\App\Models\Subject $subject) {
-        $assigned = $subject->users;
-        $available = \App\Models\User::role('staff')->get();
 
-        return response()->json([
-            'subject' => $subject->name,
-            'assigned_count' => $assigned->count(),
-            'assigned' => $assigned,
-            'available_count' => $available->count(),
-            'available' => $available,
-        ]);
-    })->where('subject', '[0-9]+');
 
     // Webhook Status Route (Admin/Super-Admin Only)
     Route::middleware(['auth', 'role:admin|super-admin'])->get('/webhooks/status', function () {
@@ -916,28 +902,7 @@ Route::middleware(['auth', 'permission:revert payments'])->group(function () {
         ->where('payment', '[0-9]+');
 });
 
-// Alternative routes without admin prefix (for compatibility)
-Route::middleware(['auth', 'permission:edit payments'])->group(function () {
-    Route::get('payments/{payment}/edit', [PaymentEditController::class, 'edit'])
-        ->name('payment-edit.edit')
-        ->where('payment', '[0-9]+');
 
-    Route::put('payments/{payment}/update', [PaymentEditController::class, 'update'])
-        ->name('payment-edit.update')
-        ->where('payment', '[0-9]+');
-});
-
-Route::middleware(['auth', 'permission:view payment history'])->group(function () {
-    Route::get('payments/{payment}/history', [PaymentEditController::class, 'history'])
-        ->name('payment-edit.history')
-        ->where('payment', '[0-9]+');
-});
-
-Route::middleware(['auth', 'permission:revert payments'])->group(function () {
-    Route::post('payments/{payment}/revert', [PaymentEditController::class, 'revert'])
-        ->name('payment-edit.revert')
-        ->where('payment', '[0-9]+');
-});
 
 Route::prefix('admin/attendance')->name('admin.attendance.')->middleware(['auth', 'role:super-admin|college-admin|staff'])->group(function () {
 
@@ -995,9 +960,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin|super-ad
             ->name('daily-attendance.student-bulk-store');
 
         // Attendance Dashboard Routes
-        Route::get('attendance/dashboard', [AttendanceSettingsController::class, 'dashboard'])->name('attendance.dashboard');
-        Route::get('attendance/dashboard/today', [AttendanceSettingsController::class, 'getTodayDashboard'])->name('attendance.dashboard.today');
-        Route::get('attendance/dashboard/weekly', [AttendanceSettingsController::class, 'getWeeklyStats'])->name('attendance.dashboard.weekly');
+
 
         // Attendance Import Routes
         Route::get('attendance/import', [AttendanceImportController::class, 'show'])->name('attendance.import.show');
@@ -1005,16 +968,12 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin|super-ad
         Route::get('attendance/import/sample', [AttendanceImportController::class, 'downloadSample'])->name('attendance.import.sample');
 
         // Export functionality
-        Route::get('attendance/export/today', [AttendanceSettingsController::class, 'exportTodayAttendance'])
-            ->name('attendance.export.today')
-            ->middleware('permission:export attendance');
+
 
 
 
         // Testing endpoints
-        Route::post('attendance/test-rules', [AttendanceSettingsController::class, 'testRules'])->name('attendance.test.rules');
-        Route::post('/attendance/settings/test-sync', [AttendanceSettingsController::class, 'testSync'])->name('admin.attendance.test-sync');
-        Route::post('/attendance/settings/trigger-sync', [AttendanceSettingsController::class, 'triggerManualSync'])->name('admin.attendance.trigger-sync');
+
 
     });
 
@@ -1136,7 +1095,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 });
 
 // Admin Notification Management Routes
-Route::prefix('admin/notifications')->name('admin.notifications.')->middleware(['auth', 'permission:view backend'])->group(function () {
+Route::prefix('admin/notifications-management')->name('admin.notifications-management.')->middleware(['auth', 'permission:view backend'])->group(function () {
 
     // Notification Dashboard & Viewing
     Route::get('/', [NotificationManagementController::class, 'dashboard'])->name('dashboard');
@@ -1364,29 +1323,45 @@ if (app()->environment(['local', 'testing'])) {
         Route::post('/attendance/generate-test-data', function () {
             return response()->json(['success' => true, 'message' => 'Test data generated']);
         })->name('attendance.generate.test.data');
+
+        // Moved Debug Routes
+        Route::get('/test-route-conflict', function () {
+            try {
+                $request = \Illuminate\Http\Request::create('/attendance/analytics', 'GET');
+                $route = \Route::getRoutes()->match($request);
+
+                return response()->json([
+                    'url_tested' => '/attendance/analytics',
+                    'matched_route' => $route->uri(),
+                    'matched_action' => $route->getActionName(),
+                    'route_parameters' => $route->parameters(),
+                    'is_conflict' => $route->uri() === 'attendance/{attendance}' ? 'YES - CONFLICT!' : 'No conflict'
+                ]);
+            } catch (\Exception $e) {
+                return response()->json(['error' => $e->getMessage()]);
+            }
+        });
+
+        Route::get('/admin/test-direct-sync', [AttendanceSettingsController::class, 'testDirectSync']);
+        Route::get('/test-lab-generation', [TimetableController::class, 'testLabGeneration']);
+
+        // Debug Subject-Faculty Route
+        Route::get('/debug/subject-faculty/{subject}', function (\App\Models\Subject $subject) {
+            $assigned = $subject->users;
+            $available = \App\Models\User::role('staff')->get();
+
+            return response()->json([
+                'subject' => $subject->name,
+                'assigned_count' => $assigned->count(),
+                'assigned' => $assigned,
+                'available_count' => $available->count(),
+                'available' => $available,
+            ]);
+        })->name('debug.subject-faculty')->where('subject', '[0-9]+');
     });
 }
 
-// Test route conflict debugging route
-Route::get('/test-route-conflict', function () {
-    try {
-        $request = \Illuminate\Http\Request::create('/attendance/analytics', 'GET');
-        $route = \Route::getRoutes()->match($request);
 
-        return response()->json([
-            'url_tested' => '/attendance/analytics',
-            'matched_route' => $route->uri(),
-            'matched_action' => $route->getActionName(),
-            'route_parameters' => $route->parameters(),
-            'is_conflict' => $route->uri() === 'attendance/{attendance}' ? 'YES - CONFLICT!' : 'No conflict'
-        ]);
-    } catch (\Exception $e) {
-        return response()->json(['error' => $e->getMessage()]);
-    }
-});
-Route::get('/admin/test-direct-sync', [AttendanceSettingsController::class, 'testDirectSync']);
-// Test lab generation route
-Route::get('/test-lab-generation', [TimetableController::class, 'testLabGeneration']);
 
 // Student Self-Service Portal Routes
 Route::prefix('student')->name('student.')->group(function () {

@@ -15,6 +15,10 @@ use Illuminate\Support\Facades\Mail;
 
 class SettingController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:manage settings');
+    }
     /**
      * Setting groups configuration with their metadata
      * COMPLETE IMPLEMENTATION - ALL GROUPS INCLUDED

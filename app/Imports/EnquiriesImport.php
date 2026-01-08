@@ -72,10 +72,17 @@ class EnquiriesImport implements ToModel, WithHeadingRow, WithValidation
             $assignedId = Auth::id();
         }
 
+        // 6. Name Validation
+        $name = $row['name'] ?? $row['student_name'] ?? $row['student'] ?? null;
+        if (empty($name)) {
+            $this->skippedCount++;
+            return null;
+        }
+
         $this->importedCount++;
 
         return new Enquiry([
-            'student_name' => $row['name'] ?? $row['student_name'] ?? 'Unknown',
+            'student_name' => $name,
             'phone_number' => $phone,
             'address' => $row['address'] ?? null,
             'email' => $row['email'] ?? null,
@@ -91,8 +98,8 @@ class EnquiriesImport implements ToModel, WithHeadingRow, WithValidation
     public function rules(): array
     {
         return [
-            // Loose validation here, strict validation handled in logic to count skips
-            'name' => 'required',
+            // Loose validation here. We check for 'name' or 'student_name' inside model()
+            // 'mobile_number' => 'required', // We handle this manually in model() too
         ];
     }
 }

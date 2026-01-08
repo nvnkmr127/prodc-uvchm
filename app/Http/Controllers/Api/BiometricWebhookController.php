@@ -37,13 +37,13 @@ class BiometricWebhookController extends Controller
 
             // Find student by biometric code
             $student = $this->findStudentByBiometricCode($biometricCode);
-            
+
             if (!$student) {
                 Log::warning('ETimeOffice: Student not found', [
                     'biometric_code' => $biometricCode,
                     'punch_datetime' => $punchDateTime
                 ]);
-                
+
                 return response()->json([
                     'Result' => 'Error',
                     'Status' => 'Student not found',
@@ -63,7 +63,7 @@ class BiometricWebhookController extends Controller
                         'punch_datetime' => $punchDateTime,
                         'error' => $e->getMessage()
                     ]);
-                    
+
                     return response()->json([
                         'Result' => 'Error',
                         'Status' => 'Invalid datetime format',
@@ -74,9 +74,9 @@ class BiometricWebhookController extends Controller
 
             // Process attendance
             $attendanceData = $this->processETimeOfficeAttendance(
-                $student, 
-                $carbonDate, 
-                $direction, 
+                $student,
+                $carbonDate,
+                $direction,
                 $deviceId,
                 $request->all()
             );
@@ -127,7 +127,7 @@ class BiometricWebhookController extends Controller
     public function handleRealtime(Request $request)
     {
         Log::error('Realtime biometric endpoint called but has been disabled. Only ETimeOffice is supported.');
-        
+
         return response()->json([
             'Result' => 'Error',
             'Status' => 'Endpoint disabled',
@@ -141,10 +141,10 @@ class BiometricWebhookController extends Controller
     private function findStudentByBiometricCode($biometricCode)
     {
         $startTime = microtime(true);
-        
+
         // First try direct biometric code lookup
         $student = Student::where('biometric_employee_code', $biometricCode)->first();
-        
+
         if ($student) {
             $queryTime = round((microtime(true) - $startTime) * 1000, 2);
             Log::info('Student found by biometric code', [
@@ -160,9 +160,9 @@ class BiometricWebhookController extends Controller
         Log::info('Biometric code not found, trying enrollment patterns', [
             'biometric_code' => $biometricCode
         ]);
-        
+
         $student = $this->findStudentByEnrollmentNumber($biometricCode);
-        
+
         if ($student) {
             // Auto-populate biometric code for future fast lookups
             if (empty($student->biometric_employee_code)) {
@@ -183,7 +183,7 @@ class BiometricWebhookController extends Controller
                 }
             }
         }
-        
+
         return $student;
     }
 
@@ -222,10 +222,10 @@ class BiometricWebhookController extends Controller
     {
         $attendanceDate = $carbonDate->toDateString();
         $attendanceTime = $carbonDate->toTimeString();
-        
+
         // Determine attendance status based on time rules
         $status = $this->determineAttendanceStatus($carbonDate, $student);
-        
+
         // Find or create attendance record
         $attendance = Attendance::firstOrCreate(
             [
@@ -283,7 +283,7 @@ class BiometricWebhookController extends Controller
             ];
         } elseif ($punchTime->lte($lateLimit)) {
             return [
-                'status' => 'late', 
+                'status' => 'late',
                 'reason' => 'Late arrival'
             ];
         } else {

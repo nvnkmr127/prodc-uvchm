@@ -93,6 +93,8 @@ class AttendanceSettingsController extends Controller
 
     public function update(Request $request)
     {
+        $this->authorize('manage attendance settings');
+
         try {
             // 1. Validation Rules
             $validator = \Validator::make($request->all(), [
@@ -187,6 +189,8 @@ class AttendanceSettingsController extends Controller
 
     public function getETimeOfficeSettings(Request $request)
     {
+        $this->authorize('manage attendance settings');
+
         try {
             // Map the correct field names that match your form
             $settings = [
@@ -240,6 +244,8 @@ class AttendanceSettingsController extends Controller
 
     public function updateETimeOfficeSettings(Request $request)
     {
+        $this->authorize('manage attendance settings');
+
         try {
             // Validate with the correct field names
             $validatedData = $request->validate([

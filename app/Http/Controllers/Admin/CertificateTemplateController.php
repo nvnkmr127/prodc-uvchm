@@ -9,6 +9,10 @@ use Illuminate\Validation\Rule;
 
 class CertificateTemplateController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware('permission:manage documents');
+    }
     public function index()
     {
         $templates = CertificateTemplate::latest()->get();

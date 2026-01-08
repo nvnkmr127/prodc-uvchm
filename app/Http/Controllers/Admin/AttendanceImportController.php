@@ -14,13 +14,13 @@ class AttendanceImportController extends Controller
     {
         return view('admin.attendance_import.index');
     }
-    
-public function downloadSample()
+
+    public function downloadSample()
     {
         try {
             $headers = [
                 'Student ID',
-                'Enrollment Number', 
+                'Enrollment Number',
                 'Student Name',
                 'Date',
                 'Status', // Present, Absent, Late
@@ -36,9 +36,9 @@ public function downloadSample()
             ];
 
             $filename = 'attendance_import_sample.xlsx';
-            
+
             return Excel::download(
-                new AttendanceSampleExport($headers, $sampleData), 
+                new AttendanceSampleExport($headers, $sampleData),
                 $filename
             );
         } catch (\Exception $e) {
@@ -49,23 +49,23 @@ public function downloadSample()
     public function store(Request $request)
     {
         $request->validate([
-            'attendance_file' => 'required|mimes:csv,txt,xls,xlsx',
+            'attendance_file' => 'required|mimes:csv,txt,xls,xlsx|max:5120',
         ]);
 
         try {
             Excel::import(new AttendancesImport, $request->file('attendance_file'));
-            
+
             return redirect()
                 ->route('admin.daily-attendance.show')
                 ->with('success', 'Attendance data imported successfully!');
-                
+
         } catch (\Maatwebsite\Excel\Validators\ValidationException $e) {
             $failures = $e->failures();
             $errorString = "";
             foreach ($failures as $failure) {
                 $errorString .= "Row " . $failure->row() . ": " . implode(', ', $failure->errors()) . ". ";
             }
-            
+
             return redirect()
                 ->route('admin.attendance.import.show')
                 ->with('error', 'There were errors in your file: ' . $errorString);

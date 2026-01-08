@@ -45,18 +45,18 @@
                 <div class="col-md-6">
                     <h6>Core Requirements</h6>
                     <ul class="list-unstyled">
-                        <li><i class="fas fa-{{ $systemStatus['courses'] ? 'check text-success' : 'times text-danger' }}"></i> Courses: {{ \App\Models\Course::count() }}</li>
-                        <li><i class="fas fa-{{ $systemStatus['subjects'] ? 'check text-success' : 'times text-danger' }}"></i> Subjects: {{ \App\Models\Subject::count() }}</li>
-                        <li><i class="fas fa-{{ $systemStatus['faculty'] ? 'check text-success' : 'times text-danger' }}"></i> Faculty: {{ \App\Models\User::role('staff')->count() }}</li>
-                        <li><i class="fas fa-{{ $systemStatus['classrooms'] ? 'check text-success' : 'times text-danger' }}"></i> Classrooms: {{ \App\Models\Classroom::count() }}</li>
+                        <li><i class="fas fa-{{ $systemStatus['courses'] ? 'check text-success' : 'times text-danger' }}"></i> Courses: {{ $systemCounts['courses'] ?? 0 }}</li>
+                        <li><i class="fas fa-{{ $systemStatus['subjects'] ? 'check text-success' : 'times text-danger' }}"></i> Subjects: {{ $systemCounts['subjects'] ?? 0 }}</li>
+                        <li><i class="fas fa-{{ $systemStatus['faculty'] ? 'check text-success' : 'times text-danger' }}"></i> Faculty: {{ $systemCounts['faculties'] ?? 0 }}</li>
+                        <li><i class="fas fa-{{ $systemStatus['classrooms'] ? 'check text-success' : 'times text-danger' }}"></i> Classrooms: {{ $systemCounts['classrooms'] ?? 0 }}</li>
                     </ul>
                 </div>
                 <div class="col-md-6">
                     <h6>Timetable Requirements</h6>
                     <ul class="list-unstyled">
-                        <li><i class="fas fa-{{ $systemStatus['time_slots'] ? 'check text-success' : 'times text-danger' }}"></i> Time Slots: {{ \App\Models\TimeSlot::count() }}</li>
-                        <li><i class="fas fa-{{ $systemStatus['practical_groups'] ? 'check text-success' : 'times text-danger' }}"></i> Practical Groups: {{ \App\Models\PracticalGroup::count() }}</li>
-                        <li><i class="fas fa-{{ $systemStatus['lab_subjects'] ? 'check text-success' : 'times text-danger' }}"></i> Lab Subjects: {{ \App\Models\Subject::where('requires_lab', true)->count() }}/4</li>
+                        <li><i class="fas fa-{{ $systemStatus['time_slots'] ? 'check text-success' : 'times text-danger' }}"></i> Time Slots: {{ $systemCounts['time_slots'] ?? 0 }}</li>
+                        <li><i class="fas fa-{{ $systemStatus['practical_groups'] ? 'check text-success' : 'times text-danger' }}"></i> Practical Groups: {{ $systemCounts['practical_groups'] ?? 0 }}</li>
+                        <li><i class="fas fa-{{ $systemStatus['lab_subjects'] ? 'check text-success' : 'times text-danger' }}"></i> Lab Subjects: {{ $systemCounts['lab_subjects'] ?? 0 }}/4</li>
                         <li><i class="fas fa-calendar-week text-info"></i> Working Days: {{ isset($workingDaysConfig) ? count($workingDaysConfig) : 6 }} days</li>
                     </ul>
                 </div>
@@ -209,9 +209,7 @@
                     <ul class="list-unstyled mb-0">
                         @foreach(['Service Lab', 'Kitchen Lab', 'Front Office Lab', 'Housekeeping Lab'] as $labType)
                             @php
-                                $exists = \App\Models\Subject::where('name', 'LIKE', "%{$labType}%")
-                                                            ->where('requires_lab', true)
-                                                            ->exists();
+                                $exists = $systemCounts['lab_checks'][$labType] ?? false;
                             @endphp
                             <li class="mb-2">
                                 <i class="fas fa-{{ $exists ? 'check text-success' : 'times text-danger' }} me-2"></i>

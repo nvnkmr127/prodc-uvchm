@@ -19,14 +19,22 @@ use Illuminate\Support\Facades\Log;
 
 class EnquiryController extends Controller
 {
+    /**
+     * Check if user has admin privileges
+     */
+    private function canViewAllEnquiries($user): bool
+    {
+        return $user->hasAnyRole(['admin', 'super-admin', 'college-admin']);
+    }
+
     private function getStats(array $filters = [])
     {
         $user = Auth::user();
-        $isAdmin = $user->hasAnyRole(['admin', 'super-admin', 'Admin', 'Super-admin']);
+        $isAdmin = $this->canViewAllEnquiries($user);
 
         $statsQuery = Enquiry::selectRaw('status, count(*) as count');
 
-        // Apply Visibility for Stats (Admin can see all, others only their own)
+        // Apply Visibility for Stats
         if (!$isAdmin) {
             $statsQuery->where('assigned_to_user_id', $user->id);
             // Ignore filter if non-admin tries to see others (security check)
@@ -77,7 +85,7 @@ class EnquiryController extends Controller
     {
         // VISIBILITY FIX: Restrict Non-Admins to see only their assigned enquiries
         $user = Auth::user();
-        $isAdmin = $user->hasAnyRole(['admin', 'super-admin', 'Admin', 'Super-admin']);
+        $isAdmin = $this->canViewAllEnquiries($user);
 
         // --- 1. Calculate Stats (Universal Filter Application) ---
         // Pass all request inputs to get filtered stats
@@ -138,7 +146,8 @@ class EnquiryController extends Controller
         } elseif ($sortField === 'counselor_name') {
             // This JOIN caused the ambiguity error
             $query->leftJoin('users', 'enquiries.assigned_to_user_id', '=', 'users.id')
-                ->orderBy('users.name', $sortDirection);
+                ->orderBy('users.name', $sortDirection)
+                ->select('enquiries.*'); // Ensure we select enquiry columns again after join
         } else {
             // Ensure standard sort uses table alias if needed (optional but safe)
             $query->orderBy('enquiries.' . $sortField, $sortDirection);
@@ -184,7 +193,7 @@ class EnquiryController extends Controller
 
         // FETCH FIX: Get Admins, Staff, and Counselors
         $counselors = User::whereHas('roles', function ($q) {
-            $q->whereIn('name', ['counselor', 'College-admin', 'admin', 'super-admin', 'staff']);
+            $q->whereIn('name', ['counselor', 'college-admin', 'admin', 'super-admin', 'staff']);
         })->where('status', 'active')->orderBy('name')->get();
 
         return view('admin.enquiries.create', compact('courses', 'counselors'));
@@ -233,6 +242,13 @@ class EnquiryController extends Controller
             'value' => 'nullable',
             'filter_assigned_to' => 'nullable|exists:users,id' // Helper for stats
         ]);
+
+        // VISIBILITY CHECK: Same as show/edit
+        $user = Auth::user();
+        $isAdmin = $user->hasAnyRole(['admin', 'super-admin', 'college-admin']);
+        if (!$isAdmin && $enquiry->assigned_to_user_id != $user->id) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized access.'], 403);
+        }
 
         $field = $validated['field'];
         $value = $validated['value'];
@@ -290,7 +306,10 @@ class EnquiryController extends Controller
 
         $timeline = collect($enquiry->followUps)->concat($activities)->sortByDesc('created_at');
 
-        return view('admin.enquiries.edit', compact('enquiry', 'timeline', 'courses', 'counselors'));
+        // Prepare user lookup for timeline to avoid N+1 in view
+        $usersLookup = User::pluck('name', 'id')->toArray();
+
+        return view('admin.enquiries.edit', compact('enquiry', 'timeline', 'courses', 'counselors', 'usersLookup'));
     }
 
     public function update(Request $request, Enquiry $enquiry)
@@ -488,8 +507,11 @@ class EnquiryController extends Controller
 
         $timeline = collect($enquiry->followUps)->concat($activities)->sortByDesc('created_at');
 
-        // 4. Pass 'counselors' and 'courses' to the view
-        return view('admin.enquiries.modal_show', compact('enquiry', 'timeline', 'courses', 'counselors'));
+        // Prepare user lookup for timeline to avoid N+1 in view
+        $usersLookup = User::pluck('name', 'id')->toArray();
+
+        // 4. Pass 'counselors', 'courses', and 'usersLookup' to the view
+        return view('admin.enquiries.modal_show', compact('enquiry', 'timeline', 'courses', 'counselors', 'usersLookup'));
     }
     // ADD THIS NEW METHOD
     public function bulkDelete(Request $request)
@@ -536,7 +558,7 @@ class EnquiryController extends Controller
     public function import(Request $request, LeadDistributionService $leadDistribution)
     {
         $request->validate([
-            'file' => 'required|mimes:csv,xlsx,xls',
+            'file' => 'required|mimes:csv,xlsx,xls|max:5120',
             'assigned_to_user_id' => 'nullable|exists:users,id'
         ]);
 
@@ -549,7 +571,7 @@ class EnquiryController extends Controller
 
             // 3. Check results
             if ($import->importedCount === 0) {
-                return back()->with('error', "Import finished but 0 records were added. Skipped: {$import->skippedCount}. Check your CSV headers (must be: name, mobile_number).");
+                return back()->with('error', "Import finished but 0 records were added. Skipped: {$import->skippedCount}. Check your CSV headers (must be: name OR student_name, and mobile_number).");
             }
 
             return back()->with('success', "Success! Imported: {$import->importedCount}, Skipped: {$import->skippedCount} (Duplicates/Invalid).");
