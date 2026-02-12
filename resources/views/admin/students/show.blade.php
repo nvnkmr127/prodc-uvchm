@@ -769,6 +769,11 @@
                                     <strong>Biometric ID: {{ $student->biometric_employee_code ?? 'Not Assigned' }}</strong>
                                 </div>
 
+                                <div class="meta-pill mb-2" title="Certificate Status">
+                                    <i class="fas fa-certificate {{ $student->is_certificate_received ? 'text-success' : 'text-warning' }}"></i>
+                                    <strong>{{ $student->is_certificate_received ? ($student->certificate_type . ' Certificate Received') : 'Certificate Pending' }}</strong>
+                                </div>
+
                                 <div class="meta-pill mb-2">
                                     <i class="fas fa-user-tie text-primary"></i>
                                     {{ $student->father_name ?? 'N/A' }}

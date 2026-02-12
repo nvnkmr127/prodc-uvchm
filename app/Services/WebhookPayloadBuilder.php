@@ -29,7 +29,7 @@ class WebhookPayloadBuilder
             }
 
             $modelType = strtolower(class_basename($model));
-            
+
             return [
                 'event' => $eventName,
                 'event_id' => 'evt_' . uniqid(),
@@ -38,13 +38,13 @@ class WebhookPayloadBuilder
                 'environment' => app()->environment(),
                 'data' => self::buildEventData($modelType, $eventType, $model, $additionalData)
             ];
-            
+
         } catch (\Exception $e) {
             \Log::error('Error building optimized payload', [
                 'error' => $e->getMessage(),
                 'event_class' => get_class($event)
             ]);
-            
+
             return self::buildFallbackPayload($event);
         }
     }
@@ -72,7 +72,7 @@ class WebhookPayloadBuilder
         if (!$payment->relationLoaded('student')) {
             $payment->load('student');
         }
-        
+
         if (!$payment->relationLoaded('componentItems')) {
             $payment->load('componentItems.studentFee.feeCategory');
         }
@@ -103,7 +103,7 @@ class WebhookPayloadBuilder
                 'enrollment_number' => $student->enrollment_number,
                 'email' => $student->email ?? null,
                 'mobile' => $student->student_mobile ?? null,
-                'Father mobile' => $student->father_mobile ?? null,
+                'father_mobile' => $student->father_mobile ?? null,
             ];
         }
 
@@ -111,11 +111,11 @@ class WebhookPayloadBuilder
         if ($payment->payment_type === 'component' || $payment->isComponentPayment()) {
             try {
                 $componentItems = $payment->componentItems;
-                
+
                 if ($componentItems && $componentItems->count() > 0) {
                     $data['components_paid'] = $componentItems->map(function ($item) {
                         $categoryName = 'Unknown Category';
-                        
+
                         // Safely get category name
                         if ($item->studentFee) {
                             if ($item->studentFee->feeCategory) {
@@ -141,7 +141,7 @@ class WebhookPayloadBuilder
                         'payment_type' => $payment->payment_type
                     ]);
                 }
-                
+
             } catch (\Exception $e) {
                 \Log::warning('Could not load component items for webhook', [
                     'payment_id' => $payment->id,
@@ -160,7 +160,7 @@ class WebhookPayloadBuilder
     {
         $baseUrl = rtrim(config('app.url'), '/');
         $receiptNumber = $payment->receipt_number;
-        
+
         return [
             'view' => "{$baseUrl}/receipts/{$receiptNumber}",
             'download_pdf' => "{$baseUrl}/receipts/{$receiptNumber}/pdf",
@@ -189,7 +189,7 @@ class WebhookPayloadBuilder
         try {
             if ($student->batch) {
                 $data['batch'] = [
-                    'id' => $student->batch->id, 
+                    'id' => $student->batch->id,
                     'name' => $student->batch->name,
                     'course_id' => $student->batch->course_id ?? null
                 ];
@@ -224,15 +224,15 @@ class WebhookPayloadBuilder
         try {
             if ($studentFee->student) {
                 $data['student'] = [
-                    'id' => $studentFee->student->id, 
+                    'id' => $studentFee->student->id,
                     'name' => $studentFee->student->name,
                     'enrollment_number' => $studentFee->student->enrollment_number
                 ];
             }
-            
+
             if ($studentFee->feeCategory) {
                 $data['fee_category'] = [
-                    'id' => $studentFee->feeCategory->id, 
+                    'id' => $studentFee->feeCategory->id,
                     'name' => $studentFee->feeCategory->name
                 ];
             }
@@ -242,7 +242,7 @@ class WebhookPayloadBuilder
 
         return array_merge($data, $additionalData);
     }
-    
+
     /**
      * Build StudentConcession webhook data
      */
@@ -267,7 +267,7 @@ class WebhookPayloadBuilder
                     'category_name' => $concession->studentFee->feeCategory->name ?? 'Unknown'
                 ];
             }
-            
+
             if (isset($concession->studentFee->student)) {
                 $data['student'] = [
                     'id' => $concession->studentFee->student->id,

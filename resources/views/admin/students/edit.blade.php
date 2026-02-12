@@ -156,6 +156,24 @@
                                 <a href="#" id="generateSuggestion" class="text-primary">Generate from enrollment number</a>
                             </small>
                         </div>
+
+                        <hr>
+                        <div class="form-group">
+                            <div class="custom-control custom-checkbox">
+                                <input type="checkbox" class="custom-control-input" id="is_certificate_received"
+                                    name="is_certificate_received" value="1" {{ old('is_certificate_received', $student->is_certificate_received) ? 'checked' : '' }}>
+                                <label class="custom-control-label" for="is_certificate_received">Original Certificate
+                                    Received?</label>
+                            </div>
+                        </div>
+                        <div class="form-group" id="certificate_type_wrapper" style="display: none;">
+                            <label for="certificate_type">Certificate Type*</label>
+                            <select name="certificate_type" id="certificate_type" class="form-control">
+                                <option value="">-- Select Certificate Type --</option>
+                                <option value="10th" {{ old('certificate_type', $student->certificate_type) == '10th' ? 'selected' : '' }}>10th Class</option>
+                                <option value="Inter" {{ old('certificate_type', $student->certificate_type) == 'Inter' ? 'selected' : '' }}>Intermediate</option>
+                            </select>
+                        </div>
                         <div class="form-group">
                             <label for="admission_date">Admission Date*</label>
                             <input type="date" id="admission_date" name="admission_date" class="form-control"
@@ -632,6 +650,51 @@
                     biometricField.val(suggestion);
                 }
             });
+        });
+
+        // Certificate Type Toggle
+        $(document).ready(function () {
+            const certCheckbox = $('#is_certificate_received');
+            const certWrapper = $('#certificate_type_wrapper');
+            const certSelect = $('#certificate_type');
+
+            function toggleCertType() {
+                if (certCheckbox.is(':checked')) {
+                    certWrapper.slideDown();
+                    certSelect.prop('required', true);
+                } else {
+                    certWrapper.slideUp();
+                    certSelect.prop('required', false);
+                    if (!certCheckbox.is(':checked')) { // Only clear if unchecked
+                        // We might want to keep value if just hiding, but for now let's clear to be safe or keep it?
+                        // Actually, if we uncheck, we should probably clear or handle in backend.
+                        // Backend validation requires type if checked.
+                        certSelect.val('');
+                    }
+                }
+            }
+            // Fix: logic was slightly off in create, let's make it consistent.
+            // If unchecked, we clear val so backend sees null.
+
+            certCheckbox.on('change', function () {
+                if ($(this).is(':checked')) {
+                    certWrapper.slideDown();
+                    certSelect.prop('required', true);
+                } else {
+                    certWrapper.slideUp();
+                    certSelect.prop('required', false);
+                    certSelect.val('');
+                }
+            });
+
+            // Initial state (don't clear value on load if unchecked, just hide)
+            if (certCheckbox.is(':checked')) {
+                certWrapper.show();
+                certSelect.prop('required', true);
+            } else {
+                certWrapper.hide();
+                certSelect.prop('required', false);
+            }
         });
     </script>
 @endpush

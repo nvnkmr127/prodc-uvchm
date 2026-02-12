@@ -156,6 +156,26 @@
                             </small>
                         </div>
 
+                        <hr>
+                        <div class="form-group">
+                            <div class="custom-control custom-checkbox">
+                                <input type="checkbox" class="custom-control-input" id="is_certificate_received"
+                                    name="is_certificate_received" value="1" {{ old('is_certificate_received') ? 'checked' : '' }}>
+                                <label class="custom-control-label" for="is_certificate_received">Original Certificate
+                                    Received?</label>
+                            </div>
+                        </div>
+                        <div class="form-group" id="certificate_type_wrapper" style="display: none;">
+                            <label for="certificate_type">Certificate Type*</label>
+                            <select name="certificate_type" id="certificate_type" class="form-control">
+                                <option value="">-- Select Certificate Type --</option>
+                                <option value="10th" {{ old('certificate_type') == '10th' ? 'selected' : '' }}>10th Class
+                                </option>
+                                <option value="Inter" {{ old('certificate_type') == 'Inter' ? 'selected' : '' }}>Intermediate
+                                </option>
+                            </select>
+                        </div>
+
 
                         <div class="form-group">
                             <label>Student Photo</label>
@@ -624,6 +644,27 @@
                     biometricField.val(suggestion);
                 }
             });
+        });
+
+        // Certificate Type Toggle
+        $(document).ready(function () {
+            const certCheckbox = $('#is_certificate_received');
+            const certWrapper = $('#certificate_type_wrapper');
+            const certSelect = $('#certificate_type');
+
+            function toggleCertType() {
+                if (certCheckbox.is(':checked')) {
+                    certWrapper.slideDown();
+                    certSelect.prop('required', true);
+                } else {
+                    certWrapper.slideUp();
+                    certSelect.prop('required', false);
+                    certSelect.val('');
+                }
+            }
+
+            certCheckbox.on('change', toggleCertType);
+            toggleCertType(); // Run on load
         });
     </script>
 

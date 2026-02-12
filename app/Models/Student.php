@@ -82,7 +82,9 @@ class Student extends Model
         'referral_commission_paid_at',
         'referral_commission_amount',
         'referral_payment_mode',
-        'referral_payment_remarks'
+        'referral_payment_remarks',
+        'is_certificate_received',
+        'certificate_type',
     ];
 
     protected $casts = [
@@ -96,6 +98,7 @@ class Student extends Model
         'dropout_processed_at' => 'datetime',
         'referral_commission_paid_at' => 'datetime',
         'is_active' => 'boolean',
+        'is_certificate_received' => 'boolean',
     ];
 
     /**

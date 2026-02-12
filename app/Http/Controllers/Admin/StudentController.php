@@ -287,6 +287,8 @@ class StudentController extends Controller
             'batch_id' => 'required|exists:batches,id', // REQUIRED for fee generation
             'gender' => 'required|in:Male,Female,Other',
             'photo' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'is_certificate_received' => 'boolean',
+            'certificate_type' => 'nullable|string|in:10th,Inter|required_if:is_certificate_received,true',
         ], [
             'student_mobile.unique' => 'This student mobile number is already registered.',
             'father_mobile.unique' => 'This father mobile number is already registered.',
@@ -335,6 +337,8 @@ class StudentController extends Controller
                 'status' => 'active',
                 'source' => $validated['source'],          // Added
                 'referral_name' => $validated['referral_name'], // Added
+                'is_certificate_received' => $request->has('is_certificate_received'),
+                'certificate_type' => $request->certificate_type,
             ]);
 
             // 🎯 AUTOMATIC FEE STRUCTURE ASSIGNMENT
@@ -1605,6 +1609,8 @@ class StudentController extends Controller
             'referral_name' => 'nullable|string|max:255',
             'batch_id' => 'nullable|exists:batches,id',
             'photo' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'is_certificate_received' => 'boolean',
+            'certificate_type' => 'nullable|string|in:10th,Inter|required_if:is_certificate_received,true',
         ], [
             // Custom error messages
             'student_mobile.unique' => 'This student mobile number is already registered with another student.',
@@ -1663,6 +1669,10 @@ class StudentController extends Controller
             // Delete existing unpaid fee components for the old batch
             $student->studentFees()->where('status', '!=', 'paid')->delete();
         }
+
+        // Handle checkbox boolean logic
+        $validated['is_certificate_received'] = $request->has('is_certificate_received');
+        $validated['certificate_type'] = $request->certificate_type;
 
         $student->update($validated);
 

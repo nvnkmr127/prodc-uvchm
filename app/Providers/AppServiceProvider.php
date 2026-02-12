@@ -144,6 +144,11 @@ class AppServiceProvider extends ServiceProvider
         // Register event listeners
         $this->registerEventListeners();
 
+        // Register Observers
+        if (class_exists('\App\Models\Payment') && class_exists('\App\Observers\PaymentObserver')) {
+            \App\Models\Payment::observe(\App\Observers\PaymentObserver::class);
+        }
+
         // Register macros
         $this->registerMacros();
 

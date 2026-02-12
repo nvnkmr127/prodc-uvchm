@@ -348,6 +348,7 @@ class DashboardController extends Controller
             'avg_attendance' => $this->calculateAverageAttendance(),
             'collection_rate' => $this->calculateCollectionRate(),
             'new_admissions' => Student::whereMonth('created_at', now()->month)->count(),
+            'pending_certificates' => Student::where('status', 'active')->where('is_certificate_received', false)->count(),
 
             // Enhanced Payment Analysis
             'daily_payment_analysis' => $this->getDailyPaymentAnalysis(),

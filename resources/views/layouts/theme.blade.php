@@ -707,7 +707,11 @@
                                     Funnel</a>
                                 <a class="collapse-item" href="{{ route('admin.reports.referrals.index') }}">Referral
                                     Tracking</a>
+                                <a class="collapse-item" href="{{ route('admin.reports.referrals.index') }}">Referral
+                                    Tracking</a>
                                 <a class="collapse-item" href="{{ route('admin.reports.age.index') }}">Age Report</a>
+                                <a class="collapse-item" href="{{ route('admin.reports.certificates.index') }}">Certificate
+                                    Reports</a>
                             @else
                                 @can('view reports')
                                     <a class="collapse-item" href="{{ route('admin.reports.attendance.index') }}">Attendance
@@ -719,12 +723,16 @@
                                         Funnel</a>
                                     <a class="collapse-item" href="{{ route('admin.reports.referrals.index') }}">Referral
                                         Tracking</a>
-                                    <a class="collapse-item" href="{{ route('admin.reports.age.index') }}">Age Report</a>
+                                    <a class="collapse-item" href="{{ route('admin.reports.referrals.index') }}">Referral
+                                                    Tracking</a>
+                                                <a class="collapse-item" href="{{ route('admin.reports.age.index') }}">Age Report</a>
+                                                <a class="collapse-item" href="{{ route('admin.reports.certificates.index') }}">Certificate
+                                                    Reports</a>
                                 @endcan
                             @endif
+                            </div>
                         </div>
-                    </div>
-                </li>
+                    </li>
             @endif
 
             <hr class="sidebar-divider d-none d-md-block">

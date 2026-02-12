@@ -26,25 +26,25 @@ class WhatsAppService
                 'Authorization' => 'Bearer ' . $this->apiToken,
                 'Content-Type' => 'application/json'
             ])->post($this->apiUrl . '/messages', [
-                'messaging_product' => 'whatsapp',
-                'to' => $this->formatPhoneNumber($phoneNumber),
-                'type' => 'template',
-                'template' => [
-                    'name' => 'payment_reminder',
-                    'language' => ['code' => 'en'],
-                    'components' => [
-                        [
-                            'type' => 'body',
-                            'parameters' => [
-                                ['type' => 'text', 'text' => $data['student_name'] ?? ''],
-                                ['type' => 'text', 'text' => $data['amount'] ?? ''],
-                                ['type' => 'text', 'text' => $data['due_date'] ?? ''],
-                                ['type' => 'text', 'text' => $data['fee_type'] ?? '']
+                        'messaging_product' => 'whatsapp',
+                        'to' => $this->formatPhoneNumber($phoneNumber),
+                        'type' => 'template',
+                        'template' => [
+                            'name' => 'payment_reminder',
+                            'language' => ['code' => 'en'],
+                            'components' => [
+                                [
+                                    'type' => 'body',
+                                    'parameters' => [
+                                        ['type' => 'text', 'text' => $data['student_name'] ?? ''],
+                                        ['type' => 'text', 'text' => $data['amount'] ?? ''],
+                                        ['type' => 'text', 'text' => $data['due_date'] ?? ''],
+                                        ['type' => 'text', 'text' => $data['fee_type'] ?? '']
+                                    ]
+                                ]
                             ]
                         ]
-                    ]
-                ]
-            ]);
+                    ]);
 
             if ($response->successful()) {
                 Log::info('WhatsApp reminder sent successfully', [
@@ -72,12 +72,12 @@ class WhatsAppService
     {
         // Remove all non-numeric characters
         $phone = preg_replace('/[^0-9]/', '', $phone);
-        
+
         // Add country code if not present (assuming India +91)
         if (strlen($phone) === 10) {
             $phone = '91' . $phone;
         }
-        
+
         return $phone;
     }
 }

@@ -695,6 +695,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
         Route::post('reports/referrals/{student}/mark-commission-paid', [ReferralReportController::class, 'markCommissionPaid'])
             ->name('reports.referrals.mark-commission-paid')
             ->where('student', '[0-9]+');
+        Route::get('reports/certificates', [App\Http\Controllers\Admin\CertificateReportController::class, 'index'])->name('reports.certificates.index');
     });
 
     // --- System & Settings ---
