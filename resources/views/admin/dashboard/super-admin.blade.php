@@ -344,6 +344,265 @@
             </div>
         </div>
 
+        <!-- Birthday Celebrations Row -->
+        <div class="row mb-4">
+            <div class="col-12 animate-fade-in animate-delay-100">
+                <style>
+                    .birthday-card-premium {
+                        background: white;
+                        border-radius: 1.5rem;
+                        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+                        overflow: hidden;
+                        position: relative;
+                        border: 1px solid rgba(0, 0, 0, 0.05);
+                    }
+
+                    .birthday-spotlight {
+                        background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+                        color: #d81b60;
+                        padding: 2.5rem;
+                        height: 100%;
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: center;
+                        position: relative;
+                        overflow: hidden;
+                    }
+
+                    .birthday-spotlight::after {
+                        content: '🎂';
+                        position: absolute;
+                        font-size: 10rem;
+                        bottom: -2rem;
+                        right: -1rem;
+                        opacity: 0.1;
+                        transform: rotate(-15deg);
+                    }
+
+                    .student-avatar-ring {
+                        width: 50px;
+                        height: 50px;
+                        border-radius: 50%;
+                        padding: 3px;
+                        background: var(--primary-gradient);
+                        display: inline-block;
+                        transition: transform 0.3s ease;
+                    }
+
+                    .student-item:hover .student-avatar-ring {
+                        transform: scale(1.1) rotate(5deg);
+                    }
+
+                    .birthday-grid-section {
+                        padding: 1.5rem;
+                        border-right: 1px solid rgba(0, 0, 0, 0.03);
+                    }
+
+                    .birthday-grid-section:last-child {
+                        border-right: none;
+                    }
+
+                    .section-title-mod {
+                        font-size: 0.75rem;
+                        letter-spacing: 1.5px;
+                        text-transform: uppercase;
+                        font-weight: 800;
+                        margin-bottom: 1.25rem;
+                        display: flex;
+                        align-items: center;
+                        gap: 0.5rem;
+                    }
+
+                    .today-pulse {
+                        width: 10px;
+                        height: 10px;
+                        background: #ff4757;
+                        border-radius: 50%;
+                        display: inline-block;
+                        box-shadow: 0 0 0 0 rgba(255, 71, 87, 0.7);
+                        animation: pulse-red 2s infinite;
+                    }
+
+                    @keyframes pulse-red {
+                        0% {
+                            transform: scale(0.95);
+                            box-shadow: 0 0 0 0 rgba(255, 71, 87, 0.7);
+                        }
+
+                        70% {
+                            transform: scale(1);
+                            box-shadow: 0 0 0 8px rgba(255, 71, 87, 0);
+                        }
+
+                        100% {
+                            transform: scale(0.95);
+                            box-shadow: 0 0 0 0 rgba(255, 71, 87, 0);
+                        }
+                    }
+
+                    .empty-state-birthday {
+                        opacity: 0.5;
+                        font-style: italic;
+                        font-size: 0.85rem;
+                        text-align: center;
+                        padding: 2rem 0;
+                    }
+
+                    .scroll-section::-webkit-scrollbar {
+                        width: 4px;
+                    }
+
+                    .scroll-section::-webkit-scrollbar-track {
+                        background: transparent;
+                    }
+
+                    .scroll-section::-webkit-scrollbar-thumb {
+                        background: #eee;
+                        border-radius: 10px;
+                    }
+
+                    @media (max-width: 1200px) {
+                        .birthday-grid-section {
+                            border-right: none;
+                            border-bottom: 1px solid rgba(0, 0, 0, 0.03);
+                        }
+
+                        .birthday-spotlight {
+                            text-align: center;
+                            align-items: center;
+                        }
+                    }
+                </style>
+
+                <div class="birthday-card-premium animate-fade-in mt-n4 mx-3 position-relative zindex-1">
+                    <div class="row g-0">
+                        <!-- Left Spotlight: Today's Birthdays -->
+                        <div class="col-xl-3">
+                            <div class="birthday-spotlight">
+                                <div class="d-flex align-items-center gap-2 mb-2">
+                                    <span class="today-pulse"></span>
+                                    <span class="fw-bold small text-uppercase ls-1">Happening Today</span>
+                                </div>
+                                <h3 class="fw-extrabold mb-4" style="font-size: 1.75rem;">Birthday Wishes!</h3>
+
+                                <div class="today-students scroll-section"
+                                    style="max-height: 200px; overflow-y: auto; padding-right: 5px;">
+                                    @forelse($dashboard_data['birthdays']['today'] as $student)
+                                        <div class="d-flex align-items-center gap-3 mb-3 student-item p-2 rounded-4"
+                                            style="background: rgba(255,255,255,0.4); backdrop-filter: blur(5px);">
+                                            <div class="student-avatar-ring">
+                                                <img src="{{ $student->photo_url }}"
+                                                    class="w-100 h-100 rounded-circle border border-white"
+                                                    style="object-fit: cover;" alt="">
+                                            </div>
+                                            <div class="text-left overflow-hidden">
+                                                <div class="fw-bold text-truncate small" style="max-width: 150px;">
+                                                    {{ $student->name }}
+                                                </div>
+                                                <div class="text-xs opacity-75 fw-bold">
+                                                    {{ $student->batch->course->code ?? 'N/A' }}
+                                                </div>
+                                                <div class="text-xs opacity-50">{{ $student->batch->name ?? 'N/A' }}</div>
+                                            </div>
+                                        </div>
+                                    @empty
+                                        <div class="text-center py-4">
+                                            <div class="h3 mb-1">🎁</div>
+                                            <p class="text-sm italic opacity-75">No birthdays today.</p>
+                                        </div>
+                                    @endforelse
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right Grid: Tomorrow & Upcoming -->
+                        <div class="col-xl-9">
+                            <div class="row h-100 g-0">
+                                <!-- Tomorrow -->
+                                <div class="col-md-4 birthday-grid-section">
+                                    <div class="section-title-mod text-primary">
+                                        <i class="fas fa-calendar-check"></i> Tomorrow
+                                    </div>
+                                    <div class="scroll-section"
+                                        style="max-height: 250px; overflow-y: auto; padding-right: 5px;">
+                                        @forelse($dashboard_data['birthdays']['tomorrow'] as $student)
+                                            <div class="d-flex align-items-center gap-3 mb-3">
+                                                <img src="{{ $student->photo_url }}" class="rounded-circle border"
+                                                    style="width: 45px; height: 45px; object-fit: cover;" alt="">
+                                                <div>
+                                                    <div class="fw-bold small">{{ $student->name }}</div>
+                                                    <div class="text-xs text-muted fw-bold">
+                                                        {{ $student->batch->course->code ?? 'N/A' }}
+                                                    </div>
+                                                    <div class="text-xs text-muted">{{ $student->batch->name ?? 'N/A' }}</div>
+                                                </div>
+                                            </div>
+                                        @empty
+                                            <div class="empty-state-birthday">Quiet day tomorrow</div>
+                                        @endforelse
+                                    </div>
+                                </div>
+
+                                <!-- Upcoming (3 Days) -->
+                                <div class="col-md-4 birthday-grid-section">
+                                    <div class="section-title-mod text-info">
+                                        <i class="fas fa-rocket"></i> Next 3 Days
+                                    </div>
+                                    <div class="scroll-section"
+                                        style="max-height: 250px; overflow-y: auto; padding-right: 5px;">
+                                        @forelse($dashboard_data['birthdays']['upcoming_3_days']->sortBy('dob.day') as $student)
+                                            <div class="d-flex align-items-center gap-3 mb-3">
+                                                <div class="position-relative">
+                                                    <img src="{{ $student->photo_url }}" class="rounded-circle border"
+                                                        style="width: 45px; height: 45px; object-fit: cover;" alt="">
+                                                    <span
+                                                        class="position-absolute -top-1 -right-1 badge bg-info border border-white p-1 rounded-circle"></span>
+                                                </div>
+                                                <div>
+                                                    <div class="fw-bold small">{{ $student->name }}</div>
+                                                    <div class="text-xs text-info fw-bold">{{ $student->dob->format('d M') }}
+                                                    </div>
+                                                    <div class="text-xs text-muted">{{ $student->batch->course->code ?? 'N/A' }}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        @empty
+                                            <div class="empty-state-birthday">Nothing on the radar</div>
+                                        @endforelse
+                                    </div>
+                                </div>
+
+                                <!-- Last 3 Days -->
+                                <div class="col-md-4 birthday-grid-section">
+                                    <div class="section-title-mod text-muted">
+                                        <i class="fas fa-history"></i> Just Passed
+                                    </div>
+                                    <div class="scroll-section"
+                                        style="max-height: 250px; overflow-y: auto; padding-right: 5px;">
+                                        @forelse($dashboard_data['birthdays']['last_3_days']->sortByDesc('dob.day') as $student)
+                                            <div class="d-flex align-items-center gap-3 mb-3 opacity-75">
+                                                <img src="{{ $student->photo_url }}" class="rounded-circle border grayscale"
+                                                    style="width: 45px; height: 45px; object-fit: cover;" alt="">
+                                                <div>
+                                                    <div class="fw-bold small">{{ $student->name }}</div>
+                                                    <div class="text-xs text-muted fw-bold">{{ $student->dob->format('d M') }}
+                                                    </div>
+                                                    <div class="text-xs text-muted">{{ $student->batch->course->code ?? 'N/A' }}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        @empty
+                                            <div class="empty-state-birthday">No recent celebrations</div>
+                                        @endforelse
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Primary Stats Row -->
         <div class="row mb-4">
             <!-- Students -->
@@ -825,5 +1084,6 @@
                 });
             }
         });
+
     </script>
 @endpush

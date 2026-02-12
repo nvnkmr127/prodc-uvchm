@@ -1094,6 +1094,23 @@ Schedule::command('etimeoffice:auto-sync', ['--range=today'])
     ->description('ETimeOffice attendance auto-sync');
 
 
+// Birthday Webhook Schedule
+Schedule::command('webhook:send-birthday')
+    ->dailyAt('09:00')
+    ->name('send-birthday-webhooks')
+    ->before(function () {
+        logSchedulerActivity('webhook:send-birthday', 'Birthday Webhooks', 'STARTING');
+    })
+    ->after(function () {
+        logSchedulerActivity('webhook:send-birthday', 'Birthday Webhooks', 'COMPLETED');
+    })
+    ->onFailure(function () {
+        logSchedulerActivity('webhook:send-birthday', 'Birthday Webhooks', 'FAILED');
+    })
+    ->appendOutputTo(storage_path('logs/birthday-webhooks.log'))
+    ->description('Trigger birthday webhooks for active students');
+
+
 /*
 |--------------------------------------------------------------------------
 | Notification Cleanup Schedule

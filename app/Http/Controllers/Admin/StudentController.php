@@ -27,6 +27,7 @@ use App\Models\StudentFee;
 use App\Models\Payment;
 use App\Services\BiometricMappingService;
 use App\Services\SecureFileValidator;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class StudentController extends Controller
 {
@@ -109,15 +110,24 @@ class StudentController extends Controller
         }
 
         // 3. Capture Query for Stats (Before applying status filter)
-        $statsQuery = clone $query;
+        // OPTIMIZED: Use single query with conditional aggregation instead of 5 separate count queries
+        $statsData = (clone $query)
+            ->join('batches', 'students.batch_id', '=', 'batches.id')
+            ->selectRaw('
+                count(*) as total,
+                count(case when students.status = "active" then 1 end) as active,
+                count(case when students.status = "graduated" then 1 end) as graduated,
+                count(case when students.status = "dropout" then 1 end) as dropout,
+                count(case when batches.is_on_internship = 1 then 1 end) as on_internship
+            ')
+            ->first();
+
         $stats = [
-            'total' => (clone $statsQuery)->count(),
-            'active' => (clone $statsQuery)->where('status', 'active')->count(),
-            'graduated' => (clone $statsQuery)->where('status', 'graduated')->count(),
-            'dropout' => (clone $statsQuery)->where('status', 'dropout')->count(),
-            'on_internship' => (clone $statsQuery)->whereHas('batch', function ($q) {
-                $q->where('is_on_internship', true);
-            })->count(),
+            'total' => $statsData->total ?? 0,
+            'active' => $statsData->active ?? 0,
+            'graduated' => $statsData->graduated ?? 0,
+            'dropout' => $statsData->dropout ?? 0,
+            'on_internship' => $statsData->on_internship ?? 0,
         ];
 
         // 4. Apply Status Filter to main query (Default to active, unless searching)
@@ -127,16 +137,17 @@ class StudentController extends Controller
             $query->where('status', $request->status);
         }
 
-        // 5. Fetch Students
-        $students = $query->latest()->get();
+        // 5. Fetch Students - OPTIMIZED: Use pagination instead of get()
+        $students = $query->latest()->paginate(50)->withQueryString();
 
         // 6. Return response
         if ($request->ajax()) {
             return response()->json([
                 'success' => true,
                 'html' => view('admin.students._table_body', compact('students'))->render(),
+                'pagination' => (string) $students->links('pagination::bootstrap-5'), // Use Bootstrap 5 pagination
                 'stats' => $stats,
-                'count' => $students->count()
+                'count' => $students->total() // Use total() for paginated result
             ]);
         }
 
@@ -180,6 +191,7 @@ class StudentController extends Controller
         DB::beginTransaction();
         try {
             foreach ($students as $student) {
+                /** @var \App\Models\Student $student */
                 try {
                     switch ($request->action) {
                         case 'delete':
@@ -399,9 +411,6 @@ class StudentController extends Controller
         $student = Student::withoutGlobalScope('academic_year')->with([
             'batch.course',
             'studentFees.feeCategory',
-            'attendances' => function ($query) {
-                $query->orderBy('attendance_date', 'desc')->limit(100);
-            }
         ])->findOrFail($student->id);
 
         // Get payment history with proper relationships and ordering
@@ -418,37 +427,27 @@ class StudentController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-        // Get fee structure
-        $studentFees = $student->studentFees()
-            ->with('feeCategory')
-            ->get();
+        // Get fee structure (already eager loaded)
+        $studentFees = $student->studentFees;
 
         // Get recent payments for backward compatibility
         $recentPayments = $paymentHistory->take(10);
 
-        // ✨ Calculate attendance data for current month
-        $currentMonth = now();
-        $startOfMonth = $currentMonth->copy()->startOfMonth();
-        $endOfMonth = $currentMonth->copy()->endOfMonth();
+        // ✨ Calculate attendance data for current month using the unified helper
+        $attendanceDataFull = $this->fetchMonthlyAttendanceData($student, now()->format('Y-m'));
+        $attendanceData = $attendanceDataFull['monthly']; // Extract monthly summary for the card
 
-        $monthlyAttendances = $student->attendances()
-            ->whereBetween('attendance_date', [$startOfMonth, $endOfMonth])
-            ->get();
+        // Map the detailed data to the view variables
+        $presentDays = $attendanceData['present_days'];
+        $absentDays = $attendanceData['absent_days'];
+        $lateDays = $attendanceData['late_days'];
+        $totalWorkingDays = $attendanceData['present_days'] + $attendanceData['absent_days'] + $attendanceData['late_days'] + $attendanceData['excused_days'] + $attendanceData['internship_days'];
 
-        $presentDays = $monthlyAttendances->whereIn('status', ['present', 'late'])->count();
-        $absentDays = $monthlyAttendances->where('status', 'absent')->count();
-        $totalWorkingDays = $monthlyAttendances->count();
-        $attendancePercentage = $totalWorkingDays > 0 ? round(($presentDays / $totalWorkingDays) * 100, 1) : 0;
+        // Calculate percentage based on the standardized logic
+        $attendancePercentage = $attendanceDataFull['summary']['overall_percentage'];
 
-        $attendanceData = [
-            'present_days' => $presentDays,
-            'absent_days' => $absentDays,
-            'total_working_days' => $totalWorkingDays,
-            'attendance_percentage' => $attendancePercentage,
-            'month_name' => $currentMonth->format('F Y'),
-            'late_days' => $monthlyAttendances->where('status', 'late')->count(),
-            'excused_days' => $monthlyAttendances->where('status', 'excused')->count(),
-        ];
+        // ✨ Add percentage to the array for view compatibility (Blade uses $attendanceData['attendance_percentage'])
+        $attendanceData['attendance_percentage'] = $attendancePercentage;
 
         // ✨ NEW: Get comprehensive activity logs
         $recentActivity = $this->getStudentActivityLogs($student);
@@ -458,7 +457,7 @@ class StudentController extends Controller
         $totalConcessions = $studentFees->sum('concession_amount') ?? 0;
         $totalPaid = $studentFees->sum('paid_amount') ?? 0;
         $pendingAmount = $totalFees - $totalConcessions - $totalPaid;
-        $paymentPercentage = $totalFees > 0 ? round(($totalPaid / $totalFees) * 100, 2) : 0;
+        $paymentPercentage = $totalFees > 0 ? round((($totalPaid + $totalConcessions) / $totalFees) * 100, 2) : 0;
 
         $financialSummary = [
             'total_amount' => $totalFees,
@@ -502,7 +501,7 @@ class StudentController extends Controller
             ->orderBy('created_at', 'desc')
             ->take($limit)
             ->get()
-            ->toBase()
+            // Removed toBase() to allow relationship access
             ->map(function ($activity) {
                 return [
                     'type' => 'system',
@@ -522,7 +521,7 @@ class StudentController extends Controller
             ->orderBy('created_at', 'desc')
             ->take($limit)
             ->get()
-            ->toBase()
+            // Removed toBase() to ensure relationships work
             ->map(function ($payment) {
                 $amount = $payment->amount ?? 0;
                 $method = $payment->payment_method ?? 'Unknown';
@@ -552,7 +551,7 @@ class StudentController extends Controller
                 ->orderBy('created_at', 'desc')
                 ->take($limit)
                 ->get()
-                ->toBase()
+                // Removed toBase()
                 ->map(function ($concession) {
                     $categoryName = 'Unknown';
                     if ($concession->studentFee && $concession->studentFee->feeCategory) {
@@ -600,11 +599,12 @@ class StudentController extends Controller
         }
 
         // Merge and sort all activities
-        $allActivities = $spatieActivities
+        $allActivities = $spatieActivities->toBase()
             ->merge($paymentActivities)
             ->merge($concessionActivities)
             ->merge($feeActivities)
             ->sortByDesc('timestamp')
+            ->values() // Reset keys to avoid any getKey issues
             ->take($limit);
 
         return $allActivities;
@@ -780,233 +780,223 @@ class StudentController extends Controller
     public function getAttendanceData(Request $request, \App\Models\Student $student)
     {
         try {
-            // 1. Determine Date Range
-            $monthInput = $request->input('month', now()->format('Y-m'));
-            $startDate = \Carbon\Carbon::parse($monthInput)->startOfMonth();
-            $endDate = \Carbon\Carbon::parse($monthInput)->endOfMonth();
-            $todayStr = now()->format('Y-m-d');
-
-            // 2. Fetch Attendance Records
-            $attendances = \App\Models\Attendance\Attendance::where('student_id', $student->id)
-                ->whereBetween('attendance_date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
-                ->get()
-                ->mapWithKeys(function ($item) {
-                    $d = is_string($item->attendance_date)
-                        ? substr($item->attendance_date, 0, 10)
-                        : $item->attendance_date->format('Y-m-d');
-                    return [$d => $item];
-                });
-
-            // 3. Fetch Holidays
-            $holidays = \App\Models\Holiday::whereBetween('date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
-                ->pluck('name', 'date')->toArray();
-
-            // 3b. [NEW] Fetch Daily Punch Counts for "Low Attendance" check
-            // We count distinct students per day to check if attendance is < 10
-            $dailyCounts = \App\Models\Attendance\Attendance::whereBetween('attendance_date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
-                ->selectRaw('DATE(attendance_date) as date, count(distinct student_id) as count')
-                ->groupBy('date')
-                ->pluck('count', 'date')
-                ->toArray();
-
-            // 4. Determine Effective Start Dates
-
-            // A. Profile Creation / Admission Date
-            $profileStartDate = $student->admission_date
-                ? \Carbon\Carbon::parse($student->admission_date)->startOfDay()
-                : $student->created_at->startOfDay();
-
-            // B. First Biometric Use
-            $firstBiometricUse = \App\Models\Attendance\Attendance::where('student_id', $student->id)
-                ->whereIn('status', ['present', 'late'])
-                ->orderBy('attendance_date', 'asc')
-                ->value('attendance_date');
-
-            $biometricStartDate = $firstBiometricUse ? \Carbon\Carbon::parse($firstBiometricUse)->startOfDay() : null;
-
-            // 5. Settings
-            $isOnInternship = $student->batch && $student->batch->is_on_internship;
-            $internshipStartDate = $isOnInternship ? $student->batch->internship_start_date : null;
-
-            // 6. Counters
-            $present = 0;
-            $absent = 0;
-            $late = 0;
-            $excused = 0;
-            $internship = 0;
-            $calendar = [];
-
-            $totalWorkHours = 0;
-            $lateArrivals = 0;
-            $earlyDepartures = 0;
-
-            // 7. Iterate Through Month
-            $current = $startDate->copy();
-            while ($current <= $endDate) {
-                $dateStr = $current->format('Y-m-d');
-
-                // Basic Date Checks
-                $isFuture = ($dateStr > $todayStr);
-                $isPast = ($dateStr < $todayStr);
-                $isWeekend = $current->isSunday();
-                $isExplicitHoliday = isset($holidays[$dateStr]);
-
-                // [NEW] "Low Attendance" Holiday Logic
-                // If it is a working day (not weekend, not declared holiday) and punches < 10, mark as holiday
-                $isLowAttendanceHoliday = false;
-                if (!$isFuture && !$isWeekend && !$isExplicitHoliday) {
-                    $dayPunchCount = $dailyCounts[$dateStr] ?? 0; // 0 if no records exist
-                    if ($dayPunchCount < 10) {
-                        $isLowAttendanceHoliday = true;
-                    }
-                }
-
-                // Combined Holiday Flag
-                $isEffectiveHoliday = $isExplicitHoliday || $isLowAttendanceHoliday;
-
-                // "Not Started" Logic (Late Joiner)
-                $isBeforeProfile = $current->lt($profileStartDate);
-                // "Not Started" Logic (Late Joiner)
-                $isBeforeProfile = $current->lt($profileStartDate);
-                // [FIX] If never punched (firstBiometricUse is null), treat as not started yet to hide auto-absent
-                $shouldIgnoreForAbsent = $isBeforeProfile || is_null($firstBiometricUse);
-
-                $status = 'none';
-                $checkIn = '-';
-                $checkOut = '-';
-                $remarks = '';
-                $workHours = 0;
-
-                if (isset($attendances[$dateStr])) {
-                    // --- Record Exists (Biometric or Manual) ---
-                    $att = $attendances[$dateStr];
-                    $status = strtolower(trim($att->status));
-
-                    if (!$isFuture) {
-                        if ($status == 'present')
-                            $present++;
-                        elseif ($status == 'late') {
-                            $late++;
-                            $lateArrivals++;
-                        } elseif ($status == 'absent')
-                            $absent++;
-                        elseif ($status == 'excused')
-                            $excused++;
-                    }
-
-                    $checkIn = $att->check_in_time ? \Carbon\Carbon::parse($att->check_in_time)->format('h:i A') : '-';
-                    $checkOut = $att->check_out_time ? \Carbon\Carbon::parse($att->check_out_time)->format('h:i A') : '-';
-                    $remarks = $att->remarks;
-
-                    // If explicit low attendance holiday, append to remarks
-                    if ($isLowAttendanceHoliday) {
-                        $remarks = $remarks ? $remarks . ' (Holiday Declared)' : 'Holiday Declared';
-                    }
-
-                    if ($att->check_in_time && $att->check_out_time) {
-                        $diff = \Carbon\Carbon::parse($att->check_in_time)->diffInHours(\Carbon\Carbon::parse($att->check_out_time));
-                        $workHours = number_format($diff, 1);
-                        $totalWorkHours += $diff;
-                    }
-
-                } else {
-                    // --- No Record ---
-                    if ($shouldIgnoreForAbsent) {
-                        $status = 'none';
-                    } elseif ($isFuture) {
-                        $status = 'none';
-                    } elseif ($isWeekend) {
-                        $status = 'weekend';
-                    } elseif ($isEffectiveHoliday) {
-                        // Handle both explicit holidays and low attendance holidays
-                        $status = 'holiday';
-                        $remarks = $isExplicitHoliday ? $holidays[$dateStr] : 'Holiday';
-                    } else {
-                        // Working Day (Past/Today) where they SHOULD have been present
-                        if ($isPast) {
-                            // Check if student IS ON internship AND current date is AFTER or EQUAL to start date.
-                            // Note: $internshipStartDate might be null for legacy batches, in which case we assume ALWAYS on internship (per migration backfill).
-                            // But usually migration sets it. If it IS null, we should probably allow it? 
-                            // Migration sets to start_date, so it won't be null for active ones.
-                            // If user just toggled it ON (logic above sets it to now()), subsequent dates satisfy this.
-
-                            $isInternshipDay = $isOnInternship;
-                            if ($isOnInternship && $internshipStartDate) {
-                                $isInternshipDay = $current->gte($internshipStartDate);
-                            }
-
-                            if ($isInternshipDay) {
-                                $internship++;
-                                $status = 'internship';
-                                $checkIn = 'OJT';
-                                $remarks = 'On Internship';
-                            } else {
-                                $absent++;
-                                $status = 'absent';
-                                $remarks = 'Absent';
-                            }
-                        } else {
-                            $status = 'none'; // Today pending
-                        }
-                    }
-                }
-
-                $calendar[$dateStr] = [
-                    'status' => $status,
-                    'check_in_time' => $checkIn,
-                    'check_out_time' => $checkOut,
-                    'working_hours' => $workHours,
-                    'remarks' => $remarks,
-                    'is_late_arrival' => ($status == 'late'),
-                    'is_early_departure' => false
-                ];
-
-                $current->addDay();
-            }
-
-            // 8. Calculate Stats
-            $totalCalculatedDays = $present + $late + $absent + $excused + $internship;
-
-            $percentage = 0;
-            if ($totalCalculatedDays > 0) {
-                $effectivePresent = $present + $late + $internship;
-                $percentage = round(($effectivePresent / $totalCalculatedDays) * 100, 1);
-            }
-
-            $biometricSummary = [
-                'valid_working_days' => $present + $late,
-                'average_working_hours' => ($present + $late) > 0 ? round($totalWorkHours / ($present + $late), 1) : 0,
-                'late_arrivals' => $lateArrivals,
-                'early_departures' => $earlyDepartures,
-                'average_check_in' => '-',
-                'average_check_out' => '-'
-            ];
+            $month = $request->input('month', now()->format('Y-m'));
+            $data = $this->fetchMonthlyAttendanceData($student, $month);
 
             return response()->json([
                 'success' => true,
-                'data' => [
-                    'calendar' => $calendar,
-                    'biometric_summary' => $biometricSummary,
-                    'monthly' => [
-                        'records' => $attendances->values(),
-                        'present_days' => $present,
-                        'absent_days' => $absent,
-                        'late_days' => $late,
-                        'excused_days' => $excused,
-                        'internship_days' => $internship,
-                        'month_name' => $startDate->format('F Y')
-                    ],
-                    'summary' => [
-                        'overall_percentage' => $percentage,
-                        'status' => $percentage >= 75 ? 'good' : 'needs_improvement'
-                    ]
-                ]
+                'data' => $data
             ]);
 
         } catch (\Exception $e) {
             \Log::error('Attendance data error: ' . $e->getMessage());
             return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
         }
+    }
+
+    /**
+     * Helper to fetch comprehensive attendance data for a student and month
+     * valid for both Controller and AJAX use
+     */
+    private function fetchMonthlyAttendanceData(\App\Models\Student $student, $monthInput)
+    {
+        // 1. Determine Date Range
+        $startDate = \Carbon\Carbon::parse($monthInput)->startOfMonth();
+        $endDate = \Carbon\Carbon::parse($monthInput)->endOfMonth();
+        $todayStr = now()->format('Y-m-d');
+
+        // 2. Fetch Attendance Records
+        $attendances = \App\Models\Attendance\Attendance::where('student_id', $student->id)
+            ->whereBetween('attendance_date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
+            ->get()
+            ->mapWithKeys(function ($item) {
+                $d = is_string($item->attendance_date)
+                    ? substr($item->attendance_date, 0, 10)
+                    : $item->attendance_date->format('Y-m-d');
+                return [$d => $item];
+            });
+
+        // 3. Fetch Holidays
+        $holidays = \App\Models\Holiday::whereBetween('date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
+            ->pluck('name', 'date')->toArray();
+
+        // 3b. [NEW] Fetch Daily Punch Counts for "Low Attendance" check
+        $dailyCounts = \App\Models\Attendance\Attendance::whereBetween('attendance_date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
+            ->selectRaw('DATE(attendance_date) as date, count(distinct student_id) as count')
+            ->groupBy('date')
+            ->pluck('count', 'date')
+            ->toArray();
+
+        // 4. Determine Effective Start Dates
+        $profileStartDate = $student->admission_date
+            ? \Carbon\Carbon::parse($student->admission_date)->startOfDay()
+            : $student->created_at->startOfDay();
+
+        $firstBiometricUse = \App\Models\Attendance\Attendance::where('student_id', $student->id)
+            ->whereIn('status', ['present', 'late'])
+            ->orderBy('attendance_date', 'asc')
+            ->value('attendance_date');
+
+        // 5. Settings
+        $isOnInternship = $student->batch && $student->batch->is_on_internship;
+        $internshipStartDate = $isOnInternship ? $student->batch->internship_start_date : null;
+
+        // 6. Counters
+        $present = 0;
+        $absent = 0;
+        $late = 0;
+        $excused = 0;
+        $internship = 0;
+        $calendar = [];
+
+        $totalWorkHours = 0;
+        $lateArrivals = 0;
+        $earlyDepartures = 0;
+
+        // 7. Iterate Through Month
+        $current = $startDate->copy();
+        while ($current <= $endDate) {
+            $dateStr = $current->format('Y-m-d');
+
+            $isFuture = ($dateStr > $todayStr);
+            $isPast = ($dateStr < $todayStr);
+            $isWeekend = $current->isSunday();
+            $isExplicitHoliday = isset($holidays[$dateStr]);
+
+            // Low Attendance Holiday Logic
+            $isLowAttendanceHoliday = false;
+            if (!$isFuture && !$isWeekend && !$isExplicitHoliday) {
+                $dayPunchCount = $dailyCounts[$dateStr] ?? 0;
+                if ($dayPunchCount < 10) {
+                    $isLowAttendanceHoliday = true;
+                }
+            }
+
+            $isEffectiveHoliday = $isExplicitHoliday || $isLowAttendanceHoliday;
+
+            // "Not Started" Logic (Late Joiner)
+            $isBeforeProfile = $current->lt($profileStartDate);
+            // If never punched (firstBiometricUse is null), treat as not started yet to hide auto-absent
+            $shouldIgnoreForAbsent = $isBeforeProfile || is_null($firstBiometricUse);
+
+            $status = 'none';
+            $checkIn = '-';
+            $checkOut = '-';
+            $remarks = '';
+            $workHours = 0;
+
+            if (isset($attendances[$dateStr])) {
+                // --- Record Exists ---
+                $att = $attendances[$dateStr];
+                $status = strtolower(trim($att->status));
+
+                if (!$isFuture && $status != 'none') {
+                    if ($status == 'present')
+                        $present++;
+                    elseif ($status == 'late') {
+                        $late++;
+                        $lateArrivals++;
+                    } elseif ($status == 'absent')
+                        $absent++;
+                    elseif ($status == 'excused')
+                        $excused++;
+                }
+
+                $checkIn = $att->check_in_time ? \Carbon\Carbon::parse($att->check_in_time)->format('h:i A') : '-';
+                $checkOut = $att->check_out_time ? \Carbon\Carbon::parse($att->check_out_time)->format('h:i A') : '-';
+                $remarks = $att->remarks;
+
+                if ($isLowAttendanceHoliday) {
+                    $remarks = $remarks ? $remarks . ' (Holiday Declared)' : 'Holiday Declared';
+                }
+
+                if ($att->check_in_time && $att->check_out_time) {
+                    $diff = \Carbon\Carbon::parse($att->check_in_time)->diffInHours(\Carbon\Carbon::parse($att->check_out_time));
+                    $workHours = number_format($diff, 1);
+                    $totalWorkHours += $diff;
+                }
+
+            } else {
+                // --- No Record ---
+                if ($shouldIgnoreForAbsent) {
+                    $status = 'none';
+                } elseif ($isFuture) {
+                    $status = 'none';
+                } elseif ($isWeekend) {
+                    $status = 'weekend';
+                } elseif ($isEffectiveHoliday) {
+                    $status = 'holiday';
+                    $remarks = $isExplicitHoliday ? $holidays[$dateStr] : 'Holiday';
+                } else {
+                    if ($isPast) {
+                        $isInternshipDay = $isOnInternship;
+                        if ($isOnInternship && $internshipStartDate) {
+                            $isInternshipDay = $current->gte(\Carbon\Carbon::parse($internshipStartDate));
+                        }
+
+                        if ($isInternshipDay) {
+                            $internship++;
+                            $status = 'internship';
+                            $checkIn = 'OJT';
+                            $remarks = 'On Internship';
+                        } else {
+                            $absent++;
+                            $status = 'absent';
+                            $remarks = 'Absent';
+                        }
+                    } else {
+                        $status = 'none'; // Today pending
+                    }
+                }
+            }
+
+            $calendar[$dateStr] = [
+                'status' => $status,
+                'check_in_time' => $checkIn,
+                'check_out_time' => $checkOut,
+                'working_hours' => $workHours,
+                'remarks' => $remarks,
+                'is_late_arrival' => ($status == 'late'),
+                'is_early_departure' => false
+            ];
+
+            $current->addDay();
+        }
+
+        // 8. Calculate Stats
+        $totalCalculatedDays = $present + $late + $absent + $excused + $internship;
+        $percentage = 0;
+        if ($totalCalculatedDays > 0) {
+            $effectivePresent = $present + $late + $internship;
+            $percentage = round(($effectivePresent / $totalCalculatedDays) * 100, 1);
+        }
+
+        $biometricSummary = [
+            'valid_working_days' => $present + $late,
+            'average_working_hours' => ($present + $late) > 0 ? round($totalWorkHours / ($present + $late), 1) : 0,
+            'late_arrivals' => $lateArrivals,
+            'early_departures' => $earlyDepartures,
+            'average_check_in' => '-',
+            'average_check_out' => '-'
+        ];
+
+        return [
+            'calendar' => $calendar,
+            'biometric_summary' => $biometricSummary,
+            'monthly' => [
+                'records' => $attendances->values(),
+                'present_days' => $present,
+                'absent_days' => $absent,
+                'late_days' => $late,
+                'excused_days' => $excused,
+                'internship_days' => $internship,
+                'month_name' => $startDate->format('F Y')
+            ],
+            'summary' => [
+                'overall_percentage' => $percentage,
+                'status' => $percentage >= 75 ? 'good' : 'needs_improvement'
+            ]
+        ];
     }
 
     /**
@@ -1534,35 +1524,7 @@ class StudentController extends Controller
     /**
      * AJAX endpoint for attendance data
      */
-    public function getStudentAttendanceData(Request $request, Student $student)
-    {
-        try {
-            $month = $request->get('month', now()->format('Y-m'));
-            $attendanceData = $this->getAttendanceData($student, $month);
-            $attendanceCalendar = $this->getAttendanceCalendar($student, $month);
-            $attendanceSummary = $this->getAttendanceSummary($student);
-
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'summary' => $attendanceSummary,
-                    'monthly' => $attendanceData,
-                    'calendar' => $attendanceCalendar->toArray()
-                ]
-            ]);
-
-        } catch (\Throwable $e) { // Use \Throwable to catch all errors
-            Log::error('Failed to get student attendance data', [
-                'student_id' => $student->id,
-                'error' => $e->getMessage()
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to load attendance data'
-            ], 500);
-        }
-    }
+    // [DEAD CODE DELETED] getStudentAttendanceData was buggy and unused.
     /**
      * Get holidays for the month
      */
@@ -2103,7 +2065,7 @@ class StudentController extends Controller
     {
         $students = Student::with('batch.course')->get();
 
-        $studentsWithPhotos = $students->map(function ($student) {
+        $studentsWithPhotos = $students->map(function (Student $student) {
             return [
                 'id' => $student->id,
                 'name' => $student->name,
@@ -2361,7 +2323,7 @@ class StudentController extends Controller
      */
     private function exportAttendanceToPDF($student, $data)
     {
-        $pdf = \PDF::loadView('admin.students.attendance-export-pdf', [
+        $pdf = Pdf::loadView('admin.students.attendance-export-pdf', [
             'student' => $student,
             'data' => $data,
             'generated_at' => now()
@@ -2438,7 +2400,8 @@ class StudentController extends Controller
         // This is a placeholder implementation
         $filename = "attendance_{$student->enrollment_number}_" . now()->format('Y-m-d') . ".xlsx";
 
-        return \Excel::download(new \App\Exports\AttendanceExport($student, $data), $filename);
+        // Wrap data because AttendanceExport expects array with 'data' key
+        return Excel::download(new \App\Exports\AttendanceExport(['data' => $data]), $filename);
     }
 
 

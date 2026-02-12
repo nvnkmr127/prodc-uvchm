@@ -45,7 +45,6 @@ class EventDiscoveryService
         'announcement' => ['name' => 'Communication', 'icon' => 'fas fa-bullhorn', 'emoji' => '📱'],
 
         'backup' => ['name' => 'System Events', 'icon' => 'fas fa-database', 'emoji' => '⚙️'],
-        'maintenance' => ['name' => 'System Events', 'icon' => 'fas fa-cog', 'emoji' => '⚙️'],
         'security' => ['name' => 'System Events', 'icon' => 'fas fa-shield-alt', 'emoji' => '⚙️'],
         'login' => ['name' => 'System Events', 'icon' => 'fas fa-sign-in-alt', 'emoji' => '⚙️'],
     ];
@@ -84,6 +83,16 @@ class EventDiscoveryService
             'event_key' => 'attendance.daily_absent',
             'name' => 'Daily Absent Report',
             'description' => 'Triggers once daily after the "Present Cutoff Time". Sends a list of all students who have not marked attendance.',
+            'category' => ['name' => 'Student Management', 'icon' => 'fas fa-user-graduate', 'emoji' => '👨‍🎓'],
+            'auto_discovered' => false,
+            'source' => 'manual',
+            'class' => 'scheduled_command'
+        ];
+
+        $events[] = [
+            'event_key' => 'student.birthday',
+            'name' => 'Student Birthday Today',
+            'description' => 'Triggers daily for each active student celebrating their birthday today. Useful for automated wishes.',
             'category' => ['name' => 'Student Management', 'icon' => 'fas fa-user-graduate', 'emoji' => '👨‍🎓'],
             'auto_discovered' => false,
             'source' => 'manual',

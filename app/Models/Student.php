@@ -10,10 +10,12 @@ use Spatie\Activitylog\LogOptions;
 use App\Traits\StudentPhotoHelper;
 use App\Services\ComponentPaymentService;
 use Illuminate\Support\Facades\Schema;
+use App\Traits\WebhookEnabled;
 use Carbon\Carbon;
 
 class Student extends Model
 {
+    use WebhookEnabled;
     use HasFactory, LogsActivity, StudentPhotoHelper;
 
     /**

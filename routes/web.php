@@ -472,6 +472,10 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
         Route::post('component-payments/store-quick', [ComponentPaymentController::class, 'storeQuickPayment'])
             ->name('component-payments.store-quick');
 
+        // Manual Webhook Trigger
+        Route::post('payments/{payment}/webhook', [PaymentController::class, 'resendWebhook'])
+            ->name('payments.webhook');
+
         // Receipt Routes
         Route::get('payments/{student}/{payment}/receipt', [ComponentPaymentController::class, 'showReceipt'])
             ->name('payments.receipt')

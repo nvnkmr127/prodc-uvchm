@@ -401,14 +401,61 @@ class DashboardController extends Controller
             ],
 
             // System Health
-            'active_users' => $this->getActiveUsersCount(),
-            'server_uptime' => $this->getServerUptime(),
-            'response_time' => $this->getAverageResponseTime(),
-            'storage_used' => $this->getStorageUsage(),
-            'database_size' => $this->getDatabaseSize(),
-            'api_calls' => $this->getTodayApiCalls(),
-            'concurrent_sessions' => $this->getConcurrentSessions()
+            'concurrent_sessions' => $this->getConcurrentSessions(),
+            'birthdays' => $this->getBirthdayData()
         ];
+    }
+
+    private function getBirthdayData()
+    {
+        $today = now();
+
+        return [
+            'today' => $this->getStudentsWithBirthdayOn($today),
+            'tomorrow' => $this->getStudentsWithBirthdayOn(now()->addDay()),
+            'upcoming_3_days' => $this->getStudentsWithBirthdayInRange(now()->addDays(2), now()->addDays(4)),
+            'last_3_days' => $this->getStudentsWithBirthdayInRange(now()->subDays(3), now()->subDay()),
+        ];
+    }
+
+    private function getStudentsWithBirthdayOn($date)
+    {
+        return Student::active()
+            ->whereMonth('dob', $date->month)
+            ->whereDay('dob', $date->day)
+            ->with(['batch.course'])
+            ->get();
+    }
+
+    private function getStudentsWithBirthdayInRange($start, $end)
+    {
+        $query = Student::active()
+            ->with(['batch.course']);
+
+        // MySQL specific optimization for birthday range ignoring year
+        // Handling cross-month/year boundaries
+        $startMonth = $start->month;
+        $startDay = $start->day;
+        $endMonth = $end->month;
+        $endDay = $end->day;
+
+        if ($startMonth == $endMonth) {
+            $query->whereMonth('dob', $startMonth)
+                ->whereBetween(DB::raw('DAY(dob)'), [$startDay, $endDay]);
+        } else {
+            // Boundary crossing (either month or year)
+            $query->where(function ($q) use ($startMonth, $startDay, $endMonth, $endDay) {
+                $q->where(function ($sub) use ($startMonth, $startDay) {
+                    $sub->whereMonth('dob', $startMonth)
+                        ->where(DB::raw('DAY(dob)'), '>=', $startDay);
+                })->orWhere(function ($sub) use ($endMonth, $endDay) {
+                    $sub->whereMonth('dob', $endMonth)
+                        ->where(DB::raw('DAY(dob)'), '<=', $endDay);
+                });
+            });
+        }
+
+        return $query->get();
     }
 
     private function calculateConversionRate()

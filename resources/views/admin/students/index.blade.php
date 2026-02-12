@@ -770,10 +770,14 @@
             </table>
         </div>
 
-        <!-- Total Count Info -->
-        <div class="d-flex justify-content-between align-items-center mt-4 mb-4">
-            <div class="pagination-info">
-                Showing <strong id="visibleCount">{{ $students->count() }}</strong> students total
+        <!-- Total Count Info & Pagination -->
+        <div class="d-flex justify-content-between align-items-center mt-4 mb-4 flex-wrap">
+            <div class="pagination-info mb-2 mb-md-0">
+                Showing <strong id="visibleCount">{{ $students->count() }}</strong> of <strong
+                    id="totalCount">{{ $students->total() }}</strong> students
+            </div>
+            <div id="paginationContainer">
+                {{ $students->links('pagination::bootstrap-5') }}
             </div>
         </div>
 
@@ -1047,6 +1051,31 @@
 
                 // Handle browser back/forward
                 window.onpopstate = () => this.loadFiltersFromUrl();
+
+                // Bind Pagination Clicks (Delegation)
+                $(document).on('click', '#paginationContainer a', (e) => {
+                    e.preventDefault();
+                    const url = $(e.currentTarget).attr('href');
+                    if (url) this.loadUrl(url);
+                });
+            }
+
+            // Load specific URL (for pagination)
+            loadUrl(url) {
+                this.showLoading(true);
+
+                // Update browser history
+                window.history.pushState({}, '', url);
+
+                $.ajax({
+                    url: url,
+                    method: 'GET',
+                    dataType: 'json',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+                    success: (data) => this.handleResponse(data),
+                    error: (xhr) => this.handleError(xhr),
+                    complete: () => this.showLoading(false)
+                });
             }
 
             applyFilters(pushState = true) {
@@ -1067,6 +1096,9 @@
                 const search = $('#globalSearch').val();
                 if (search) params.append('search', search);
 
+                // Reset to page 1 when filtering
+                params.append('page', 1);
+
                 const queryString = params.toString();
                 const url = `${window.location.pathname}?${queryString}`;
 
@@ -1074,30 +1106,21 @@
                     window.history.pushState({}, '', url);
                 }
 
-                // AJAX Request
-                $.ajax({
-                    url: url,
-                    method: 'GET',
-                    dataType: 'json',
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'Accept': 'application/json'
-                    },
-                    success: (data) => {
-                        if (data.success) {
-                            this.updateTable(data.html);
-                            this.updateStats(data.stats);
-                            this.updateCount(data.count);
-                        }
-                    },
-                    error: (xhr) => {
-                        console.error('Filtering error:', xhr);
-                        this.showToast('Failed to load students', 'error');
-                    },
-                    complete: () => {
-                        this.showLoading(false);
-                    }
-                });
+                this.loadUrl(url); // Reuse loadUrl
+            }
+
+            // Refactored response handler
+            handleResponse(data) {
+                if (data.success) {
+                    this.updateTable(data.html);
+                    this.updateStats(data.stats);
+                    this.updateCount(data.count, data.pagination);
+                }
+            }
+
+            handleError(xhr) {
+                console.error('Error:', xhr);
+                this.showToast('Failed to load data', 'error');
             }
 
             updateTable(html) {
@@ -1124,8 +1147,14 @@
                 }
             }
 
-            updateCount(count) {
-                $('#visibleCount').text(count);
+            updateCount(count, paginationHtml) {
+                $('#visibleCount').text(document.querySelectorAll('#studentsTable tbody tr').length); // Actual visible rows
+                $('#totalCount').text(count); // Total from server
+
+                if (paginationHtml) {
+                    $('#paginationContainer').html(paginationHtml);
+                }
+
                 $('#selectedCount').text('0'); // Reset selection
                 $('.student-checkbox').prop('checked', false);
                 $('#selectAll').prop('checked', false);
@@ -1184,9 +1213,9 @@
 
                 $('#confirmDeleteBtn').off('click').on('click', () => {
                     const form = $(`<form action="/admin/students/${studentId}" method="POST">
-                            <input type="hidden" name="_token" value="${$('meta[name="csrf-token"]').attr('content')}">
-                            <input type="hidden" name="_method" value="DELETE">
-                        </form>`);
+                                <input type="hidden" name="_token" value="${$('meta[name="csrf-token"]').attr('content')}">
+                                <input type="hidden" name="_method" value="DELETE">
+                            </form>`);
                     $('body').append(form);
                     form.submit();
                 });

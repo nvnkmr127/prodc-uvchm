@@ -703,34 +703,14 @@
                 <div class="col-lg-auto text-center text-lg-left">
                     <div class="student-avatar-container">
                         @php
-                            // 1. Determine Photo URL (Database -> 3D -> Flat -> Sketch)
-                            if ($student->photo) {
+                            // 1. Determine Photo URL
+                            if ($student->photo && \Storage::disk('public')->exists($student->photo)) {
                                 $photoUrl = asset('storage/' . $student->photo);
                             } else {
-                                // Normalize gender
-                                $gender = strtolower($student->gender ?? 'male');
-                                $isFemale = str_contains($gender, 'female') || str_contains($gender, 'girl') || $gender === 'f';
-
-                                // Generate a unique seed for this student
-                                $seed = urlencode($student->name . $student->id);
-
-                                // Cycle through 3 modern styles based on Student ID to create visual variety
-                                // Style 1: 3D (Iran Liara) - 50% chance
-                                // Style 2: Modern Flat (DiceBear Micah) - 25% chance
-                                // Style 3: Expressive (DiceBear Adventurer) - 25% chance
-                                $stylePicker = $student->id % 4;
-
-                                if ($stylePicker <= 1) {
-                                    // 3D Style (Best for realism)
-                                    $base = $isFemale ? 'https://avatar.iran.liara.run/public/girl' : 'https://avatar.iran.liara.run/public/boy';
-                                    $photoUrl = $base . '?username=' . $seed;
-                                } elseif ($stylePicker === 2) {
-                                    // Modern Flat Style (Clean & Minimalist)
-                                    $photoUrl = 'https://api.dicebear.com/9.x/micah/svg?seed=' . $seed . '&baseColor=f9c9b6,ac6651&radius=50';
-                                } else {
-                                    // Expressive Style (Fun & detailed)
-                                    $photoUrl = 'https://api.dicebear.com/9.x/adventurer/svg?seed=' . $seed;
-                                }
+                                // Reliable Fallback: UI Avatars
+                                // Uses name initials, consistent color, and high availability
+                                $name = urlencode($student->name);
+                                $photoUrl = "https://ui-avatars.com/api/?name={$name}&background=random&color=fff&size=200&font-size=0.33&bold=true";
                             }
 
                             // 2. Status Color Logic
@@ -770,7 +750,8 @@
                                 </div>
 
                                 <div class="meta-pill mb-2" title="Certificate Status">
-                                    <i class="fas fa-certificate {{ $student->is_certificate_received ? 'text-success' : 'text-warning' }}"></i>
+                                    <i
+                                        class="fas fa-certificate {{ $student->is_certificate_received ? 'text-success' : 'text-warning' }}"></i>
                                     <strong>{{ $student->is_certificate_received ? ($student->certificate_type . ' Certificate Received') : 'Certificate Pending' }}</strong>
                                 </div>
 
@@ -814,9 +795,6 @@
                                     <i class="fas fa-pen text-gray-600"></i>
                                 </a>
 
-                                <button onclick="window.print()" class="btn btn-light border mb-2" title="Print Profile">
-                                    <i class="fas fa-print text-gray-600"></i>
-                                </button>
                             </div>
                         </div>
                     </div>
@@ -927,1567 +905,1570 @@
     </div>
 
     <!-- =============================================================================
-         Enhanced Financial Summary Card (add this after the statistics cards)
-         ============================================================================= -->
+                 Enhanced Financial Summary Card (add this after the statistics cards)
+                 ============================================================================= -->
 
     {{-- Detailed Financial Breakdown Card --}}
-    @if(isset($financialSummary['total_amount']) && $financialSummary['total_amount'] > 0)
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="card modern-card">
-                    <div class="card-header bg-white">
-                        <h6 class="m-0 font-weight-bold text-primary">
-                            <i class="fas fa-chart-bar mr-2"></i> Financial Summary Breakdown
-                        </h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-8">
-                                <div class="mb-3">
-                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                        <small class="font-weight-bold">Fee Settlement Progress</small>
-                                        <small
-                                            class="text-muted">{{ isset($financialSummary['payment_percentage']) ? $financialSummary['payment_percentage'] : 0 }}%
-                                            completed</small>
-                                    </div>
-                                    <div class="progress mb-2" style="height: 20px;">
-                                        @if(isset($financialSummary['paid_amount']) && $financialSummary['paid_amount'] > 0)
-                                            <div class="progress-bar bg-success" role="progressbar"
-                                                style="width: {{ isset($financialSummary['payment_percentage']) ? $financialSummary['payment_percentage'] : 0 }}%"
-                                                title="Paid: ₹{{ number_format($financialSummary['paid_amount'], 0) }}">
-                                                {{ isset($financialSummary['payment_percentage']) ? $financialSummary['payment_percentage'] : 0 }}%
-                                            </div>
-                                        @endif
-                                        @if(isset($financialSummary['concession_amount']) && $financialSummary['concession_amount'] > 0)
-                                            @php
-                                                $concessionPercentage = isset($financialSummary['total_amount']) && $financialSummary['total_amount'] > 0 ? round(($financialSummary['concession_amount'] / $financialSummary['total_amount']) * 100, 1) : 0;
-                                            @endphp
-                                            <div class="progress-bar bg-warning" role="progressbar"
-                                                style="width: {{ $concessionPercentage }}%"
-                                                title="Concession: ₹{{ number_format($financialSummary['concession_amount'], 0) }}">
-                                                {{ $concessionPercentage }}%
-                                            </div>
-                                        @endif
-                                    </div>
-                                    <div class="d-flex justify-content-between small text-muted">
-                                        <span><i class="fas fa-square text-success mr-1"></i>Paid</span>
-                                        <span><i class="fas fa-square text-warning mr-1"></i>Concession</span>
-                                        <span><i class="fas fa-square text-light mr-1"></i>Outstanding</span>
-                                    </div>
-                                </div>
+            @if(isset($financialSummary['total_amount']) && $financialSummary['total_amount'] > 0)
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card modern-card">
+                            <div class="card-header bg-white">
+                                <h6 class="m-0 font-weight-bold text-primary">
+                                    <i class="fas fa-chart-bar mr-2"></i> Financial Summary Breakdown
+                                </h6>
                             </div>
-                            <div class="col-md-4">
-                                <div class="row text-center">
-                                    <div class="col-4">
-                                        <div class="p-2 rounded bg-light">
-                                            <div class="text-success font-weight-bold">
-                                                ₹{{ number_format(isset($financialSummary['paid_amount']) ? $financialSummary['paid_amount'] : 0, 0) }}
-                                            </div>
-                                            <div class="small text-muted">Paid</div>
-                                        </div>
-                                    </div>
-                                    <div class="col-4">
-                                        <div class="p-2 rounded bg-light">
-                                            <div class="text-warning font-weight-bold">
-                                                ₹{{ number_format(isset($financialSummary['concession_amount']) ? $financialSummary['concession_amount'] : 0, 0) }}
-                                            </div>
-                                            <div class="small text-muted">Concession</div>
-                                        </div>
-                                    </div>
-                                    <div class="col-4">
-                                        <div class="p-2 rounded bg-light">
-                                            <div
-                                                class="text-{{ isset($financialSummary['remaining_amount']) && $financialSummary['remaining_amount'] > 0 ? 'danger' : 'success' }} font-weight-bold">
-                                                ₹{{ number_format(isset($financialSummary['remaining_amount']) ? $financialSummary['remaining_amount'] : 0, 0) }}
-                                            </div>
-                                            <div class="small text-muted">Due</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    @endif
-
-    {{-- Main Content with Organized Tabs --}}
-    <div class="row">
-        <div class="col-lg-8">
-            <div class="card modern-card">
-                <div class="card-header bg-white py-3">
-                    <ul class="nav nav-tabs nav-tabs-modern" id="profileTabs" role="tablist">
-                        <li class="nav-item">
-                            <a class="nav-link active" id="overview-tab" data-toggle="tab" href="#overview" role="tab">
-                                <i class="fas fa-tachometer-alt mr-2"></i> Overview
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" id="fees-tab" data-toggle="tab" href="#fees" role="tab">
-                                <i class="fas fa-money-bill-wave mr-2"></i> Fee Components
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" id="payments-tab" data-toggle="tab" href="#payments" role="tab">
-                                <i class="fas fa-credit-card mr-2"></i> Payment History
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" id="attendance-tab" data-toggle="tab" href="#attendance" role="tab">
-                                <i class="fas fa-calendar-check mr-2"></i> Attendance
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-                <div class="card-body">
-                    <div class="tab-content" id="profileTabContent">
-                        {{-- Overview Tab --}}
-                        <div class="tab-pane fade show active" id="overview" role="tabpanel">
-                            <div class="row">
-                                {{-- Personal Information Column --}}
-                                <div class="col-md-6">
-                                    <div class="card shadow-sm mb-4 border-left-primary h-100">
-                                        <div class="card-header bg-white py-3">
-                                            <h6 class="m-0 font-weight-bold text-primary">
-                                                <i class="fas fa-user-circle mr-2"></i> Personal Details
-                                            </h6>
-                                        </div>
-                                        <div class="card-body">
-                                            <div class="table-responsive">
-                                                <table class="table table-borderless table-sm">
-                                                    <tbody>
-                                                        <tr>
-                                                            <td class="font-weight-bold w-40">
-                                                                <i class="fas fa-venus-mars text-muted mr-2"></i>Gender:
-                                                            </td>
-                                                            <td>{{ $student->gender ?? 'Not specified' }}</td>
-                                                        </tr>
-                                                        <tr>
-                                                            <td class="font-weight-bold">
-                                                                <i class="fas fa-calendar-alt text-muted mr-2"></i>Date of Birth:
-                                                            </td>
-                                                            <td>
-                                                                {{ $student->dob ? \Carbon\Carbon::parse($student->dob)->format('d M, Y') : 'Not recorded' }}
-                                                            </td>
-                                                        </tr>
-                                                        @if($student->age)
-                                                        <tr>
-                                                            <td class="font-weight-bold">
-                                                                <i class="fas fa-hourglass-half text-muted mr-2"></i>Age:
-                                                            </td>
-                                                            <td>
-                                                                <span class="badge badge-info">{{ $student->age }}</span>
-                                                            </td>
-                                                        </tr>
-                                                        @endif
-                                                        <tr>
-                                                            <td class="font-weight-bold">
-                                                                <i class="fas fa-user-tie text-muted mr-2"></i>Father's Name:
-                                                            </td>
-                                                            <td>{{ $student->father_name ?? 'Not provided' }}</td>
-                                                        </tr>
-                                                        <tr>
-                                                            <td class="font-weight-bold">
-                                                                <i class="fas fa-phone text-muted mr-2"></i>Mobile:
-                                                            </td>
-                                                            <td>{{ $student->student_mobile ?? 'Not provided' }}</td>
-                                                        </tr>
-                                                        <tr>
-                                                            <td class="font-weight-bold">
-                                                                <i class="fas fa-phone-alt text-muted mr-2"></i>Father's Mobile:
-                                                            </td>
-                                                            <td>{{ $student->father_mobile ?? 'Not provided' }}</td>
-                                                        </tr>
-                                                        <tr>
-                                                            <td class="font-weight-bold">
-                                                                <i class="fas fa-map-marker-alt text-muted mr-2"></i>Address:
-                                                            </td>
-                                                            <td>
-                                                                {{ $student->admission->address ?? $student->village ?? 'Not provided' }}
-                                                            </td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {{-- Academic & Source Information Column --}}
-                                <div class="col-md-6">
-                                    {{-- Academic Info --}}
-                                    <div class="card shadow-sm mb-4 border-left-info">
-                                        <div class="card-header bg-white py-3">
-                                            <h6 class="m-0 font-weight-bold text-info">
-                                                <i class="fas fa-graduation-cap mr-2"></i> Academic Details
-                                            </h6>
-                                        </div>
-                                        <div class="card-body">
-                                            <div class="table-responsive">
-                                                <table class="table table-borderless table-sm">
-                                                    <tbody>
-                                                        <tr>
-                                                            <td class="font-weight-bold w-40">
-                                                                <i class="fas fa-book text-muted mr-2"></i>Course:
-                                                            </td>
-                                                            <td>{{ optional($student->batch)->course->name ?? 'Not assigned' }}</td>
-                                                        </tr>
-                                                        <tr>
-                                                            <td class="font-weight-bold">
-                                                                <i class="fas fa-chalkboard-teacher text-muted mr-2"></i>Batch:
-                                                            </td>
-                                                            <td>{{ optional($student->batch)->name ?? 'Not assigned' }}</td>
-                                                        </tr>
-                                                        <tr>
-                                                            <td class="font-weight-bold">
-                                                                <i class="fas fa-calendar-check text-muted mr-2"></i>Admission Date:
-                                                            </td>
-                                                            <td>
-                                                                {{ $student->admission_date ? \Carbon\Carbon::parse($student->admission_date)->format('d M, Y') : 'Not recorded' }}
-                                                            </td>
-                                                        </tr>
-                                                        <tr>
-                                                            <td class="font-weight-bold">
-                                                                <i class="fas fa-info-circle text-muted mr-2"></i>Status:
-                                                            </td>
-                                                            <td>
-                                                                <span class="badge badge-{{ $student->status === 'active' ? 'success' : ($student->status === 'graduated' ? 'info' : 'danger') }}">
-                                                                    {{ ucfirst($student->status) }}
-                                                                </span>
-                                                            </td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {{-- Source Info --}}
-                                    <div class="card shadow-sm mb-4 border-left-warning">
-                                        <div class="card-header bg-white py-3">
-                                            <h6 class="m-0 font-weight-bold text-warning">
-                                                <i class="fas fa-bullhorn mr-2"></i> Source Information
-                                            </h6>
-                                        </div>
-                                        <div class="card-body">
-                                            <div class="table-responsive">
-                                                <table class="table table-borderless table-sm">
-                                                    <tbody>
-                                                        <tr>
-                                                            <td class="font-weight-bold w-40">
-                                                                <i class="fas fa-share-alt text-muted mr-2"></i>Source:
-                                                            </td>
-                                                            <td>
-                                                                @if($student->source ?? null)
-                                                                    <span class="badge badge-primary px-2 py-1">{{ ucfirst($student->source) }}</span>
-                                                                @else
-                                                                    <span class="text-muted">Not provided</span>
-                                                                @endif
-                                                            </td>
-                                                        </tr>
-                                                        <tr>
-                                                            <td class="font-weight-bold">
-                                                                <i class="fas fa-user-tag text-muted mr-2"></i>Referral Name:
-                                                            </td>
-                                                            <td>
-                                                                @if($student->referral_name ?? null)
-                                                                    <span class="font-weight-bold text-dark">
-                                                                        {{ $student->referral_name }}
-                                                                    </span>
-                                                                    @if($student->referrer)
-                                                                        <div class="small text-muted mt-1">
-                                                                            <i class="fas fa-id-badge mr-1"></i> {{ $student->referrer->enrollment_number }}
-                                                                            <span class="mx-1">|</span>
-                                                                            <i class="fas fa-layer-group mr-1"></i> {{ optional($student->referrer->batch)->name ?? 'No Batch' }}
-                                                                        </div>
-                                                                    @endif
-                                                                @else
-                                                                    <span class="text-muted">Not provided</span>
-                                                                @endif
-                                                            </td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                </div>
-                            </div>
-                        </div>
-
-                        {{-- Fee Components Tab --}}
-                        <div class="tab-pane fade" id="fees" role="tabpanel">
-                            <div class="d-flex justify-content-between align-items-center mb-4">
-                                <h5 class="mb-0 text-primary">
-                                    <i class="fas fa-file-invoice-dollar mr-2"></i> Fee Components
-                                </h5>
-                                <div class="btn-group">
-                                    <button class="action-btn btn-success-modern btn-sm" onclick="openPaymentModal()">
-                                        <i class="fas fa-plus mr-2"></i> Record Payment
-                                    </button>
-                                    <button class="btn btn-primary btn-sm" data-toggle="modal"
-                                        data-target="#addFeeComponentModal">
-                                        <i class="fas fa-plus-circle mr-2"></i> Add Fee Component
-                                    </button>
-                                </div>
-                            </div>
-
-                            @if($studentFees->count() > 0)
-                                @foreach($studentFees as $studentFee)
-                                    @php
-                                        $paidAmount = $studentFee->paid_amount ?? 0;
-                                        $concessionAmount = $studentFee->concession_amount ?? 0;
-                                        $totalAmount = $studentFee->amount ?? 0;
-                                        $remainingAmount = $totalAmount - $paidAmount - $concessionAmount;
-
-                                        $paymentPercentage = ($totalAmount > 0) ?
-                                            round((($paidAmount + $concessionAmount) / $totalAmount) * 100, 1) : 0;
-
-                                        if ($remainingAmount <= 0) {
-                                            $statusClass = 'success';
-                                            $statusText = 'Fully Paid';
-                                            $progressClass = 'bg-success';
-                                        } elseif ($paidAmount > 0 || $concessionAmount > 0) {
-                                            $statusClass = 'warning';
-                                            $statusText = 'Partially Paid';
-                                            $progressClass = 'bg-warning';
-                                        } else {
-                                            $statusClass = 'danger';
-                                            $statusText = 'Unpaid';
-                                            $progressClass = 'bg-danger';
-                                        }
-                                    @endphp
-
-                                    <div class="fee-component-card">
-                                        <div class="fee-component-header">
-                                            <div class="row align-items-center">
-                                                <div class="col-md-6">
-                                                    <h6 class="font-weight-bold mb-1">
-                                                        <i class="fas fa-file-invoice mr-2 text-primary"></i>
-                                                        {{ optional($studentFee->feeCategory)->name ?? 'Unknown Category' }}
-                                                    </h6>
-                                                    <small
-                                                        class="text-muted">{{ optional($studentFee->feeCategory)->description ?? 'Standard fee component' }}</small>
-                                                </div>
-                                                <div class="col-md-3 text-center">
-                                                    <div class="h5 font-weight-bold text-primary">
-                                                        ₹{{ number_format($totalAmount, 0) }}</div>
-                                                    <small class="text-muted">Total Amount</small>
-                                                </div>
-                                                <div class="col-md-3 text-center">
-                                                    <span class="status-badge {{ $statusClass }}">{{ $statusText }}</span>
-                                                    @if($concessionAmount > 0)
-                                                        <br><small class="text-success mt-1">
-                                                            <i class="fas fa-percent"></i> ₹{{ number_format($concessionAmount, 0) }}
-                                                            concession
-                                                        </small>
-                                                    @endif
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="card-body">
-                                            <div class="row align-items-center">
-                                                <div class="col-md-8">
-                                                    <div class="mb-3">
-                                                        <div class="d-flex justify-content-between align-items-center mb-2">
-                                                            <small class="font-weight-bold">Payment Progress</small>
-                                                            <small class="text-muted">{{ $paymentPercentage }}% completed</small>
-                                                        </div>
-                                                        <div class="payment-progress">
-                                                            <div class="payment-progress-bar {{ $progressClass }}"
-                                                                style="width: {{ $paymentPercentage }}%"></div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="row">
-                                                        <div class="col-4">
-                                                            <small class="text-muted d-block">Paid</small>
-                                                            <span
-                                                                class="font-weight-bold text-success">₹{{ number_format($paidAmount, 0) }}</span>
-                                                        </div>
-                                                        <div class="col-4">
-                                                            <small class="text-muted d-block">Concession</small>
-                                                            <span
-                                                                class="font-weight-bold text-info">₹{{ number_format($concessionAmount, 0) }}</span>
-                                                        </div>
-                                                        <div class="col-4">
-                                                            <small class="text-muted d-block">Due</small>
-                                                            <span
-                                                                class="font-weight-bold text-danger">₹{{ number_format(max(0, $remainingAmount), 0) }}</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-4 text-right">
-                                                    @if($remainingAmount > 0)
-                                                        <button class="btn btn-success btn-sm mb-2"
-                                                            onclick="openPaymentModal({{ $studentFee->id }}, '{{ optional($studentFee->feeCategory)->name ?? 'Unknown' }}', {{ $remainingAmount }})">
-                                                            <i class="fas fa-credit-card mr-1"></i> Pay
-                                                            ₹{{ number_format($remainingAmount, 0) }}
-                                                        </button>
-                                                        <br>
-                                                        <button class="btn btn-warning btn-sm"
-                                                            onclick="openConcessionModal({{ $studentFee->id }}, '{{ optional($studentFee->feeCategory)->name ?? 'Unknown' }}', {{ $remainingAmount }})">
-                                                            <i class="fas fa-percent mr-1"></i> Apply Concession
-                                                        </button>
-                                                    @endif
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                @endforeach
-                            @else
-                                <div class="text-center py-5">
-                                    <i class="fas fa-file-invoice fa-3x text-muted mb-3"></i>
-                                    <h6 class="text-muted">No Fee Components Assigned</h6>
-                                    <p class="text-muted">This student doesn't have any fee components assigned yet.</p>
-                                </div>
-                            @endif
-                        </div>
-
-                        {{-- Payment History Tab --}}
-                        <div class="tab-pane fade" id="payments" role="tabpanel">
-                            <div class="d-flex justify-content-between align-items-center mb-4">
-                                <h5 class="mb-0 text-primary">
-                                    <i class="fas fa-credit-card mr-2"></i> Payment History
-                                </h5>
-                                <div class="btn-group">
-                                    <button class="action-btn btn-success-modern btn-sm" onclick="openPaymentModal()">
-                                        <i class="fas fa-plus mr-2"></i> Record Payment
-                                    </button>
-                                    <button class="btn btn-outline-secondary btn-sm" onclick="refreshPaymentHistory()">
-                                        <i class="fas fa-sync"></i> Refresh
-                                    </button>
-                                </div>
-                            </div>
-
-                            @if($paymentHistory->count() > 0)
-                                <div class="table-responsive">
-                                    <table class="table table-hover" id="payment-history-table">
-                                        <thead class="bg-light">
-                                            <tr>
-                                                <th><i class="fas fa-receipt mr-2"></i>Receipt #</th>
-                                                <th><i class="fas fa-calendar mr-2"></i>Date</th>
-                                                <th><i class="fas fa-rupee-sign mr-2"></i>Amount</th>
-                                                <th><i class="fas fa-credit-card mr-2"></i>Method</th>
-                                                <th><i class="fas fa-list mr-2"></i>Components</th>
-                                                <th><i class="fas fa-user mr-2"></i>Created By</th>
-                                                <th><i class="fas fa-info-circle mr-2"></i>Status</th>
-                                                <th>Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @foreach($paymentHistory as $payment)
-                                                <tr data-payment-id="{{ $payment->id }}">
-                                                    <td>
-                                                        <strong
-                                                            class="text-primary">{{ $payment->receipt_number ?? 'N/A' }}</strong>
-                                                        @if($payment->transaction_id ?? null)
-                                                            <small class="text-muted d-block">TXN:
-                                                                {{ $payment->transaction_id }}</small>
-                                                        @endif
-                                                    </td>
-                                                    <td>
-                                                        <span
-                                                            class="font-weight-bold">{{ $payment->payment_date ? $payment->payment_date->format('d M Y') : 'N/A' }}</span>
-                                                        <small
-                                                            class="text-muted d-block">{{ $payment->created_at ? $payment->created_at->format('H:i A') : '' }}</small>
-                                                    </td>
-                                                    <td>
-                                                        <span class="badge badge-success badge-lg"
-                                                            style="font-size: 0.9em; padding: 0.5em 0.8em;">
-                                                            ₹{{ number_format($payment->amount ?? 0, 2) }}
-                                                        </span>
-                                                    </td>
-                                                    <td>
-                                                        <span class="badge badge-info">
-                                                            {{ ucfirst(str_replace('_', ' ', $payment->payment_method ?? 'Unknown')) }}
-                                                        </span>
-                                                    </td>
-                                                    <td>
-                                                        @if(isset($payment->componentItems) && $payment->componentItems->count() > 0)
-                                                            <div class="component-breakdown" style="max-width: 200px;">
-                                                                @foreach($payment->componentItems as $item)
-                                                                    <small class="d-block" style="line-height: 1.3; margin-bottom: 2px;">
-                                                                        <strong>{{ optional($item->studentFee)->feeCategory->name ?? 'Unknown' }}:</strong>
-                                                                        ₹{{ number_format($item->amount_paid ?? 0, 2) }}
-                                                                    </small>
-                                                                @endforeach
-                                                            </div>
-                                                        @else
-                                                            <span class="text-muted">No components</span>
-                                                        @endif
-                                                    </td>
-                                                    <td>
-                                                        @if(isset($payment->createdBy) && $payment->createdBy)
-                                                            <div class="user-info" style="min-width: 120px;">
-                                                                <strong>{{ $payment->createdBy->name }}</strong>
-                                                                <small class="text-muted d-block">
-                                                                    {{ $payment->created_at ? $payment->created_at->diffForHumans() : 'Unknown time' }}
-                                                                </small>
-                                                            </div>
-                                                        @else
-                                                            <span class="text-muted">System</span>
-                                                        @endif
-                                                    </td>
-                                                    <td>
-                                                        @php
-                                                            $statusClass = match ($payment->status ?? 'completed') {
-                                                                'completed' => 'success',
-                                                                'pending' => 'warning',
-                                                                'failed' => 'danger',
-                                                                'refunded' => 'info',
-                                                                default => 'secondary'
-                                                            };
-                                                        @endphp
-                                                        <span class="badge badge-{{ $statusClass }}">
-                                                            {{ ucfirst($payment->status ?? 'completed') }}
-                                                        </span>
-                                                    </td>
-                                                    <td>
-                                                        <div class="btn-group btn-group-sm">
-                                                            {{-- Edit Button --}}
-                                                            @can('edit payments')
-                                                                @if(method_exists($payment, 'canBeEdited') && $payment->canBeEdited())
-                                                                    <a href="{{ route('payment-edit.edit', $payment) }}"
-                                                                        class="btn btn-outline-warning btn-sm" title="Edit Payment">
-                                                                        <i class="fas fa-edit"></i>
-                                                                    </a>
-                                                                @elseif(!method_exists($payment, 'canBeEdited'))
-                                                                    <a href="{{ route('payment-edit.edit', $payment) }}"
-                                                                        class="btn btn-outline-warning btn-sm" title="Edit Payment">
-                                                                        <i class="fas fa-edit"></i>
-                                                                    </a>
-                                                                @endif
-                                                            @endcan
-
-                                                            {{-- Receipt View Button --}}
-                                                            @if($payment->receipt_number ?? null)
-                                                                @if(Route::has('admin.payments.receipt'))
-                                                                    <a href="{{ route('admin.payments.receipt', [$student, $payment]) }}"
-                                                                        class="btn btn-outline-primary btn-sm" title="View Receipt"
-                                                                        target="_blank">
-                                                                        <i class="fas fa-receipt"></i>
-                                                                    </a>
-                                                                @endif
-                                                            @endif
-
-                                                            {{-- PDF Download Button --}}
-                                                            @if($payment->receipt_number ?? null)
-                                                                @if(Route::has('admin.payments.receipt.pdf'))
-                                                                    <a href="{{ route('admin.payments.receipt.pdf', [$student, $payment]) }}"
-                                                                        class="btn btn-outline-success btn-sm" title="Download PDF">
-                                                                        <i class="fas fa-download"></i>
-                                                                    </a>
-                                                                @endif
-                                                            @endif
-
-                                                            {{-- View Details Button --}}
-                                                            <button class="btn btn-outline-secondary btn-sm"
-                                                                onclick="viewPaymentDetails({{ $payment->id }})"
-                                                                title="View Details">
-                                                                <i class="fas fa-eye"></i>
-                                                            </button>
-
-                                                            {{-- Edit History Button --}}
-                                                            @can('view payment history')
-                                                                <a href="{{ route('payment-edit.history', $payment) }}"
-                                                                    class="btn btn-outline-info btn-sm" title="View Edit History">
-                                                                    <i class="fas fa-history"></i>
-                                                                </a>
-                                                            @endcan
-
-                                                            {{-- Notes Button --}}
-                                                            @if($payment->notes ?? null)
-                                                                <button class="btn btn-outline-secondary btn-sm"
-                                                                    title="{{ $payment->notes }}" data-toggle="tooltip"
-                                                                    data-placement="top" data-html="true"
-                                                                    data-original-title="{{ $payment->notes }}">
-                                                                    <i class="fas fa-sticky-note"></i>
-                                                                </button>
-                                                            @endif
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            @endforeach
-                                        </tbody>
-                                    </table>
-                                </div>
-
-                                {{-- Payment Summary Card --}}
-                                <div class="row mt-4">
-                                    <div class="col-md-12">
-                                        <div class="card bg-light">
-                                            <div class="card-body">
-                                                <div class="row">
-                                                    <div class="col-md-3 text-center">
-                                                        <h6 class="text-muted">Total Payments</h6>
-                                                        <h4 class="text-primary">{{ $paymentHistory->count() }}</h4>
-                                                    </div>
-                                                    <div class="col-md-3 text-center">
-                                                        <h6 class="text-muted">Total Paid</h6>
-                                                        <h4 class="text-success">
-                                                            ₹{{ number_format($paymentHistory->sum('amount'), 2) }}</h4>
-                                                    </div>
-                                                    <div class="col-md-3 text-center">
-                                                        <h6 class="text-muted">Last Payment</h6>
-                                                        <h4 class="text-info">
-                                                            {{ $paymentHistory->first() ? $paymentHistory->first()->payment_date->format('d M Y') : 'Never' }}
-                                                        </h4>
-                                                    </div>
-                                                    <div class="col-md-3 text-center">
-                                                        <h6 class="text-muted">Payment Methods</h6>
-                                                        <div class="method-badges">
-                                                            @foreach($paymentHistory->pluck('payment_method')->unique() as $method)
-                                                                <span class="badge badge-secondary"
-                                                                    style="margin: 2px; font-size: 0.7em;">{{ ucfirst($method ?? 'Unknown') }}</span>
-                                                            @endforeach
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {{-- Quick Actions for Payments --}}
-                                <div class="row mt-3">
-                                    <div class="col-md-12">
-                                        <div class="card border-0">
-                                            <div class="card-body bg-light rounded">
-                                                <h6 class="text-muted mb-3">
-                                                    <i class="fas fa-tools mr-2"></i>Quick Actions
-                                                </h6>
-                                                <div class="btn-group flex-wrap" role="group">
-                                                    <button class="btn btn-outline-primary btn-sm"
-                                                        onclick="exportPaymentHistory()">
-                                                        <i class="fas fa-download mr-1"></i> Export History
-                                                    </button>
-                                                    <button class="btn btn-outline-info btn-sm" onclick="printPaymentHistory()">
-                                                        <i class="fas fa-print mr-1"></i> Print History
-                                                    </button>
-                                                    <button class="btn btn-outline-secondary btn-sm" onclick="filterPayments()">
-                                                        <i class="fas fa-filter mr-1"></i> Filter Payments
-                                                    </button>
-                                                    @if(Route::has('admin.payments.component-dashboard'))
-                                                        <a href="{{ route('admin.payments.component-dashboard', $student) }}"
-                                                            class="btn btn-outline-success btn-sm">
-                                                            <i class="fas fa-chart-bar mr-1"></i> Payment Dashboard
-                                                        </a>
-                                                    @endif
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            @else
-                                <div class="text-center py-5">
-                                    <i class="fas fa-credit-card fa-3x text-muted mb-3"></i>
-                                    <h6 class="text-muted">No Payment History</h6>
-                                    <p class="text-muted">No payments have been recorded for this student yet.</p>
-                                    <button class="action-btn btn-success-modern" onclick="openPaymentModal()">
-                                        <i class="fas fa-plus mr-2"></i> Record First Payment
-                                    </button>
-                                </div>
-                            @endif
-                        </div>
-
-                        {{-- Enhanced Attendance Tab --}}
-                        <div class="tab-pane fade" id="attendance" role="tabpanel">
-                            <div class="row">
-                                <div class="col-md-12">
-                                    {{-- Month Selector --}}
-                                    <div class="d-flex justify-content-between align-items-center mb-4">
-                                        <h5 class="text-primary mb-0">
-                                            <i class="fas fa-calendar-check mr-2"></i>Attendance Overview
-                                        </h5>
-                                        <div class="form-group mb-0">
-                                            <select class="form-control" id="attendanceMonth"
-                                                onchange="loadAttendanceData()">
-                                                @for($i = 0; $i < 12; $i++)
-                                                    @php
-                                                        $month = now()->subMonths($i);
-                                                    @endphp
-                                                    <option value="{{ $month->format('Y-m') }}" {{ $i === 0 ? 'selected' : '' }}>
-                                                        {{ $month->format('F Y') }}
-                                                    </option>
-                                                @endfor
-                                            </select>
-                                        </div>
-                                    </div>
-
-                                    {{-- Loading State --}}
-                                    <div id="attendanceLoading" class="text-center py-5">
-                                        <i class="fas fa-spinner fa-spin fa-2x text-primary mb-3"></i>
-                                        <p class="text-muted">Loading attendance data...</p>
-                                    </div>
-
-                                    {{-- Attendance Content --}}
-                                    <div id="attendanceContent" style="display: none;">
-
-                                        {{-- Summary Cards --}}
-                                        <div class="row mb-4">
-                                            {{-- Working Days Card (NEW) --}}
-                                            <div class="col-md-2 mb-3">
-                                                <div class="card border-left-primary shadow-sm h-100">
-                                                    <div class="card-body py-3 px-2">
-                                                        <div class="row no-gutters align-items-center">
-                                                            <div class="col mr-2">
-                                                                <div
-                                                                    class="text-xs font-weight-bold text-primary text-uppercase mb-1">
-                                                                    Working Days
-                                                                </div>
-                                                                <div class="h5 mb-0 font-weight-bold text-gray-800"
-                                                                    id="totalWorkingDays">
-                                                                    0
-                                                                </div>
-                                                                <small class="text-muted" style="font-size: 0.65rem;">(Till
-                                                                    Date)</small>
-                                                            </div>
-                                                            <div class="col-auto">
-                                                                <i class="fas fa-briefcase fa-2x text-gray-300"></i>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {{-- Percentage Card --}}
-                                            <div class="col-md-2 mb-3">
-                                                <div class="card border-left-info shadow-sm h-100">
-                                                    <div class="card-body py-3 px-2">
-                                                        <div class="row no-gutters align-items-center">
-                                                            <div class="col mr-2">
-                                                                <div
-                                                                    class="text-xs font-weight-bold text-info text-uppercase mb-1">
-                                                                    Attendance
-                                                                </div>
-                                                                <div class="h5 mb-0 font-weight-bold text-gray-800"
-                                                                    id="tabAttendancePercentage">
-                                                                    0%
-                                                                </div>
-                                                            </div>
-                                                            <div class="col-auto">
-                                                                <i class="fas fa-chart-pie fa-2x text-gray-300"></i>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {{-- Present Card --}}
-                                            <div class="col-md-2 mb-3">
-                                                <div class="card border-left-success shadow-sm h-100">
-                                                    <div class="card-body py-3 px-2">
-                                                        <div class="row no-gutters align-items-center">
-                                                            <div class="col mr-2">
-                                                                <div
-                                                                    class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                                                                    Present
-                                                                </div>
-                                                                <div class="h5 mb-0 font-weight-bold text-gray-800"
-                                                                    id="presentDays">
-                                                                    0
-                                                                </div>
-                                                            </div>
-                                                            <div class="col-auto">
-                                                                <i class="fas fa-check fa-2x text-gray-300"></i>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {{-- Absent Card --}}
-                                            <div class="col-md-2 mb-3">
-                                                <div class="card border-left-danger shadow-sm h-100">
-                                                    <div class="card-body py-3 px-2">
-                                                        <div class="row no-gutters align-items-center">
-                                                            <div class="col mr-2">
-                                                                <div
-                                                                    class="text-xs font-weight-bold text-danger text-uppercase mb-1">
-                                                                    Absent
-                                                                </div>
-                                                                <div class="h5 mb-0 font-weight-bold text-gray-800"
-                                                                    id="absentDays">
-                                                                    0
-                                                                </div>
-                                                            </div>
-                                                            <div class="col-auto">
-                                                                <i class="fas fa-times fa-2x text-gray-300"></i>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {{-- Late Card --}}
-                                            <div class="col-md-2 mb-3">
-                                                <div class="card border-left-warning shadow-sm h-100">
-                                                    <div class="card-body py-3 px-2">
-                                                        <div class="row no-gutters align-items-center">
-                                                            <div class="col mr-2">
-                                                                <div
-                                                                    class="text-xs font-weight-bold text-warning text-uppercase mb-1">
-                                                                    Late
-                                                                </div>
-                                                                <div class="h5 mb-0 font-weight-bold text-gray-800"
-                                                                    id="lateDays">
-                                                                    0
-                                                                </div>
-                                                            </div>
-                                                            <div class="col-auto">
-                                                                <i class="fas fa-clock fa-2x text-gray-300"></i>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {{-- Holidays Card --}}
-                                            <div class="col-md-2 mb-3">
-                                                <div class="card border-left-secondary shadow-sm h-100">
-                                                    <div class="card-body py-3 px-2">
-                                                        <div class="row no-gutters align-items-center">
-                                                            <div class="col mr-2">
-                                                                <div
-                                                                    class="text-xs font-weight-bold text-secondary text-uppercase mb-1">
-                                                                    Holidays
-                                                                </div>
-                                                                <div class="h5 mb-0 font-weight-bold text-gray-800"
-                                                                    id="holidayDays">
-                                                                    0
-                                                                </div>
-                                                            </div>
-                                                            <div class="col-auto">
-                                                                <i class="fas fa-umbrella-beach fa-2x text-gray-300"></i>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {{-- Attendance Status Alert --}}
-                                        <div class="alert" id="attendanceStatusAlert" style="display: none;">
-                                            <div class="d-flex align-items-center">
-                                                <i class="fas fa-info-circle mr-2"></i>
-                                                <div>
-                                                    <strong id="attendanceStatusTitle">Attendance Status</strong>
-                                                    <div class="small" id="attendanceStatusMessage"></div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {{-- Monthly Calendar View --}}
-                                        <div class="card shadow-sm">
-                                            <div class="card-header py-3">
-                                                <h6 class="m-0 font-weight-bold text-primary">
-                                                    <i class="fas fa-calendar mr-2"></i>
-                                                    <span id="calendarTitle">Monthly Attendance</span>
-                                                </h6>
-                                            </div>
-                                            <div class="card-body">
-                                                <div id="attendanceCalendar">
-                                                    {{-- Calendar will be populated via JavaScript --}}
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {{-- Recent Records Table --}}
-                                        <div class="card shadow-sm mt-4">
-                                            <div class="card-header py-3">
-                                                <h6 class="m-0 font-weight-bold text-primary">
-                                                    <i class="fas fa-history mr-2"></i>Recent Attendance Records
-                                                </h6>
-                                            </div>
-                                            <div class="card-body">
-                                                <div class="table-responsive">
-                                                    <table class="table table-sm" id="attendanceRecordsTable">
-                                                        <thead>
-                                                            <tr>
-                                                                <th>Date</th>
-                                                                <th>Status</th>
-                                                                <th>Check-in Time</th>
-                                                                <th>Subject</th>
-                                                                <th>Remarks</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            {{-- Records will be populated via JavaScript --}}
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {{-- Error State --}}
-                                    <div id="attendanceError" style="display: none;">
-                                        <div class="alert alert-danger">
-                                            <i class="fas fa-exclamation-triangle mr-2"></i>
-                                            <strong>Error loading attendance data</strong>
-                                            <p class="mb-0 mt-2" id="attendanceErrorMessage"></p>
-                                            <button class="btn btn-sm btn-outline-danger mt-2"
-                                                onclick="loadAttendanceData()">
-                                                <i class="fas fa-redo mr-1"></i>Retry
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <br>
-            {{-- Recent Activity Timeline (Optional) --}}
-            @if($recentActivity->count() > 0)
-                <div class="card shadow mb-4">
-                    <div class="card-header py-3 d-flex justify-content-between align-items-center">
-                        <h6 class="m-0 font-weight-bold text-primary">
-                            <i class="fas fa-history mr-2"></i>Recent Activity Timeline
-                        </h6>
-                        <div class="dropdown">
-                            <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" data-toggle="dropdown">
-                                <i class="fas fa-filter"></i> Filter
-                            </button>
-                            <div class="dropdown-menu">
-                                <a class="dropdown-item activity-filter" href="#" data-type="all">
-                                    <i class="fas fa-list mr-2"></i>All Activities
-                                </a>
-                                <div class="dropdown-divider"></div>
-                                <a class="dropdown-item activity-filter" href="#" data-type="payment">
-                                    <i class="fas fa-money-bill-wave mr-2"></i>Payments Only
-                                </a>
-                                <a class="dropdown-item activity-filter" href="#" data-type="concession">
-                                    <i class="fas fa-percent mr-2"></i>Concessions Only
-                                </a>
-                                <a class="dropdown-item activity-filter" href="#" data-type="spatie_log">
-                                    <i class="fas fa-cogs mr-2"></i>System Changes
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        <div class="activity-timeline" id="activityTimeline">
-                            @foreach($recentActivity as $activity)
-                                <div class="timeline-item" data-type="{{ $activity['type'] ?? 'general' }}">
-                                    <div class="timeline-marker bg-{{ $activity['color'] ?? 'primary' }}">
-                                        <i class="fas {{ $activity['icon'] ?? 'fa-info-circle' }}"></i>
-                                    </div>
-                                    <div class="timeline-content">
-                                        <div class="d-flex justify-content-between align-items-start mb-2">
-                                            <div class="timeline-header">
-                                                <h6 class="mb-1 font-weight-bold">{{ $activity['title'] ?? 'Activity' }}</h6>
-                                                <p class="text-muted mb-1">
-                                                    {{ $activity['description'] ?? 'No description available' }}</p>
-                                            </div>
-                                            <div class="timeline-meta text-right">
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-8">
+                                        <div class="mb-3">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <small class="font-weight-bold">Fee Settlement Progress</small>
                                                 <small
-                                                    class="text-muted d-block">{{ $activity['timestamp']->format('M d, Y') }}</small>
-                                                <small class="text-muted">{{ $activity['timestamp']->format('h:i A') }}</small>
+                                                    class="text-muted">{{ isset($financialSummary['payment_percentage']) ? $financialSummary['payment_percentage'] : 0 }}%
+                                                    completed</small>
+                                            </div>
+                                            <div class="progress mb-2" style="height: 20px;">
+                                                @if(isset($financialSummary['paid_amount']) && $financialSummary['paid_amount'] > 0)
+                                                    <div class="progress-bar bg-success" role="progressbar"
+                                                        style="width: {{ isset($financialSummary['payment_percentage']) ? $financialSummary['payment_percentage'] : 0 }}%"
+                                                        title="Paid: ₹{{ number_format($financialSummary['paid_amount'], 0) }}">
+                                                        {{ isset($financialSummary['payment_percentage']) ? $financialSummary['payment_percentage'] : 0 }}%
+                                                    </div>
+                                                @endif
+                                                @if(isset($financialSummary['concession_amount']) && $financialSummary['concession_amount'] > 0)
+                                                    @php
+                                                        $concessionPercentage = isset($financialSummary['total_amount']) && $financialSummary['total_amount'] > 0 ? round(($financialSummary['concession_amount'] / $financialSummary['total_amount']) * 100, 1) : 0;
+                                                    @endphp
+                                                    <div class="progress-bar bg-warning" role="progressbar"
+                                                        style="width: {{ $concessionPercentage }}%"
+                                                        title="Concession: ₹{{ number_format($financialSummary['concession_amount'], 0) }}">
+                                                        {{ $concessionPercentage }}%
+                                                    </div>
+                                                @endif
+                                            </div>
+                                            <div class="d-flex justify-content-between small text-muted">
+                                                <span><i class="fas fa-square text-success mr-1"></i>Paid</span>
+                                                <span><i class="fas fa-square text-warning mr-1"></i>Concession</span>
+                                                <span><i class="fas fa-square text-light mr-1"></i>Outstanding</span>
                                             </div>
                                         </div>
-
-                                        @if(!empty($activity['properties'] ?? []))
-                                            <div class="timeline-details">
-                                                <button class="btn btn-sm btn-outline-secondary toggle-details" type="button"
-                                                    data-toggle="collapse" data-target="#details-{{ $loop->index }}">
-                                                    <i class="fas fa-chevron-down"></i> Details
-                                                </button>
-                                                <div class="collapse mt-2" id="details-{{ $loop->index }}">
-                                                    <div class="card card-body bg-light">
-                                                        @if(($activity['type'] ?? '') === 'payment')
-                                                            <div class="row">
-                                                                <div class="col-md-6">
-                                                                    <small><strong>Amount:</strong>
-                                                                        ₹{{ number_format($activity['properties']['amount'] ?? 0, 2) }}</small><br>
-                                                                    <small><strong>Method:</strong>
-                                                                        {{ ucfirst($activity['properties']['method'] ?? 'Unknown') }}</small>
-                                                                </div>
-                                                                <div class="col-md-6">
-                                                                    <small><strong>Receipt:</strong>
-                                                                        {{ $activity['properties']['receipt'] ?? 'N/A' }}</small><br>
-                                                                    <small><strong>Components:</strong>
-                                                                        {{ $activity['properties']['components'] ?? 0 }} items</small>
-                                                                </div>
-                                                            </div>
-                                                        @elseif(($activity['type'] ?? '') === 'concession')
-                                                            <div class="row">
-                                                                <div class="col-md-6">
-                                                                    <small><strong>Amount:</strong>
-                                                                        ₹{{ number_format($activity['properties']['amount'] ?? 0, 2) }}</small><br>
-                                                                    <small><strong>Status:</strong>
-                                                                        {{ ucfirst($activity['properties']['status'] ?? 'Unknown') }}</small>
-                                                                </div>
-                                                                <div class="col-md-6">
-                                                                    @if(!empty($activity['properties']['reason'] ?? null))
-                                                                        <small><strong>Reason:</strong>
-                                                                            {{ $activity['properties']['reason'] }}</small>
-                                                                    @endif
-                                                                </div>
-                                                            </div>
-                                                        @else
-                                                            <div class="properties-list">
-                                                                @foreach(($activity['properties'] ?? []) as $key => $value)
-                                                                    @if(!is_array($value))
-                                                                        <small><strong>{{ ucfirst(str_replace('_', ' ', $key)) }}:</strong>
-                                                                            {{ $value }}</small><br>
-                                                                    @endif
-                                                                @endforeach
-                                                            </div>
-                                                        @endif
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="row text-center">
+                                            <div class="col-4">
+                                                <div class="p-2 rounded bg-light">
+                                                    <div class="text-success font-weight-bold">
+                                                        ₹{{ number_format(isset($financialSummary['paid_amount']) ? $financialSummary['paid_amount'] : 0, 0) }}
                                                     </div>
+                                                    <div class="small text-muted">Paid</div>
                                                 </div>
                                             </div>
-                                        @endif
-
-                                        <div class="timeline-footer mt-2">
-                                            <small class="text-muted">
-                                                <i class="fas fa-user mr-1"></i>{{ $activity['user'] ?? 'System' }}
-                                                <span class="mx-2">•</span>
-                                                <i class="fas fa-clock mr-1"></i>{{ $activity['timestamp']->diffForHumans() }}
-                                            </small>
+                                            <div class="col-4">
+                                                <div class="p-2 rounded bg-light">
+                                                    <div class="text-warning font-weight-bold">
+                                                        ₹{{ number_format(isset($financialSummary['concession_amount']) ? $financialSummary['concession_amount'] : 0, 0) }}
+                                                    </div>
+                                                    <div class="small text-muted">Concession</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-4">
+                                                <div class="p-2 rounded bg-light">
+                                                    <div
+                                                        class="text-{{ isset($financialSummary['remaining_amount']) && $financialSummary['remaining_amount'] > 0 ? 'danger' : 'success' }} font-weight-bold">
+                                                        ₹{{ number_format(isset($financialSummary['remaining_amount']) ? $financialSummary['remaining_amount'] : 0, 0) }}
+                                                    </div>
+                                                    <div class="small text-muted">Due</div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                            @endforeach
-                        </div>
-
-                        {{-- Load More Button --}}
-                        <div class="text-center mt-4">
-                            <button class="btn btn-outline-primary" id="loadMoreActivity" data-student-id="{{ $student->id }}">
-                                <i class="fas fa-chevron-down mr-2"></i>Load More Activities
-                            </button>
+                            </div>
                         </div>
                     </div>
                 </div>
             @endif
-        </div>
 
-        {{-- Right Sidebar - Quick Actions --}}
-        <div class="col-lg-4">
-            {{-- Financial Summary Card --}}
-            <div class="card modern-card mb-4">
-                <div class="card-header bg-white">
-                    <h6 class="m-0 font-weight-bold text-primary">
-                        <i class="fas fa-chart-pie mr-2"></i> Financial Summary
-                    </h6>
-                </div>
-                <div class="card-body text-center">
-                    <div class="mb-3">
-                        <div class="h4 font-weight-bold text-gray-800 amount-counter">
-                            ₹{{ number_format(isset($financialSummary['total_amount']) ? $financialSummary['total_amount'] : 0, 0) }}
+            {{-- Main Content with Organized Tabs --}}
+            <div class="row">
+                <div class="col-lg-8">
+                    <div class="card modern-card">
+                        <div class="card-header bg-white py-3">
+                            <ul class="nav nav-tabs nav-tabs-modern" id="profileTabs" role="tablist">
+                                <li class="nav-item">
+                                    <a class="nav-link active" id="overview-tab" data-toggle="tab" href="#overview" role="tab">
+                                        <i class="fas fa-tachometer-alt mr-2"></i> Overview
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" id="fees-tab" data-toggle="tab" href="#fees" role="tab">
+                                        <i class="fas fa-money-bill-wave mr-2"></i> Fee Components
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" id="payments-tab" data-toggle="tab" href="#payments" role="tab">
+                                        <i class="fas fa-credit-card mr-2"></i> Payment History
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link" id="attendance-tab" data-toggle="tab" href="#attendance" role="tab">
+                                        <i class="fas fa-calendar-check mr-2"></i> Attendance
+                                    </a>
+                                </li>
+                            </ul>
                         </div>
-                        <small class="text-muted">Total Fee Amount</small>
-                    </div>
-
-                    <div class="progress mb-3" style="height: 15px;">
-                        <div class="progress-bar 
-                            @if(isset($financialSummary['payment_percentage']) && $financialSummary['payment_percentage'] >= 75) bg-success 
-                            @elseif(isset($financialSummary['payment_percentage']) && $financialSummary['payment_percentage'] >= 50) bg-warning 
-                            @else bg-danger @endif" role="progressbar"
-                            style="width: {{ isset($financialSummary['payment_percentage']) ? $financialSummary['payment_percentage'] : 0 }}%">
-                            {{ isset($financialSummary['payment_percentage']) ? $financialSummary['payment_percentage'] : 0 }}%
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-6">
-                            <div class="p-2 rounded bg-light">
-                                <div class="text-success font-weight-bold">
-                                    ₹{{ number_format(isset($financialSummary['paid_amount']) ? $financialSummary['paid_amount'] : 0, 0) }}
-                                </div>
-                                <div class="small text-muted">Paid</div>
-                            </div>
-                        </div>
-                        <div class="col-6">
-                            <div class="p-2 rounded bg-light">
-                                <div class="text-danger font-weight-bold">
-                                    ₹{{ number_format(isset($financialSummary['remaining_amount']) ? $financialSummary['remaining_amount'] : 0, 0) }}
-                                </div>
-                                <div class="small text-muted">Due</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {{-- Quick Actions Card --}}
-            <div class="card modern-card">
-                <div class="card-header bg-white">
-                    <h6 class="m-0 font-weight-bold text-primary">
-                        <i class="fas fa-bolt mr-2"></i> Quick Actions
-                    </h6>
-                </div>
-                <div class="card-body p-2">
-                    <div class="quick-action-card" onclick="openPaymentModal()">
-                        <div class="d-flex align-items-center">
-                            <div class="quick-action-icon bg-success text-white">
-                                <i class="fas fa-credit-card"></i>
-                            </div>
-                            <div>
-                                <div class="font-weight-bold">Record Payment</div>
-                                <small class="text-muted">Add new payment entry</small>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="quick-action-card" data-toggle="modal" data-target="#applyConcessionModal">
-                        <div class="d-flex align-items-center">
-                            <div class="quick-action-icon bg-warning text-white">
-                                <i class="fas fa-percent"></i>
-                            </div>
-                            <div>
-                                <div class="font-weight-bold">Apply Concession</div>
-                                <small class="text-muted">
-                                    Discount fee components
-                                    @if(($student->gender ?? null) === 'Female' && setting('womens_discount_percentage', 0) > 0)
-                                        <br><span class="badge badge-success mt-1">
-                                            <i class="fas fa-female"></i> {{ setting('womens_discount_percentage') }}% Eligible
-                                        </span>
-                                    @endif
-                                </small>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="quick-action-card"
-                        onclick="window.location.href='{{ route('admin.students.edit', $student) }}'">
-                        <div class="d-flex align-items-center">
-                            <div class="quick-action-icon bg-primary text-white">
-                                <i class="fas fa-edit"></i>
-                            </div>
-                            <div>
-                                <div class="font-weight-bold">Edit Profile</div>
-                                <small class="text-muted">Update student information</small>
-                            </div>
-                        </div>
-                    </div>
-
-                    @if(Route::has('admin.payments.component-dashboard'))
-                        <div class="quick-action-card"
-                            onclick="window.location.href='{{ route('admin.payments.component-dashboard', $student) }}'">
-                            <div class="d-flex align-items-center">
-                                <div class="quick-action-icon bg-info text-white">
-                                    <i class="fas fa-file-invoice-dollar"></i>
-                                </div>
-                                <div>
-                                    <div class="font-weight-bold">Fee Dashboard</div>
-                                    <small class="text-muted">Detailed fee management</small>
-                                </div>
-                            </div>
-                        </div>
-                    @endif
-
-                    <div class="quick-action-card" onclick="window.print()">
-                        <div class="d-flex align-items-center">
-                            <div class="quick-action-icon bg-secondary text-white">
-                                <i class="fas fa-print"></i>
-                            </div>
-                            <div>
-                                <div class="font-weight-bold">Print Profile</div>
-                                <small class="text-muted">Generate printable version</small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-
-
-    {{-- Payment Filter Modal --}}
-    <div class="modal fade" id="paymentFilterModal" tabindex="-1" role="dialog">
-        <div class="modal-dialog" role="document">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">
-                        <i class="fas fa-filter mr-2"></i>Filter Payment History
-                    </h5>
-                    <button type="button" class="close" data-dismiss="modal">
-                        <span>&times;</span>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    <form id="paymentFilterForm">
-                        <div class="form-group">
-                            <label>Payment Method</label>
-                            <select class="form-control" id="filterMethod">
-                                <option value="">All Methods</option>
-                                <option value="cash">Cash</option>
-                                <option value="card">Card</option>
-                                <option value="bank_transfer">Bank Transfer</option>
-                                <option value="upi">UPI</option>
-                                <option value="cheque">Cheque</option>
-                                <option value="online">Online</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Date Range</label>
-                            <div class="row">
-                                <div class="col-6">
-                                    <input type="date" class="form-control" id="filterStartDate" placeholder="Start Date">
-                                </div>
-                                <div class="col-6">
-                                    <input type="date" class="form-control" id="filterEndDate" placeholder="End Date">
-                                </div>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label>Amount Range</label>
-                            <div class="row">
-                                <div class="col-6">
-                                    <input type="number" class="form-control" id="filterMinAmount" placeholder="Min Amount">
-                                </div>
-                                <div class="col-6">
-                                    <input type="number" class="form-control" id="filterMaxAmount" placeholder="Max Amount">
-                                </div>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label>Created By</label>
-                            <select class="form-control" id="filterCreatedBy">
-                                <option value="">All Users</option>
-                                @if($paymentHistory->count() > 0)
-                                    @foreach($paymentHistory->pluck('createdBy.name')->unique()->filter() as $creator)
-                                        <option value="{{ $creator }}">{{ $creator }}</option>
-                                    @endforeach
-                                @endif
-                            </select>
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-                    <button type="button" class="btn btn-primary" onclick="applyPaymentFilter()">Apply Filter</button>
-                    <button type="button" class="btn btn-outline-secondary" onclick="clearPaymentFilter()">Clear</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-
-    {{-- Add Fee Component Modal --}}
-    <div class="modal fade" id="addFeeComponentModal" tabindex="-1" role="dialog">
-        <div class="modal-dialog modal-lg" role="document">
-            <div class="modal-content" style="border-radius: 20px;">
-                <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 20px 20px 0 0;">
-                    <h5 class="modal-title font-weight-bold">
-                        <i class="fas fa-plus-circle mr-2"></i>
-                        Add Fee Component to {{ $student->name }}
-                    </h5>
-                    <button type="button" class="close text-white" data-dismiss="modal">
-                        <span>&times;</span>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    <div id="loadingFeeComponents" class="text-center py-4" style="display: none;">
-                        <i class="fas fa-spinner fa-spin fa-2x text-primary mb-3"></i>
-                        <p class="text-muted">Loading available fee components...</p>
-                    </div>
-
-                    <div id="feeComponentsList">
-                        {{-- Components will be loaded here via AJAX --}}
-                    </div>
-
-                    <div id="noFeeComponents" class="text-center py-4" style="display: none;">
-                        <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
-                        <h6 class="text-muted">All Fee Components Assigned</h6>
-                        <p class="text-muted">This student has been assigned all available fee components.</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-                    </div>
-                </div>
-            </div>
-        </div>
-
-
-    </div>
-    {{-- Enhanced Apply Concession Modal - REPLACE the existing one --}}
-    <div class="modal fade" id="applyConcessionModal" tabindex="-1" role="dialog">
-        <div class="modal-dialog modal-lg" role="document">
-            <div class="modal-content" style="border-radius: 20px; border: none; box-shadow: 0 20px 60px rgba(0,0,0,0.2);">
-                <div class="modal-header" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: #8b4513; border-radius: 20px 20px 0 0; border: none;">
-                    <h5 class="modal-title font-weight-bold">
-                        <i class="fas fa-percent mr-2"></i>
-                        Apply Concession - {{ $student->name }}
-                    </h5>
-                    <button type="button" class="close" data-dismiss="modal" style="color: #8b4513; opacity: 0.8;">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    {{-- Gender-based Concession Info --}}
-                    @if($student->gender === 'Female' && setting('womens_discount_percentage', 0) > 0)
-                        <div class="alert alert-info" style="border-radius: 10px; background: linear-gradient(135deg, #e3f2fd 0%, #f1f8e9 100%); border: none;">
-                            <i class="fas fa-female mr-2 text-success"></i>
-                            <strong>Gender Concession Available:</strong> This student is eligible for automatic 
-                            {{ setting('womens_discount_percentage') }}% gender-based discount.
-                            <button type="button" class="btn btn-sm btn-success ml-2" onclick="applyAutomaticGenderConcession()" style="border-radius: 15px;">
-                                <i class="fas fa-magic"></i> Apply Auto Discount
-                            </button>
-                        </div>
-                    @endif
-
-                    <form id="concessionForm" action="{{ url('admin/students/' . $student->id . '/apply-concession') }}" method="POST">
-                        @csrf
-
-                        <div class="form-group">
-                            <label for="concessionComponentSelect" class="font-weight-bold">Fee Component *</label>
-                            <select name="student_fee_id" id="concessionComponentSelect" class="form-control" required style="border-radius: 10px;">
-                                <option value="">-- Select Fee Component --</option>
-                                @if(isset($student) && $student->studentFees)
-                                    @foreach($student->studentFees->whereIn('status', ['unpaid', 'partial']) as $fee)
-                                        @php 
-                                            $remaining = $fee->amount - $fee->paid_amount - $fee->concession_amount; 
-                                        @endphp
-                                        @if($remaining > 0)
-                                            <option value="{{ $fee->id }}" data-remaining="{{ $remaining }}">
-                                                {{ $fee->feeCategory->name }} 
-                                                (Remaining: {{ setting('currency_symbol', '₹') }}{{ number_format($remaining, 2) }})
-                                            </option>
-                                        @endif
-                                    @endforeach
-                                @endif
-                            </select>
-                            <small class="form-text text-muted">Only components with outstanding balance are shown</small>
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-8">
-                                <div class="form-group">
-                                    <label for="concession_amount" class="font-weight-bold">Concession Amount *</label>
-                                    <div class="input-group">
-                                        <div class="input-group-prepend">
-                                            <span class="input-group-text" style="background: #f8f9fc; border-color: #e3e6f0;">{{ setting('currency_symbol', '₹') }}</span>
-                                        </div>
-                                        <input type="number" step="0.01" name="concession_amount" id="concession_amount" 
-                                               class="form-control" required min="0.01" max="" style="border-radius: 0 10px 10px 0;">
-                                    </div>
-                                    <small class="text-muted" id="concession_amount_hint">Enter the concession amount</small>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <label class="text-muted font-weight-bold">Quick Amounts</label>
-                                <div class="btn-group-vertical d-block" id="quickAmountButtons">
-                                    {{-- Dynamic buttons will be inserted here --}}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="concession_reason" class="font-weight-bold">Reason for Concession</label>
-                            <textarea name="reason" id="concession_reason" class="form-control" rows="3" 
-                                      style="border-radius: 10px;"
-                                      placeholder="e.g., Merit scholarship, Financial hardship, Staff discount, Early payment discount"></textarea>
-                            <small class="form-text text-muted">Provide a brief explanation for this concession</small>
-                        </div>
-
-                        <div class="alert alert-warning" style="border-radius: 10px; background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%); border: none;">
-                            <i class="fas fa-exclamation-triangle mr-2"></i>
-                            <strong>Important:</strong> This concession will be applied immediately and cannot be undone from this interface.
-                            Please ensure the amount and reason are correct.
-                        </div>
-                    </form>
-                </div>
-                <div class="modal-footer" style="border: none; background: #f8f9fc; border-radius: 0 0 20px 20px;">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal" style="border-radius: 20px;">
-                        <i class="fas fa-times"></i> Cancel
-                    </button>
-                    <button type="submit" form="concessionForm" class="btn btn-warning" id="applyConcessionBtn" style="border-radius: 20px; background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); border: none; color: #8b4513; font-weight: bold;">
-                        <i class="fas fa-percent"></i> Apply Concession
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-
-    {{-- Enhanced Payment Recording Modal --}}
-    <div class="modal fade payment-modal" id="paymentModal" tabindex="-1" role="dialog" aria-labelledby="paymentModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-xl" role="document">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <div>
-                        <h5 class="modal-title" id="paymentModalLabel">
-                            <i class="fas fa-credit-card mr-2"></i> Record Payment for {{ $student->name }}
-                        </h5>
-                        <small class="text-light opacity-75">{{ $student->enrollment_number }} • {{ $student->batch->name ?? 'N/A' }}</small>
-                    </div>
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    <form id="paymentForm" action="{{ route('admin.component-payments.store') }}" method="POST">
-                        @csrf
-                        <input type="hidden" name="student_id" value="{{ $student->id }}">
-
-                        {{-- Payment Details Section --}}
-                        <div class="payment-form-section">
-                            <h6 class="font-weight-bold text-primary mb-3">
-                                <i class="fas fa-file-invoice-dollar mr-2"></i> Payment Details
-                            </h6>
-                            <div class="row">
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label for="payment_amount" class="font-weight-bold">Payment Amount *</label>
-                                        <div class="input-group">
-                                            <div class="input-group-prepend">
-                                                <span class="input-group-text">₹</span>
+                        <div class="card-body">
+                            <div class="tab-content" id="profileTabContent">
+                                {{-- Overview Tab --}}
+                                <div class="tab-pane fade show active" id="overview" role="tabpanel">
+                                    <div class="row">
+                                        {{-- Personal Information Column --}}
+                                        <div class="col-md-6">
+                                            <div class="card shadow-sm mb-4 border-left-primary h-100">
+                                                <div class="card-header bg-white py-3">
+                                                    <h6 class="m-0 font-weight-bold text-primary">
+                                                        <i class="fas fa-user-circle mr-2"></i> Personal Details
+                                                    </h6>
+                                                </div>
+                                                <div class="card-body">
+                                                    <div class="table-responsive">
+                                                        <table class="table table-borderless table-sm">
+                                                            <tbody>
+                                                                <tr>
+                                                                    <td class="font-weight-bold w-40">
+                                                                        <i class="fas fa-venus-mars text-muted mr-2"></i>Gender:
+                                                                    </td>
+                                                                    <td>{{ $student->gender ?? 'Not specified' }}</td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <td class="font-weight-bold">
+                                                                        <i class="fas fa-calendar-alt text-muted mr-2"></i>Date of Birth:
+                                                                    </td>
+                                                                    <td>
+                                                                        {{ $student->dob ? \Carbon\Carbon::parse($student->dob)->format('d M, Y') : 'Not recorded' }}
+                                                                    </td>
+                                                                </tr>
+                                                                @if($student->age)
+                                                                    <tr>
+                                                                        <td class="font-weight-bold">
+                                                                            <i class="fas fa-hourglass-half text-muted mr-2"></i>Age:
+                                                                        </td>
+                                                                        <td>
+                                                                            <span class="badge badge-info">{{ $student->age }}</span>
+                                                                        </td>
+                                                                    </tr>
+                                                                @endif
+                                                                <tr>
+                                                                    <td class="font-weight-bold">
+                                                                        <i class="fas fa-user-tie text-muted mr-2"></i>Father's Name:
+                                                                    </td>
+                                                                    <td>{{ $student->father_name ?? 'Not provided' }}</td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <td class="font-weight-bold">
+                                                                        <i class="fas fa-phone text-muted mr-2"></i>Mobile:
+                                                                    </td>
+                                                                    <td>{{ $student->student_mobile ?? 'Not provided' }}</td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <td class="font-weight-bold">
+                                                                        <i class="fas fa-phone-alt text-muted mr-2"></i>Father's Mobile:
+                                                                    </td>
+                                                                    <td>{{ $student->father_mobile ?? 'Not provided' }}</td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <td class="font-weight-bold">
+                                                                        <i class="fas fa-map-marker-alt text-muted mr-2"></i>Address:
+                                                                    </td>
+                                                                    <td>
+                                                                        {{ $student->admission->address ?? $student->village ?? 'Not provided' }}
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <input type="number" step="0.01" name="total_amount" id="payment_amount" 
-                                                   class="form-control form-control-lg" required min="0.01" placeholder="0.00">
                                         </div>
-                                        <small class="text-muted">Enter the total payment amount</small>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label for="payment_method" class="font-weight-bold">Payment Method *</label>
-                                        <select name="payment_method" id="payment_method" class="form-control form-control-lg" required>
-                                            <option value="">Select Method</option>
-                                            <option value="cash">Cash</option>
-                                            <option value="card">Card</option>
-                                            <option value="bank_transfer">Bank Transfer</option>
-                                            <option value="upi">UPI</option>
-                                            <option value="cheque">Cheque</option>
-                                            <option value="online">Online</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="form-group">
-                                        <label for="payment_date" class="font-weight-bold">Payment Date *</label>
-                                        <input type="date" name="payment_date" id="payment_date" 
-                                               class="form-control form-control-lg" value="{{ date('Y-m-d') }}" required>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-group">
-                                        <label for="transaction_id" class="font-weight-bold">Transaction Reference</label>
-                                        <input type="text" name="transaction_id" id="transaction_id" 
-                                               class="form-control" placeholder="Transaction ID / Reference Number">
-                                        <small class="text-muted">Optional for cash payments</small>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="form-group">
-                                        <label for="notes" class="font-weight-bold">Notes</label>
-                                        <textarea name="notes" id="notes" class="form-control" rows="2" 
-                                                  placeholder="Additional notes or comments"></textarea>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
 
-                        {{-- Fee Components Selection --}}
-                        <div class="payment-form-section">
-                            <h6 class="font-weight-bold text-primary mb-3">
-                                <i class="fas fa-list-check mr-2"></i> Allocate Payment to Components
-                            </h6>
-                            <div id="fee-components-list">
-                                @if(isset($studentFees) && $studentFees->count() > 0)
-                                    @foreach($studentFees as $studentFee)
-                                        @php
-                                            $dueAmount = $studentFee->amount - $studentFee->paid_amount;
-                                        @endphp
-                                        @if($dueAmount > 0)
-                                            <div class="payment-component-item" data-fee-id="{{ $studentFee->id }}" data-max-amount="{{ $dueAmount }}">
-                                                <div class="row align-items-center">
-                                                    <div class="col-md-1">
-                                                        <div class="custom-control custom-checkbox">
-                                                            <input type="checkbox" class="custom-control-input component-checkbox" 
-                                                                   id="component_{{ $studentFee->id }}" name="components[{{ $studentFee->id }}][selected]" value="1">
-                                                            <label class="custom-control-label" for="component_{{ $studentFee->id }}"></label>
+                                        {{-- Academic & Source Information Column --}}
+                                        <div class="col-md-6">
+                                            {{-- Academic Info --}}
+                                            <div class="card shadow-sm mb-4 border-left-info">
+                                                <div class="card-header bg-white py-3">
+                                                    <h6 class="m-0 font-weight-bold text-info">
+                                                        <i class="fas fa-graduation-cap mr-2"></i> Academic Details
+                                                    </h6>
+                                                </div>
+                                                <div class="card-body">
+                                                    <div class="table-responsive">
+                                                        <table class="table table-borderless table-sm">
+                                                            <tbody>
+                                                                <tr>
+                                                                    <td class="font-weight-bold w-40">
+                                                                        <i class="fas fa-book text-muted mr-2"></i>Course:
+                                                                    </td>
+                                                                    <td>{{ optional($student->batch)->course->name ?? 'Not assigned' }}</td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <td class="font-weight-bold">
+                                                                        <i class="fas fa-chalkboard-teacher text-muted mr-2"></i>Batch:
+                                                                    </td>
+                                                                    <td>{{ optional($student->batch)->name ?? 'Not assigned' }}</td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <td class="font-weight-bold">
+                                                                        <i class="fas fa-calendar-check text-muted mr-2"></i>Admission Date:
+                                                                    </td>
+                                                                    <td>
+                                                                        {{ $student->admission_date ? \Carbon\Carbon::parse($student->admission_date)->format('d M, Y') : 'Not recorded' }}
+                                                                    </td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <td class="font-weight-bold">
+                                                                        <i class="fas fa-info-circle text-muted mr-2"></i>Status:
+                                                                    </td>
+                                                                    <td>
+                                                                        <span class="badge badge-{{ $student->status === 'active' ? 'success' : ($student->status === 'graduated' ? 'info' : 'danger') }}">
+                                                                            {{ ucfirst($student->status) }}
+                                                                        </span>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {{-- Source Info --}}
+                                            <div class="card shadow-sm mb-4 border-left-warning">
+                                                <div class="card-header bg-white py-3">
+                                                    <h6 class="m-0 font-weight-bold text-warning">
+                                                        <i class="fas fa-bullhorn mr-2"></i> Source Information
+                                                    </h6>
+                                                </div>
+                                                <div class="card-body">
+                                                    <div class="table-responsive">
+                                                        <table class="table table-borderless table-sm">
+                                                            <tbody>
+                                                                <tr>
+                                                                    <td class="font-weight-bold w-40">
+                                                                        <i class="fas fa-share-alt text-muted mr-2"></i>Source:
+                                                                    </td>
+                                                                    <td>
+                                                                        @if($student->source ?? null)
+                                                                            <span class="badge badge-primary px-2 py-1">{{ ucfirst($student->source) }}</span>
+                                                                        @else
+                                                                            <span class="text-muted">Not provided</span>
+                                                                        @endif
+                                                                    </td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <td class="font-weight-bold">
+                                                                        <i class="fas fa-user-tag text-muted mr-2"></i>Referral Name:
+                                                                    </td>
+                                                                    <td>
+                                                                        @if($student->referral_name ?? null)
+                                                                            <span class="font-weight-bold text-dark">
+                                                                                {{ $student->referral_name }}
+                                                                            </span>
+                                                                            @if($student->referrer)
+                                                                                <div class="small text-muted mt-1">
+                                                                                    <i class="fas fa-id-badge mr-1"></i> {{ $student->referrer->enrollment_number }}
+                                                                                    <span class="mx-1">|</span>
+                                                                                    <i class="fas fa-layer-group mr-1"></i> {{ optional($student->referrer->batch)->name ?? 'No Batch' }}
+                                                                                </div>
+                                                                            @endif
+                                                                        @else
+                                                                            <span class="text-muted">Not provided</span>
+                                                                        @endif
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {{-- Fee Components Tab --}}
+                                <div class="tab-pane fade" id="fees" role="tabpanel">
+                                    <div class="d-flex justify-content-between align-items-center mb-4">
+                                        <h5 class="mb-0 text-primary">
+                                            <i class="fas fa-file-invoice-dollar mr-2"></i> Fee Components
+                                        </h5>
+                                        <div class="btn-group">
+                                            <button class="action-btn btn-success-modern btn-sm" onclick="openPaymentModal()">
+                                                <i class="fas fa-plus mr-2"></i> Record Payment
+                                            </button>
+                                            <button class="btn btn-primary btn-sm" data-toggle="modal"
+                                                data-target="#addFeeComponentModal">
+                                                <i class="fas fa-plus-circle mr-2"></i> Add Fee Component
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    @if($studentFees->count() > 0)
+                                        @foreach($studentFees as $studentFee)
+                                            @php
+                                                $paidAmount = $studentFee->paid_amount ?? 0;
+                                                $concessionAmount = $studentFee->concession_amount ?? 0;
+                                                $totalAmount = $studentFee->amount ?? 0;
+                                                $remainingAmount = $totalAmount - $paidAmount - $concessionAmount;
+
+                                                $paymentPercentage = ($totalAmount > 0) ?
+                                                    round((($paidAmount + $concessionAmount) / $totalAmount) * 100, 1) : 0;
+
+                                                if ($remainingAmount <= 0) {
+                                                    $statusClass = 'success';
+                                                    $statusText = 'Fully Paid';
+                                                    $progressClass = 'bg-success';
+                                                } elseif ($paidAmount > 0 || $concessionAmount > 0) {
+                                                    $statusClass = 'warning';
+                                                    $statusText = 'Partially Paid';
+                                                    $progressClass = 'bg-warning';
+                                                } else {
+                                                    $statusClass = 'danger';
+                                                    $statusText = 'Unpaid';
+                                                    $progressClass = 'bg-danger';
+                                                }
+                                            @endphp
+
+                                            <div class="fee-component-card">
+                                                <div class="fee-component-header">
+                                                    <div class="row align-items-center">
+                                                        <div class="col-md-6">
+                                                            <h6 class="font-weight-bold mb-1">
+                                                                <i class="fas fa-file-invoice mr-2 text-primary"></i>
+                                                                {{ optional($studentFee->feeCategory)->name ?? 'Unknown Category' }}
+                                                            </h6>
+                                                            <small
+                                                                class="text-muted">{{ optional($studentFee->feeCategory)->description ?? 'Standard fee component' }}</small>
+                                                        </div>
+                                                        <div class="col-md-3 text-center">
+                                                            <div class="h5 font-weight-bold text-primary">
+                                                                ₹{{ number_format($totalAmount, 0) }}</div>
+                                                            <small class="text-muted">Total Amount</small>
+                                                        </div>
+                                                        <div class="col-md-3 text-center">
+                                                            <span class="status-badge {{ $statusClass }}">{{ $statusText }}</span>
+                                                            @if($concessionAmount > 0)
+                                                                <br><small class="text-success mt-1">
+                                                                    <i class="fas fa-percent"></i> ₹{{ number_format($concessionAmount, 0) }}
+                                                                    concession
+                                                                </small>
+                                                            @endif
                                                         </div>
                                                     </div>
-                                                    <div class="col-md-5">
-                                                        <div class="font-weight-bold">{{ $studentFee->feeCategory->name }}</div>
-                                                        <small class="text-muted">{{ $studentFee->feeCategory->description ?? 'Standard fee component' }}</small>
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <div class="text-center">
-                                                            <div class="font-weight-bold text-primary">₹{{ number_format($studentFee->amount, 0) }}</div>
-                                                            <small class="text-muted">Total Fee</small>
-                                                        </div>
-                                                    </div>
-                                                    <div class="col-md-3">
-                                                        <div class="form-group mb-0">
-                                                            <label class="small font-weight-bold">Payment Amount</label>
-                                                            <div class="input-group">
-                                                                <div class="input-group-prepend">
-                                                                    <span class="input-group-text">₹</span>
+                                                </div>
+                                                <div class="card-body">
+                                                    <div class="row align-items-center">
+                                                        <div class="col-md-8">
+                                                            <div class="mb-3">
+                                                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                                                    <small class="font-weight-bold">Payment Progress</small>
+                                                                    <small class="text-muted">{{ $paymentPercentage }}% completed</small>
                                                                 </div>
-                                                                <input type="number" step="0.01" 
-                                                                       name="components[{{ $studentFee->id }}][amount]" 
-                                                                       class="form-control component-amount" 
-                                                                       placeholder="0.00" min="0" max="{{ $dueAmount }}" disabled>
+                                                                <div class="payment-progress">
+                                                                    <div class="payment-progress-bar {{ $progressClass }}"
+                                                                        style="width: {{ $paymentPercentage }}%"></div>
+                                                                </div>
                                                             </div>
-                                                            <small class="text-muted">Max: ₹{{ number_format($dueAmount, 0) }}</small>
+                                                            <div class="row">
+                                                                <div class="col-4">
+                                                                    <small class="text-muted d-block">Paid</small>
+                                                                    <span
+                                                                        class="font-weight-bold text-success">₹{{ number_format($paidAmount, 0) }}</span>
+                                                                </div>
+                                                                <div class="col-4">
+                                                                    <small class="text-muted d-block">Concession</small>
+                                                                    <span
+                                                                        class="font-weight-bold text-info">₹{{ number_format($concessionAmount, 0) }}</span>
+                                                                </div>
+                                                                <div class="col-4">
+                                                                    <small class="text-muted d-block">Due</small>
+                                                                    <span
+                                                                        class="font-weight-bold text-danger">₹{{ number_format(max(0, $remainingAmount), 0) }}</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-4 text-right">
+                                                            @if($remainingAmount > 0)
+                                                                <button class="btn btn-success btn-sm mb-2"
+                                                                    onclick="openPaymentModal({{ $studentFee->id }}, '{{ optional($studentFee->feeCategory)->name ?? 'Unknown' }}', {{ $remainingAmount }})">
+                                                                    <i class="fas fa-credit-card mr-1"></i> Pay
+                                                                    ₹{{ number_format($remainingAmount, 0) }}
+                                                                </button>
+                                                                <br>
+                                                                <button class="btn btn-warning btn-sm"
+                                                                    onclick="openConcessionModal({{ $studentFee->id }}, '{{ optional($studentFee->feeCategory)->name ?? 'Unknown' }}', {{ $remainingAmount }})">
+                                                                    <i class="fas fa-percent mr-1"></i> Apply Concession
+                                                                </button>
+                                                            @endif
                                                         </div>
                                                     </div>
                                                 </div>
                                             </div>
-                                        @endif
-                                    @endforeach
-                                @else
-                                    <div class="text-center py-4">
-                                        <i class="fas fa-exclamation-triangle fa-2x text-warning mb-3"></i>
-                                        <h6>No Fee Components Found</h6>
-                                        <p class="text-muted">This student doesn't have any pending fee components.</p>
-                                    </div>
-                                @endif
-                            </div>
-                        </div>
+                                        @endforeach
+                                    @else
+                                        <div class="text-center py-5">
+                                            <i class="fas fa-file-invoice fa-3x text-muted mb-3"></i>
+                                            <h6 class="text-muted">No Fee Components Assigned</h6>
+                                            <p class="text-muted">This student doesn't have any fee components assigned yet.</p>
+                                        </div>
+                                    @endif
+                                </div>
 
-                        {{-- Payment Summary --}}
-                        <div class="payment-summary">
-                            <div class="row align-items-center">
-                                <div class="col-md-8">
-                                    <h6 class="font-weight-bold mb-2">
-                                        <i class="fas fa-calculator mr-2"></i> Payment Summary
-                                    </h6>
-                                    <div id="payment-validation-message" class="text-muted">
-                                        Enter payment amount and select components to allocate the payment.
-                                    </div>
-                                </div>
-                                <div class="col-md-4 text-right">
-                                    <div class="row">
-                                        <div class="col-12 mb-2">
-                                            <small class="text-muted d-block">Payment Amount</small>
-                                            <div class="h5 font-weight-bold text-primary" id="payment-total-display">₹0.00</div>
+                                {{-- Payment History Tab --}}
+                                <div class="tab-pane fade" id="payments" role="tabpanel">
+                                    <div class="d-flex justify-content-between align-items-center mb-4">
+                                        <h5 class="mb-0 text-primary">
+                                            <i class="fas fa-credit-card mr-2"></i> Payment History
+                                        </h5>
+                                        <div class="btn-group">
+                                            <button class="action-btn btn-success-modern btn-sm" onclick="openPaymentModal()">
+                                                <i class="fas fa-plus mr-2"></i> Record Payment
+                                            </button>
+                                            <button class="btn btn-outline-secondary btn-sm" onclick="refreshPaymentHistory()">
+                                                <i class="fas fa-sync"></i> Refresh
+                                            </button>
                                         </div>
-                                        <div class="col-12">
-                                            <small class="text-muted d-block">Allocated Amount</small>
-                                            <div class="h5 font-weight-bold text-success" id="allocated-total-display">₹0.00</div>
+                                    </div>
+
+                                    @if($paymentHistory->count() > 0)
+                                        <div class="table-responsive">
+                                            <table class="table table-hover" id="payment-history-table">
+                                                <thead class="bg-light">
+                                                    <tr>
+                                                        <th><i class="fas fa-receipt mr-2"></i>Receipt #</th>
+                                                        <th><i class="fas fa-calendar mr-2"></i>Date</th>
+                                                        <th><i class="fas fa-rupee-sign mr-2"></i>Amount</th>
+                                                        <th><i class="fas fa-credit-card mr-2"></i>Method</th>
+                                                        <th><i class="fas fa-list mr-2"></i>Components</th>
+                                                        <th><i class="fas fa-user mr-2"></i>Created By</th>
+                                                        <th><i class="fas fa-info-circle mr-2"></i>Status</th>
+                                                        <th>Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach($paymentHistory as $payment)
+                                                        <tr data-payment-id="{{ $payment->id }}">
+                                                            <td>
+                                                                <strong
+                                                                    class="text-primary">{{ $payment->receipt_number ?? 'N/A' }}</strong>
+                                                                @if($payment->transaction_id ?? null)
+                                                                    <small class="text-muted d-block">TXN:
+                                                                        {{ $payment->transaction_id }}</small>
+                                                                @endif
+                                                            </td>
+                                                            <td>
+                                                                <span
+                                                                    class="font-weight-bold">{{ $payment->payment_date ? $payment->payment_date->format('d M Y') : 'N/A' }}</span>
+                                                                <small
+                                                                    class="text-muted d-block">{{ $payment->created_at ? $payment->created_at->format('H:i A') : '' }}</small>
+                                                            </td>
+                                                            <td>
+                                                                <span class="badge badge-success badge-lg"
+                                                                    style="font-size: 0.9em; padding: 0.5em 0.8em;">
+                                                                    ₹{{ number_format($payment->amount ?? 0, 2) }}
+                                                                </span>
+                                                            </td>
+                                                            <td>
+                                                                <span class="badge badge-info">
+                                                                    {{ ucfirst(str_replace('_', ' ', $payment->payment_method ?? 'Unknown')) }}
+                                                                </span>
+                                                            </td>
+                                                            <td>
+                                                                @if(isset($payment->componentItems) && $payment->componentItems->count() > 0)
+                                                                    <div class="component-breakdown" style="max-width: 200px;">
+                                                                        @foreach($payment->componentItems as $item)
+                                                                            <small class="d-block" style="line-height: 1.3; margin-bottom: 2px;">
+                                                                                <strong>{{ optional($item->studentFee)->feeCategory->name ?? 'Unknown' }}:</strong>
+                                                                                ₹{{ number_format($item->amount_paid ?? 0, 2) }}
+                                                                            </small>
+                                                                        @endforeach
+                                                                    </div>
+                                                                @else
+                                                                    <span class="text-muted">No components</span>
+                                                                @endif
+                                                            </td>
+                                                            <td>
+                                                                @if(isset($payment->createdBy) && $payment->createdBy)
+                                                                    <div class="user-info" style="min-width: 120px;">
+                                                                        <strong>{{ $payment->createdBy->name }}</strong>
+                                                                        <small class="text-muted d-block">
+                                                                            {{ $payment->created_at ? $payment->created_at->diffForHumans() : 'Unknown time' }}
+                                                                        </small>
+                                                                    </div>
+                                                                @else
+                                                                    <span class="text-muted">System</span>
+                                                                @endif
+                                                            </td>
+                                                            <td>
+                                                                @php
+                                                                    $statusClass = match ($payment->status ?? 'completed') {
+                                                                        'completed' => 'success',
+                                                                        'pending' => 'warning',
+                                                                        'failed' => 'danger',
+                                                                        'refunded' => 'info',
+                                                                        default => 'secondary'
+                                                                    };
+                                                                @endphp
+                                                                <span class="badge badge-{{ $statusClass }}">
+                                                                    {{ ucfirst($payment->status ?? 'completed') }}
+                                                                </span>
+                                                            </td>
+                                                            <td>
+                                                                <div class="btn-group btn-group-sm">
+                                                                    {{-- Edit Button --}}
+                                                                    @can('edit payments')
+                                                                        @if(method_exists($payment, 'canBeEdited') && $payment->canBeEdited())
+                                                                            <a href="{{ route('payment-edit.edit', $payment) }}"
+                                                                                class="btn btn-outline-warning btn-sm" title="Edit Payment">
+                                                                                <i class="fas fa-edit"></i>
+                                                                            </a>
+                                                                        @elseif(!method_exists($payment, 'canBeEdited'))
+                                                                            <a href="{{ route('payment-edit.edit', $payment) }}"
+                                                                                class="btn btn-outline-warning btn-sm" title="Edit Payment">
+                                                                                <i class="fas fa-edit"></i>
+                                                                            </a>
+                                                                        @endif
+                                                                    @endcan
+
+                                                                    {{-- Receipt View Button --}}
+                                                                    @if($payment->receipt_number ?? null)
+                                                                        @if(Route::has('admin.payments.receipt'))
+                                                                            <a href="{{ route('admin.payments.receipt', [$student, $payment]) }}"
+                                                                                class="btn btn-outline-primary btn-sm" title="View Receipt"
+                                                                                target="_blank">
+                                                                                <i class="fas fa-receipt"></i>
+                                                                            </a>
+                                                                        @endif
+                                                                    @endif
+
+                                                                    {{-- PDF Download Button --}}
+                                                                    @if($payment->receipt_number ?? null)
+                                                                        @if(Route::has('admin.payments.receipt.pdf'))
+                                                                            <a href="{{ route('admin.payments.receipt.pdf', [$student, $payment]) }}"
+                                                                                class="btn btn-outline-success btn-sm" title="Download PDF">
+                                                                                <i class="fas fa-download"></i>
+                                                                            </a>
+                                                                        @endif
+                                                                    @endif
+
+                                                                    {{-- View Details Button --}}
+                                                                    <button class="btn btn-outline-secondary btn-sm"
+                                                                        onclick="viewPaymentDetails({{ $payment->id }})"
+                                                                        title="View Details">
+                                                                        <i class="fas fa-eye"></i>
+                                                                    </button>
+
+                                                                    {{-- Edit History Button --}}
+                                                                    @can('view payment history')
+                                                                        <a href="{{ route('payment-edit.history', $payment) }}"
+                                                                            class="btn btn-outline-info btn-sm" title="View Edit History">
+                                                                            <i class="fas fa-history"></i>
+                                                                        </a>
+                                                                    @endcan
+
+                                                                    {{-- Notes Button --}}
+                                                                    @if($payment->notes ?? null)
+                                                                        <button class="btn btn-outline-secondary btn-sm"
+                                                                            title="{{ $payment->notes }}" data-toggle="tooltip"
+                                                                            data-placement="top" data-html="true"
+                                                                            data-original-title="{{ $payment->notes }}">
+                                                                            <i class="fas fa-sticky-note"></i>
+                                                                        </button>
+                                                                    @endif
+
+
+                                                                    {{-- Manual Webhook Trigger --}}
+                                                                    <form action="{{ route('admin.payments.webhook', $payment->id) }}" method="POST" class="d-inline"
+                                                                        onsubmit="return confirm('Are you sure you want to resend the webhook for this payment?');">
+                                                                        @csrf
+                                                                        <button type="submit" class="btn btn-outline-dark btn-sm" title="Send Payment Webhook">
+                                                                            <i class="fas fa-satellite-dish"></i>
+                                                                        </button>
+                                                                    </form>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    @endforeach
+                                                </tbody>
+                                            </table>
+                                        </div>
+
+                                        {{-- Payment Summary Card --}}
+                                        <div class="row mt-4">
+                                            <div class="col-md-12">
+                                                <div class="card bg-light">
+                                                    <div class="card-body">
+                                                        <div class="row">
+                                                            <div class="col-md-3 text-center">
+                                                                <h6 class="text-muted">Total Payments</h6>
+                                                                <h4 class="text-primary">{{ $paymentHistory->count() }}</h4>
+                                                            </div>
+                                                            <div class="col-md-3 text-center">
+                                                                <h6 class="text-muted">Total Paid</h6>
+                                                                <h4 class="text-success">
+                                                                    ₹{{ number_format($paymentHistory->sum('amount'), 2) }}</h4>
+                                                            </div>
+                                                            <div class="col-md-3 text-center">
+                                                                <h6 class="text-muted">Last Payment</h6>
+                                                                <h4 class="text-info">
+                                                                    {{ $paymentHistory->first() ? $paymentHistory->first()->payment_date->format('d M Y') : 'Never' }}
+                                                                </h4>
+                                                            </div>
+                                                            <div class="col-md-3 text-center">
+                                                                <h6 class="text-muted">Payment Methods</h6>
+                                                                <div class="method-badges">
+                                                                    @foreach($paymentHistory->pluck('payment_method')->unique() as $method)
+                                                                        <span class="badge badge-secondary"
+                                                                            style="margin: 2px; font-size: 0.7em;">{{ ucfirst($method ?? 'Unknown') }}</span>
+                                                                    @endforeach
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {{-- Quick Actions for Payments --}}
+                                        <div class="row mt-3">
+                                            <div class="col-md-12">
+                                                <div class="card border-0">
+                                                    <div class="card-body bg-light rounded">
+                                                        <h6 class="text-muted mb-3">
+                                                            <i class="fas fa-tools mr-2"></i>Quick Actions
+                                                        </h6>
+                                                        <div class="btn-group flex-wrap" role="group">
+                                                            <button class="btn btn-outline-primary btn-sm"
+                                                                onclick="exportPaymentHistory()">
+                                                                <i class="fas fa-download mr-1"></i> Export History
+                                                            </button>
+                                                            <button class="btn btn-outline-info btn-sm" onclick="printPaymentHistory()">
+                                                                <i class="fas fa-print mr-1"></i> Print History
+                                                            </button>
+                                                            <button class="btn btn-outline-secondary btn-sm" onclick="filterPayments()">
+                                                                <i class="fas fa-filter mr-1"></i> Filter Payments
+                                                            </button>
+                                                            @if(Route::has('admin.payments.component-dashboard'))
+                                                                <a href="{{ route('admin.payments.component-dashboard', $student) }}"
+                                                                    class="btn btn-outline-success btn-sm">
+                                                                    <i class="fas fa-chart-bar mr-1"></i> Payment Dashboard
+                                                                </a>
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @else
+                                        <div class="text-center py-5">
+                                            <i class="fas fa-credit-card fa-3x text-muted mb-3"></i>
+                                            <h6 class="text-muted">No Payment History</h6>
+                                            <p class="text-muted">No payments have been recorded for this student yet.</p>
+                                            <button class="action-btn btn-success-modern" onclick="openPaymentModal()">
+                                                <i class="fas fa-plus mr-2"></i> Record First Payment
+                                            </button>
+                                        </div>
+                                    @endif
+                                </div>
+
+                                {{-- Enhanced Attendance Tab --}}
+                                <div class="tab-pane fade" id="attendance" role="tabpanel">
+                                    <div class="row">
+                                        <div class="col-md-12">
+                                            {{-- Month Selector --}}
+                                            <div class="d-flex justify-content-between align-items-center mb-4">
+                                                <h5 class="text-primary mb-0">
+                                                    <i class="fas fa-calendar-check mr-2"></i>Attendance Overview
+                                                </h5>
+                                                <div class="form-group mb-0">
+                                                    <select class="form-control" id="attendanceMonth"
+                                                        onchange="loadAttendanceData()">
+                                                        @for($i = 0; $i < 12; $i++)
+                                                            @php
+                                                                $month = now()->subMonths($i);
+                                                            @endphp
+                                                            <option value="{{ $month->format('Y-m') }}" {{ $i === 0 ? 'selected' : '' }}>
+                                                                {{ $month->format('F Y') }}
+                                                            </option>
+                                                        @endfor
+                                                    </select>
+                                                </div>
+                                            </div>
+
+                                            {{-- Loading State --}}
+                                            <div id="attendanceLoading" class="text-center py-5">
+                                                <i class="fas fa-spinner fa-spin fa-2x text-primary mb-3"></i>
+                                                <p class="text-muted">Loading attendance data...</p>
+                                            </div>
+
+                                            {{-- Attendance Content --}}
+                                            <div id="attendanceContent" style="display: none;">
+
+                                                {{-- Summary Cards --}}
+                                                <div class="row mb-4">
+                                                    {{-- Working Days Card (NEW) --}}
+                                                    <div class="col-md-2 mb-3">
+                                                        <div class="card border-left-primary shadow-sm h-100">
+                                                            <div class="card-body py-3 px-2">
+                                                                <div class="row no-gutters align-items-center">
+                                                                    <div class="col mr-2">
+                                                                        <div
+                                                                            class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                                                            Working Days
+                                                                        </div>
+                                                                        <div class="h5 mb-0 font-weight-bold text-gray-800"
+                                                                            id="totalWorkingDays">
+                                                                            0
+                                                                        </div>
+                                                                        <small class="text-muted" style="font-size: 0.65rem;">(Till
+                                                                            Date)</small>
+                                                                    </div>
+                                                                    <div class="col-auto">
+                                                                        <i class="fas fa-briefcase fa-2x text-gray-300"></i>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {{-- Percentage Card --}}
+                                                    <div class="col-md-2 mb-3">
+                                                        <div class="card border-left-info shadow-sm h-100">
+                                                            <div class="card-body py-3 px-2">
+                                                                <div class="row no-gutters align-items-center">
+                                                                    <div class="col mr-2">
+                                                                        <div
+                                                                            class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                                                            Attendance
+                                                                        </div>
+                                                                        <div class="h5 mb-0 font-weight-bold text-gray-800"
+                                                                            id="tabAttendancePercentage">
+                                                                            0%
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="col-auto">
+                                                                        <i class="fas fa-chart-pie fa-2x text-gray-300"></i>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {{-- Present Card --}}
+                                                    <div class="col-md-2 mb-3">
+                                                        <div class="card border-left-success shadow-sm h-100">
+                                                            <div class="card-body py-3 px-2">
+                                                                <div class="row no-gutters align-items-center">
+                                                                    <div class="col mr-2">
+                                                                        <div
+                                                                            class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                                                            Present
+                                                                        </div>
+                                                                        <div class="h5 mb-0 font-weight-bold text-gray-800"
+                                                                            id="presentDays">
+                                                                            0
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="col-auto">
+                                                                        <i class="fas fa-check fa-2x text-gray-300"></i>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {{-- Absent Card --}}
+                                                    <div class="col-md-2 mb-3">
+                                                        <div class="card border-left-danger shadow-sm h-100">
+                                                            <div class="card-body py-3 px-2">
+                                                                <div class="row no-gutters align-items-center">
+                                                                    <div class="col mr-2">
+                                                                        <div
+                                                                            class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                                                                            Absent
+                                                                        </div>
+                                                                        <div class="h5 mb-0 font-weight-bold text-gray-800"
+                                                                            id="absentDays">
+                                                                            0
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="col-auto">
+                                                                        <i class="fas fa-times fa-2x text-gray-300"></i>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {{-- Late Card --}}
+                                                    <div class="col-md-2 mb-3">
+                                                        <div class="card border-left-warning shadow-sm h-100">
+                                                            <div class="card-body py-3 px-2">
+                                                                <div class="row no-gutters align-items-center">
+                                                                    <div class="col mr-2">
+                                                                        <div
+                                                                            class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                                                            Late
+                                                                        </div>
+                                                                        <div class="h5 mb-0 font-weight-bold text-gray-800"
+                                                                            id="lateDays">
+                                                                            0
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="col-auto">
+                                                                        <i class="fas fa-clock fa-2x text-gray-300"></i>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {{-- Holidays Card --}}
+                                                    <div class="col-md-2 mb-3">
+                                                        <div class="card border-left-secondary shadow-sm h-100">
+                                                            <div class="card-body py-3 px-2">
+                                                                <div class="row no-gutters align-items-center">
+                                                                    <div class="col mr-2">
+                                                                        <div
+                                                                            class="text-xs font-weight-bold text-secondary text-uppercase mb-1">
+                                                                            Holidays
+                                                                        </div>
+                                                                        <div class="h5 mb-0 font-weight-bold text-gray-800"
+                                                                            id="holidayDays">
+                                                                            0
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="col-auto">
+                                                                        <i class="fas fa-umbrella-beach fa-2x text-gray-300"></i>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {{-- Attendance Status Alert --}}
+                                                <div class="alert" id="attendanceStatusAlert" style="display: none;">
+                                                    <div class="d-flex align-items-center">
+                                                        <i class="fas fa-info-circle mr-2"></i>
+                                                        <div>
+                                                            <strong id="attendanceStatusTitle">Attendance Status</strong>
+                                                            <div class="small" id="attendanceStatusMessage"></div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {{-- Monthly Calendar View --}}
+                                                <div class="card shadow-sm">
+                                                    <div class="card-header py-3">
+                                                        <h6 class="m-0 font-weight-bold text-primary">
+                                                            <i class="fas fa-calendar mr-2"></i>
+                                                            <span id="calendarTitle">Monthly Attendance</span>
+                                                        </h6>
+                                                    </div>
+                                                    <div class="card-body">
+                                                        <div id="attendanceCalendar">
+                                                            {{-- Calendar will be populated via JavaScript --}}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {{-- Recent Records Table --}}
+                                                <div class="card shadow-sm mt-4">
+                                                    <div class="card-header py-3">
+                                                        <h6 class="m-0 font-weight-bold text-primary">
+                                                            <i class="fas fa-history mr-2"></i>Recent Attendance Records
+                                                        </h6>
+                                                    </div>
+                                                    <div class="card-body">
+                                                        <div class="table-responsive">
+                                                            <table class="table table-sm" id="attendanceRecordsTable">
+                                                                <thead>
+                                                                    <tr>
+                                                                        <th>Date</th>
+                                                                        <th>Status</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {{-- Records will be populated via JavaScript --}}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {{-- Error State --}}
+                                            <div id="attendanceError" style="display: none;">
+                                                <div class="alert alert-danger">
+                                                    <i class="fas fa-exclamation-triangle mr-2"></i>
+                                                    <strong>Error loading attendance data</strong>
+                                                    <p class="mb-0 mt-2" id="attendanceErrorMessage"></p>
+                                                    <button class="btn btn-sm btn-outline-danger mt-2"
+                                                        onclick="loadAttendanceData()">
+                                                        <i class="fas fa-redo mr-1"></i>Retry
+                                                    </button>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    </form>
+                    </div>
+                    <br>
+                    {{-- Recent Activity Timeline (Optional) --}}
+                    @if($recentActivity->count() > 0)
+                        <div class="card shadow mb-4">
+                            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                                <h6 class="m-0 font-weight-bold text-primary">
+                                    <i class="fas fa-history mr-2"></i>Recent Activity Timeline
+                                </h6>
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" data-toggle="dropdown">
+                                        <i class="fas fa-filter"></i> Filter
+                                    </button>
+                                    <div class="dropdown-menu">
+                                        <a class="dropdown-item activity-filter" href="#" data-type="all">
+                                            <i class="fas fa-list mr-2"></i>All Activities
+                                        </a>
+                                        <div class="dropdown-divider"></div>
+                                        <a class="dropdown-item activity-filter" href="#" data-type="payment">
+                                            <i class="fas fa-money-bill-wave mr-2"></i>Payments Only
+                                        </a>
+                                        <a class="dropdown-item activity-filter" href="#" data-type="concession">
+                                            <i class="fas fa-percent mr-2"></i>Concessions Only
+                                        </a>
+                                        <a class="dropdown-item activity-filter" href="#" data-type="spatie_log">
+                                            <i class="fas fa-cogs mr-2"></i>System Changes
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="activity-timeline" id="activityTimeline" style="max-height: 500px; overflow-y: auto;">
+                                    @foreach($recentActivity as $activity)
+                                        <div class="timeline-item" data-type="{{ $activity['type'] ?? 'general' }}">
+                                            <div class="timeline-marker bg-{{ $activity['color'] ?? 'primary' }}">
+                                                <i class="fas {{ $activity['icon'] ?? 'fa-info-circle' }}"></i>
+                                            </div>
+                                            <div class="timeline-content">
+                                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                                    <div class="timeline-header">
+                                                        <h6 class="mb-1 font-weight-bold">{{ $activity['title'] ?? 'Activity' }}</h6>
+                                                        <p class="text-muted mb-1">
+                                                            {{ $activity['description'] ?? 'No description available' }}</p>
+                                                    </div>
+                                                    <div class="timeline-meta text-right">
+                                                        <small
+                                                            class="text-muted d-block">{{ $activity['timestamp']->format('M d, Y') }}</small>
+                                                        <small class="text-muted">{{ $activity['timestamp']->format('h:i A') }}</small>
+                                                    </div>
+                                                </div>
+
+                                                @if(!empty($activity['properties'] ?? []))
+                                                    <div class="timeline-details">
+                                                        <button class="btn btn-sm btn-outline-secondary toggle-details" type="button"
+                                                            data-toggle="collapse" data-target="#details-{{ $loop->index }}">
+                                                            <i class="fas fa-chevron-down"></i> Details
+                                                        </button>
+                                                        <div class="collapse mt-2" id="details-{{ $loop->index }}">
+                                                            <div class="card card-body bg-light">
+                                                                @if(($activity['type'] ?? '') === 'payment')
+                                                                    <div class="row">
+                                                                        <div class="col-md-6">
+                                                                            <small><strong>Amount:</strong>
+                                                                                ₹{{ number_format($activity['properties']['amount'] ?? 0, 2) }}</small><br>
+                                                                            <small><strong>Method:</strong>
+                                                                                {{ ucfirst($activity['properties']['method'] ?? 'Unknown') }}</small>
+                                                                        </div>
+                                                                        <div class="col-md-6">
+                                                                            <small><strong>Receipt:</strong>
+                                                                                {{ $activity['properties']['receipt'] ?? 'N/A' }}</small><br>
+                                                                            <small><strong>Components:</strong>
+                                                                                {{ $activity['properties']['components'] ?? 0 }} items</small>
+                                                                        </div>
+                                                                    </div>
+                                                                @elseif(($activity['type'] ?? '') === 'concession')
+                                                                    <div class="row">
+                                                                        <div class="col-md-6">
+                                                                            <small><strong>Amount:</strong>
+                                                                                ₹{{ number_format($activity['properties']['amount'] ?? 0, 2) }}</small><br>
+                                                                            <small><strong>Status:</strong>
+                                                                                {{ ucfirst($activity['properties']['status'] ?? 'Unknown') }}</small>
+                                                                        </div>
+                                                                        <div class="col-md-6">
+                                                                            @if(!empty($activity['properties']['reason'] ?? null))
+                                                                                <small><strong>Reason:</strong>
+                                                                                    {{ $activity['properties']['reason'] }}</small>
+                                                                            @endif
+                                                                        </div>
+                                                                    </div>
+                                                                @else
+                                                                    <div class="properties-list">
+                                                                        @foreach(($activity['properties'] ?? []) as $key => $value)
+                                                                            @if(!is_array($value))
+                                                                                <small><strong>{{ ucfirst(str_replace('_', ' ', $key)) }}:</strong>
+                                                                                    {{ $value }}</small><br>
+                                                                            @endif
+                                                                        @endforeach
+                                                                    </div>
+                                                                @endif
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                @endif
+
+                                                <div class="timeline-footer mt-2">
+                                                    <small class="text-muted">
+                                                        <i class="fas fa-user mr-1"></i>{{ $activity['user'] ?? 'System' }}
+                                                        <span class="mx-2">•</span>
+                                                        <i class="fas fa-clock mr-1"></i>{{ $activity['timestamp']->diffForHumans() }}
+                                                    </small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                </div>
+
+                                {{-- Load More Button --}}
+
+                            </div>
+                        </div>
+                    @endif
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-light" data-dismiss="modal">
-                        <i class="fas fa-times mr-2"></i> Cancel
-                    </button>
-                    <button type="submit" form="paymentForm" class="action-btn btn-success-modern" id="submit-payment-btn" disabled>
-                        <i class="fas fa-credit-card mr-2"></i> Record Payment
-                    </button>
+
+                {{-- Right Sidebar - Quick Actions --}}
+                <div class="col-lg-4">
+                    {{-- Financial Summary Card --}}
+                    <div class="card modern-card mb-4">
+                        <div class="card-header bg-white">
+                            <h6 class="m-0 font-weight-bold text-primary">
+                                <i class="fas fa-chart-pie mr-2"></i> Financial Summary
+                            </h6>
+                        </div>
+                        <div class="card-body text-center">
+                            <div class="mb-3">
+                                <div class="h4 font-weight-bold text-gray-800 amount-counter">
+                                    ₹{{ number_format(isset($financialSummary['total_amount']) ? $financialSummary['total_amount'] : 0, 0) }}
+                                </div>
+                                <small class="text-muted">Total Fee Amount</small>
+                            </div>
+
+                            <div class="progress mb-3" style="height: 15px;">
+                                <div class="progress-bar 
+                                    @if(isset($financialSummary['payment_percentage']) && $financialSummary['payment_percentage'] >= 75) bg-success 
+                                    @elseif(isset($financialSummary['payment_percentage']) && $financialSummary['payment_percentage'] >= 50) bg-warning 
+                                    @else bg-danger @endif" role="progressbar"
+                                    style="width: {{ isset($financialSummary['payment_percentage']) ? $financialSummary['payment_percentage'] : 0 }}%">
+                                    {{ isset($financialSummary['payment_percentage']) ? $financialSummary['payment_percentage'] : 0 }}%
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-6">
+                                    <div class="p-2 rounded bg-light">
+                                        <div class="text-success font-weight-bold">
+                                            ₹{{ number_format(isset($financialSummary['paid_amount']) ? $financialSummary['paid_amount'] : 0, 0) }}
+                                        </div>
+                                        <div class="small text-muted">Paid</div>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="p-2 rounded bg-light">
+                                        <div class="text-danger font-weight-bold">
+                                            ₹{{ number_format(isset($financialSummary['remaining_amount']) ? $financialSummary['remaining_amount'] : 0, 0) }}
+                                        </div>
+                                        <div class="small text-muted">Due</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Quick Actions Card --}}
+                    <div class="card modern-card">
+                        <div class="card-header bg-white">
+                            <h6 class="m-0 font-weight-bold text-primary">
+                                <i class="fas fa-bolt mr-2"></i> Quick Actions
+                            </h6>
+                        </div>
+                        <div class="card-body p-2">
+                            <div class="quick-action-card" onclick="openPaymentModal()">
+                                <div class="d-flex align-items-center">
+                                    <div class="quick-action-icon bg-success text-white">
+                                        <i class="fas fa-credit-card"></i>
+                                    </div>
+                                    <div>
+                                        <div class="font-weight-bold">Record Payment</div>
+                                        <small class="text-muted">Add new payment entry</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="quick-action-card" data-toggle="modal" data-target="#applyConcessionModal">
+                                <div class="d-flex align-items-center">
+                                    <div class="quick-action-icon bg-warning text-white">
+                                        <i class="fas fa-percent"></i>
+                                    </div>
+                                    <div>
+                                        <div class="font-weight-bold">Apply Concession</div>
+                                        <small class="text-muted">
+                                            Discount fee components
+                                            @if(($student->gender ?? null) === 'Female' && setting('womens_discount_percentage', 0) > 0)
+                                                <br><span class="badge badge-success mt-1">
+                                                    <i class="fas fa-female"></i> {{ setting('womens_discount_percentage') }}% Eligible
+                                                </span>
+                                            @endif
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="quick-action-card"
+                                onclick="window.location.href='{{ route('admin.students.edit', $student) }}'">
+                                <div class="d-flex align-items-center">
+                                    <div class="quick-action-icon bg-primary text-white">
+                                        <i class="fas fa-edit"></i>
+                                    </div>
+                                    <div>
+                                        <div class="font-weight-bold">Edit Profile</div>
+                                        <small class="text-muted">Update student information</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            @if(Route::has('admin.payments.component-dashboard'))
+                                <div class="quick-action-card"
+                                    onclick="window.location.href='{{ route('admin.payments.component-dashboard', $student) }}'">
+                                    <div class="d-flex align-items-center">
+                                        <div class="quick-action-icon bg-info text-white">
+                                            <i class="fas fa-file-invoice-dollar"></i>
+                                        </div>
+                                        <div>
+                                            <div class="font-weight-bold">Fee Dashboard</div>
+                                            <small class="text-muted">Detailed fee management</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endif
+
+                            <div class="quick-action-card" onclick="window.print()">
+                                <div class="d-flex align-items-center">
+                                    <div class="quick-action-icon bg-secondary text-white">
+                                        <i class="fas fa-print"></i>
+                                    </div>
+                                    <div>
+                                        <div class="font-weight-bold">Print Profile</div>
+                                        <small class="text-muted">Generate printable version</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
-    </div>
+
+
+
+            {{-- Payment Filter Modal --}}
+            <div class="modal fade" id="paymentFilterModal" tabindex="-1" role="dialog">
+                <div class="modal-dialog" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">
+                                <i class="fas fa-filter mr-2"></i>Filter Payment History
+                            </h5>
+                            <button type="button" class="close" data-dismiss="modal">
+                                <span>&times;</span>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <form id="paymentFilterForm">
+                                <div class="form-group">
+                                    <label>Payment Method</label>
+                                    <select class="form-control" id="filterMethod">
+                                        <option value="">All Methods</option>
+                                        <option value="cash">Cash</option>
+                                        <option value="card">Card</option>
+                                        <option value="bank_transfer">Bank Transfer</option>
+                                        <option value="upi">UPI</option>
+                                        <option value="cheque">Cheque</option>
+                                        <option value="online">Online</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Date Range</label>
+                                    <div class="row">
+                                        <div class="col-6">
+                                            <input type="date" class="form-control" id="filterStartDate" placeholder="Start Date">
+                                        </div>
+                                        <div class="col-6">
+                                            <input type="date" class="form-control" id="filterEndDate" placeholder="End Date">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Amount Range</label>
+                                    <div class="row">
+                                        <div class="col-6">
+                                            <input type="number" class="form-control" id="filterMinAmount" placeholder="Min Amount">
+                                        </div>
+                                        <div class="col-6">
+                                            <input type="number" class="form-control" id="filterMaxAmount" placeholder="Max Amount">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Created By</label>
+                                    <select class="form-control" id="filterCreatedBy">
+                                        <option value="">All Users</option>
+                                        @if($paymentHistory->count() > 0)
+                                            @foreach($paymentHistory->pluck('createdBy.name')->unique()->filter() as $creator)
+                                                <option value="{{ $creator }}">{{ $creator }}</option>
+                                            @endforeach
+                                        @endif
+                                    </select>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                            <button type="button" class="btn btn-primary" onclick="applyPaymentFilter()">Apply Filter</button>
+                            <button type="button" class="btn btn-outline-secondary" onclick="clearPaymentFilter()">Clear</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            {{-- Add Fee Component Modal --}}
+            <div class="modal fade" id="addFeeComponentModal" tabindex="-1" role="dialog">
+                <div class="modal-dialog modal-lg" role="document">
+                    <div class="modal-content" style="border-radius: 20px;">
+                        <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 20px 20px 0 0;">
+                            <h5 class="modal-title font-weight-bold">
+                                <i class="fas fa-plus-circle mr-2"></i>
+                                Add Fee Component to {{ $student->name }}
+                            </h5>
+                            <button type="button" class="close text-white" data-dismiss="modal">
+                                <span>&times;</span>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <div id="loadingFeeComponents" class="text-center py-4" style="display: none;">
+                                <i class="fas fa-spinner fa-spin fa-2x text-primary mb-3"></i>
+                                <p class="text-muted">Loading available fee components...</p>
+                            </div>
+
+                            <div id="feeComponentsList">
+                                {{-- Components will be loaded here via AJAX --}}
+                            </div>
+
+                            <div id="noFeeComponents" class="text-center py-4" style="display: none;">
+                                <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                                <h6 class="text-muted">All Fee Components Assigned</h6>
+                                <p class="text-muted">This student has been assigned all available fee components.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+            </div>
+            {{-- Enhanced Apply Concession Modal - REPLACE the existing one --}}
+            <div class="modal fade" id="applyConcessionModal" tabindex="-1" role="dialog">
+                <div class="modal-dialog modal-lg" role="document">
+                    <div class="modal-content" style="border-radius: 20px; border: none; box-shadow: 0 20px 60px rgba(0,0,0,0.2);">
+                        <div class="modal-header" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: #8b4513; border-radius: 20px 20px 0 0; border: none;">
+                            <h5 class="modal-title font-weight-bold">
+                                <i class="fas fa-percent mr-2"></i>
+                                Apply Concession - {{ $student->name }}
+                            </h5>
+                            <button type="button" class="close" data-dismiss="modal" style="color: #8b4513; opacity: 0.8;">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            {{-- Gender-based Concession Info --}}
+                            @if($student->gender === 'Female' && setting('womens_discount_percentage', 0) > 0)
+                                <div class="alert alert-info" style="border-radius: 10px; background: linear-gradient(135deg, #e3f2fd 0%, #f1f8e9 100%); border: none;">
+                                    <i class="fas fa-female mr-2 text-success"></i>
+                                    <strong>Gender Concession Available:</strong> This student is eligible for automatic 
+                                    {{ setting('womens_discount_percentage') }}% gender-based discount.
+                                    <button type="button" class="btn btn-sm btn-success ml-2" onclick="applyAutomaticGenderConcession()" style="border-radius: 15px;">
+                                        <i class="fas fa-magic"></i> Apply Auto Discount
+                                    </button>
+                                </div>
+                            @endif
+
+                            <form id="concessionForm" action="{{ url('admin/students/' . $student->id . '/apply-concession') }}" method="POST">
+                                @csrf
+
+                                <div class="form-group">
+                                    <label for="concessionComponentSelect" class="font-weight-bold">Fee Component *</label>
+                                    <select name="student_fee_id" id="concessionComponentSelect" class="form-control" required style="border-radius: 10px;">
+                                        <option value="">-- Select Fee Component --</option>
+                                        @if(isset($student) && $student->studentFees)
+                                            @foreach($student->studentFees->whereIn('status', ['unpaid', 'partial']) as $fee)
+                                                @php 
+                                                    $remaining = $fee->amount - $fee->paid_amount - $fee->concession_amount; 
+                                                @endphp
+                                                @if($remaining > 0)
+                                                    <option value="{{ $fee->id }}" data-remaining="{{ $remaining }}">
+                                                        {{ $fee->feeCategory->name }} 
+                                                        (Remaining: {{ setting('currency_symbol', '₹') }}{{ number_format($remaining, 2) }})
+                                                    </option>
+                                                @endif
+                                            @endforeach
+                                        @endif
+                                    </select>
+                                    <small class="form-text text-muted">Only components with outstanding balance are shown</small>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-8">
+                                        <div class="form-group">
+                                            <label for="concession_amount" class="font-weight-bold">Concession Amount *</label>
+                                            <div class="input-group">
+                                                <div class="input-group-prepend">
+                                                    <span class="input-group-text" style="background: #f8f9fc; border-color: #e3e6f0;">{{ setting('currency_symbol', '₹') }}</span>
+                                                </div>
+                                                <input type="number" step="0.01" name="concession_amount" id="concession_amount" 
+                                                       class="form-control" required min="0.01" max="" style="border-radius: 0 10px 10px 0;">
+                                            </div>
+                                            <small class="text-muted" id="concession_amount_hint">Enter the concession amount</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="text-muted font-weight-bold">Quick Amounts</label>
+                                        <div class="btn-group-vertical d-block" id="quickAmountButtons">
+                                            {{-- Dynamic buttons will be inserted here --}}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="concession_reason" class="font-weight-bold">Reason for Concession</label>
+                                    <textarea name="reason" id="concession_reason" class="form-control" rows="3" 
+                                              style="border-radius: 10px;"
+                                              placeholder="e.g., Merit scholarship, Financial hardship, Staff discount, Early payment discount"></textarea>
+                                    <small class="form-text text-muted">Provide a brief explanation for this concession</small>
+                                </div>
+
+                                <div class="alert alert-warning" style="border-radius: 10px; background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%); border: none;">
+                                    <i class="fas fa-exclamation-triangle mr-2"></i>
+                                    <strong>Important:</strong> This concession will be applied immediately and cannot be undone from this interface.
+                                    Please ensure the amount and reason are correct.
+                                </div>
+                            </form>
+                        </div>
+                        <div class="modal-footer" style="border: none; background: #f8f9fc; border-radius: 0 0 20px 20px;">
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal" style="border-radius: 20px;">
+                                <i class="fas fa-times"></i> Cancel
+                            </button>
+                            <button type="submit" form="concessionForm" class="btn btn-warning" id="applyConcessionBtn" style="border-radius: 20px; background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); border: none; color: #8b4513; font-weight: bold;">
+                                <i class="fas fa-percent"></i> Apply Concession
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            {{-- Enhanced Payment Recording Modal --}}
+            <div class="modal fade payment-modal" id="paymentModal" tabindex="-1" role="dialog" aria-labelledby="paymentModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-xl" role="document">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <div>
+                                <h5 class="modal-title" id="paymentModalLabel">
+                                    <i class="fas fa-credit-card mr-2"></i> Record Payment for {{ $student->name }}
+                                </h5>
+                                <small class="text-light opacity-75">{{ $student->enrollment_number }} • {{ $student->batch->name ?? 'N/A' }}</small>
+                            </div>
+                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <form id="paymentForm" action="{{ route('admin.component-payments.store') }}" method="POST">
+                                @csrf
+                                <input type="hidden" name="student_id" value="{{ $student->id }}">
+
+                                {{-- Payment Details Section --}}
+                                <div class="payment-form-section">
+                                    <h6 class="font-weight-bold text-primary mb-3">
+                                        <i class="fas fa-file-invoice-dollar mr-2"></i> Payment Details
+                                    </h6>
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="form-group">
+                                                <label for="payment_amount" class="font-weight-bold">Payment Amount *</label>
+                                                <div class="input-group">
+                                                    <div class="input-group-prepend">
+                                                        <span class="input-group-text">₹</span>
+                                                    </div>
+                                                    <input type="number" step="0.01" name="total_amount" id="payment_amount" 
+                                                           class="form-control form-control-lg" required min="0.01" placeholder="0.00">
+                                                </div>
+                                                <small class="text-muted">Enter the total payment amount</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="form-group">
+                                                <label for="payment_method" class="font-weight-bold">Payment Method *</label>
+                                                <select name="payment_method" id="payment_method" class="form-control form-control-lg" required>
+                                                    <option value="">Select Method</option>
+                                                    <option value="cash">Cash</option>
+                                                    <option value="card">Card</option>
+                                                    <option value="bank_transfer">Bank Transfer</option>
+                                                    <option value="upi">UPI</option>
+                                                    <option value="cheque">Cheque</option>
+                                                    <option value="online">Online</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="form-group">
+                                                <label for="payment_date" class="font-weight-bold">Payment Date *</label>
+                                                <input type="date" name="payment_date" id="payment_date" 
+                                                       class="form-control form-control-lg" value="{{ date('Y-m-d') }}" required>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label for="transaction_id" class="font-weight-bold">Transaction Reference</label>
+                                                <input type="text" name="transaction_id" id="transaction_id" 
+                                                       class="form-control" placeholder="Transaction ID / Reference Number">
+                                                <small class="text-muted">Optional for cash payments</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label for="notes" class="font-weight-bold">Notes</label>
+                                                <textarea name="notes" id="notes" class="form-control" rows="2" 
+                                                          placeholder="Additional notes or comments"></textarea>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {{-- Fee Components Selection --}}
+                                <div class="payment-form-section">
+                                    <h6 class="font-weight-bold text-primary mb-3">
+                                        <i class="fas fa-list-check mr-2"></i> Allocate Payment to Components
+                                    </h6>
+                                    <div id="fee-components-list">
+                                        @if(isset($studentFees) && $studentFees->count() > 0)
+                                            @foreach($studentFees as $studentFee)
+                                                @php
+                                                    $dueAmount = $studentFee->amount - $studentFee->paid_amount;
+                                                @endphp
+                                                @if($dueAmount > 0)
+                                                    <div class="payment-component-item" data-fee-id="{{ $studentFee->id }}" data-max-amount="{{ $dueAmount }}">
+                                                        <div class="row align-items-center">
+                                                            <div class="col-md-1">
+                                                                <div class="custom-control custom-checkbox">
+                                                                    <input type="checkbox" class="custom-control-input component-checkbox" 
+                                                                           id="component_{{ $studentFee->id }}" name="components[{{ $studentFee->id }}][selected]" value="1">
+                                                                    <label class="custom-control-label" for="component_{{ $studentFee->id }}"></label>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-md-5">
+                                                                <div class="font-weight-bold">{{ $studentFee->feeCategory->name }}</div>
+                                                                <small class="text-muted">{{ $studentFee->feeCategory->description ?? 'Standard fee component' }}</small>
+                                                            </div>
+                                                            <div class="col-md-3">
+                                                                <div class="text-center">
+                                                                    <div class="font-weight-bold text-primary">₹{{ number_format((float) $studentFee->amount, 0) }}</div>
+                                                                    <small class="text-muted">Total Fee</small>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-md-3">
+                                                                <div class="form-group mb-0">
+                                                                    <label class="small font-weight-bold">Payment Amount</label>
+                                                                    <div class="input-group">
+                                                                        <div class="input-group-prepend">
+                                                                            <span class="input-group-text">₹</span>
+                                                                        </div>
+                                                                        <input type="number" step="0.01" 
+                                                                               name="components[{{ $studentFee->id }}][amount]" 
+                                                                               class="form-control component-amount" 
+                                                                               placeholder="0.00" min="0" max="{{ $dueAmount }}" disabled>
+                                                                    </div>
+                                                                    <small class="text-muted">Max: ₹{{ number_format($dueAmount, 0) }}</small>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                @endif
+                                            @endforeach
+                                        @else
+                                            <div class="text-center py-4">
+                                                <i class="fas fa-exclamation-triangle fa-2x text-warning mb-3"></i>
+                                                <h6>No Fee Components Found</h6>
+                                                <p class="text-muted">This student doesn't have any pending fee components.</p>
+                                            </div>
+                                        @endif
+                                    </div>
+                                </div>
+
+                                {{-- Payment Summary --}}
+                                <div class="payment-summary">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-8">
+                                            <h6 class="font-weight-bold mb-2">
+                                                <i class="fas fa-calculator mr-2"></i> Payment Summary
+                                            </h6>
+                                            <div id="payment-validation-message" class="text-muted">
+                                                Enter payment amount and select components to allocate the payment.
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4 text-right">
+                                            <div class="row">
+                                                <div class="col-12 mb-2">
+                                                    <small class="text-muted d-block">Payment Amount</small>
+                                                    <div class="h5 font-weight-bold text-primary" id="payment-total-display">₹0.00</div>
+                                                </div>
+                                                <div class="col-12">
+                                                    <small class="text-muted d-block">Allocated Amount</small>
+                                                    <div class="h5 font-weight-bold text-success" id="allocated-total-display">₹0.00</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-light" data-dismiss="modal">
+                                <i class="fas fa-times mr-2"></i> Cancel
+                            </button>
+                            <button type="submit" form="paymentForm" class="action-btn btn-success-modern" id="submit-payment-btn" disabled>
+                                <i class="fas fa-credit-card mr-2"></i> Record Payment
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
 @endsection
 {{-- Activity Timeline Styles --}}
@@ -4376,10 +4357,7 @@
 
         return `
             <div class="calendar-day status-${attendance.status} ${todayClass}" 
-                 data-date="${dateStr}" 
-                 data-bs-toggle="tooltip" 
-                 data-bs-placement="top" 
-                 title="${attendance.status.toUpperCase()} - ${checkInTime} to ${checkOutTime} (${workingHours})">
+                 data-date="${dateStr}">
                 <div class="day-number">${day}</div>
                 <div class="attendance-status ${attendance.status}">${attendance.status.charAt(0).toUpperCase() + attendance.status.slice(1)}</div>
                 ${attendance.is_late_arrival ? '<i class="fas fa-clock text-warning" style="font-size: 0.7rem;"></i>' : ''}
@@ -4388,12 +4366,18 @@
         `;
     }
 
-    function populateAttendanceTable(records) {
-        console.log('Populating attendance table with records:', records);
+    function populateAttendanceTable(records, showAll = false) {
+        // console.log('Populating attendance table with records:', records);
         let tableHtml = '';
+        const limit = 5;
 
-        if (records && records.length > 0) {
-            records.slice(0, 10).forEach(record => {
+        // Determine records to display: first 5 or all
+        const displayRecords = (records && records.length > 0) 
+            ? (showAll ? records : records.slice(0, limit)) 
+            : [];
+
+        if (displayRecords.length > 0) {
+            displayRecords.forEach(record => {
                 const statusBadge = getStatusBadge(record.status);
 
                 // Format the date properly
@@ -4404,11 +4388,10 @@
                         day: 'numeric'
                     }) : 'N/A';
 
-                // Format check-in time - handle both string and time object
+                // Format check-in time
                 let checkInTime = 'N/A';
                 if (record.check_in_time) {
                     if (typeof record.check_in_time === 'string') {
-                        // If it's already a formatted string like "10:51:00"
                         const timeParts = record.check_in_time.split(':');
                         if (timeParts.length >= 2) {
                             const hour = parseInt(timeParts[0]);
@@ -4418,7 +4401,6 @@
                             checkInTime = `${displayHour}:${minute} ${ampm}`;
                         }
                     } else {
-                        // If it's a time object
                         checkInTime = new Date('1970-01-01T' + record.check_in_time).toLocaleTimeString('en-US', {
                             hour: '2-digit',
                             minute: '2-digit',
@@ -4431,17 +4413,64 @@
                     <tr>
                         <td>${formattedDate}</td>
                         <td>${statusBadge}</td>
-                        <td>${checkInTime}</td>
-                        <td>${record.subject || 'General'}</td>
-                        <td>${record.remarks || '-'}</td>
                     </tr>
                 `;
             });
         } else {
-            tableHtml = '<tr><td colspan="5" class="text-center text-muted">No attendance records found</td></tr>';
+            tableHtml = '<tr><td colspan="2" class="text-center text-muted">No attendance records found</td></tr>';
         }
 
         $('#attendanceRecordsTable tbody').html(tableHtml);
+
+        // Handle "Load More" Button Logic
+        const container = $('#attendanceRecordsTable').closest('.table-responsive');
+
+        // Remove existing button first to prevent duplicates
+        $('#btnLoadMoreAttendanceContainer').remove();
+
+        if (!showAll && records && records.length > limit) {
+            const remaining = records.length - limit;
+            const loadMoreHtml = `
+                <div class="text-center mt-2" id="btnLoadMoreAttendanceContainer">
+                    <button class="btn btn-sm btn-outline-primary shadow-sm" id="btnLoadMoreAttendance">
+                        <i class="fas fa-chevron-down mr-1"></i> View Full History (${remaining} more)
+                    </button>
+                </div>
+            `;
+
+            container.after(loadMoreHtml);
+
+            // Reset container styles (no scroll)
+            container.css({
+                'max-height': '',
+                'overflow-y': ''
+            });
+
+            // Bind Click Event
+            $('#btnLoadMoreAttendance').off('click').on('click', function() {
+                // Remove the button
+                $('#btnLoadMoreAttendanceContainer').remove();
+
+                // Show all records
+                populateAttendanceTable(records, true);
+
+                // Apply scroll styles to container
+                container.css({
+                    'max-height': '400px',
+                    'overflow-y': 'auto',
+                    'border': '1px solid #e9ecef',
+                    'border-radius': '8px'
+                });
+            });
+        } else if (showAll) {
+             // If showing all, ensure container maintains scroll style
+             container.css({
+                'max-height': '400px',
+                'overflow-y': 'auto',
+                'border': '1px solid #e9ecef',
+                'border-radius': '8px'
+            });
+        }
     }
 
     // Filtering and Export Functions

@@ -58,63 +58,63 @@ return [
             'strict' => true,
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
-                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+                PDO::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
-            
+
             // OPTIMIZED DUMP CONFIGURATION FOR COLLEGE BACKUP SYSTEM
             'dump' => [
                 // Use single transaction for InnoDB tables (ensures consistency)
                 'useSingleTransaction' => true,
-                
+
                 // Skip table locking (works with single transaction)
                 'skipLockTables' => true,
-                
+
                 // Add DROP TABLE statements before CREATE TABLE
                 'addDropTable' => true,
-                
+
                 // Don't add DROP DATABASE statement
                 'addDropDatabase' => false,
-                
+
                 // Skip comments to reduce file size
                 'skipComments' => true,
-                
+
                 // Compress protocol for faster transfer
                 'compressProtocol' => true,
-                
+
                 // Exclude tables that can be regenerated or are not critical for college operations
                 'excludeTables' => [
                     // Laravel session storage (can be regenerated)
                     'sessions',
-                    
+
                     // Cache tables (can be regenerated)
                     'cache',
                     'cache_locks',
-                    
+
                     // Job queue tables (optional - uncomment if you want to exclude)
                     // 'jobs',
                     // 'failed_jobs',
-                    
+
                     // Activity log tables (if using spatie/laravel-activitylog and logs are very large)
                     // 'activity_log',
-                    
+
                     // Telescope debugging tables (if using Laravel Telescope)
                     // 'telescope_entries',
                     // 'telescope_entries_tags',
                     // 'telescope_monitoring',
-                    
+
                     // Temporary import/export tables
                     'temp_imports',
                     'temp_exports',
                     'temp_student_imports',
                     'temp_fee_imports',
-                    
+
                     // Password reset tokens (these can be regenerated)
                     // 'password_reset_tokens', // Uncomment if you want to exclude
-                    
+
                     // Personal access tokens (can be regenerated if needed)
                     // 'personal_access_tokens', // Uncomment if you want to exclude
                 ],
-                
+
                 // Additional mysqldump options for optimal college data backup
                 'extraOptions' => [
                     '--single-transaction',      // Ensure consistent backup
@@ -128,13 +128,13 @@ return [
                     '--set-gtid-purged=OFF',    // Disable GTID information
                     '--column-statistics=0',    // Disable column statistics (MySQL 8.0+)
                 ],
-                
+
                 // Set a reasonable timeout for large college databases
                 'timeout' => 60 * 15, // 15 minutes timeout
-                
+
                 // Default character set for dump
                 'defaultCharacterSet' => 'utf8mb4',
-                
+
                 // Include CREATE DATABASE statement with IF NOT EXISTS
                 'addDropDatabase' => false,
                 'databases' => false,
@@ -157,9 +157,9 @@ return [
             'strict' => true,
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
-                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+                PDO::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
-            
+
             // MariaDB optimized dump configuration
             'dump' => [
                 'useSingleTransaction' => true,
@@ -233,9 +233,9 @@ return [
             'strict' => true,
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
-                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+                PDO::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
-            
+
             // Simplified dump config for readonly connection
             'dump' => [
                 'useSingleTransaction' => true,
@@ -267,9 +267,9 @@ return [
             'strict' => true,
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
-                PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+                PDO::ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
-            
+
             // Optimized specifically for backup operations
             'dump' => [
                 'useSingleTransaction' => true,
@@ -277,14 +277,14 @@ return [
                 'addDropTable' => true,
                 'skipComments' => true,
                 'compressProtocol' => true,
-                
+
                 // Minimal exclusions for complete backup
                 'excludeTables' => [
                     'sessions',
                     'cache',
                     'cache_locks',
                 ],
-                
+
                 // Maximum optimization for backup speed
                 'extraOptions' => [
                     '--single-transaction',
@@ -301,7 +301,7 @@ return [
                     '--extended-insert',        // Use multiple-row INSERT syntax
                     '--disable-keys',           // Disable key checks during import
                 ],
-                
+
                 'timeout' => 60 * 20, // 20 minutes for large backups
                 'defaultCharacterSet' => 'utf8mb4',
             ],
@@ -342,7 +342,7 @@ return [
 
         'options' => [
             'cluster' => env('REDIS_CLUSTER', 'redis'),
-            'prefix' => env('REDIS_PREFIX', Str::slug(env('APP_NAME', 'laravel'), '_').'_database_'),
+            'prefix' => env('REDIS_PREFIX', Str::slug(env('APP_NAME', 'laravel'), '_') . '_database_'),
         ],
 
         'default' => [
