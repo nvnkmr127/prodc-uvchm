@@ -89,12 +89,13 @@ class Student extends Model
         'email_verified_at' => 'datetime',
         'admission_date' => 'date',
         'dropout_date' => 'date',
-        'dob' => 'date', // Cast DOB to date
+        'dob' => 'date',
         'dropout_metadata' => 'array',
         'status' => 'string',
         'payment_terms' => 'integer',
         'dropout_processed_at' => 'datetime',
-        'referral_commission_paid_at' => 'datetime'
+        'referral_commission_paid_at' => 'datetime',
+        'is_active' => 'boolean',
     ];
 
     /**
@@ -107,7 +108,7 @@ class Student extends Model
             return null;
         }
 
-        $dob = $this->dob;
+        $dob = Carbon::parse($this->dob);
         $now = now();
 
         $years = (int) $dob->diffInYears($now);
@@ -202,9 +203,12 @@ class Student extends Model
         return $this->belongsTo(Batch::class);
     }
 
+    /**
+     * Get the course through the batch.
+     */
     public function course()
     {
-        return $this->belongsTo(Course::class);
+        return $this->hasOneThrough(Course::class, Batch::class, 'id', 'id', 'batch_id', 'course_id');
     }
 
     /**
@@ -698,21 +702,26 @@ class Student extends Model
     /**
      * Calculate attendance percentage for a given period
      */
-    public function getAttendancePercentage($startDate = null, $endDate = null): float
+    public function getAttendancePercentage($startDate = null, $endDate = null, $ignoreScope = false): float
     {
         if (!$startDate)
             $startDate = now()->startOfMonth();
         if (!$endDate)
             $endDate = now()->endOfMonth();
 
-        $totalClasses = $this->attendances()
+        $query = $this->attendances();
+        if ($ignoreScope) {
+            $query->withoutGlobalScope('academic_year');
+        }
+
+        $totalClasses = (clone $query)
             ->whereBetween('attendance_date', [$startDate, $endDate])
             ->count();
 
         if ($totalClasses === 0)
             return 0;
 
-        $presentClasses = $this->attendances()
+        $presentClasses = $query
             ->whereBetween('attendance_date', [$startDate, $endDate])
             ->where('status', 'present')
             ->count();

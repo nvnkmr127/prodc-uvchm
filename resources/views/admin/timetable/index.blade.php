@@ -1,111 +1,109 @@
 @extends('layouts.theme')
-@section('title', 'Timetable List')
+@section('title', 'Timetable Generator')
 
 @section('content')
-    <div class="d-sm-flex align-items-center justify-content-between mb-4">
-        <h1 class="h3 mb-0 text-gray-800">Timetable Entries</h1>
-        <div>
-            <a href="{{ route('admin.timetable.hub') }}" class="btn btn-info shadow-sm">
-                <i class="fas fa-calendar-alt text-white-50"></i> Timetable Hub
-            </a>
-            <a href="{{ route('admin.timetable.create') }}" class="btn btn-primary shadow-sm">
-                <i class="fas fa-plus text-white-50"></i> Add New Entry
-            </a>
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Timetable Generator</h1>
+</div>
+
+@if(session('success'))
+    <div class="alert alert-success">{{ session('success') }}</div>
+@endif
+@if(session('error'))
+    <div class="alert alert-danger">{{ session('error') }}</div>
+@endif
+
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Generate Schedule</h6>
+    </div>
+    <div class="card-body">
+        <form action="{{ route('admin.timetable.generate') }}" method="POST">
+            @csrf
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="course_id">Select Course</label>
+                    <select name="course_id" class="form-control" required>
+                        <option value="">-- Select a Course --</option>
+                        @foreach ($courses as $course)
+                            <option value="{{ $course->id }}" {{ $selectedCourse && $selectedCourse->id == $course->id ? 'selected' : '' }}>
+                                {{ $course->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label for="start_date">Start Date</label>
+                    <input type="date" name="start_date" class="form-control" required>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label for="end_date" class="form-label">End Date</label>
+                    <input type="date" name="end_date" class="form-control" required>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">Generate Schedule</button>
+        </form>
+    </div>
+</div>
+
+{{-- This section will display the generated timetable grid --}}
+@if($selectedCourse)
+<div class="card shadow mb-4 printable">
+    <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+        <h6 class="m-0 font-weight-bold text-primary">Schedule for {{ $selectedCourse->name }}</h6>
+        {{-- THE BUTTONS ARE NOW HERE, and will only show when a schedule exists --}}
+        <div class="no-print">
+            <button type="button" id="print-btn" class="btn btn-secondary btn-sm"><i class="fas fa-print"></i> Print</button>
+            <a href="{{ route('admin.timetable.downloadPDF', $selectedCourse) }}" class="btn btn-danger btn-sm"><i class="fas fa-file-pdf"></i> Download PDF</a>
         </div>
     </div>
-
-    @if(session('success'))
-        <div class="alert alert-success">{{ session('success') }}</div>
-    @endif
-    @if(session('error'))
-        <div class="alert alert-danger">{{ session('error') }}</div>
-    @endif
-
-    <div class="card shadow mb-4">
-        <div class="card-header py-3 d-flex justify-content-between">
-            <h6 class="m-0 font-weight-bold text-primary">Scheduled Classes</h6>
-
-            {{-- Filters (Basic) --}}
-            <form action="{{ route('admin.timetable.index') }}" method="GET" class="form-inline">
-                <select name="batch_id" class="form-control form-control-sm mr-2" onchange="this.form.submit()">
-                    <option value="">-- All Batches --</option>
-                    @foreach($batches as $batch)
-                        <option value="{{ $batch->id }}" {{ request('batch_id') == $batch->id ? 'selected' : '' }}>
-                            {{ $batch->name }}
-                        </option>
-                    @endforeach
-                </select>
-                <input type="date" name="date_from" class="form-control form-control-sm mr-2"
-                    value="{{ request('date_from') }}" placeholder="From Date">
-                <input type="date" name="date_to" class="form-control form-control-sm mr-2" value="{{ request('date_to') }}"
-                    placeholder="To Date">
-                <button type="submit" class="btn btn-sm btn-secondary">Filter</button>
-            </form>
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-bordered table-striped" width="100%" cellspacing="0">
-                    <thead>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered text-center">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Time</th>
+                        @foreach ($weekdays as $day)
+                            <th>{{ $day }}</th>
+                        @endforeach
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($timeSlots as $slot)
                         <tr>
-                            <th>Date</th>
-                            <th>Time Slot</th>
-                            <th>Batch</th>
-                            <th>Subject</th>
-                            <th>Faculty</th>
-                            <th>Classroom</th>
-                            <th>Status</th>
-                            <th>Actions</th>
+                            <td class="align-middle bg-light" style="width: 12%;">
+                                {{ \Carbon\Carbon::parse($slot->start_time)->format('h:i A') }} - {{ \Carbon\Carbon::parse($slot->end_time)->format('h:i A') }}
+                            </td>
+                            @foreach ($weekdays as $day)
+                                <td>
+                                    @if(isset($timetable[$day][$slot->id]))
+                                        @php $entry = $timetable[$day][$slot->id]; @endphp
+                                        <div class="p-2 mb-1 rounded bg-light border">
+                                            <strong>{{ $entry->subject->name }}</strong><br>
+                                            <small><em>{{ $entry->user->name }}</em></small><br>
+                                            <small class="text-muted">{{ $entry->classroom->name }}</small>
+                                        </div>
+                                    @endif
+                                </td>
+                            @endforeach
                         </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($timetables as $timetable)
-                            <tr>
-                                <td>{{ \Carbon\Carbon::parse($timetable->schedule_date)->format('d M Y') }}</td>
-                                <td>
-                                    {{ \Carbon\Carbon::parse($timetable->timeSlot->start_time)->format('h:i A') }} -
-                                    {{ \Carbon\Carbon::parse($timetable->timeSlot->end_time)->format('h:i A') }}
-                                </td>
-                                <td>{{ $timetable->batch->name ?? 'N/A' }}</td>
-                                <td>
-                                    {{ $timetable->subject->name ?? 'N/A' }}
-                                    @if($timetable->is_lab_session) <span class="badge badge-info ms-1">Lab</span> @endif
-                                </td>
-                                <td>{{ $timetable->user->name ?? 'Unassigned' }}</td>
-                                <td>{{ $timetable->classroom->name ?? 'N/A' }}</td>
-                                <td>
-                                    <span class="badge badge-{{ $timetable->status == 'scheduled' ? 'success' : 'secondary' }}">
-                                        {{ ucfirst($timetable->status) }}
-                                    </span>
-                                </td>
-                                <td>
-                                    <div class="btn-group">
-                                        <a href="{{ route('admin.timetable.edit', $timetable->id) }}"
-                                            class="btn btn-sm btn-primary" title="Edit">
-                                            <i class="fas fa-edit"></i>
-                                        </a>
-                                        <form action="{{ route('admin.timetable.destroy', $timetable->id) }}" method="POST"
-                                            class="d-inline"
-                                            onsubmit="return confirm('Are you sure you want to delete this class?');">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="btn btn-sm btn-danger" title="Delete">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                        </form>
-                                    </div>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="8" class="text-center text-muted">No scheduled classes found.</td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-            <div class="d-flex justify-content-end">
-                {{ $timetables->links() }}
-            </div>
+                    @endforeach
+                </tbody>
+            </table>
         </div>
     </div>
+</div>
+@endif
 @endsection
+
+@push('scripts')
+<script>
+    // Check if the print button exists before adding the event listener
+    const printButton = document.getElementById('print-btn');
+    if (printButton) {
+        printButton.addEventListener('click', function() {
+            window.print();
+        });
+    }
+</script>
+@endpush

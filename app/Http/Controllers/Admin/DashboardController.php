@@ -406,42 +406,7 @@ class DashboardController extends Controller
             'storage_used' => $this->getStorageUsage(),
             'database_size' => $this->getDatabaseSize(),
             'api_calls' => $this->getTodayApiCalls(),
-            'concurrent_sessions' => $this->getConcurrentSessions(),
-            'payment_modes' => $this->getPaymentModesDistribution()
-        ];
-    }
-
-    /**
-     * Get payment modes distribution for the current user
-     */
-    private function getPaymentModesDistribution()
-    {
-        $user = auth()->user();
-
-        // Get payment modes from last 30 days
-        $paymentModes = Payment::where('payment_type', 'component')
-            ->when(!$user->hasRole('super-admin'), function ($q) use ($user) {
-                $q->where('created_by', $user->id);
-            })
-            ->whereBetween('payment_date', [now()->subDays(30), now()])
-            ->selectRaw('payment_method, SUM(amount) as total')
-            ->groupBy('payment_method')
-            ->pluck('total', 'payment_method')
-            ->toArray();
-
-        // Set defaults
-        $defaultModes = ['cash' => 0, 'online' => 0, 'card' => 0, 'upi' => 0];
-        $paymentModes = array_merge($defaultModes, $paymentModes);
-
-        // Return formatted for Chart.js
-        return [
-            'labels' => ['Cash', 'Online', 'Card', 'UPI'],
-            'values' => [
-                (float) $paymentModes['cash'],
-                (float) $paymentModes['online'],
-                (float) $paymentModes['card'],
-                (float) $paymentModes['upi'],
-            ]
+            'concurrent_sessions' => $this->getConcurrentSessions()
         ];
     }
 

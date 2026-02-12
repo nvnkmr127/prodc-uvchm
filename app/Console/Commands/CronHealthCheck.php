@@ -39,7 +39,7 @@ class CronHealthCheck extends Command
         $this->checkLogFiles();
         $this->checkDatabaseConnection();
         $this->checkFilePermissions();
-        
+
         if ($this->option('detailed')) {
             $this->showDetailedDiagnostics();
         }
@@ -57,7 +57,7 @@ class CronHealthCheck extends Command
             // Check if we can list scheduled commands
             $scheduledCommands = \Artisan::call('schedule:list');
             $this->line('✓ Laravel Scheduler: <fg=green>ACCESSIBLE</fg=green>');
-            
+
             // Check last run time from cache/database if you store it
             $lastScheduleRun = cache('last_schedule_run');
             if ($lastScheduleRun) {
@@ -116,7 +116,7 @@ class CronHealthCheck extends Command
         $this->info('3. LOG FILES STATUS');
         $this->info('===================');
 
-        $logPath = '/home/digiclou/logs';
+        $logPath = storage_path('logs');
         $logs = [
             'queue-worker.log' => 24,          // Should update within 24 hours
             'db-maintenance.log' => 48,        // Daily at 2 AM
@@ -131,11 +131,11 @@ class CronHealthCheck extends Command
 
         foreach ($logs as $logFile => $maxAgeHours) {
             $fullPath = $logPath . '/' . $logFile;
-            
+
             if (File::exists($fullPath)) {
                 $lastModified = File::lastModified($fullPath);
                 $ageHours = (time() - $lastModified) / 3600;
-                
+
                 if ($ageHours <= $maxAgeHours) {
                     $this->line("✓ {$logFile}: <fg=green>Recent (" . round($ageHours, 1) . "h ago)</fg=green>");
                 } else {
@@ -165,7 +165,7 @@ class CronHealthCheck extends Command
         try {
             DB::connection()->getPdo();
             $this->line('✓ Database: <fg=green>Connected</fg=green>');
-            
+
             // Check some key tables
             $tables = ['users', 'students', 'roles', 'permissions'];
             foreach ($tables as $table) {
@@ -219,19 +219,19 @@ class CronHealthCheck extends Command
 
         // PHP Version
         $this->line('📋 PHP Version: ' . phpversion());
-        
+
         // Laravel Version
         $this->line('📋 Laravel Version: ' . app()->version());
-        
+
         // Environment
         $this->line('📋 Environment: ' . app()->environment());
-        
+
         // Memory Usage
         $this->line('📋 Memory Usage: ' . $this->formatBytes(memory_get_usage(true)));
-        
+
         // Server time
         $this->line('📋 Server Time: ' . now()->format('Y-m-d H:i:s T'));
-        
+
         // Timezone
         $this->line('📋 Timezone: ' . config('app.timezone'));
 

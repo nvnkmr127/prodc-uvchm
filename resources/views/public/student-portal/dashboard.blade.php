@@ -29,18 +29,49 @@
         }
 
         .animate-fade-in {
-            animation: fadeIn 0.5s ease-out;
+            animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        .staggered-list>* {
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
 
         @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-
             to {
                 opacity: 1;
                 transform: translateY(0);
+            }
+        }
+
+        /* Standard Transitions */
+        .animate-fade-in {
+            transition: opacity 0.4s ease-out, transform 0.4s ease-out;
+        }
+
+        /* Simplified Skeleton */
+        .skeleton {
+            background: #f1f5f9;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .skeleton::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            transform: translateX(-100%);
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+            animation: shimmer 1.5s infinite;
+        }
+
+        @keyframes shimmer {
+            100% {
+                transform: translateX(100%);
             }
         }
     </style>
@@ -86,10 +117,17 @@
                                 <i class="fa-solid fa-user text-2xl"></i>
                             </div>
                         @endif
-                        <button onclick="openModal('photo')"
-                            class="absolute -bottom-2 -right-2 bg-indigo-600 text-white w-7 h-7 rounded-full flex items-center justify-center text-xs shadow-md border-2 border-white">
-                            <i class="fa-solid fa-camera"></i>
-                        </button>
+                        @if(isset($pendingRequests['photo']))
+                            <div class="absolute -bottom-2 -right-2 bg-yellow-500 text-white w-7 h-7 rounded-full flex items-center justify-center text-xs shadow-md border-2 border-white"
+                                title="Photo update pending approval">
+                                <i class="fa-solid fa-clock"></i>
+                            </div>
+                        @else
+                            <button onclick="openModal('photo')"
+                                class="absolute -bottom-2 -right-2 bg-indigo-600 text-white w-7 h-7 rounded-full flex items-center justify-center text-xs shadow-md border-2 border-white">
+                                <i class="fa-solid fa-camera"></i>
+                            </button>
+                        @endif
                     </div>
                     <div>
                         <div class="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-1">
@@ -110,7 +148,10 @@
                 <div class="flex justify-between items-center py-2 border-b border-gray-50 border-dashed">
                     <span class="text-gray-400">My Mobile</span>
                     <div class="flex items-center gap-2">
-                        @if($student->student_mobile)
+                        @if(isset($pendingRequests['personal']) && ($pendingRequests['personal']->new_data && json_decode($pendingRequests['personal']->new_data, true)['type'] ?? null) === 'student')
+                            <span class="text-[10px] bg-yellow-50 text-yellow-600 px-2 py-1 rounded font-medium">⏳ Waiting
+                                for approval</span>
+                        @elseif($student->student_mobile)
                             <span class="font-mono text-gray-700">******{{ substr($student->student_mobile, -3) }}</span>
                         @else
                             <button onclick="openLinkModal('student')"
@@ -123,7 +164,10 @@
                 <div class="flex justify-between items-center py-2 border-b border-gray-50 border-dashed">
                     <span class="text-gray-400">Father's Mobile</span>
                     <div class="flex items-center gap-2">
-                        @if($student->father_mobile) <!-- Assumes father_mobile field exists on student model -->
+                        @if(isset($pendingRequests['personal']) && ($pendingRequests['personal']->new_data && json_decode($pendingRequests['personal']->new_data, true)['type'] ?? null) === 'father')
+                            <span class="text-[10px] bg-yellow-50 text-yellow-600 px-2 py-1 rounded font-medium">⏳ Waiting
+                                for approval</span>
+                        @elseif($student->father_mobile)
                             <span class="font-mono text-gray-700">******{{ substr($student->father_mobile, -3) }}</span>
                         @else
                             <button onclick="openLinkModal('father')"
@@ -143,12 +187,17 @@
                 <div class="flex justify-between items-center py-2 border-b border-gray-50 border-dashed">
                     <span class="text-gray-400">Date of Birth</span>
                     <div class="flex items-center gap-2">
-                        <span
-                            class="text-gray-700">{{ $student->dob ? $student->dob->format('d M, Y') : 'Not recorded' }}</span>
-                        @if(!$student->dob)
-                            <button onclick="openModal('dob')" class="text-indigo-600 hover:text-indigo-700 text-xs">
-                                <i class="fa-solid fa-pen"></i>
-                            </button>
+                        @if(isset($pendingRequests['dob']))
+                            <span class="text-[10px] bg-yellow-50 text-yellow-600 px-2 py-1 rounded font-medium">⏳ Waiting
+                                for approval</span>
+                        @else
+                            <span
+                                class="text-gray-700">{{ $student->dob ? $student->dob->format('d M, Y') : 'Not recorded' }}</span>
+                            @if(!$student->dob)
+                                <button onclick="openModal('dob')" class="text-indigo-600 hover:text-indigo-700 text-xs">
+                                    <i class="fa-solid fa-pen"></i>
+                                </button>
+                            @endif
                         @endif
                     </div>
                 </div>
@@ -187,14 +236,21 @@
 
             <!-- Address -->
             <div class="mt-4 bg-gray-50 p-3 rounded-lg flex justify-between items-start">
-                <div>
+                <div class="flex-1">
                     <div class="text-[10px] text-gray-400 uppercase font-bold mb-1">Current Address</div>
-                    <p class="text-sm text-gray-600 leading-snug">
-                        {{ $student->admission->address ?? 'No address provided.' }}
-                    </p>
+                    @if(isset($pendingRequests['address']))
+                        <span class="text-[10px] bg-yellow-50 text-yellow-600 px-2 py-1 rounded font-medium inline-block">⏳
+                            Waiting for approval</span>
+                    @else
+                        <p class="text-sm text-gray-600 leading-snug">
+                            {{ $student->admission->address ?? 'No address provided.' }}
+                        </p>
+                    @endif
                 </div>
-                <button onclick="openModal('address')" class="text-gray-400 hover:text-indigo-600 text-xs ml-2"><i
-                        class="fa-solid fa-pen"></i></button>
+                @if(!isset($pendingRequests['address']))
+                    <button onclick="openModal('address')" class="text-gray-400 hover:text-indigo-600 text-xs ml-2"><i
+                            class="fa-solid fa-pen"></i></button>
+                @endif
             </div>
         </div>
 
@@ -208,67 +264,230 @@
             </div>
 
             <!-- ATTENDANCE CONTENT -->
-            <div id="tab-attendance" class="animate-fade-in">
-                <div id="calendar-wrapper" class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="font-bold text-gray-800">{{ now()->format('F Y') }}</h3>
-                        <span class="text-xs bg-indigo-50 text-indigo-600 px-2 py-1 rounded font-bold"
-                            id="att-percent-badge">0%</span>
-                    </div>
+            <div id="tab-attendance" class="animate-fade-in group">
+                <!-- Month Navigation & Stats -->
+                <div class="mb-4">
+                    <div class="mb-4">
+                        <div
+                            class="flex justify-between items-center mb-4 bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
+                            <button onclick="changeMonth(-1)"
+                                class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-50 text-gray-400 hover:bg-indigo-50 hover:text-indigo-600 transition-colors">
+                                <i class="fa-solid fa-chevron-left text-xs"></i>
+                            </button>
 
-                    <!-- Week Headers -->
-                    <div class="calendar-grid mb-2 text-center text-xs text-gray-400 font-medium">
-                        <div>S</div>
-                        <div>M</div>
-                        <div>T</div>
-                        <div>W</div>
-                        <div>T</div>
-                        <div>F</div>
-                        <div>S</div>
-                    </div>
+                            <div class="flex flex-col items-center">
+                                <h3 class="font-bold text-gray-800 text-sm mb-1" id="calendar-month-title">Loading...
+                                </h3>
+                                <select id="month-selector" onchange="jumpToMonth(this.value)"
+                                    class="text-xs border-none bg-gray-50 rounded px-2 py-1 text-gray-500 focus:ring-0 cursor-pointer">
+                                    <option value="">Jump to Month...</option>
+                                </select>
+                            </div>
 
-                    <!-- Days -->
-                    <div id="calendar-days" class="calendar-grid text-sm">
-                        <!-- JS will populate -->
-                        <div class="col-span-7 py-8 text-center text-gray-300 text-xs">Loading calendar...</div>
-                    </div>
-
-                    <div class="flex gap-4 mt-4 pt-4 border-t border-gray-50 text-xs text-gray-500 justify-center">
-                        <div class="flex items-center gap-1">
-                            <div class="w-2 h-2 rounded-full bg-emerald-500"></div> Present
+                            <button onclick="changeMonth(1)"
+                                class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-50 text-gray-400 hover:bg-indigo-50 hover:text-indigo-600 transition-colors">
+                                <i class="fa-solid fa-chevron-right text-xs"></i>
+                            </button>
                         </div>
-                        <div class="flex items-center gap-1">
-                            <div class="w-2 h-2 rounded-full bg-red-400"></div> Absent
+
+                        <!-- Stats Grid -->
+                        <div class="grid grid-cols-4 gap-2 mb-4">
+                            <div class="bg-white p-2 rounded-xl border border-gray-100 shadow-sm text-center">
+                                <div class="text-[10px] text-gray-400 uppercase font-bold tracking-wider mb-1">Working
+                                </div>
+                                <div class="text-lg font-bold text-gray-800" id="stat-working">0</div>
+                            </div>
+                            <div class="bg-white p-2 rounded-xl border border-emerald-100 shadow-sm text-center">
+                                <div class="text-[10px] text-emerald-400 uppercase font-bold tracking-wider mb-1">
+                                    Present
+                                </div>
+                                <div class="text-lg font-bold text-emerald-600" id="stat-present">0</div>
+                            </div>
+                            <div class="bg-white p-2 rounded-xl border border-red-100 shadow-sm text-center">
+                                <div class="text-[10px] text-red-400 uppercase font-bold tracking-wider mb-1">Absent
+                                </div>
+                                <div class="text-lg font-bold text-red-600" id="stat-absent">0</div>
+                            </div>
+                            <div class="bg-white p-2 rounded-xl border border-blue-100 shadow-sm text-center">
+                                <div class="text-[10px] text-blue-400 uppercase font-bold tracking-wider mb-1">Holiday
+                                </div>
+                                <div class="text-lg font-bold text-blue-600" id="stat-holiday">0</div>
+                            </div>
                         </div>
-                        <div class="flex items-center gap-1">
-                            <div class="w-2 h-2 rounded-full bg-yellow-400"></div> Late
+                    </div>
+
+                    <div id="calendar-wrapper" class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
+                        <div class="flex justify-between items-center mb-4">
+                            <span class="text-xs font-bold text-gray-400 uppercase tracking-widest">Attendance
+                                Sheet</span>
+                            <span class="text-xs bg-indigo-50 text-indigo-600 px-2 py-1 rounded font-bold"
+                                id="att-percent-badge">0%</span>
+                        </div>
+
+                        <!-- Week Headers -->
+                        <div class="calendar-grid mb-2 text-center text-xs text-gray-400 font-medium">
+                            <div>S</div>
+                            <div>M</div>
+                            <div>T</div>
+                            <div>W</div>
+                            <div>T</div>
+                            <div>F</div>
+                            <div>S</div>
+                        </div>
+
+                        <!-- Days -->
+                        <div id="calendar-days" class="calendar-grid text-sm">
+                            <!-- JS will populate -->
+                            <div class="col-span-7 py-8 text-center text-gray-300 text-xs">Loading calendar...</div>
+                        </div>
+
+                        <div class="flex gap-4 mt-4 pt-4 border-t border-gray-50 text-xs text-gray-500 justify-center">
+                            <div class="flex items-center gap-1">
+                                <div class="w-2 h-2 rounded-full bg-emerald-500"></div> Present
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <div class="w-2 h-2 rounded-full bg-red-400"></div> Absent
+                            </div>
+                            <div class="flex items-center gap-1">
+                                <div class="w-2 h-2 rounded-full bg-blue-400"></div> Holiday
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
             <!-- PAYMENTS CONTENT -->
-            <div id="tab-payments" class="hidden animate-fade-in space-y-4">
-                <div id="payments-loader" class="text-center py-6 text-gray-400 text-xs">Loading records...</div>
-
-                <!-- Pending -->
-                <div id="pending-section" class="hidden">
-                    <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Pending Dues</h4>
-                    <div id="pending-list" class="space-y-3"></div>
+            <div id="tab-payments" class="hidden animate-fade-in space-y-8">
+                <!-- Simplified Skeleton Loader -->
+                <div id="payments-loader" class="space-y-4 py-4">
+                    <div class="bg-gray-200 rounded-2xl h-40 skeleton"></div>
+                    <div class="h-4 w-32 bg-gray-200 rounded-full skeleton"></div>
+                    <div class="bg-white border border-gray-100 rounded-2xl h-24 shadow-sm"></div>
+                    <div class="bg-white border border-gray-100 rounded-2xl h-24 shadow-sm"></div>
                 </div>
 
-                <!-- History -->
-                <div id="history-section" class="hidden">
-                    <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Payment History</h4>
-                    <div id="history-list" class="space-y-3"></div>
+                <!-- Clean Indigo Summary Card -->
+                <div id="payment-summary-card"
+                    class="bg-indigo-600 rounded-2xl p-6 sm:p-8 text-white shadow-lg hidden relative overflow-hidden group">
+                    <div
+                        class="absolute top-0 right-0 -mt-8 -mr-8 w-40 h-40 bg-white/10 rounded-full transition-transform group-hover:scale-110">
+                    </div>
+
+                    <div class="relative z-10">
+                        <div class="flex justify-between items-start mb-6">
+                            <div class="bg-white/10 px-3 py-1 rounded-lg border border-white/20">
+                                <span class="text-[10px] font-bold uppercase tracking-wider">Total Dues</span>
+                            </div>
+                            <i class="fa-solid fa-wallet text-xl opacity-50"></i>
+                        </div>
+
+                        <div class="space-y-1">
+                            <div class="flex items-baseline gap-2">
+                                <span class="text-xl sm:text-2xl font-light">₹</span>
+                                <span class="text-4xl sm:text-5xl font-bold tracking-tight"
+                                    id="total-balance-display">0</span>
+                            </div>
+                            <p class="text-white/60 text-[10px] font-medium uppercase tracking-widest pl-1">Remaining
+                                Balance</p>
+                        </div>
+
+                        <div class="mt-8 flex items-center">
+                            <div class="flex items-center gap-2">
+                                <div class="w-2 h-2 rounded-full bg-red-400"></div>
+                                <span class="text-xs font-medium">Pending Payment</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <div id="no-payments" class="hidden text-center py-6 bg-white rounded-xl border border-gray-100">
-                    <div class="inline-block p-3 bg-gray-50 rounded-full text-gray-300 mb-2"><i
-                            class="fa-solid fa-receipt"></i></div>
-                    <p class="text-xs text-gray-400">No payment records found.</p>
+                <!-- Sections Wrapper -->
+                <div id="payments-content-area" class="space-y-10 hidden">
+                    <!-- Pending Dues Section -->
+                    <div id="pending-section" class="hidden">
+                        <div class="flex items-center justify-between mb-6 px-4">
+                            <div class="flex items-center gap-4">
+                                <div class="w-1.5 h-6 bg-red-500 rounded-full"></div>
+                                <h3 class="text-sm font-black text-gray-400 uppercase tracking-[0.3em]">Pending</h3>
+                            </div>
+                            <span
+                                class="bg-red-50 text-red-500 text-[10px] font-black px-3 py-1 rounded-full border border-red-100 uppercase"
+                                id="pending-count">0 Items</span>
+                        </div>
+                        <div id="pending-list" class="space-y-4 staggered-list"></div>
+                    </div>
+
+                    <!-- History Section -->
+                    <div id="history-section" class="hidden">
+                        <div class="flex items-center justify-between mb-6 px-4">
+                            <div class="flex items-center gap-4">
+                                <div class="w-1.5 h-6 bg-emerald-500 rounded-full"></div>
+                                <h3 class="text-sm font-black text-gray-400 uppercase tracking-[0.3em]">Transactions
+                                </h3>
+                            </div>
+                        </div>
+                        <div id="history-list" class="space-y-3 staggered-list"></div>
+                    </div>
+                </div>
+
+                <!-- Empty State -->
+                <div id="no-payments"
+                    class="hidden text-center py-12 bg-white rounded-2xl border border-dashed border-gray-200">
+                    <div
+                        class="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-300">
+                        <i class="fa-solid fa-receipt text-2xl"></i>
+                    </div>
+                    <h4 class="font-bold text-gray-800">No Records</h4>
+                    <p class="text-xs text-gray-400 mt-1 px-4">Your payment history and pending dues will appear here.
+                    </p>
                 </div>
             </div>
+
+            <!-- Template: Pending Fee -->
+            <template id="tpl-fee">
+                <div
+                    class="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm flex justify-between items-center transition-all hover:border-indigo-100">
+                    <div class="flex items-center gap-4">
+                        <div
+                            class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-500 flex items-center justify-center text-lg">
+                            <i class="fee-icon fa-solid fa-receipt"></i>
+                        </div>
+                        <div>
+                            <h4 class="fee-category text-sm font-bold text-gray-800">Category</h4>
+                            <p class="fee-meta text-[10px] text-gray-400 font-medium uppercase tracking-wider">Pending
+                            </p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="fee-amount text-base font-bold text-indigo-600">₹0</p>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Template: Transaction -->
+            <template id="tpl-transaction">
+                <div
+                    class="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm transition-all hover:border-emerald-100">
+                    <div class="flex justify-between items-center mb-4">
+                        <div class="flex items-center gap-4">
+                            <div
+                                class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-500 flex items-center justify-center text-lg">
+                                <i class="fa-solid fa-check-circle"></i>
+                            </div>
+                            <div>
+                                <h4 class="tx-category text-sm font-bold text-gray-800">Category</h4>
+                                <p class="tx-date text-[10px] text-gray-400">Date</p>
+                            </div>
+                        </div>
+                        <p class="tx-amount text-base font-bold text-emerald-600">₹0</p>
+                    </div>
+                    <div class="flex justify-between items-center pt-3 border-t border-gray-50">
+                        <span class="text-[10px] font-bold text-emerald-500 uppercase tracking-wider">Paid</span>
+                        <a href="#" class="receipt-link text-[10px] font-bold text-indigo-600 hover:underline">
+                            <i class="fa-solid fa-download mr-1"></i> Receipt
+                        </a>
+                    </div>
+                </div>
+            </template>
         </div>
 
     </div>
@@ -350,20 +569,55 @@
         // Calendar Logic
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
-        async function loadCalendar() {
+        let currentMonth = null;
+        let currentYear = null;
+
+        async function loadCalendar(month = null, year = null) {
             const container = document.getElementById('calendar-days');
+            container.innerHTML = '<div class="col-span-7 py-8 text-center text-gray-300 text-xs">Loading...</div>';
+
             try {
-                const res = await fetch("{{ route('student.data.attendance') }}");
+                let url = "{{ route('student.data.attendance') }}";
+                if (month && year) {
+                    url += `?month=${month}&year=${year}`;
+                }
+
+                const res = await fetch(url);
                 const data = await res.json();
 
-                // Set Badge
+                // Update State
+                currentMonth = data.current_month;
+                currentYear = data.current_year;
+
+                // Update Stats Dashboard
                 document.getElementById('att-percent-badge').innerText = data.stats.percentage + '%';
+                document.getElementById('calendar-month-title').innerText = data.month_name;
+
+                document.getElementById('stat-working').innerText = data.stats.total_working_days;
+                document.getElementById('stat-present').innerText = data.stats.present_days;
+                document.getElementById('stat-absent').innerText = data.stats.absent_days;
+                document.getElementById('stat-holiday').innerText = data.stats.holidays;
 
                 // Build Grid
                 container.innerHTML = '';
-                const date = new Date(); // Current date (or rely on server month)
-                const firstDay = new Date(date.getFullYear(), date.getMonth(), 1).getDay();
-                const daysInMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+
+                const firstDay = new Date(currentYear, currentMonth - 1, 1).getDay();
+                const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+
+                // Populate Dropdown (only if not already populated to avoid flickering, or update on every load?)
+                // Updating on every load ensures we see new data if it appears, but might be annoying if open.
+                // Simple approach: Clear and Refill.
+                const selector = document.getElementById('month-selector');
+                if (data.available_months && data.available_months.length > 0) {
+                    selector.innerHTML = '<option value="">Jump to Month...</option>';
+                    data.available_months.forEach(m => {
+                        const isSelected = (m.value === `${currentYear}-${String(currentMonth).padStart(2, '0')}`) ? 'selected' : '';
+                        selector.innerHTML += `<option value="${m.value}" ${isSelected}>${m.label}</option>`;
+                    });
+                    selector.classList.remove('hidden');
+                } else {
+                    selector.classList.add('hidden');
+                }
 
                 // Empty slots
                 for (let i = 0; i < firstDay; i++) {
@@ -373,22 +627,62 @@
                 // Days
                 for (let d = 1; d <= daysInMonth; d++) {
                     // Format YYYY-MM-DD
-                    const dayString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-                    const status = data.calendar[dayString]; // 'present', 'absent', etc.
+                    const dayString = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                    const rawStatus = data.calendar[dayString];
+                    const status = rawStatus ? rawStatus.toLowerCase() : null;
 
                     let bgClass = 'bg-gray-50 text-gray-400';
-                    if (status === 'present') bgClass = 'bg-emerald-100 text-emerald-700 font-bold';
-                    else if (status === 'absent') bgClass = 'bg-red-100 text-red-600 font-bold';
-                    else if (status === 'late') bgClass = 'bg-yellow-100 text-yellow-600 font-bold';
-                    else if (status === 'holiday') bgClass = 'bg-blue-50 text-blue-400';
 
-                    container.innerHTML += `<div class="aspect-square flex items-center justify-center rounded-lg ${bgClass} text-xs">${d}</div>`;
+                    if (status === 'present') {
+                        bgClass = 'bg-emerald-100 text-emerald-700 font-bold';
+                    } else if (status === 'absent') {
+                        bgClass = 'bg-red-100 text-red-600 font-bold';
+                    } else if (status === 'late') {
+                        bgClass = 'bg-yellow-100 text-yellow-600 font-bold';
+                    } else if (status === 'internship') {
+                        bgClass = 'bg-indigo-100 text-indigo-700 font-bold';
+                    } else if (status === 'holiday' || status === 'excused') {
+                        bgClass = 'bg-blue-50 text-blue-400 font-bold';
+                    } else if (status === 'weekend') {
+                        bgClass = 'bg-purple-50 text-purple-400 font-bold';
+                    }
+
+                    container.innerHTML += `<div class="aspect-square flex items-center justify-center rounded-lg ${bgClass} text-xs transition-all hover:scale-105 cursor-default" title="${status ? status.toUpperCase() : ''}">${d}</div>`;
+                }
+
+                // Show "No Data" message if no statuses found in the whole month
+                const hasAnyStatus = Object.keys(data.calendar).length > 0;
+                if (!hasAnyStatus) {
+                    container.innerHTML += `<div class="col-span-7 text-center text-gray-400 text-xs py-4">No attendance records found for this month.</div>`;
                 }
 
             } catch (e) {
-                container.innerHTML = '<div class="col-span-7 text-center text-red-400 text-xs py-4">Error loading data</div>';
                 console.error(e);
+                container.innerHTML = '<div class="col-span-7 text-center text-red-500 text-xs py-4">Failed to load attendance</div>';
             }
+        }
+
+        function changeMonth(offset) {
+            if (!currentMonth || !currentYear) return;
+
+            let newMonth = currentMonth + offset;
+            let newYear = currentYear;
+
+            if (newMonth > 12) {
+                newMonth = 1;
+                newYear++;
+            } else if (newMonth < 1) {
+                newMonth = 12;
+                newYear--;
+            }
+
+            loadCalendar(newMonth, newYear);
+        }
+
+        function jumpToMonth(value) {
+            if (!value) return;
+            const [year, month] = value.split('-');
+            loadCalendar(parseInt(month), parseInt(year));
         }
 
         // Load Calendar on Init
@@ -405,83 +699,119 @@
             document.getElementById('tab-' + tab).classList.remove('hidden');
             document.getElementById('btn-' + tab).className = "pb-2 text-sm font-semibold border-b-2 border-indigo-600 text-indigo-600 transition-colors";
 
-            if (tab === 'payments') loadPayments();
+            if (tab === 'payments') {
+                console.log('Switching to Payments tab');
+                loadPayments();
+            }
         }
 
-        // Payment Logic
-        let paymentsLoaded = false;
+        // NEW DECLARATIVE PAYMENT SYSTEM
+        const PaymentUI = {
+            nodes: {
+                tab: document.getElementById('tab-payments'),
+                loader: document.getElementById('payments-loader'),
+                content: document.getElementById('payments-content-area'),
+                noData: document.getElementById('no-payments'),
+                summary: document.getElementById('payment-summary-card'),
+                totalDisplay: document.getElementById('total-balance-display'),
+                pendingList: document.getElementById('pending-list'),
+                pendingSection: document.getElementById('pending-section'),
+                pendingCount: document.getElementById('pending-count'),
+                historyList: document.getElementById('history-list'),
+                historySection: document.getElementById('history-section'),
+            },
+            templates: {
+                fee: document.getElementById('tpl-fee'),
+                tx: document.getElementById('tpl-transaction'),
+            },
+            state: { loaded: false }
+        };
+
         async function loadPayments() {
-            if (paymentsLoaded) return;
+            if (PaymentUI.state.loaded) return;
+
             try {
-                const res = await fetch("{{ route('student.data.payments') }}");
-                const data = await res.json();
-
-                const pList = document.getElementById('pending-list');
-                const hList = document.getElementById('history-list');
-
-                pList.innerHTML = '';
-                hList.innerHTML = '';
-                let hasData = false;
-
-                // Pending
-                if (data.pending && data.pending.length > 0) {
-                    hasData = true;
-                    document.getElementById('pending-section').classList.remove('hidden');
-                    data.pending.forEach(item => {
-                        pList.innerHTML += `
-                            <div class="bg-white p-3 rounded-xl border border-red-100 shadow-sm flex justify-between items-center">
-                                <div>
-                                    <div class="text-sm font-bold text-gray-800">${item.category}</div>
-                                    <div class="text-[10px] text-gray-500 font-medium">Balance: ₹${item.balance}</div>
-                                </div>
-                                <div class="text-right">
-                                    <div class="text-sm font-bold text-gray-900">₹${item.amount}</div>
-                                    <span class="text-[9px] bg-red-50 text-red-600 px-1.5 py-0.5 rounded uppercase font-bold">Unpaid</span>
-                                </div>
-                            </div>
-                        `;
-                    });
-                }
-
-                // History
-                if (data.history && data.history.length > 0) {
-                    hasData = true;
-                    document.getElementById('history-section').classList.remove('hidden');
-                    data.history.forEach(item => {
-                        const receiptUrl = `/receipts/${item.receipt_number}`;
-                        hList.innerHTML += `
-                            <div class="bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
-                                <div class="flex justify-between items-center mb-2">
-                                    <div>
-                                        <div class="text-sm font-medium text-gray-800">${item.category}</div>
-                                        <div class="text-[10px] text-gray-500 font-medium">${item.payment_date}</div>
-                                    </div>
-                                    <div class="text-right">
-                                        <div class="text-sm font-bold text-gray-500">₹${item.amount}</div>
-                                        <span class="text-[9px] bg-green-50 text-green-600 px-1.5 py-0.5 rounded uppercase font-bold">Paid</span>
-                                    </div>
-                                </div>
-                                <a href="${receiptUrl}" target="_blank" class="block w-full text-center bg-indigo-50 text-indigo-600 py-2 rounded-lg text-xs font-medium hover:bg-indigo-100 transition-colors">
-                                    <i class="fa-solid fa-receipt mr-1"></i> View Receipt
-                                </a>
-                            </div>
-                       `;
-                    });
-                }
-
-                if (!hasData) document.getElementById('no-payments').classList.remove('hidden');
-                document.getElementById('payments-loader').classList.add('hidden');
-                paymentsLoaded = true;
-
-            } catch (e) {
-                console.error(e);
-                document.getElementById('payments-loader').innerText = 'failed to load.';
+                const response = await fetch("{{ route('student.data.payments') }}");
+                const data = await response.json();
+                renderPaymentDashboard(data);
+                PaymentUI.state.loaded = true;
+            } catch (error) {
+                console.error("Payment Load Failure:", error);
+                PaymentUI.nodes.loader.innerHTML = `
+                        <div class="text-center p-8 bg-white border border-gray-100 rounded-2xl shadow-sm">
+                            <i class="fa-solid fa-triangle-exclamation text-red-500 text-2xl mb-3"></i>
+                            <p class="text-sm font-bold text-gray-800">Connection Interrupted</p>
+                            <button onclick="PaymentUI.state.loaded=false;loadPayments()" class="mt-4 text-xs text-indigo-600 font-bold uppercase">Try Again</button>
+                        </div>
+                    `;
             }
+        }
+
+        function renderPaymentDashboard(data) {
+            const { nodes, templates } = PaymentUI;
+            nodes.loader.classList.add('hidden');
+
+            let totalBalance = 0;
+            let hasItems = false;
+
+            // 1. Process Pending
+            nodes.pendingList.innerHTML = '';
+            if (data.pending?.length > 0) {
+                hasItems = true;
+                nodes.pendingSection.classList.remove('hidden');
+                nodes.pendingCount.innerText = `${data.pending.length} Outstanding`;
+
+                data.pending.forEach(item => {
+                    totalBalance += Number(item.balance);
+                    const row = templates.fee.content.cloneNode(true);
+                    row.querySelector('.fee-category').innerText = item.category;
+                    row.querySelector('.fee-amount').innerText = `₹${Number(item.balance).toLocaleString('en-IN')}`;
+                    nodes.pendingList.appendChild(row);
+                });
+            }
+
+            // 2. Process History
+            nodes.historyList.innerHTML = '';
+            if (data.history?.length > 0) {
+                hasItems = true;
+                nodes.historySection.classList.remove('hidden');
+                data.history.forEach(item => {
+                    const row = templates.tx.content.cloneNode(true);
+                    row.querySelector('.tx-category').innerText = item.category;
+                    row.querySelector('.tx-date').innerText = item.payment_date;
+                    row.querySelector('.tx-amount').innerText = `₹${Number(item.amount).toLocaleString('en-IN')}`;
+                    row.querySelector('.receipt-link').href = `/receipts/${item.receipt_number}`;
+                    nodes.historyList.appendChild(row);
+                });
+            }
+
+            // 3. Update Summary Card
+            if (totalBalance > 0) {
+                nodes.totalDisplay.innerText = totalBalance.toLocaleString('en-IN');
+                nodes.summary.classList.remove('hidden');
+            }
+
+            // 4. Final Layout Toggle
+            if (hasItems) {
+                nodes.content.classList.remove('hidden');
+            } else {
+                nodes.noData.classList.remove('hidden');
+            }
+
+            // Stagger Animation Trigger
+            const items = nodes.tab.querySelectorAll('.staggered-list > *');
+            items.forEach((item, idx) => {
+                item.style.animationDelay = `${idx * 0.1}s`;
+            });
         }
 
         // Modals & Forms
         function openModal(id) { document.getElementById('modal-' + id).classList.remove('hidden'); }
-        function closeModal(id) { document.getElementById('modal-' + id).classList.add('hidden'); }
+        function closeModal(id) {
+            const modalId = (id === 'personal') ? 'link' : id;
+            const modal = document.getElementById('modal-' + modalId);
+            if (modal) modal.classList.add('hidden');
+        }
 
         function openLinkModal(type) {
             document.getElementById('link-type').value = type;

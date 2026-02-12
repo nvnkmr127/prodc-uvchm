@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Http;
 
 class StudentPortalActivityLog extends Model
 {
@@ -15,16 +16,13 @@ class StudentPortalActivityLog extends Model
         'user_agent',
         'mobile_number',
         'location_data',
-        'metadata',
-        'is_suspicious',
-        'flagged_reason'
+        'metadata'
     ];
 
     protected $casts = [
         'location_data' => 'array',
         'metadata' => 'array',
-        'created_at' => 'datetime',
-        'is_suspicious' => 'boolean'
+        'created_at' => 'datetime'
     ];
 
     /**
@@ -36,34 +34,33 @@ class StudentPortalActivityLog extends Model
     }
 
     /**
-     * Log an activity with suspicious activity detection
+     * Log an activity
      */
     public static function logActivity($studentId, $action, $metadata = [])
     {
         $request = request();
-        $ipAddress = $request->ip();
-        $locationData = self::getLocationFromIp($ipAddress);
 
-        // Detect suspicious activity
-        $suspiciousCheck = \App\Services\SuspiciousActivityDetector::detect(
-            $studentId,
-            $action,
-            $ipAddress,
-            $locationData
-        );
+        try {
+            // Try to get mobile number from session, or metadata, or request
+            $mobileNumber = session('student_portal_mobile')
+                ?? ($metadata['mobile_number'] ?? null);
 
-        return self::create([
-            'student_id' => $studentId,
-            'action' => $action,
-            'ip_address' => $ipAddress,
-            'user_agent' => $request->userAgent(),
-            'mobile_number' => session('student_portal_mobile'),
-            'location_data' => $locationData,
-            'metadata' => $metadata,
-            'is_suspicious' => $suspiciousCheck['is_suspicious'],
-            'flagged_reason' => $suspiciousCheck['flagged_reason']
-        ]);
+            return self::create([
+                'student_id' => $studentId,
+                'action' => $action,
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'mobile_number' => $mobileNumber,
+                'location_data' => self::getLocationFromIp($request->ip()),
+                'metadata' => $metadata
+            ]);
+        } catch (\Exception $e) {
+            // Log the logging error to Laravel logs but don't crash the app
+            \Log::error("Failed to log student portal activity: " . $e->getMessage());
+            return null;
+        }
     }
+
 
     /**
      * Get location data from IP address using free API
@@ -76,16 +73,21 @@ class StudentPortalActivityLog extends Model
         }
 
         try {
-            $response = file_get_contents("http://ip-api.com/json/{$ip}?fields=status,country,city,lat,lon");
-            $data = json_decode($response, true);
+            $response = Http::timeout(2)
+                ->get("http://ip-api.com/json/{$ip}", [
+                    'fields' => 'status,country,city,lat,lon'
+                ]);
 
-            if ($data && $data['status'] === 'success') {
-                return [
-                    'country' => $data['country'] ?? null,
-                    'city' => $data['city'] ?? null,
-                    'lat' => $data['lat'] ?? null,
-                    'lon' => $data['lon'] ?? null
-                ];
+            if ($response->successful()) {
+                $data = $response->json();
+                if ($data && ($data['status'] ?? '') === 'success') {
+                    return [
+                        'country' => $data['country'] ?? null,
+                        'city' => $data['city'] ?? null,
+                        'lat' => $data['lat'] ?? null,
+                        'lon' => $data['lon'] ?? null
+                    ];
+                }
             }
         } catch (\Exception $e) {
             // Silently fail and return null

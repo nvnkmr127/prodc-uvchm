@@ -10,6 +10,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon;
+use App\Models\Payment;
+use Illuminate\Support\Facades\Log;
+use App\Models\Holiday;
 
 class StudentPortalController extends Controller
 {
@@ -21,7 +24,13 @@ class StudentPortalController extends Controller
         if (session()->has('student_portal_auth')) {
             return redirect()->route('student.dashboard');
         }
-        return view('public.student-portal.login');
+
+        return response()
+            ->view('public.student-portal.login')
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0')
+            ->header('Pragma', 'no-cache')
+            ->header('Expires', 'Sat, 01 Jan 2000 00:00:00 GMT')
+            ->header('X-LiteSpeed-Cache-Control', 'no-cache');
     }
 
     /**
@@ -129,7 +138,7 @@ class StudentPortalController extends Controller
         ];
 
         if ($fieldGroup === 'photo') {
-            $rules['photo'] = 'required|image|mimes:jpeg,png,jpg|max:5120'; // Size check handled manually but max limit enforced
+            $rules['photo'] = 'required|image|mimes:jpeg,png,jpg'; // Size check handled manually
         } elseif ($fieldGroup === 'address') {
             $rules['address'] = 'required|string|min:10';
         } elseif ($fieldGroup === 'personal') {
@@ -151,57 +160,63 @@ class StudentPortalController extends Controller
         }
         session()->put($updateKey, session()->get($updateKey, 0) + 1);
 
-        $newData = [];
-        $proofFile = null;
+        try {
+            $newData = [];
+            $proofFile = null;
 
-        if ($fieldGroup === 'photo') {
-            // Handle Image Upload with Compression
-            $file = $request->file('photo');
+            if ($fieldGroup === 'photo') {
+                // Handle Image Upload with Compression
+                $file = $request->file('photo');
 
-            try {
-                // Compress Image to < 500KB
-                $compressedImage = $this->compressImage($file, 500);
-                $filename = 'temp_' . \Illuminate\Support\Str::random(40) . '.jpg'; // Convert to JPG
+                try {
+                    // Compress Image to < 500KB
+                    $compressedImage = $this->compressImage($file, 500);
+                    $filename = 'temp_' . \Illuminate\Support\Str::random(40) . '.jpg'; // Convert to JPG
 
-                // Store in private/temp_uploads
-                Storage::put('private/temp_uploads/' . $filename, $compressedImage);
+                    // Store in private/temp_uploads
+                    Storage::put('private/temp_uploads/' . $filename, $compressedImage);
 
-                $path = 'private/temp_uploads/' . $filename;
-                $newData = ['photo_preview' => $filename];
-                $proofFile = $path;
+                    $path = 'private/temp_uploads/' . $filename;
+                    $newData = ['photo_preview' => $filename];
+                    $proofFile = $path;
 
-            } catch (\Exception $e) {
-                return response()->json(['error' => 'Image compression failed: ' . $e->getMessage()], 500);
+                } catch (\Exception $e) {
+                    return response()->json(['error' => 'Image compression failed: ' . $e->getMessage()], 500);
+                }
+
+            } elseif ($fieldGroup === 'address') {
+                $newData = ['address' => $request->address];
+            } elseif ($fieldGroup === 'personal') {
+                $newData = [
+                    'type' => $request->mobile_type, // 'student' or 'father'
+                    'mobile' => $request->mobile_number
+                ];
+            } elseif ($fieldGroup === 'dob') {
+                $newData = ['dob' => $request->dob];
             }
 
-        } elseif ($fieldGroup === 'address') {
-            $newData = ['address' => $request->address];
-        } elseif ($fieldGroup === 'personal') {
-            $newData = [
-                'type' => $request->mobile_type, // 'student' or 'father'
-                'mobile' => $request->mobile_number
-            ];
-        } elseif ($fieldGroup === 'dob') {
-            $newData = ['dob' => $request->dob];
+            // Store Request
+            DB::table('student_profile_requests')->insert([
+                'student_id' => $studentId,
+                'field_group' => $fieldGroup,
+                'new_data' => json_encode($newData),
+                'proof_file' => $proofFile,
+                'status' => 'pending',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            // Log profile update request
+            \App\Models\StudentPortalActivityLog::logActivity($studentId, 'profile_update_request', [
+                'field_group' => $fieldGroup
+            ]);
+
+            return response()->json(['message' => 'Request submitted for approval.']);
+
+        } catch (\Exception $e) {
+            \Log::error("Student Profile Update Request Error: " . $e->getMessage());
+            return response()->json(['error' => 'An unexpected error occurred. Please try again later.'], 500);
         }
-
-        // Store Request
-        DB::table('student_profile_requests')->insert([
-            'student_id' => $studentId,
-            'field_group' => $fieldGroup,
-            'new_data' => json_encode($newData),
-            'proof_file' => $proofFile,
-            'status' => 'pending',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        // Log profile update request
-        \App\Models\StudentPortalActivityLog::logActivity($studentId, 'profile_update_request', [
-            'field_group' => $fieldGroup
-        ]);
-
-        return response()->json(['message' => 'Request submitted for approval.']);
     }
 
     /**
@@ -251,17 +266,40 @@ class StudentPortalController extends Controller
         $student = Student::find(session('student_portal_auth'));
 
         // Get all payments for this student
-        $allPayments = $student->payments()->with('componentItems.studentFee.feeCategory')->orderBy('payment_date', 'desc')->get();
+        $allPayments = Payment::where('student_id', $student->id)
+            ->withoutGlobalScope('academic_year')
+            ->with([
+                'componentItems.studentFee' => function ($q) {
+                    $q->withoutGlobalScope('academic_year');
+                },
+                'componentItems.studentFee.feeCategory'
+            ])
+            ->orderBy('payment_date', 'desc')
+            ->get();
+
+        Log::error("DEBUG PAYMENTS: Student ID: " . $student->id);
+        Log::error("DEBUG PAYMENTS: Found " . $allPayments->count() . " payments.");
 
         $pending = [];
         $history = [];
 
         // Get payment history from actual payments
-        foreach ($allPayments as $payment) {
+        foreach ($allPayments as $index => $payment) {
+            Log::error("Processing Payment #{$index} (ID: {$payment->id})");
+            // Log raw component items
+            if ($payment->componentItems->isEmpty()) {
+                Log::error("Payment {$payment->id} has NO component items.");
+            }
+
             foreach ($payment->componentItems as $item) {
+                $catName = $item->studentFee->feeCategory->name ?? 'Unknown Category';
+                if (!$item->studentFee) {
+                    Log::error("Payment Item ID {$item->id} has no StudentFee linked!");
+                }
+
                 $history[] = [
                     'id' => $payment->id,
-                    'category' => $item->studentFee->feeCategory->name ?? 'Fee',
+                    'category' => $catName,
                     'amount' => $item->amount_paid,
                     'payment_date' => $payment->payment_date ? \Carbon\Carbon::parse($payment->payment_date)->format('d M, Y') : '-',
                     'receipt_number' => $payment->receipt_number,
@@ -270,8 +308,17 @@ class StudentPortalController extends Controller
             }
         }
 
+        Log::error("DEBUG HISTORY: Generated " . count($history) . " history records.");
+
         // Get pending fees
-        $fees = $student->studentFees()->with('feeCategory')->where('status', '!=', 'paid')->get();
+        $fees = $student->studentFees()
+            ->withoutGlobalScope('academic_year')
+            ->with('feeCategory')
+            ->where('status', '!=', 'paid')
+            ->get();
+
+        Log::error("DEBUG FEES: Found " . $fees->count() . " pending fees.");
+
         foreach ($fees as $fee) {
             $pending[] = [
                 'id' => $fee->id,
@@ -292,35 +339,214 @@ class StudentPortalController extends Controller
     /**
      * AJAX Endpoint: Get Attendance Data
      */
-    public function getAttendanceData()
+    public function getAttendanceData(Request $request)
     {
         if (!session()->has('student_portal_auth'))
             return response()->json(['error' => 'Unauthorized'], 401);
         $student = Student::find(session('student_portal_auth'));
 
-        // Fetch attendance for current month
-        $startOfMonth = now()->startOfMonth();
-        $endOfMonth = now()->endOfMonth();
+        // Determine Month & Year
+        if ($request->has('month') && $request->has('year')) {
+            $month = (int) $request->month;
+            $year = (int) $request->year;
+            $startOfMonth = Carbon::createFromDate($year, $month, 1)->startOfMonth();
+            $endOfMonth = $startOfMonth->copy()->endOfMonth();
+        } else {
+            // ALWAYS default to current month as requested
+            $startOfMonth = now()->startOfMonth();
+            $endOfMonth = now()->endOfMonth();
+        }
 
+        // Fetch Attendance Records
+        // Bypassing Academic Year scope to ensure we see records from all time when navigating
         $attendanceRecords = $student->attendances()
+            ->withoutGlobalScope('academic_year')
             ->whereBetween('attendance_date', [$startOfMonth, $endOfMonth])
             ->get();
 
-        // Map dates to status for Calendar
-        // Format: '2023-10-01' => 'present'
-        $calendarData = [];
-        foreach ($attendanceRecords as $record) {
-            $dateStr = \Carbon\Carbon::parse($record->attendance_date)->format('Y-m-d');
-            $calendarData[$dateStr] = $record->status;
+        // Calculate Stats
+        $totalDaysInMonth = $startOfMonth->daysInMonth;
+
+        // Holidays Calculation
+        // Assuming holidays are stored as single dates in 'holidays' table
+        $holidaysCount = Holiday::whereBetween('date', [$startOfMonth, $endOfMonth])->count();
+
+        // Weekends (assuming standard Sat/Sun, adjust if needed for institution)
+        // Simplified: Count exact weekend days in the month
+        $weekendsCount = 0;
+        $tempDate = $startOfMonth->copy();
+        while ($tempDate->lte($endOfMonth)) {
+            if ($tempDate->isSunday()) { // Assuming only Sunday is off, change to isWeekend() for Sat+Sun
+                $weekendsCount++;
+            }
+            $tempDate->addDay();
         }
+
+        // Working Days = Total Days - Holidays - Weekends
+        $workingDays = $totalDaysInMonth - $holidaysCount - $weekendsCount;
+
+        // Normalize statuses for counting (case-insensitive)
+        $normalizedRecords = $attendanceRecords->map(function ($record) {
+            $record->status = strtolower($record->status);
+            return $record;
+        });
+
+        // 1. Calculate Daily Punch Counts for "Low Attendance" logic (Institution-wide)
+        // We count distinct students per day to check if attendance is < 10
+        $dailyCounts = DB::table('attendances')
+            ->whereBetween('attendance_date', [$startOfMonth->format('Y-m-d'), $endOfMonth->format('Y-m-d')])
+            ->selectRaw('DATE(attendance_date) as date, count(distinct student_id) as count')
+            ->groupBy('date')
+            ->pluck('count', 'date')
+            ->toArray();
+
+        // 2. Determine Effective Start Dates & Settings
+        $today = now()->startOfDay();
+        $admissionDate = $student->admission_date ? Carbon::parse($student->admission_date)->startOfDay() : $student->created_at->startOfDay();
+
+        // Check first biometric use to avoid marking absent before they ever started using the system
+        $firstBiometricUse = $student->attendances()
+            ->withoutGlobalScope('academic_year')
+            ->whereIn('status', ['present', 'late'])
+            ->orderBy('attendance_date', 'asc')
+            ->value('attendance_date');
+
+        $biometricStartDate = $firstBiometricUse ? Carbon::parse($firstBiometricUse)->startOfDay() : null;
+
+        // Internship Logic
+        $isOnInternship = $student->batch && $student->batch->is_on_internship;
+        $internshipStartDate = ($isOnInternship && $student->batch->internship_start_date)
+            ? Carbon::parse($student->batch->internship_start_date)->startOfDay()
+            : null;
+
+        // 3. Fetch explicit holidays
+        $dbHolidays = Holiday::whereBetween('date', [$startOfMonth, $endOfMonth])
+            ->pluck('name', 'date')
+            ->toArray();
+
+        // 4. Build Calendar Data Day-by-Day (Matching Admin Logic)
+        $calendarData = [];
+        $tempDate = $startOfMonth->copy();
+
+        while ($tempDate->lte($endOfMonth)) {
+            $dateStr = $tempDate->format('Y-m-d');
+
+            // Basic Checks
+            $isFuture = $tempDate->gt($today);
+            $isPast = $tempDate->lt($today);
+            $isWeekend = $tempDate->isSunday();
+            $isExplicitHoliday = isset($dbHolidays[$dateStr]);
+
+            // "Low Attendance" Holiday Logic
+            $isLowAttendanceHoliday = false;
+            // If it is a working day (not weekend, not declared holiday) and punches < 10, mark as holiday
+            if (!$isFuture && !$isWeekend && !$isExplicitHoliday) {
+                $dayPunchCount = $dailyCounts[$dateStr] ?? 0;
+                if ($dayPunchCount < 10) {
+                    $isLowAttendanceHoliday = true;
+                }
+            }
+
+            $isEffectiveHoliday = $isExplicitHoliday || $isLowAttendanceHoliday;
+
+            // "Not Started" Logic
+            $isBeforeProfile = $tempDate->lt($admissionDate);
+            // Ignore absent if before profile OR before first ever biometric use (if never punched)
+            $shouldIgnoreForAbsent = $isBeforeProfile || (is_null($firstBiometricUse) && $tempDate->lt($today));
+
+            // Default Status
+            $status = 'none';
+
+            // Check for explicit attendance record first
+            $record = $normalizedRecords->first(function ($item) use ($dateStr) {
+                return Carbon::parse($item->attendance_date)->format('Y-m-d') === $dateStr;
+            });
+
+            if ($record) {
+                $status = strtolower($record->status);
+            } else {
+                // No Record Logic
+                if ($shouldIgnoreForAbsent) {
+                    $status = 'none';
+                } elseif ($isFuture) {
+                    $status = 'none';
+                } elseif ($isWeekend) {
+                    $status = 'weekend'; // Show Sunday as distinct weekend color
+                } elseif ($isEffectiveHoliday) {
+                    $status = 'holiday';
+                } else {
+                    // Working Day (Past/Today) logic
+                    if ($isPast) {
+                        // Check Internship
+                        $isInternshipDay = $isOnInternship;
+                        if ($isOnInternship && $internshipStartDate) {
+                            $isInternshipDay = $tempDate->gte($internshipStartDate);
+                        }
+
+                        if ($isInternshipDay) {
+                            $status = 'internship';
+                        } else {
+                            $status = 'absent';
+                        }
+                    } else {
+                        $status = 'none'; // Today pending
+                    }
+                }
+            }
+
+            // Populate Map
+            if ($status !== 'none') {
+                $calendarData[$dateStr] = $status;
+            }
+
+            $tempDate->addDay();
+        }
+
+        // Recalculate Stats based on the final calendar map
+        $finalStatuses = collect($calendarData);
+        $presentDays = $finalStatuses->filter(fn($s) => in_array($s, ['present', 'late', 'internship']))->count();
+        $absentDays = $finalStatuses->filter(fn($s) => $s === 'absent')->count();
+        $lateDays = $finalStatuses->filter(fn($s) => $s === 'late')->count();
+        $totalHolidays = $finalStatuses->filter(fn($s) => in_array($s, ['holiday', 'weekend']))->count();
+
+        // Working Days (effective)
+        $workingDays = $presentDays + $absentDays;
+
+        // Calculate percentage
+        $percentage = 0;
+        $totalForCalc = $presentDays + $absentDays;
+        if ($totalForCalc > 0) {
+            $percentage = round(($presentDays / $totalForCalc) * 100, 1);
+        }
+
+        // Get available months to populate dropdown - Bypass Academic Year Scope
+        $availableMonths = $student->attendances()
+            ->withoutGlobalScope('academic_year')
+            ->select(DB::raw('DATE_FORMAT(attendance_date, "%Y-%m") as month_str'), DB::raw('YEAR(attendance_date) as year'), DB::raw('MONTH(attendance_date) as month'))
+            ->distinct()
+            ->orderBy('attendance_date', 'desc')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'label' => Carbon::createFromDate($item->year, $item->month, 1)->format('F Y'),
+                    'value' => $item->month_str // YYYY-MM
+                ];
+            });
 
         return response()->json([
             'stats' => [ // Still return stats for summary
-                'total_days' => $attendanceRecords->count(),
-                'present_days' => $attendanceRecords->where('status', 'present')->count(),
-                'percentage' => $student->getAttendancePercentage($startOfMonth, $endOfMonth)
+                'total_working_days' => $workingDays,
+                'present_days' => $presentDays,
+                'absent_days' => $absentDays,
+                'holidays' => $totalHolidays,
+                'percentage' => $percentage
             ],
-            'calendar' => $calendarData
+            'calendar' => $calendarData,
+            'month_name' => $startOfMonth->format('F Y'),
+            'first_date' => $startOfMonth->format('Y-m-d'),
+            'current_month' => $startOfMonth->month,
+            'current_year' => $startOfMonth->year,
+            'available_months' => $availableMonths
         ]);
     }
 

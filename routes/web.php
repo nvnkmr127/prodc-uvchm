@@ -61,9 +61,10 @@ use App\Http\Controllers\Admin\IntegrationController;
 use App\Http\Controllers\Admin\LabAllocationController;
 use App\Http\Controllers\Admin\LeaveTypeController;
 use App\Http\Controllers\Admin\PayslipController;
+use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\PaymentReminderController;
 use App\Http\Controllers\Admin\PaymentReminderSettingsController;
-
+use App\Http\Controllers\Admin\PaymentReportsController;
 use App\Http\Controllers\Admin\PermissionController;
 use App\Http\Controllers\Admin\PermissionManagementController;
 use App\Http\Controllers\Admin\RoleController;
@@ -93,6 +94,7 @@ use App\Http\Controllers\Admin\SessionSearchController;
 use App\Http\Controllers\Admin\DropoutController;
 use App\Http\Controllers\Admin\GlobalSearchController;
 use App\Http\Controllers\Admin\ReferralReportController;
+use App\Http\Controllers\Admin\AgeReportController;
 
 // Faculty & Student Controllers
 use App\Http\Controllers\Faculty\AttendanceController as FacultyAttendanceController;
@@ -452,11 +454,6 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
 
     // --- Financial Management ---
     Route::middleware(['permission:manage financials'])->group(function () {
-        // Financial Hub
-        Route::get('financials', [ComponentPaymentController::class, 'financialIndex'])->name('financials.index');
-        Route::get('invoices/create', [ComponentPaymentController::class, 'invoiceCreate'])->name('invoices.create');
-        Route::get('invoices/{invoice}', [ComponentPaymentController::class, 'invoiceShow'])->name('invoices.show'); // Stub
-
         // Component-Based Payments
         Route::resource('component-payments', ComponentPaymentController::class);
 
@@ -629,7 +626,13 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
             ->name('timetable.show')
             ->where('timetable', '[0-9]+');
 
-
+        // Legacy route support
+        Route::delete('timetable/{id}', [TimetableController::class, 'deleteClass'])
+            ->name('timetable.delete')
+            ->where('id', '[0-9]+');
+        Route::delete('timetable/class/{id}', [TimetableController::class, 'deleteClass'])
+            ->name('timetable.deleteClass')
+            ->where('id', '[0-9]+');
 
         // Infrastructure Management
         Route::resource('classrooms', ClassroomController::class);
@@ -688,6 +691,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
         Route::get('reports/assets', [AssetReportController::class, 'index'])->name('reports.assets.index');
         Route::get('reports/admissions', [AdmissionReportController::class, 'index'])->name('reports.admissions.index');
         Route::get('reports/referrals', [ReferralReportController::class, 'index'])->name('reports.referrals.index');
+        Route::get('reports/age', [AgeReportController::class, 'index'])->name('reports.age.index');
         Route::post('reports/referrals/{student}/mark-commission-paid', [ReferralReportController::class, 'markCommissionPaid'])
             ->name('reports.referrals.mark-commission-paid')
             ->where('student', '[0-9]+');
@@ -814,7 +818,19 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
         Route::delete('activity-log/cleanup', [ActivityLogController::class, 'destroy'])->name('activity-log.cleanup');
     });
 
+    // Debug Subject-Faculty Route
+    Route::get('/debug/subject-faculty/{subject}', function (\App\Models\Subject $subject) {
+        $assigned = $subject->users;
+        $available = \App\Models\User::role('staff')->get();
 
+        return response()->json([
+            'subject' => $subject->name,
+            'assigned_count' => $assigned->count(),
+            'assigned' => $assigned,
+            'available_count' => $available->count(),
+            'available' => $available,
+        ]);
+    })->where('subject', '[0-9]+');
 
     // Webhook Status Route (Admin/Super-Admin Only)
     Route::middleware(['auth', 'role:admin|super-admin'])->get('/webhooks/status', function () {
@@ -902,7 +918,28 @@ Route::middleware(['auth', 'permission:revert payments'])->group(function () {
         ->where('payment', '[0-9]+');
 });
 
+// Alternative routes without admin prefix (for compatibility)
+Route::middleware(['auth', 'permission:edit payments'])->group(function () {
+    Route::get('payments/{payment}/edit', [PaymentEditController::class, 'edit'])
+        ->name('payment-edit.edit')
+        ->where('payment', '[0-9]+');
 
+    Route::put('payments/{payment}/update', [PaymentEditController::class, 'update'])
+        ->name('payment-edit.update')
+        ->where('payment', '[0-9]+');
+});
+
+Route::middleware(['auth', 'permission:view payment history'])->group(function () {
+    Route::get('payments/{payment}/history', [PaymentEditController::class, 'history'])
+        ->name('payment-edit.history')
+        ->where('payment', '[0-9]+');
+});
+
+Route::middleware(['auth', 'permission:revert payments'])->group(function () {
+    Route::post('payments/{payment}/revert', [PaymentEditController::class, 'revert'])
+        ->name('payment-edit.revert')
+        ->where('payment', '[0-9]+');
+});
 
 Route::prefix('admin/attendance')->name('admin.attendance.')->middleware(['auth', 'role:super-admin|college-admin|staff'])->group(function () {
 
@@ -960,7 +997,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin|super-ad
             ->name('daily-attendance.student-bulk-store');
 
         // Attendance Dashboard Routes
-
+        Route::get('attendance/dashboard', [AttendanceSettingsController::class, 'dashboard'])->name('attendance.dashboard');
+        Route::get('attendance/dashboard/today', [AttendanceSettingsController::class, 'getTodayDashboard'])->name('attendance.dashboard.today');
+        Route::get('attendance/dashboard/weekly', [AttendanceSettingsController::class, 'getWeeklyStats'])->name('attendance.dashboard.weekly');
 
         // Attendance Import Routes
         Route::get('attendance/import', [AttendanceImportController::class, 'show'])->name('attendance.import.show');
@@ -968,12 +1007,16 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin|super-ad
         Route::get('attendance/import/sample', [AttendanceImportController::class, 'downloadSample'])->name('attendance.import.sample');
 
         // Export functionality
-
+        Route::get('attendance/export/today', [AttendanceSettingsController::class, 'exportTodayAttendance'])
+            ->name('attendance.export.today')
+            ->middleware('permission:export attendance');
 
 
 
         // Testing endpoints
-
+        Route::post('attendance/test-rules', [AttendanceSettingsController::class, 'testRules'])->name('attendance.test.rules');
+        Route::post('/attendance/settings/test-sync', [AttendanceSettingsController::class, 'testSync'])->name('admin.attendance.test-sync');
+        Route::post('/attendance/settings/trigger-sync', [AttendanceSettingsController::class, 'triggerManualSync'])->name('admin.attendance.trigger-sync');
 
     });
 
@@ -1095,7 +1138,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 });
 
 // Admin Notification Management Routes
-Route::prefix('admin/notifications-management')->name('admin.notifications-management.')->middleware(['auth', 'permission:view backend'])->group(function () {
+Route::prefix('admin/notifications')->name('admin.notifications.')->middleware(['auth', 'permission:view backend'])->group(function () {
 
     // Notification Dashboard & Viewing
     Route::get('/', [NotificationManagementController::class, 'dashboard'])->name('dashboard');
@@ -1323,45 +1366,29 @@ if (app()->environment(['local', 'testing'])) {
         Route::post('/attendance/generate-test-data', function () {
             return response()->json(['success' => true, 'message' => 'Test data generated']);
         })->name('attendance.generate.test.data');
-
-        // Moved Debug Routes
-        Route::get('/test-route-conflict', function () {
-            try {
-                $request = \Illuminate\Http\Request::create('/attendance/analytics', 'GET');
-                $route = \Route::getRoutes()->match($request);
-
-                return response()->json([
-                    'url_tested' => '/attendance/analytics',
-                    'matched_route' => $route->uri(),
-                    'matched_action' => $route->getActionName(),
-                    'route_parameters' => $route->parameters(),
-                    'is_conflict' => $route->uri() === 'attendance/{attendance}' ? 'YES - CONFLICT!' : 'No conflict'
-                ]);
-            } catch (\Exception $e) {
-                return response()->json(['error' => $e->getMessage()]);
-            }
-        });
-
-        Route::get('/admin/test-direct-sync', [AttendanceSettingsController::class, 'testDirectSync']);
-        Route::get('/test-lab-generation', [TimetableController::class, 'testLabGeneration']);
-
-        // Debug Subject-Faculty Route
-        Route::get('/debug/subject-faculty/{subject}', function (\App\Models\Subject $subject) {
-            $assigned = $subject->users;
-            $available = \App\Models\User::role('staff')->get();
-
-            return response()->json([
-                'subject' => $subject->name,
-                'assigned_count' => $assigned->count(),
-                'assigned' => $assigned,
-                'available_count' => $available->count(),
-                'available' => $available,
-            ]);
-        })->name('debug.subject-faculty')->where('subject', '[0-9]+');
     });
 }
 
+// Test route conflict debugging route
+Route::get('/test-route-conflict', function () {
+    try {
+        $request = \Illuminate\Http\Request::create('/attendance/analytics', 'GET');
+        $route = \Route::getRoutes()->match($request);
 
+        return response()->json([
+            'url_tested' => '/attendance/analytics',
+            'matched_route' => $route->uri(),
+            'matched_action' => $route->getActionName(),
+            'route_parameters' => $route->parameters(),
+            'is_conflict' => $route->uri() === 'attendance/{attendance}' ? 'YES - CONFLICT!' : 'No conflict'
+        ]);
+    } catch (\Exception $e) {
+        return response()->json(['error' => $e->getMessage()]);
+    }
+});
+Route::get('/admin/test-direct-sync', [AttendanceSettingsController::class, 'testDirectSync']);
+// Test lab generation route
+Route::get('/test-lab-generation', [TimetableController::class, 'testLabGeneration']);
 
 // Student Self-Service Portal Routes
 Route::prefix('student')->name('student.')->group(function () {
@@ -1377,6 +1404,9 @@ Route::prefix('student')->name('student.')->group(function () {
     // AJAX Data endpoints
     Route::get('/data/payments', [App\Http\Controllers\StudentPortalController::class, 'getPaymentData'])->name('data.payments');
     Route::get('/data/attendance', [App\Http\Controllers\StudentPortalController::class, 'getAttendanceData'])->name('data.attendance');
+    Route::get('/refresh-csrf', function () {
+        return response()->json(['token' => csrf_token()]);
+    })->name('refresh-csrf');
 });
 
 // Admin Student Request Moderation Routes
@@ -1384,13 +1414,7 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::get('/student-requests', [App\Http\Controllers\Admin\StudentRequestController::class, 'index'])->name('student-requests.index');
     Route::post('/student-requests/{id}/action', [App\Http\Controllers\Admin\StudentRequestController::class, 'action'])->name('student-requests.action');
     // Preview Image Route
-    Route::get('/student-requests/{id}/preview', function ($id) {
-        $req = \Illuminate\Support\Facades\DB::table('student_profile_requests')->find($id);
-        if ($req && $req->proof_file) {
-            return response()->file(storage_path('app/' . $req->proof_file));
-        }
-        abort(404);
-    })->name('student-requests.preview');
+    Route::get('/student-requests/{id}/preview', [App\Http\Controllers\Admin\StudentRequestController::class, 'preview'])->name('student-requests.preview');
 
     // Student Portal Activity Logs
     Route::get('/student-portal-logs', [App\Http\Controllers\Admin\StudentPortalLogsController::class, 'index'])->name('student-portal-logs.index');

@@ -1,0 +1,17 @@
+[2026-01-08 12:00:08] attendance:send-daily-absent-webhook | STARTING | Daily Absent Webhook Check | Memory: 46.5MB
+[2026-01-08 12:00:08] attendance:send-daily-absent-webhook | COMPLETED | Daily Absent Webhook Check | Memory: 46.5MB
+[2026-01-08 12:00:08] system:health-check | MONITORING | System Health Check | Memory: 49MB | Data: {"status":"critical","issues_count":1}
+[2026-01-08 12:00:08] scheduler:heartbeat | MONITORING | Scheduler Running | Memory: 49MB | Data: {"memory_mb":49}
+[2026-01-08 12:00:08] etimeoffice:auto-sync | STARTING | ETimeOffice Auto-Sync | Memory: 49MB
+[2026-01-08 12:00:09] etimeoffice:auto-sync | COMPLETED | ETimeOffice Auto-Sync | Memory: 49MB
+[2026-01-08 13:00:07] system:health-check | MONITORING | System Health Check | Memory: 46.5MB | Data: {"status":"critical","issues_count":1}
+[2026-01-08 14:00:06] system:health-check | MONITORING | System Health Check | Memory: 46.5MB | Data: {"status":"critical","issues_count":1}
+[2026-01-08 15:00:07] attendance:send-daily-absent-webhook | STARTING | Daily Absent Webhook Check | Memory: 46.5MB
+[2026-01-08 15:00:07] attendance:send-daily-absent-webhook | COMPLETED | Daily Absent Webhook Check | Memory: 46.5MB
+[2026-01-08 15:00:07] system:health-check | MONITORING | System Health Check | Memory: 49MB | Data: {"status":"critical","issues_count":1}
+[2026-01-08 15:00:07] scheduler:heartbeat | MONITORING | Scheduler Running | Memory: 49MB | Data: {"memory_mb":49}
+[2026-01-08 15:00:07] etimeoffice:auto-sync | STARTING | ETimeOffice Auto-Sync | Memory: 49MB
+[2026-01-08 15:00:08] etimeoffice:auto-sync | COMPLETED | ETimeOffice Auto-Sync | Memory: 49MB
+[2026-01-08 16:00:07] payments:enhanced-reminders --urgent | STARTING | Urgent Payment Reminders | Memory: 46.5MB
+[2026-01-08 16:00:07] payments:enhanced-reminders --urgent | COMPLETED | Urgent Payment Reminders | Memory: 46.5MB
+[2026-01-08 16:00:07] system:health-check | MONITORING | System Health Check | Memory: 49MB | Data: {"status":"critical","issues_count":1}

@@ -166,7 +166,7 @@
                             <label for="course_id_select">Course*</label>
                             <select id="course_id_select" class="form-control" required>
                                 <option value="">-- Select a Course --</option>
-                                @foreach($courses as $course)
+                                @foreach(App\Models\Course::orderBy('name')->get() as $course)
                                     <option value="{{ $course->id }}" {{ optional($student->batch)->course_id == $course->id ? 'selected' : '' }}>{{ $course->name }}</option>
                                 @endforeach
                             </select>

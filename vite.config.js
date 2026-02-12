@@ -11,8 +11,4 @@ export default defineConfig({
       refresh: true,
     }),
   ],
-  build: {
-    minify: true, // Ensure minification is enabled
-    manifest: true,
-  },
 })

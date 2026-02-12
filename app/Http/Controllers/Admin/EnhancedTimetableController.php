@@ -28,40 +28,37 @@ class EnhancedTimetableController extends Controller
     {
         try {
             $courses = Course::with(['batches', 'subjects', 'terms'])
-                ->withCount('batches')
-                ->orderBy('name')
-                ->get();
-
+                            ->withCount('batches')
+                            ->orderBy('name')
+                            ->get();
+            
             $academicYears = AcademicYear::orderBy('start_date', 'desc')->get();
             $currentAcademicYear = AcademicYear::where('is_current', true)->first();
-
+            
             $faculties = User::role('staff')->orderBy('name')->get();
             $classrooms = Classroom::orderBy('name')->get();
             $timeSlots = TimeSlot::orderBy('start_time')->get();
             $practicalGroups = PracticalGroup::with(['batch.course', 'classroom'])
-                ->orderBy('name')
-                ->get();
+                                            ->orderBy('name')
+                                            ->get();
 
             $workingDaysConfig = $this->getWorkingDaysConfig();
-            $readiness = $this->checkSystemReadiness();
-            $systemStatus = $readiness['status'];
-            $systemCounts = $readiness['counts'];
+            $systemStatus = $this->checkSystemReadiness();
 
             return view('admin.timetable.enhanced_generation', compact(
-                'courses',
-                'academicYears',
+                'courses', 
+                'academicYears', 
                 'currentAcademicYear',
-                'faculties',
-                'classrooms',
+                'faculties', 
+                'classrooms', 
                 'timeSlots',
                 'practicalGroups',
                 'workingDaysConfig',
-                'systemStatus',
-                'systemCounts'
+                'systemStatus'
             ));
         } catch (\Exception $e) {
             Log::error('Failed to load enhanced timetable interface', ['error' => $e->getMessage()]);
-
+            
             return redirect()->route('admin.dashboard')
                 ->with('error', 'Failed to load timetable interface: ' . $e->getMessage());
         }
@@ -162,14 +159,14 @@ class EnhancedTimetableController extends Controller
                 ->whereBetween('schedule_date', [$request->start, $request->end]);
 
             if ($request->filled('course_ids')) {
-                $query->whereHas('batch', function ($q) use ($request) {
+                $query->whereHas('batch', function($q) use ($request) {
                     $q->whereIn('course_id', $request->course_ids);
                 });
             }
 
             $timetables = $query->get();
 
-            $events = $timetables->map(function ($timetable) {
+            $events = $timetables->map(function($timetable) {
                 return [
                     'id' => $timetable->id,
                     'title' => "{$timetable->subject->name} - {$timetable->batch->name}",
@@ -269,7 +266,7 @@ class EnhancedTimetableController extends Controller
         } catch (\Exception $e) {
             DB::rollback();
             Log::error('Quick schedule failed', ['error' => $e->getMessage()]);
-
+            
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to schedule class: ' . $e->getMessage()
@@ -461,7 +458,7 @@ class EnhancedTimetableController extends Controller
     private function getWorkingDaysConfig()
     {
         $workingDays = Setting::where('key', 'working_days')->first();
-        return $workingDays ? json_decode($workingDays->value, true) :
+        return $workingDays ? json_decode($workingDays->value, true) : 
             ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
     }
 
@@ -470,47 +467,26 @@ class EnhancedTimetableController extends Controller
      */
     private function checkSystemReadiness()
     {
-        // Counts
-        $counts = [
-            'courses' => Course::count(),
-            'subjects' => Subject::count(),
-            'faculties' => User::role('staff')->count(),
-            'classrooms' => Classroom::count(),
-            'time_slots' => TimeSlot::count(),
-            'academic_years' => AcademicYear::count(),
-            'practical_groups' => PracticalGroup::count(),
-            'lab_subjects' => Subject::where('requires_lab', true)->count(),
-        ];
-
-        // Specific Lab Checks
-        foreach (['Service Lab', 'Kitchen Lab', 'Front Office Lab', 'Housekeeping Lab'] as $labType) {
-            $counts['lab_checks'][$labType] = Subject::where('name', 'LIKE', "%{$labType}%")
-                ->where('requires_lab', true)
-                ->exists();
-        }
-
-        // Status (Booleans)
         $status = [
-            'courses' => $counts['courses'] > 0,
-            'subjects' => $counts['subjects'] > 0,
-            'faculties' => $counts['faculties'] > 0,
-            'faculty' => $counts['faculties'] > 0, // Alias
-            'classrooms' => $counts['classrooms'] > 0,
-            'time_slots' => $counts['time_slots'] > 0,
-            'academic_years' => $counts['academic_years'] > 0,
-            'practical_groups' => $counts['practical_groups'] > 0,
-            'lab_subjects' => $counts['lab_subjects'] >= 4,
+            'courses' => Course::count() > 0,
+            'subjects' => Subject::count() > 0,
+            'faculties' => User::role('staff')->count() > 0,
+            'faculty' => User::role('staff')->count() > 0, // Added for blade compatibility
+            'classrooms' => Classroom::count() > 0,
+            'time_slots' => TimeSlot::count() > 0,
+            'academic_years' => AcademicYear::count() > 0,
+            'practical_groups' => PracticalGroup::count() > 0,
+            'lab_subjects' => Subject::where('requires_lab', true)->count() >= 4,
         ];
 
         // Calculate overall status
         $allReady = collect($status)->every(fn($value) => $value === true);
-
+        
         // Add overall status for blade template
         $status['ready'] = $allReady;
         $status['overall'] = $allReady ? 'ready' : 'warning';
 
-        // Return both status and counts
-        return ['status' => $status, 'counts' => $counts];
+        return $status;
     }
 
     /**
@@ -518,13 +494,11 @@ class EnhancedTimetableController extends Controller
      */
     private function getClassroomUtilization()
     {
-        return Classroom::withCount([
-            'timetableEntries' => function ($query) {
-                $query->whereBetween('schedule_date', [now()->startOfWeek(), now()->endOfWeek()]);
-            }
-        ])->get()->map(function ($classroom) {
+        return Classroom::withCount(['timetableEntries' => function($query) {
+            $query->whereBetween('schedule_date', [now()->startOfWeek(), now()->endOfWeek()]);
+        }])->get()->map(function($classroom) {
             $workingDaysCount = count($this->getWorkingDaysConfig());
-            $totalSlots = TimeSlot::count() * $workingDaysCount;
+            $totalSlots = TimeSlot::count() * $workingDaysCount; 
             $utilization = $totalSlots > 0 ? ($classroom->timetable_entries_count / $totalSlots) * 100 : 0;
             return [
                 'name' => $classroom->name,
@@ -540,11 +514,9 @@ class EnhancedTimetableController extends Controller
      */
     private function getTimeSlotUtilization()
     {
-        return TimeSlot::withCount([
-            'timetableEntries' => function ($query) {
-                $query->whereBetween('schedule_date', [now()->startOfWeek(), now()->endOfWeek()]);
-            }
-        ])->get()->map(function ($slot) {
+        return TimeSlot::withCount(['timetableEntries' => function($query) {
+            $query->whereBetween('schedule_date', [now()->startOfWeek(), now()->endOfWeek()]);
+        }])->get()->map(function($slot) {
             $totalDays = count($this->getWorkingDaysConfig());
             $classrooms = Classroom::count();
             $maxCapacity = $totalDays * $classrooms;
@@ -565,14 +537,14 @@ class EnhancedTimetableController extends Controller
     {
         $conflicts = [];
         $currentWeek = [now()->startOfWeek(), now()->endOfWeek()];
-
+        
         // Check for batch conflicts
         $batchConflicts = DB::table('timetables as t1')
-            ->join('timetables as t2', function ($join) {
+            ->join('timetables as t2', function($join) {
                 $join->on('t1.batch_id', '=', 't2.batch_id')
-                    ->on('t1.schedule_date', '=', 't2.schedule_date')
-                    ->on('t1.time_slot_id', '=', 't2.time_slot_id')
-                    ->where('t1.id', '!=', DB::raw('t2.id'));
+                     ->on('t1.schedule_date', '=', 't2.schedule_date')
+                     ->on('t1.time_slot_id', '=', 't2.time_slot_id')
+                     ->where('t1.id', '!=', DB::raw('t2.id'));
             })
             ->whereBetween('t1.schedule_date', $currentWeek)
             ->select('t1.batch_id', 't1.schedule_date', 't1.time_slot_id')
@@ -590,11 +562,11 @@ class EnhancedTimetableController extends Controller
 
         // Check for faculty conflicts
         $facultyConflicts = DB::table('timetables as t1')
-            ->join('timetables as t2', function ($join) {
+            ->join('timetables as t2', function($join) {
                 $join->on('t1.user_id', '=', 't2.user_id')
-                    ->on('t1.schedule_date', '=', 't2.schedule_date')
-                    ->on('t1.time_slot_id', '=', 't2.time_slot_id')
-                    ->where('t1.id', '!=', DB::raw('t2.id'));
+                     ->on('t1.schedule_date', '=', 't2.schedule_date')
+                     ->on('t1.time_slot_id', '=', 't2.time_slot_id')
+                     ->where('t1.id', '!=', DB::raw('t2.id'));
             })
             ->whereBetween('t1.schedule_date', $currentWeek)
             ->select('t1.user_id', 't1.schedule_date', 't1.time_slot_id')
@@ -612,11 +584,11 @@ class EnhancedTimetableController extends Controller
 
         // Check for classroom conflicts
         $classroomConflicts = DB::table('timetables as t1')
-            ->join('timetables as t2', function ($join) {
+            ->join('timetables as t2', function($join) {
                 $join->on('t1.classroom_id', '=', 't2.classroom_id')
-                    ->on('t1.schedule_date', '=', 't2.schedule_date')
-                    ->on('t1.time_slot_id', '=', 't2.time_slot_id')
-                    ->where('t1.id', '!=', DB::raw('t2.id'));
+                     ->on('t1.schedule_date', '=', 't2.schedule_date')
+                     ->on('t1.time_slot_id', '=', 't2.time_slot_id')
+                     ->where('t1.id', '!=', DB::raw('t2.id'));
             })
             ->whereBetween('t1.schedule_date', $currentWeek)
             ->select('t1.classroom_id', 't1.schedule_date', 't1.time_slot_id')
@@ -706,7 +678,7 @@ class EnhancedTimetableController extends Controller
             ->with(['batch.course', 'subject', 'user', 'classroom', 'timeSlot'])
             ->get();
 
-        $grouped = $timetables->groupBy(function ($item) {
+        $grouped = $timetables->groupBy(function($item) {
             return $item->schedule_date . '_' . $item->time_slot_id;
         });
 
@@ -864,8 +836,8 @@ class EnhancedTimetableController extends Controller
     {
         try {
             $timetable = Timetable::with(['batch', 'subject', 'user', 'classroom', 'timeSlot', 'practicalGroup'])
-                ->findOrFail($id);
-
+                                    ->findOrFail($id);
+            
             $courses = Course::orderBy('name')->get();
             $subjects = Subject::orderBy('name')->get();
             $faculties = User::role('staff')->orderBy('name')->get();
@@ -873,16 +845,10 @@ class EnhancedTimetableController extends Controller
             $timeSlots = TimeSlot::orderBy('start_time')->get();
             $academicYears = AcademicYear::orderBy('start_date', 'desc')->get();
             $practicalGroups = PracticalGroup::orderBy('name')->get();
-
+            
             return view('admin.timetable.edit', compact(
-                'timetable',
-                'courses',
-                'subjects',
-                'faculties',
-                'classrooms',
-                'timeSlots',
-                'academicYears',
-                'practicalGroups'
+                'timetable', 'courses', 'subjects', 'faculties', 
+                'classrooms', 'timeSlots', 'academicYears', 'practicalGroups'
             ));
 
         } catch (\Exception $e) {
@@ -919,7 +885,7 @@ class EnhancedTimetableController extends Controller
 
         try {
             $timetable = Timetable::findOrFail($id);
-
+            
             $conflicts = $this->checkSchedulingConflicts($request->all(), $id);
             if (!empty($conflicts)) {
                 return response()->json([
@@ -977,7 +943,7 @@ class EnhancedTimetableController extends Controller
     {
         try {
             $timetable = Timetable::findOrFail($id);
-
+            
             DB::beginTransaction();
 
             $className = $this->getDisplayName($timetable);
@@ -990,12 +956,12 @@ class EnhancedTimetableController extends Controller
             ]);
 
             DB::commit();
-
+            
             return response()->json([
                 'success' => true,
                 'message' => "'{$className}' deleted successfully!"
             ]);
-
+            
         } catch (\Exception $e) {
             DB::rollback();
             Log::error('Timetable deletion failed', ['error' => $e->getMessage(), 'id' => $id]);
@@ -1075,14 +1041,14 @@ class EnhancedTimetableController extends Controller
 
             foreach ($request->timetable_ids as $id) {
                 $timetable = Timetable::findOrFail($id);
-
+                
                 $updateData = ['schedule_date' => $request->new_date];
-
+                
                 if ($request->filled('time_offset_hours')) {
                     $currentSlot = $timetable->timeSlot;
                     $newStartTime = Carbon::parse($currentSlot->start_time)->addHours($request->time_offset_hours);
                     $newSlot = TimeSlot::whereTime('start_time', $newStartTime->format('H:i:s'))->first();
-
+                    
                     if ($newSlot) {
                         $updateData['time_slot_id'] = $newSlot->id;
                     } else {
@@ -1092,10 +1058,10 @@ class EnhancedTimetableController extends Controller
                 }
 
                 $conflicts = $this->checkSchedulingConflicts(
-                    array_merge($timetable->toArray(), $updateData),
+                    array_merge($timetable->toArray(), $updateData), 
                     $id
                 );
-
+                
                 if (empty($conflicts)) {
                     $timetable->update($updateData);
                     $moved++;
@@ -1146,16 +1112,16 @@ class EnhancedTimetableController extends Controller
 
         try {
             $filename = 'timetable_' . now()->format('Y-m-d_H-i-s');
-
+            
             switch ($request->format) {
                 case 'excel':
                     return Excel::download(
-                        new TimetableExport($request->all()),
+                        new TimetableExport($request->all()), 
                         $filename . '.xlsx'
                     );
                 case 'csv':
                     return Excel::download(
-                        new TimetableExport($request->all()),
+                        new TimetableExport($request->all()), 
                         $filename . '.csv'
                     );
                 case 'pdf':
@@ -1181,29 +1147,29 @@ class EnhancedTimetableController extends Controller
     private function generatePDFExport($filters, $filename)
     {
         $query = Timetable::with(['batch.course', 'subject', 'user', 'classroom', 'timeSlot']);
-
+        
         if (isset($filters['course_id'])) {
-            $query->whereHas('batch', function ($q) use ($filters) {
+            $query->whereHas('batch', function($q) use ($filters) {
                 $q->where('course_id', $filters['course_id']);
             });
         }
-
+        
         if (isset($filters['academic_year_id'])) {
             $query->where('academic_year_id', $filters['academic_year_id']);
         }
-
+        
         if (isset($filters['week_start'])) {
             $weekStart = Carbon::parse($filters['week_start']);
             $weekEnd = $weekStart->copy()->endOfWeek();
             $query->whereBetween('schedule_date', [$weekStart, $weekEnd]);
         }
-
+        
         $timetables = $query->orderBy('schedule_date')
-            ->orderBy('time_slot_id')
-            ->get();
+                            ->orderBy('time_slot_id')
+                            ->get();
 
         $pdf = PDF::loadView('admin.timetable.pdf_export', compact('timetables', 'filters'));
-
+        
         return $pdf->download($filename . '.pdf');
     }
 
@@ -1228,32 +1194,32 @@ class EnhancedTimetableController extends Controller
 
         try {
             $query = User::role('staff')->orderBy('name');
-
+            
             if ($request->filled('subject_id')) {
-                $query->whereHas('qualifiedSubjects', function ($q) use ($request) {
+                $query->whereHas('qualifiedSubjects', function($q) use ($request) {
                     $q->where('subject_id', $request->subject_id);
                 });
             }
-
+            
             $faculties = $query->get();
-
+            
             $occupiedFacultyIds = Timetable::where('schedule_date', $request->date)
                 ->where('time_slot_id', $request->time_slot_id)
-                ->when($request->filled('exclude_id'), function ($q) use ($request) {
+                ->when($request->filled('exclude_id'), function($q) use ($request) {
                     $q->where('id', '!=', $request->exclude_id);
                 })
                 ->pluck('user_id');
-
+            
             $availableFaculties = $faculties->whereNotIn('id', $occupiedFacultyIds);
-
+            
             return response()->json([
                 'success' => true,
-                'faculties' => $availableFaculties->map(function ($faculty) {
+                'faculties' => $availableFaculties->map(function($faculty) {
                     return [
                         'id' => $faculty->id,
                         'name' => $faculty->name,
                         'email' => $faculty->email,
-                        'specializations' => $faculty->qualifiedSubjects ?
+                        'specializations' => $faculty->qualifiedSubjects ? 
                             $faculty->qualifiedSubjects->pluck('name')->join(', ') : ''
                     ];
                 })
@@ -1290,29 +1256,29 @@ class EnhancedTimetableController extends Controller
 
         try {
             $query = Classroom::orderBy('name');
-
+            
             if ($request->has('is_lab')) {
                 $query->where('is_lab', $request->boolean('is_lab'));
             }
-
+            
             if ($request->filled('min_capacity')) {
                 $query->where('capacity', '>=', $request->min_capacity);
             }
-
+            
             $classrooms = $query->get();
-
+            
             $occupiedClassroomIds = Timetable::where('schedule_date', $request->date)
                 ->where('time_slot_id', $request->time_slot_id)
-                ->when($request->filled('exclude_id'), function ($q) use ($request) {
+                ->when($request->filled('exclude_id'), function($q) use ($request) {
                     $q->where('id', '!=', $request->exclude_id);
                 })
                 ->pluck('classroom_id');
-
+            
             $availableClassrooms = $classrooms->whereNotIn('id', $occupiedClassroomIds);
-
+            
             return response()->json([
                 'success' => true,
-                'classrooms' => $availableClassrooms->map(function ($classroom) {
+                'classrooms' => $availableClassrooms->map(function($classroom) {
                     return [
                         'id' => $classroom->id,
                         'name' => $classroom->name,
@@ -1354,7 +1320,7 @@ class EnhancedTimetableController extends Controller
         try {
             $academicYear = AcademicYear::findOrFail($request->academic_year_id);
             $weekStart = Carbon::parse($request->week_start);
-
+            
             $conflicts = $this->detectTimetableConflicts($request->course_ids, $academicYear, $weekStart);
 
             return response()->json([
@@ -1443,7 +1409,7 @@ class EnhancedTimetableController extends Controller
         try {
             $academicYear = AcademicYear::findOrFail($request->academic_year_id);
             $weekStart = Carbon::parse($request->week_start);
-
+            
             $validationResults = [
                 'errors' => [],
                 'warnings' => [],
@@ -1468,10 +1434,10 @@ class EnhancedTimetableController extends Controller
             $courses = Course::whereIn('id', $request->course_ids)->with('subjects')->get();
             foreach ($courses as $course) {
                 $totalHours = $course->subjects->sum('weekly_hours') ?? 0;
-                $scheduledHours = Timetable::whereHas('batch', function ($q) use ($course) {
+                $scheduledHours = Timetable::whereHas('batch', function($q) use ($course) {
                     $q->where('course_id', $course->id);
                 })->whereBetween('schedule_date', [$weekStart, $weekStart->copy()->endOfWeek()])
-                    ->count();
+                ->count();
 
                 if ($scheduledHours < $totalHours) {
                     $validationResults['warnings'][] = [
@@ -1522,7 +1488,7 @@ class EnhancedTimetableController extends Controller
 
         try {
             $reportData = [];
-
+            
             switch ($request->report_type) {
                 case 'utilization':
                     $reportData = $this->generateUtilizationReport($request->all());
@@ -1591,15 +1557,13 @@ class EnhancedTimetableController extends Controller
     private function generateFacultyLoadReport($filters)
     {
         $faculties = User::role('staff')
-            ->withCount([
-                'timetableEntries' => function ($query) {
-                    $query->whereBetween('schedule_date', [now()->startOfWeek(), now()->endOfWeek()]);
-                }
-            ])
+            ->withCount(['timetableEntries' => function($query) {
+                $query->whereBetween('schedule_date', [now()->startOfWeek(), now()->endOfWeek()]);
+            }])
             ->get();
 
         return [
-            'faculty_loads' => $faculties->map(function ($faculty) {
+            'faculty_loads' => $faculties->map(function($faculty) {
                 return [
                     'name' => $faculty->name,
                     'weekly_hours' => $faculty->timetable_entries_count,
@@ -1617,16 +1581,14 @@ class EnhancedTimetableController extends Controller
      */
     private function generateClassroomUsageReport($filters)
     {
-        $classrooms = Classroom::withCount([
-            'timetableEntries' => function ($query) {
-                $query->whereBetween('schedule_date', [now()->startOfWeek(), now()->endOfWeek()]);
-            }
-        ])->get();
-
+        $classrooms = Classroom::withCount(['timetableEntries' => function($query) {
+            $query->whereBetween('schedule_date', [now()->startOfWeek(), now()->endOfWeek()]);
+        }])->get();
+        
         $workingDaysCount = count($this->getWorkingDaysConfig());
 
         return [
-            'usage_by_classroom' => $classrooms->map(function ($classroom) use ($workingDaysCount) {
+            'usage_by_classroom' => $classrooms->map(function($classroom) use ($workingDaysCount) {
                 $totalSlots = TimeSlot::count() * $workingDaysCount;
                 return [
                     'name' => $classroom->name,
@@ -1640,7 +1602,7 @@ class EnhancedTimetableController extends Controller
             'summary' => [
                 'most_used' => $classrooms->sortByDesc('timetable_entries_count')->first()?->name,
                 'least_used' => $classrooms->sortBy('timetable_entries_count')->first()?->name,
-                'average_utilization' => $classrooms->avg(function ($classroom) use ($workingDaysCount) {
+                'average_utilization' => $classrooms->avg(function($classroom) use ($workingDaysCount) {
                     $totalSlots = TimeSlot::count() * $workingDaysCount;
                     return $totalSlots > 0 ? ($classroom->timetable_entries_count / $totalSlots) * 100 : 0;
                 })
@@ -1671,21 +1633,19 @@ class EnhancedTimetableController extends Controller
     {
         try {
             $currentWeek = [now()->startOfWeek(), now()->endOfWeek()];
-
+            
             $stats = [
                 'total_sessions_this_week' => Timetable::whereBetween('schedule_date', $currentWeek)->count(),
                 'total_conflicts' => count($this->detectAllConflicts()),
                 'classroom_utilization' => round($this->getClassroomUtilization()->avg('utilization') ?? 0, 2),
                 'faculty_load_average' => round(User::role('staff')
-                    ->withCount([
-                        'timetableEntries' => function ($query) use ($currentWeek) {
-                            $query->whereBetween('schedule_date', $currentWeek);
-                        }
-                    ])
+                    ->withCount(['timetableEntries' => function($query) use ($currentWeek) {
+                        $query->whereBetween('schedule_date', $currentWeek);
+                    }])
                     ->get()
                     ->avg('timetable_entries_count') ?? 0, 2),
                 'upcoming_sessions_today' => Timetable::where('schedule_date', now()->toDateString())
-                    ->whereHas('timeSlot', function ($query) {
+                    ->whereHas('timeSlot', function($query) {
                         $query->where('start_time', '>', now()->format('H:i:s'));
                     })
                     ->count()
@@ -1770,9 +1730,9 @@ class EnhancedTimetableController extends Controller
 
         try {
             $timetable = Timetable::findOrFail($request->id);
-
+            
             $timeSlot = TimeSlot::where('start_time', $request->new_start_time)->first();
-
+            
             if (!$timeSlot) {
                 return response()->json([
                     'success' => false,
@@ -1853,7 +1813,7 @@ class EnhancedTimetableController extends Controller
     {
         try {
             $status = $this->checkSystemReadiness();
-
+            
             return response()->json([
                 'success' => true,
                 'system_status' => $status
@@ -1886,8 +1846,8 @@ class EnhancedTimetableController extends Controller
 
         try {
             $batches = Batch::where('course_id', $request->course_id)
-                ->orderBy('name')
-                ->get(['id', 'name', 'strength']);
+                            ->orderBy('name')
+                            ->get(['id', 'name', 'strength']);
 
             return response()->json([
                 'success' => true,
@@ -1920,7 +1880,7 @@ class EnhancedTimetableController extends Controller
         }
 
         try {
-            $subjects = Subject::whereHas('courses', function ($query) use ($request) {
+            $subjects = Subject::whereHas('courses', function($query) use ($request) {
                 $query->where('course_id', $request->course_id);
             })->orderBy('name')->get(['id', 'name', 'code', 'requires_lab']);
 
@@ -1959,8 +1919,8 @@ class EnhancedTimetableController extends Controller
 
         try {
             $query = Timetable::where('user_id', $request->faculty_id)
-                ->where('schedule_date', $request->date)
-                ->where('time_slot_id', $request->time_slot_id);
+                                ->where('schedule_date', $request->date)
+                                ->where('time_slot_id', $request->time_slot_id);
 
             if ($request->filled('exclude_id')) {
                 $query->where('id', '!=', $request->exclude_id);
@@ -2004,8 +1964,8 @@ class EnhancedTimetableController extends Controller
 
         try {
             $query = Timetable::where('classroom_id', $request->classroom_id)
-                ->where('schedule_date', $request->date)
-                ->where('time_slot_id', $request->time_slot_id);
+                                ->where('schedule_date', $request->date)
+                                ->where('time_slot_id', $request->time_slot_id);
 
             if ($request->filled('exclude_id')) {
                 $query->where('id', '!=', $request->exclude_id);
@@ -2054,7 +2014,7 @@ class EnhancedTimetableController extends Controller
                 ->whereBetween('schedule_date', [$request->start_date, $request->end_date]);
 
             if ($request->filled('course_ids')) {
-                $query->whereHas('batch', function ($q) use ($request) {
+                $query->whereHas('batch', function($q) use ($request) {
                     $q->whereIn('course_id', $request->course_ids);
                 });
             }
@@ -2064,12 +2024,12 @@ class EnhancedTimetableController extends Controller
             }
 
             $timetables = $query->orderBy('schedule_date')
-                ->orderBy('time_slot_id')
-                ->get();
+                                ->orderBy('time_slot_id')
+                                ->get();
 
             return response()->json([
                 'success' => true,
-                'timetables' => $timetables->map(function ($timetable) {
+                'timetables' => $timetables->map(function($timetable) {
                     return [
                         'id' => $timetable->id,
                         'date' => $timetable->schedule_date,
@@ -2094,7 +2054,7 @@ class EnhancedTimetableController extends Controller
             ], 500);
         }
     }
-
+    
     /**
      * ✅ FALLBACK: Simple timetable generation method
      * Add this method to your EnhancedTimetableController if the service still doesn't work
@@ -2124,7 +2084,7 @@ class EnhancedTimetableController extends Controller
 
             $academicYear = AcademicYear::findOrFail($request->academic_year_id);
             $weekStart = Carbon::parse($request->week_start);
-
+            
             // Clear existing if requested
             if ($request->boolean('clear_existing')) {
                 $this->clearExistingTimetable($request->course_ids, $academicYear, $weekStart);
@@ -2164,17 +2124,12 @@ class EnhancedTimetableController extends Controller
 
             // Get working days (default to Mon-Fri)
             $workingDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
-
+            
             // Generate week dates
             $weekDates = collect();
             $dayMap = [
-                'monday' => 1,
-                'tuesday' => 2,
-                'wednesday' => 3,
-                'thursday' => 4,
-                'friday' => 5,
-                'saturday' => 6,
-                'sunday' => 0
+                'monday' => 1, 'tuesday' => 2, 'wednesday' => 3, 
+                'thursday' => 4, 'friday' => 5, 'saturday' => 6, 'sunday' => 0
             ];
 
             foreach ($workingDays as $day) {
@@ -2205,7 +2160,7 @@ class EnhancedTimetableController extends Controller
                     // Generate sessions for each subject
                     foreach ($subjects as $subject) {
                         $isLab = $subject->requires_lab ?? false;
-
+                        
                         // Check generation options
                         if ($isLab && !$request->boolean('generate_labs', true)) {
                             continue;
@@ -2261,7 +2216,7 @@ class EnhancedTimetableController extends Controller
                                 // Find available classroom
                                 $availableClassroom = null;
                                 $classroomQuery = $classrooms;
-
+                                
                                 if ($isLab) {
                                     $classroomQuery = $classrooms->where('is_lab', true);
                                 }
@@ -2298,7 +2253,7 @@ class EnhancedTimetableController extends Controller
 
                                     $sessionsCreated++;
                                     $result['sessions_created']++;
-
+                                    
                                     if ($isLab) {
                                         $result['lab_sessions']++;
                                     } else {
@@ -2329,7 +2284,7 @@ class EnhancedTimetableController extends Controller
             DB::commit();
 
             $result['message'] = "✅ Timetable generated successfully! Created {$result['sessions_created']} sessions " .
-                "({$result['theory_sessions']} theory, {$result['lab_sessions']} lab)";
+                               "({$result['theory_sessions']} theory, {$result['lab_sessions']} lab)";
 
             $result['report'] .= str_repeat("=", 50) . "\n";
             $result['report'] .= "📊 FINAL SUMMARY:\n";
@@ -2364,180 +2319,180 @@ class EnhancedTimetableController extends Controller
 
 
 
+    
 
-
-    /**
-     * ✅ CHECK WHAT DATA EXISTS
-     */
-    public function checkPrerequisites()
-    {
-        try {
-            // Simple data check
-            $data = [
-                'courses' => \App\Models\Course::count(),
-                'batches' => \App\Models\Batch::count(),
-                'subjects' => \App\Models\Subject::count(),
-                'users' => \App\Models\User::count(),
-                'classrooms' => \App\Models\Classroom::count(),
-                'time_slots' => \App\Models\TimeSlot::count(),
-                'academic_years' => \App\Models\AcademicYear::count(),
-                'timetable_entries' => \App\Models\Timetable::count()
-            ];
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Prerequisites check completed',
-                'data' => $data,
-                'ready' => collect($data)->filter(fn($count, $key) => $key !== 'timetable_entries')->every(fn($count) => $count > 0)
-            ]);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Check failed: ' . $e->getMessage()
-            ], 500);
-        }
+/**
+ * ✅ CHECK WHAT DATA EXISTS
+ */
+public function checkPrerequisites()
+{
+    try {
+        // Simple data check
+        $data = [
+            'courses' => \App\Models\Course::count(),
+            'batches' => \App\Models\Batch::count(), 
+            'subjects' => \App\Models\Subject::count(),
+            'users' => \App\Models\User::count(),
+            'classrooms' => \App\Models\Classroom::count(),
+            'time_slots' => \App\Models\TimeSlot::count(),
+            'academic_years' => \App\Models\AcademicYear::count(),
+            'timetable_entries' => \App\Models\Timetable::count()
+        ];
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Prerequisites check completed',
+            'data' => $data,
+            'ready' => collect($data)->filter(fn($count, $key) => $key !== 'timetable_entries')->every(fn($count) => $count > 0)
+        ]);
+        
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Check failed: ' . $e->getMessage()
+        ], 500);
     }
+}
 
-    /**
-     * ✅ CREATE MINIMAL TEST DATA
-     */
-    public function quickSetup(Request $request)
-    {
+/**
+ * ✅ CREATE MINIMAL TEST DATA
+ */
+public function quickSetup(Request $request)
+{
+    try {
+        \DB::beginTransaction();
+        
+        $created = [];
+        
+        // Create academic year if missing
+        if (\App\Models\AcademicYear::count() === 0) {
+            \App\Models\AcademicYear::create([
+                'name' => '2024-25',
+                'start_date' => '2024-04-01',
+                'end_date' => '2025-03-31', 
+                'is_current' => true
+            ]);
+            $created[] = 'Academic Year';
+        }
+        
+        // Create course if missing  
+        if (\App\Models\Course::count() === 0) {
+            \App\Models\Course::create([
+                'name' => 'Test Course',
+                'code' => 'TC101'
+            ]);
+            $created[] = 'Course';
+        }
+        
+        // Create batch if missing
+        if (\App\Models\Batch::count() === 0) {
+            $course = \App\Models\Course::first();
+            $academicYear = \App\Models\AcademicYear::first();
+            
+            \App\Models\Batch::create([
+                'name' => 'Test Batch A',
+                'course_id' => $course->id,
+                'strength' => 30,
+                'academic_year_id' => $academicYear->id
+            ]);
+            $created[] = 'Batch';
+        }
+        
+        // Create subject if missing
+        if (\App\Models\Subject::count() === 0) {
+            \App\Models\Subject::create([
+                'name' => 'Test Subject',
+                'code' => 'TS101',
+                'requires_lab' => false,
+                'weekly_hours' => 2
+            ]);
+            $created[] = 'Subject';
+        }
+        
+        // Create user if missing staff
+        $staffCount = 0;
         try {
-            \DB::beginTransaction();
-
-            $created = [];
-
-            // Create academic year if missing
-            if (\App\Models\AcademicYear::count() === 0) {
-                \App\Models\AcademicYear::create([
-                    'name' => '2024-25',
-                    'start_date' => '2024-04-01',
-                    'end_date' => '2025-03-31',
-                    'is_current' => true
-                ]);
-                $created[] = 'Academic Year';
-            }
-
-            // Create course if missing  
-            if (\App\Models\Course::count() === 0) {
-                \App\Models\Course::create([
-                    'name' => 'Test Course',
-                    'code' => 'TC101'
-                ]);
-                $created[] = 'Course';
-            }
-
-            // Create batch if missing
-            if (\App\Models\Batch::count() === 0) {
-                $course = \App\Models\Course::first();
-                $academicYear = \App\Models\AcademicYear::first();
-
-                \App\Models\Batch::create([
-                    'name' => 'Test Batch A',
-                    'course_id' => $course->id,
-                    'strength' => 30,
-                    'academic_year_id' => $academicYear->id
-                ]);
-                $created[] = 'Batch';
-            }
-
-            // Create subject if missing
-            if (\App\Models\Subject::count() === 0) {
-                \App\Models\Subject::create([
-                    'name' => 'Test Subject',
-                    'code' => 'TS101',
-                    'requires_lab' => false,
-                    'weekly_hours' => 2
-                ]);
-                $created[] = 'Subject';
-            }
-
-            // Create user if missing staff
+            $staffCount = \App\Models\User::role('staff')->count();
+        } catch (\Exception $e) {
+            // Role might not exist, create a regular user
             $staffCount = 0;
+        }
+        
+        if ($staffCount === 0) {
+            $user = \App\Models\User::create([
+                'name' => 'Test Faculty',
+                'email' => 'test.faculty@example.com',
+                'password' => bcrypt('password123'),
+                'email_verified_at' => now()
+            ]);
+            
             try {
-                $staffCount = \App\Models\User::role('staff')->count();
+                $user->assignRole('staff');
             } catch (\Exception $e) {
-                // Role might not exist, create a regular user
-                $staffCount = 0;
+                // Role assignment failed, but user created
             }
-
-            if ($staffCount === 0) {
-                $user = \App\Models\User::create([
-                    'name' => 'Test Faculty',
-                    'email' => 'test.faculty@example.com',
-                    'password' => bcrypt('password123'),
-                    'email_verified_at' => now()
-                ]);
-
-                try {
-                    $user->assignRole('staff');
-                } catch (\Exception $e) {
-                    // Role assignment failed, but user created
-                }
-                $created[] = 'Faculty User';
-            }
-
-            // Create classroom if missing
-            if (\App\Models\Classroom::count() === 0) {
-                \App\Models\Classroom::create([
-                    'name' => 'Room 101',
-                    'capacity' => 40,
-                    'is_lab' => false
-                ]);
-                $created[] = 'Classroom';
-            }
-
-            // Create time slot if missing
-            if (\App\Models\TimeSlot::count() === 0) {
-                \App\Models\TimeSlot::create([
-                    'name' => '9:00 AM - 10:00 AM',
-                    'start_time' => '09:00:00',
-                    'end_time' => '10:00:00'
-                ]);
-                $created[] = 'Time Slot';
-            }
-
-            \DB::commit();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Quick setup completed!',
-                'created' => $created,
-                'note' => empty($created) ? 'All data already exists' : 'Created: ' . implode(', ', $created)
-            ]);
-
-        } catch (\Exception $e) {
-            \DB::rollback();
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Setup failed: ' . $e->getMessage()
-            ], 500);
+            $created[] = 'Faculty User';
         }
-    }
-
-    /**
-     * ✅ SIMPLE TEST: Just return success to verify route works
-     */
-    public function testTimetableCreation(Request $request)
-    {
-        try {
-            // First, just test if the route works
-            return response()->json([
-                'success' => true,
-                'message' => '✅ Route is working! Now testing data...',
-                'timestamp' => now()->format('Y-m-d H:i:s')
+        
+        // Create classroom if missing
+        if (\App\Models\Classroom::count() === 0) {
+            \App\Models\Classroom::create([
+                'name' => 'Room 101',
+                'capacity' => 40,
+                'is_lab' => false
             ]);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Route test failed: ' . $e->getMessage()
-            ], 500);
+            $created[] = 'Classroom';
         }
+        
+        // Create time slot if missing
+        if (\App\Models\TimeSlot::count() === 0) {
+            \App\Models\TimeSlot::create([
+                'name' => '9:00 AM - 10:00 AM',
+                'start_time' => '09:00:00',
+                'end_time' => '10:00:00'
+            ]);
+            $created[] = 'Time Slot';
+        }
+        
+        \DB::commit();
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Quick setup completed!',
+            'created' => $created,
+            'note' => empty($created) ? 'All data already exists' : 'Created: ' . implode(', ', $created)
+        ]);
+        
+    } catch (\Exception $e) {
+        \DB::rollback();
+        
+        return response()->json([
+            'success' => false, 
+            'message' => 'Setup failed: ' . $e->getMessage()
+        ], 500);
     }
+}
+
+/**
+ * ✅ SIMPLE TEST: Just return success to verify route works
+ */
+public function testTimetableCreation(Request $request)
+{
+    try {
+        // First, just test if the route works
+        return response()->json([
+            'success' => true,
+            'message' => '✅ Route is working! Now testing data...',
+            'timestamp' => now()->format('Y-m-d H:i:s')
+        ]);
+        
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Route test failed: ' . $e->getMessage()
+        ], 500);
+    }
+}
 
 
     /**
@@ -2607,7 +2562,7 @@ class EnhancedTimetableController extends Controller
             $sourceWeekStart = Carbon::parse($request->source_week_start);
             $sourceWeekEnd = $sourceWeekStart->copy()->endOfWeek();
             $targetWeekStart = Carbon::parse($request->target_week_start);
-
+            
             $batchIds = Batch::whereIn('course_id', $request->course_ids)->pluck('id');
 
             // Get source timetable entries

@@ -62,7 +62,29 @@ class ETimeOfficeAutoSync extends Command
     {
         try {
             $enabled = \App\Models\Setting::where('key', 'etimeoffice_enabled')->value('value');
-            return filter_var($enabled, FILTER_VALIDATE_BOOLEAN);
+            if (!filter_var($enabled, FILTER_VALIDATE_BOOLEAN)) {
+                return false;
+            }
+
+            // Also check for required credentials
+            $missing = [];
+            if (!\App\Models\Setting::where('key', 'etimeoffice_api_url')->value('value'))
+                $missing[] = 'API URL';
+            if (!\App\Models\Setting::where('key', 'etimeoffice_corporate_id')->value('value'))
+                $missing[] = 'Corporate ID';
+            if (!\App\Models\Setting::where('key', 'etimeoffice_username')->value('value'))
+                $missing[] = 'Username';
+            if (!\App\Models\Setting::where('key', 'etimeoffice_password')->value('value'))
+                $missing[] = 'Password';
+
+            if (!empty($missing)) {
+                $msg = 'ETimeOffice sync is enabled but missing: ' . implode(', ', $missing);
+                $this->error($msg);
+                Log::error($msg);
+                return false;
+            }
+
+            return true;
         } catch (\Exception $e) {
             Log::error('Could not check ETimeOffice sync status: ' . $e->getMessage());
             return false;

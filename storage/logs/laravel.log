@@ -1,19 +1,10 @@
-[2025-12-20 08:27:29] local.ERROR: TEST LOG ENTRY  
-[2025-12-20 08:28:49] local.ERROR: Enquiry Show Access Check [DEBUG] {"user_id":49,"roles":["admin"],"is_admin":"YES","enquiry_id":12,"assigned_to":50} 
-[2025-12-20 08:28:49] local.ERROR: Enquiry Show Access Check [DEBUG] {"user_id":51,"roles":["college-admin"],"is_admin":"NO","enquiry_id":12,"assigned_to":50} 
-[2025-12-20 08:28:49] local.ERROR: Enquiry Show Access DENIED [DEBUG] {"user":51,"enquiry":12} 
-[2025-12-20 08:29:30] local.ERROR: Enquiry Show Access Check [DEBUG] {"user_id":49,"roles":["admin"],"is_admin":"YES","enquiry_id":13,"assigned_to":50} 
-[2025-12-20 08:29:30] local.ERROR: Enquiry Show Access Check [DEBUG] {"user_id":51,"roles":["college-admin"],"is_admin":"NO","enquiry_id":13,"assigned_to":50} 
-[2025-12-20 08:29:30] local.ERROR: Enquiry Show Access DENIED [DEBUG] {"user":51,"enquiry":13} 
-[2025-12-24 15:24:16] local.ERROR: Call to undefined method App\Models\Student::withTrashed() {"exception":"[object] (BadMethodCallException(code: 0): Call to undefined method App\\Models\\Student::withTrashed() at /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Support/Traits/ForwardsCalls.php:67)
-[stacktrace]
-#0 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Support/Traits/ForwardsCalls.php(36): Illuminate\\Database\\Eloquent\\Model::throwBadMethodCallException('withTrashed')
-#1 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php(2372): Illuminate\\Database\\Eloquent\\Model->forwardCallTo(Object(Illuminate\\Database\\Eloquent\\Builder), 'withTrashed', Array)
-#2 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Database/Eloquent/Model.php(2384): Illuminate\\Database\\Eloquent\\Model->__call('withTrashed', Array)
-#3 /Users/naveenadicharla/Documents/test/prodc-uvchm/debug_compare_students.php(15): Illuminate\\Database\\Eloquent\\Model::__callStatic('withTrashed', Array)
-#4 {main}
-"} 
-[2025-12-24 16:31:01] local.ERROR: Command "test" is not defined.
+[2026-01-08 12:00:08] local.CRITICAL: System Health Critical {"status":"critical","timestamp":"2026-01-08 12:00:08","issues":["Disk usage critical: 98.63%"],"database":"connected","disk_usage_percent":98.63} 
+[2026-01-08 13:00:07] local.CRITICAL: System Health Critical {"status":"critical","timestamp":"2026-01-08 13:00:07","issues":["Disk usage critical: 98.74%"],"database":"connected","disk_usage_percent":98.74} 
+[2026-01-08 14:00:06] local.CRITICAL: System Health Critical {"status":"critical","timestamp":"2026-01-08 14:00:06","issues":["Disk usage critical: 98.89%"],"database":"connected","disk_usage_percent":98.89} 
+[2026-01-08 15:00:07] local.CRITICAL: System Health Critical {"status":"critical","timestamp":"2026-01-08 15:00:07","issues":["Disk usage critical: 98.66%"],"database":"connected","disk_usage_percent":98.66} 
+[2026-01-08 16:00:07] local.CRITICAL: System Health Critical {"status":"critical","timestamp":"2026-01-08 16:00:07","issues":["Disk usage critical: 97.27%"],"database":"connected","disk_usage_percent":97.27} 
+[2026-01-10 16:20:22] local.ERROR: ETimeOffice sync is enabled but missing: API URL, Corporate ID, Username, Password  
+[2026-01-20 15:25:33] local.ERROR: Command "test" is not defined.
 
 Did you mean one of these?
     backup:test-now
@@ -36,19 +27,105 @@ Did you mean one of these?
 #4 /Users/naveenadicharla/Documents/test/prodc-uvchm/artisan(13): Illuminate\\Foundation\\Application->handleCommand(Object(Symfony\\Component\\Console\\Input\\ArgvInput))
 #5 {main}
 "} 
-[2025-12-24 18:23:58] local.ERROR: The "--columns" option does not exist. {"exception":"[object] (Symfony\\Component\\Console\\Exception\\RuntimeException(code: 0): The \"--columns\" option does not exist. at /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Input/ArgvInput.php:226)
+[2026-01-28 17:15:10] local.ERROR: SQLSTATE[HY000] [2002] Operation not permitted (Connection: mysql, SQL: select exists (select 1 from information_schema.tables where table_schema = 'uvchm' and table_name = 'migrations' and table_type in ('BASE TABLE', 'SYSTEM VERSIONED')) as `exists`) {"exception":"[object] (Illuminate\\Database\\QueryException(code: 2002): SQLSTATE[HY000] [2002] Operation not permitted (Connection: mysql, SQL: select exists (select 1 from information_schema.tables where table_schema = 'uvchm' and table_name = 'migrations' and table_type in ('BASE TABLE', 'SYSTEM VERSIONED')) as `exists`) at /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Database/Connection.php:825)
 [stacktrace]
-#0 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Input/ArgvInput.php(153): Symfony\\Component\\Console\\Input\\ArgvInput->addLongOption('columns', 'name,uri,action')
-#1 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Input/ArgvInput.php(88): Symfony\\Component\\Console\\Input\\ArgvInput->parseLongOption('--columns=name,...')
-#2 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Input/ArgvInput.php(77): Symfony\\Component\\Console\\Input\\ArgvInput->parseToken('--columns=name,...', true)
-#3 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Input/Input.php(53): Symfony\\Component\\Console\\Input\\ArgvInput->parse()
-#4 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Command/Command.php(276): Symfony\\Component\\Console\\Input\\Input->bind(Object(Symfony\\Component\\Console\\Input\\InputDefinition))
-#5 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Console/Command.php(182): Symfony\\Component\\Console\\Command\\Command->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Illuminate\\Console\\OutputStyle))
-#6 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Application.php(1092): Illuminate\\Console\\Command->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
-#7 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Application.php(341): Symfony\\Component\\Console\\Application->doRunCommand(Object(Illuminate\\Foundation\\Console\\RouteListCommand), Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
-#8 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Application.php(192): Symfony\\Component\\Console\\Application->doRun(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
-#9 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(198): Symfony\\Component\\Console\\Application->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
-#10 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1235): Illuminate\\Foundation\\Console\\Kernel->handle(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
-#11 /Users/naveenadicharla/Documents/test/prodc-uvchm/artisan(13): Illuminate\\Foundation\\Application->handleCommand(Object(Symfony\\Component\\Console\\Input\\ArgvInput))
-#12 {main}
+#0 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Database/Connection.php(779): Illuminate\\Database\\Connection->runQueryCallback('select exists (...', Array, Object(Closure))
+#1 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Database/Connection.php(398): Illuminate\\Database\\Connection->run('select exists (...', Array, Object(Closure))
+#2 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Database/Connection.php(344): Illuminate\\Database\\Connection->select('select exists (...', Array, true)
+#3 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Database/Connection.php(361): Illuminate\\Database\\Connection->selectOne('select exists (...', Array, true)
+#4 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Database/Schema/MySqlBuilder.php(45): Illuminate\\Database\\Connection->scalar('select exists (...')
+#5 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Database/Migrations/DatabaseMigrationRepository.php(184): Illuminate\\Database\\Schema\\MySqlBuilder->hasTable('migrations')
+#6 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(742): Illuminate\\Database\\Migrations\\DatabaseMigrationRepository->repositoryExists()
+#7 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/MigrateCommand.php(165): Illuminate\\Database\\Migrations\\Migrator->repositoryExists()
+#8 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Support/helpers.php(338): Illuminate\\Database\\Console\\Migrations\\MigrateCommand->{closure:Illuminate\\Database\\Console\\Migrations\\MigrateCommand::repositoryExists():165}(1)
+#9 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/MigrateCommand.php(165): retry(1, Object(Closure), 0, Object(Closure))
+#10 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/MigrateCommand.php(141): Illuminate\\Database\\Console\\Migrations\\MigrateCommand->repositoryExists()
+#11 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/MigrateCommand.php(111): Illuminate\\Database\\Console\\Migrations\\MigrateCommand->prepareDatabase()
+#12 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(658): Illuminate\\Database\\Console\\Migrations\\MigrateCommand->{closure:Illuminate\\Database\\Console\\Migrations\\MigrateCommand::runMigrations():110}()
+#13 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/MigrateCommand.php(110): Illuminate\\Database\\Migrations\\Migrator->usingConnection(NULL, Object(Closure))
+#14 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/MigrateCommand.php(89): Illuminate\\Database\\Console\\Migrations\\MigrateCommand->runMigrations()
+#15 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(36): Illuminate\\Database\\Console\\Migrations\\MigrateCommand->handle()
+#16 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Container/Util.php(43): Illuminate\\Container\\BoundMethod::{closure:Illuminate\\Container\\BoundMethod::call():35}()
+#17 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(95): Illuminate\\Container\\Util::unwrapIfClosure(Object(Closure))
+#18 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(35): Illuminate\\Container\\BoundMethod::callBoundMethod(Object(Illuminate\\Foundation\\Application), Array, Object(Closure))
+#19 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Container/Container.php(696): Illuminate\\Container\\BoundMethod::call(Object(Illuminate\\Foundation\\Application), Array, Array, NULL)
+#20 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Console/Command.php(213): Illuminate\\Container\\Container->call(Array)
+#21 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Command/Command.php(318): Illuminate\\Console\\Command->execute(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Illuminate\\Console\\OutputStyle))
+#22 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Console/Command.php(182): Symfony\\Component\\Console\\Command\\Command->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Illuminate\\Console\\OutputStyle))
+#23 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Application.php(1092): Illuminate\\Console\\Command->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#24 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Application.php(341): Symfony\\Component\\Console\\Application->doRunCommand(Object(Illuminate\\Database\\Console\\Migrations\\MigrateCommand), Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#25 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Application.php(192): Symfony\\Component\\Console\\Application->doRun(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#26 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(198): Symfony\\Component\\Console\\Application->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#27 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1235): Illuminate\\Foundation\\Console\\Kernel->handle(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#28 /Users/naveenadicharla/Documents/test/prodc-uvchm/artisan(13): Illuminate\\Foundation\\Application->handleCommand(Object(Symfony\\Component\\Console\\Input\\ArgvInput))
+#29 {main}
+
+[previous exception] [object] (PDOException(code: 2002): SQLSTATE[HY000] [2002] Operation not permitted at /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Database/Connectors/Connector.php:67)
+[stacktrace]
+#0 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Database/Connectors/Connector.php(67): PDO::connect('mysql:host=127....', 'root', Object(SensitiveParameterValue), Array)
+#1 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Database/Connectors/Connector.php(44): Illuminate\\Database\\Connectors\\Connector->createPdoConnection('mysql:host=127....', 'root', Object(SensitiveParameterValue), Array)
+#2 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Database/Connectors/MySqlConnector.php(24): Illuminate\\Database\\Connectors\\Connector->createConnection('mysql:host=127....', Array, Array)
+#3 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Database/Connectors/ConnectionFactory.php(185): Illuminate\\Database\\Connectors\\MySqlConnector->connect(Array)
+#4 [internal function]: Illuminate\\Database\\Connectors\\ConnectionFactory->{closure:Illuminate\\Database\\Connectors\\ConnectionFactory::createPdoResolverWithHosts():180}()
+#5 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Database/Connection.php(1231): call_user_func(Object(Closure))
+#6 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Database/Connection.php(1267): Illuminate\\Database\\Connection->getPdo()
+#7 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Database/Connection.php(512): Illuminate\\Database\\Connection->getReadPdo()
+#8 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Database/Connection.php(407): Illuminate\\Database\\Connection->getPdoForSelect(true)
+#9 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Database/Connection.php(812): Illuminate\\Database\\Connection->{closure:Illuminate\\Database\\Connection::select():398}('select exists (...', Array)
+#10 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Database/Connection.php(779): Illuminate\\Database\\Connection->runQueryCallback('select exists (...', Array, Object(Closure))
+#11 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Database/Connection.php(398): Illuminate\\Database\\Connection->run('select exists (...', Array, Object(Closure))
+#12 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Database/Connection.php(344): Illuminate\\Database\\Connection->select('select exists (...', Array, true)
+#13 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Database/Connection.php(361): Illuminate\\Database\\Connection->selectOne('select exists (...', Array, true)
+#14 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Database/Schema/MySqlBuilder.php(45): Illuminate\\Database\\Connection->scalar('select exists (...')
+#15 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Database/Migrations/DatabaseMigrationRepository.php(184): Illuminate\\Database\\Schema\\MySqlBuilder->hasTable('migrations')
+#16 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(742): Illuminate\\Database\\Migrations\\DatabaseMigrationRepository->repositoryExists()
+#17 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/MigrateCommand.php(165): Illuminate\\Database\\Migrations\\Migrator->repositoryExists()
+#18 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Support/helpers.php(338): Illuminate\\Database\\Console\\Migrations\\MigrateCommand->{closure:Illuminate\\Database\\Console\\Migrations\\MigrateCommand::repositoryExists():165}(1)
+#19 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/MigrateCommand.php(165): retry(1, Object(Closure), 0, Object(Closure))
+#20 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/MigrateCommand.php(141): Illuminate\\Database\\Console\\Migrations\\MigrateCommand->repositoryExists()
+#21 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/MigrateCommand.php(111): Illuminate\\Database\\Console\\Migrations\\MigrateCommand->prepareDatabase()
+#22 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Database/Migrations/Migrator.php(658): Illuminate\\Database\\Console\\Migrations\\MigrateCommand->{closure:Illuminate\\Database\\Console\\Migrations\\MigrateCommand::runMigrations():110}()
+#23 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/MigrateCommand.php(110): Illuminate\\Database\\Migrations\\Migrator->usingConnection(NULL, Object(Closure))
+#24 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Database/Console/Migrations/MigrateCommand.php(89): Illuminate\\Database\\Console\\Migrations\\MigrateCommand->runMigrations()
+#25 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(36): Illuminate\\Database\\Console\\Migrations\\MigrateCommand->handle()
+#26 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Container/Util.php(43): Illuminate\\Container\\BoundMethod::{closure:Illuminate\\Container\\BoundMethod::call():35}()
+#27 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(95): Illuminate\\Container\\Util::unwrapIfClosure(Object(Closure))
+#28 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(35): Illuminate\\Container\\BoundMethod::callBoundMethod(Object(Illuminate\\Foundation\\Application), Array, Object(Closure))
+#29 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Container/Container.php(696): Illuminate\\Container\\BoundMethod::call(Object(Illuminate\\Foundation\\Application), Array, Array, NULL)
+#30 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Console/Command.php(213): Illuminate\\Container\\Container->call(Array)
+#31 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Command/Command.php(318): Illuminate\\Console\\Command->execute(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Illuminate\\Console\\OutputStyle))
+#32 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Console/Command.php(182): Symfony\\Component\\Console\\Command\\Command->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Illuminate\\Console\\OutputStyle))
+#33 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Application.php(1092): Illuminate\\Console\\Command->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#34 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Application.php(341): Symfony\\Component\\Console\\Application->doRunCommand(Object(Illuminate\\Database\\Console\\Migrations\\MigrateCommand), Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#35 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Application.php(192): Symfony\\Component\\Console\\Application->doRun(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#36 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(198): Symfony\\Component\\Console\\Application->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#37 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1235): Illuminate\\Foundation\\Console\\Kernel->handle(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#38 /Users/naveenadicharla/Documents/test/prodc-uvchm/artisan(13): Illuminate\\Foundation\\Application->handleCommand(Object(Symfony\\Component\\Console\\Input\\ArgvInput))
+#39 {main}
+"} 
+[2026-01-28 17:16:04] local.ERROR: Writing to /Users/naveenadicharla/.config/psysh/psysh_history is not allowed. {"exception":"[object] (ErrorException(code: 0): Writing to /Users/naveenadicharla/.config/psysh/psysh_history is not allowed. at /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/psy/psysh/src/ConfigPaths.php:355)
+[stacktrace]
+#0 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Foundation/Bootstrap/HandleExceptions.php(256): Illuminate\\Foundation\\Bootstrap\\HandleExceptions->handleError(1024, 'Writing to /Use...', '/Users/naveenad...', 355)
+#1 [internal function]: Illuminate\\Foundation\\Bootstrap\\HandleExceptions->{closure:Illuminate\\Foundation\\Bootstrap\\HandleExceptions::forwardsTo():255}(1024, 'Writing to /Use...', '/Users/naveenad...', 355)
+#2 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/psy/psysh/src/ConfigPaths.php(355): trigger_error('Writing to /Use...', 1024)
+#3 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/psy/psysh/src/Configuration.php(652): Psy\\ConfigPaths::touchFileWithMkdir('/Users/naveenad...')
+#4 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/psy/psysh/src/Configuration.php(675): Psy\\Configuration->setHistoryFile('/Users/naveenad...')
+#5 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/psy/psysh/src/Configuration.php(820): Psy\\Configuration->getHistoryFile()
+#6 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/psy/psysh/src/Shell.php(92): Psy\\Configuration->getReadline()
+#7 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/tinker/src/Console/TinkerCommand.php(59): Psy\\Shell->__construct(Object(Psy\\Configuration))
+#8 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(36): Laravel\\Tinker\\Console\\TinkerCommand->handle()
+#9 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Container/Util.php(43): Illuminate\\Container\\BoundMethod::{closure:Illuminate\\Container\\BoundMethod::call():35}()
+#10 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(95): Illuminate\\Container\\Util::unwrapIfClosure(Object(Closure))
+#11 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(35): Illuminate\\Container\\BoundMethod::callBoundMethod(Object(Illuminate\\Foundation\\Application), Array, Object(Closure))
+#12 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Container/Container.php(696): Illuminate\\Container\\BoundMethod::call(Object(Illuminate\\Foundation\\Application), Array, Array, NULL)
+#13 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Console/Command.php(213): Illuminate\\Container\\Container->call(Array)
+#14 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Command/Command.php(318): Illuminate\\Console\\Command->execute(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Illuminate\\Console\\OutputStyle))
+#15 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Console/Command.php(182): Symfony\\Component\\Console\\Command\\Command->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Illuminate\\Console\\OutputStyle))
+#16 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Application.php(1092): Illuminate\\Console\\Command->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#17 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Application.php(341): Symfony\\Component\\Console\\Application->doRunCommand(Object(Laravel\\Tinker\\Console\\TinkerCommand), Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#18 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Application.php(192): Symfony\\Component\\Console\\Application->doRun(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#19 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(198): Symfony\\Component\\Console\\Application->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#20 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1235): Illuminate\\Foundation\\Console\\Kernel->handle(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#21 /Users/naveenadicharla/Documents/test/prodc-uvchm/artisan(13): Illuminate\\Foundation\\Application->handleCommand(Object(Symfony\\Component\\Console\\Input\\ArgvInput))
+#22 {main}
 "} 

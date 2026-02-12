@@ -14,27 +14,25 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
 
 class AttendanceExport implements FromArray, WithHeadings, WithStyles, WithTitle, WithMultipleSheets
 {
-    protected $student;
     protected $exportData;
-
-    public function __construct($student, array $exportData)
+    
+    public function __construct(array $exportData)
     {
-        $this->student = $student;
         $this->exportData = $exportData;
     }
 
     public function sheets(): array
     {
         $sheets = [];
-
+        
         // Main attendance data sheet
         $sheets[] = new AttendanceDataSheet($this->exportData['data']);
-
+        
         // Summary sheet if requested
         if ($this->exportData['include_summary'] ?? false) {
             $sheets[] = new AttendanceSummarySheet($this->exportData);
         }
-
+        
         return $sheets;
     }
 
@@ -102,7 +100,7 @@ class AttendanceExport implements FromArray, WithHeadings, WithStyles, WithTitle
 class AttendanceDataSheet implements FromArray, WithHeadings, WithStyles, WithTitle
 {
     protected $data;
-
+    
     public function __construct(array $data)
     {
         $this->data = $data;
@@ -155,7 +153,7 @@ class AttendanceDataSheet implements FromArray, WithHeadings, WithStyles, WithTi
         // Data rows styling
         if (count($this->data) > 0) {
             $lastRow = count($this->data) + 1;
-
+            
             // Alternate row colors
             for ($i = 2; $i <= $lastRow; $i++) {
                 if ($i % 2 == 0) {
@@ -167,12 +165,12 @@ class AttendanceDataSheet implements FromArray, WithHeadings, WithStyles, WithTi
                     ]);
                 }
             }
-
+            
             // Status column conditional formatting
             for ($i = 2; $i <= $lastRow; $i++) {
                 $status = $sheet->getCell("F{$i}")->getValue();
                 $color = '';
-
+                
                 switch (strtolower($status)) {
                     case 'present':
                         $color = 'C6EFCE'; // Light green
@@ -184,7 +182,7 @@ class AttendanceDataSheet implements FromArray, WithHeadings, WithStyles, WithTi
                         $color = 'FFC7CE'; // Light red
                         break;
                 }
-
+                
                 if ($color) {
                     $sheet->getStyle("F{$i}")->applyFromArray([
                         'fill' => [
@@ -194,7 +192,7 @@ class AttendanceDataSheet implements FromArray, WithHeadings, WithStyles, WithTi
                     ]);
                 }
             }
-
+            
             // All borders
             $sheet->getStyle("A1:J{$lastRow}")->applyFromArray([
                 'borders' => [
@@ -218,7 +216,7 @@ class AttendanceDataSheet implements FromArray, WithHeadings, WithStyles, WithTi
 class AttendanceSummarySheet implements FromArray, WithHeadings, WithStyles, WithTitle
 {
     protected $exportData;
-
+    
     public function __construct(array $exportData)
     {
         $this->exportData = $exportData;
@@ -228,21 +226,21 @@ class AttendanceSummarySheet implements FromArray, WithHeadings, WithStyles, Wit
     {
         $data = $this->exportData['data'] ?? [];
         $dateRange = $this->exportData['date_range'] ?? null;
-
+        
         // Calculate summary statistics
         $totalRecords = count($data);
         $presentCount = collect($data)->where('status', 'Present')->count();
         $absentCount = collect($data)->where('status', 'Absent')->count();
         $lateCount = collect($data)->where('status', 'Late')->count();
-
+        
         $presentPercentage = $totalRecords > 0 ? round(($presentCount / $totalRecords) * 100, 2) : 0;
         $absentPercentage = $totalRecords > 0 ? round(($absentCount / $totalRecords) * 100, 2) : 0;
         $latePercentage = $totalRecords > 0 ? round(($lateCount / $totalRecords) * 100, 2) : 0;
-
+        
         // Get unique students and dates
         $uniqueStudents = collect($data)->pluck('enrollment_number')->unique()->count();
         $uniqueDates = collect($data)->pluck('date')->unique()->count();
-
+        
         $summary = [
             ['Metric', 'Value', 'Percentage'],
             ['', '', ''], // Empty row
@@ -261,31 +259,31 @@ class AttendanceSummarySheet implements FromArray, WithHeadings, WithStyles, Wit
             ['Unique Dates', $uniqueDates, ''],
             ['Average Attendance Rate', $presentPercentage + $latePercentage . '%', ''],
         ];
-
+        
         // Add batch-wise breakdown if available
         $batchStats = collect($data)->groupBy('batch_name')->map(function ($records, $batch) {
             $total = $records->count();
             $present = $records->where('status', 'Present')->count();
             $late = $records->where('status', 'Late')->count();
             $attendanceRate = $total > 0 ? round((($present + $late) / $total) * 100, 2) : 0;
-
+            
             return [
                 'batch' => $batch,
                 'total' => $total,
                 'attendance_rate' => $attendanceRate
             ];
         });
-
+        
         if ($batchStats->isNotEmpty()) {
             $summary[] = ['', '', ''];
             $summary[] = ['Batch-wise Statistics', '', ''];
             $summary[] = ['Batch Name', 'Total Records', 'Attendance Rate'];
-
+            
             foreach ($batchStats as $stat) {
                 $summary[] = [$stat['batch'], $stat['total'], $stat['attendance_rate'] . '%'];
             }
         }
-
+        
         return $summary;
     }
 

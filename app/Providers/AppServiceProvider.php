@@ -123,13 +123,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Prevent lazy loading in development to catch N+1 queries
-        // This is a critical performance and stability check
-        \Illuminate\Database\Eloquent\Model::preventLazyLoading(!app()->isProduction());
-
-        // Enforce strict model guarding by default (standard Laravel behavior but explicit is better)
-        \Illuminate\Database\Eloquent\Model::unguard(false);
-
         // Set default string length for older MySQL versions
         Schema::defaultStringLength(191);
 
@@ -157,6 +150,7 @@ class AppServiceProvider extends ServiceProvider
         // Share global data with views
         $this->shareGlobalViewData();
 
+        // Disable ONLY_FULL_GROUP_BY for this application
         // Disable ONLY_FULL_GROUP_BY for this application
         try {
             if (config('database.default') === 'mysql') {

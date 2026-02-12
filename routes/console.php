@@ -169,12 +169,6 @@ ensureDirectoriesExist();
 
 
 
-
-
-
-
-
-
 // Urgent payment reminders (twice daily)
 Schedule::command('payments:enhanced-reminders', ['--fee-type=urgent'])
     ->twiceDaily(10, 16)
@@ -197,10 +191,9 @@ Schedule::command('payments:enhanced-reminders', ['--fee-type=urgent'])
 |--------------------------------------------------------------------------
 */
 Schedule::command('attendance:send-daily-absent-webhook')
-    ->everyThreeHours() // Checks every 3 hours
-    ->days([1, 2, 3, 4, 5, 6]) // Working days (Mon-Sat)
-    ->between('09:00', '18:00') // Working hours
+    ->everyThirtyMinutes()
     ->withoutOverlapping()
+    ->runInBackground()
     ->before(function () {
         logSchedulerActivity('attendance:send-daily-absent-webhook', 'Daily Absent Webhook Check', 'STARTING');
     })
@@ -211,6 +204,7 @@ Schedule::command('attendance:send-daily-absent-webhook')
         logSchedulerActivity('attendance:send-daily-absent-webhook', 'Daily Absent Webhook Check', 'FAILED');
     })
     ->appendOutputTo(storage_path('logs/attendance-webhook.log'));
+
 
 // Tuition fee reminders (high priority)
 
@@ -1070,7 +1064,7 @@ Schedule::call(function () {
 
 // ETimeOffice Auto-Sync (using the correct command)
 Schedule::command('etimeoffice:auto-sync', ['--range=today'])
-    ->everyThreeHours()
+    ->everyMinute()
     ->days([1, 2, 3, 4, 5, 6])
     ->between('09:00', '18:00')
     ->name('etimeoffice-auto-sync')

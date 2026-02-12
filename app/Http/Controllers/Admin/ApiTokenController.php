@@ -17,10 +17,10 @@ class ApiTokenController extends Controller
     {
         // Get all users with admin, staff, or college-admin roles
         $roleNames = ['admin', 'staff', 'college-admin', 'super-admin', 'accountant'];
-
+        
         // Check if roles exist first to avoid errors
         $existingRoles = Role::whereIn('name', $roleNames)->pluck('name')->toArray();
-
+        
         if (empty($existingRoles)) {
             // If no roles exist, show empty collection
             $users = collect();
@@ -47,26 +47,26 @@ class ApiTokenController extends Controller
         ]);
 
         $user = User::findOrFail($request->user_id);
-
+        
         // Check if user has appropriate role
         if (!$user->hasAnyRole(['admin', 'staff', 'college-admin', 'super-admin', 'accountant'])) {
             return redirect()->back()
-                ->withErrors(['user_id' => 'Selected user does not have permission to create API tokens.']);
+                           ->withErrors(['user_id' => 'Selected user does not have permission to create API tokens.']);
         }
 
         // Create token with abilities and expiration
         $abilities = $request->abilities ?? ['*']; // Default to all abilities
         $token = $user->createToken(
-            $request->token_name,
-            $abilities,
+            $request->token_name, 
+            $abilities, 
             $request->expires_at ? now()->parse($request->expires_at) : null
         );
 
         // Flash the plain text token to session (only shown once for security)
         return redirect()->route('admin.api-tokens.index')
-            ->with('success', 'New API token generated successfully!')
-            ->with('token', $token->plainTextToken)
-            ->with('token_name', $request->token_name);
+                         ->with('success', 'New API token generated successfully!')
+                         ->with('token', $token->plainTextToken)
+                         ->with('token_name', $request->token_name);
     }
 
     /**
@@ -77,7 +77,7 @@ class ApiTokenController extends Controller
         // Get users who can have API tokens
         $roleNames = ['admin', 'staff', 'college-admin', 'super-admin', 'accountant'];
         $existingRoles = Role::whereIn('name', $roleNames)->pluck('name')->toArray();
-
+        
         if (empty($existingRoles)) {
             $users = collect();
         } else {
@@ -112,7 +112,7 @@ class ApiTokenController extends Controller
     public function edit(PersonalAccessToken $token)
     {
         $token->load('tokenable');
-
+        
         $availableAbilities = [
             '*' => 'All permissions',
             'read' => 'Read access only',
@@ -143,7 +143,7 @@ class ApiTokenController extends Controller
         ]);
 
         return redirect()->route('admin.api-tokens.index')
-            ->with('success', 'API token updated successfully.');
+                         ->with('success', 'API token updated successfully.');
     }
 
     /**
@@ -155,14 +155,14 @@ class ApiTokenController extends Controller
             $token = PersonalAccessToken::findOrFail($tokenId);
             $tokenName = $token->name;
             $userName = $token->tokenable->name ?? 'Unknown User';
-
+            
             $token->delete();
 
             return redirect()->route('admin.api-tokens.index')
-                ->with('success', "API token '{$tokenName}' for {$userName} has been revoked successfully.");
+                             ->with('success', "API token '{$tokenName}' for {$userName} has been revoked successfully.");
         } catch (\Exception $e) {
             return redirect()->route('admin.api-tokens.index')
-                ->with('error', 'Failed to revoke API token. Please try again.');
+                             ->with('error', 'Failed to revoke API token. Please try again.');
         }
     }
 
@@ -175,58 +175,17 @@ class ApiTokenController extends Controller
         $user->tokens()->delete();
 
         return redirect()->route('admin.api-tokens.index')
-            ->with('success', "All {$tokenCount} API tokens for {$user->name} have been revoked.");
+                         ->with('success', "All {$tokenCount} API tokens for {$user->name} have been revoked.");
     }
 
     /**
-     * Export API tokens to CSV.
+     * Get token usage statistics.
      */
-    public function export()
-    {
-        $tokens = PersonalAccessToken::with('tokenable')->latest()->get();
-
-        $filename = 'api-tokens-' . date('Y-m-d') . '.csv';
-
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => "attachment; filename=\"$filename\"",
-            'Pragma' => 'no-cache',
-            'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
-            'Expires' => '0',
-        ];
-
-        $callback = function () use ($tokens) {
-            $file = fopen('php://output', 'w');
-
-            // Add BOM for Excel compatibility
-            fputs($file, "\xEF\xBB\xBF");
-
-            // Header row
-            fputcsv($file, ['ID', 'Token Name', 'User', 'User Email', 'Abilities', 'Last Used', 'Created At', 'Expires At', 'Status']);
-
-            foreach ($tokens as $token) {
-                // Determine status
-                $isExpired = $token->expires_at && $token->expires_at->isPast();
-                $status = $isExpired ? 'Expired' : 'Active';
-
-                fputcsv($file, [
-                    $token->id,
-                    $token->name,
-                    $token->tokenable->name ?? 'Unknown',
-                    $token->tokenable->email ?? 'Unknown',
-                    implode(', ', $token->abilities ?? []),
-                    $token->last_used_at ? $token->last_used_at->format('Y-m-d H:i:s') : 'Never',
-                    $token->created_at->format('Y-m-d H:i:s'),
-                    $token->expires_at ? $token->expires_at->format('Y-m-d H:i:s') : 'Never',
-                    $status
-                ]);
-            }
-
-            fclose($file);
-        };
-
-        return response()->stream($callback, 200, $headers);
-    }
+public function usage($tokenId)
+{
+    $token = \Laravel\Sanctum\PersonalAccessToken::findOrFail($tokenId);
+    return response()->json(['token' => $token->name, 'usage' => 'stats here']);
+}
 
     /**
      * Clean up expired tokens.
@@ -237,7 +196,7 @@ class ApiTokenController extends Controller
         PersonalAccessToken::where('expires_at', '<', now())->delete();
 
         return redirect()->route('admin.api-tokens.index')
-            ->with('success', "Cleaned up {$expiredCount} expired API tokens.");
+                         ->with('success', "Cleaned up {$expiredCount} expired API tokens.");
     }
 
     /**
@@ -257,9 +216,9 @@ class ApiTokenController extends Controller
         $newToken = $user->createToken($name, $abilities, $expiresAt);
 
         return redirect()->route('admin.api-tokens.index')
-            ->with('success', 'API token regenerated successfully!')
-            ->with('token', $newToken->plainTextToken)
-            ->with('token_name', $name);
+                         ->with('success', 'API token regenerated successfully!')
+                         ->with('token', $newToken->plainTextToken)
+                         ->with('token_name', $name);
     }
 
     /**
@@ -287,7 +246,7 @@ class ApiTokenController extends Controller
         }
 
         return redirect()->route('admin.api-tokens.index')
-            ->with('success', $message);
+                         ->with('success', $message);
     }
 
     /**
@@ -296,7 +255,7 @@ class ApiTokenController extends Controller
     public function test(PersonalAccessToken $token)
     {
         $isValid = !$token->expires_at || $token->expires_at->isFuture();
-
+        
         $testResults = [
             'token_name' => $token->name,
             'user' => $token->tokenable->name,

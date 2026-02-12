@@ -41,7 +41,10 @@
                             @forelse($requests as $req)
                                 <tr>
                                     <td>
-                                        <div class="font-weight-bold">{{ $req->student_name }}</div>
+                                        <a href="{{ route('admin.students.show', $req->student_id) }}" 
+                                           class="text-primary hover:underline">
+                                            <div class="font-weight-bold">{{ $req->student_name }}</div>
+                                        </a>
                                         <div class="small text-muted">{{ $req->enrollment_number }}</div>
                                     </td>
                                     <td>
@@ -69,6 +72,17 @@
                                                     @endif
                                                 </div>
                                             </div>
+                                        @elseif($req->field_group == 'personal')
+                                            <div class="small text-muted mb-1">Mobile Number Update:</div>
+                                            <div class="p-2 bg-light rounded">
+                                                <strong>{{ ucfirst($data['type'] ?? 'Unknown') }}:</strong> 
+                                                {{ $data['mobile'] ?? 'N/A' }}
+                                            </div>
+                                        @elseif($req->field_group == 'dob')
+                                            <div class="small text-muted mb-1">Date of Birth:</div>
+                                            <div class="p-2 bg-light rounded">
+                                                {{ isset($data['dob']) ? \Carbon\Carbon::parse($data['dob'])->format('d M, Y') : 'N/A' }}
+                                            </div>
                                         @endif
                                     </td>
                                     <td>
@@ -78,6 +92,11 @@
                                             <span class="badge badge-success">Approved</span>
                                             <div class="small text-muted">
                                                 {{ \Carbon\Carbon::parse($req->processed_at)->format('d M Y') }}</div>
+                                            @if($req->approved_by_name)
+                                                <div class="small text-muted">
+                                                    <i class="fas fa-user-check"></i> {{ $req->approved_by_name }}
+                                                </div>
+                                            @endif
                                         @else
                                             <span class="badge badge-danger">Rejected</span>
                                             <div class="small text-muted">{{ $req->admin_comment }}</div>
@@ -100,39 +119,6 @@
                                                 data-target="#rejectModal-{{ $req->id }}">
                                                 <i class="fas fa-times"></i> Reject
                                             </button>
-
-                                            <!-- Reject Modal -->
-                                            <div class="modal fade" id="rejectModal-{{ $req->id }}" tabindex="-1" role="dialog"
-                                                aria-hidden="true">
-                                                <div class="modal-dialog" role="document">
-                                                    <div class="modal-content">
-                                                        <form action="{{ route('admin.student-requests.action', $req->id) }}"
-                                                            method="POST">
-                                                            @csrf
-                                                            <input type="hidden" name="action" value="reject">
-                                                            <div class="modal-header">
-                                                                <h5 class="modal-title">Reject Request</h5>
-                                                                <button type="button" class="close" data-dismiss="modal"
-                                                                    aria-label="Close">
-                                                                    <span aria-hidden="true">&times;</span>
-                                                                </button>
-                                                            </div>
-                                                            <div class="modal-body">
-                                                                <div class="form-group">
-                                                                    <label>Reason for Rejection</label>
-                                                                    <textarea name="comment" class="form-control"
-                                                                        required></textarea>
-                                                                </div>
-                                                            </div>
-                                                            <div class="modal-footer">
-                                                                <button type="button" class="btn btn-secondary"
-                                                                    data-dismiss="modal">Cancel</button>
-                                                                <button type="submit" class="btn btn-danger">Reject Request</button>
-                                                            </div>
-                                                        </form>
-                                                    </div>
-                                                </div>
-                                            </div>
                                         </td>
                                     @endif
                                 </tr>
@@ -151,4 +137,37 @@
             </div>
         </div>
     </div>
+
+    <!-- Reject Modals (Outside table for better compatibility) -->
+    @if($status == 'pending')
+        @foreach($requests as $req)
+            <div class="modal fade" id="rejectModal-{{ $req->id }}" tabindex="-1" role="dialog"
+                aria-hidden="true" style="z-index: 1060;">
+                <div class="modal-dialog modal-dialog-centered" role="document">
+                    <div class="modal-content">
+                        <form action="{{ route('admin.student-requests.action', $req->id) }}" method="POST">
+                            @csrf
+                            <input type="hidden" name="action" value="reject">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Reject Request</h5>
+                                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                    <span aria-hidden="true">&times;</span>
+                                </button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="form-group mb-0">
+                                    <label class="font-weight-bold">Reason for Rejection</label>
+                                    <textarea name="comment" class="form-control" rows="3" placeholder="Explain why this request is being rejected..." required></textarea>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-danger">Reject Request</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        @endforeach
+    @endif
 @endsection

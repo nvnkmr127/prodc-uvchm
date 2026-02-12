@@ -5,7 +5,9 @@
         </td>
         <td>
             <div class="student-info">
-                <img class="student-avatar" src="{{ $student->small_photo }}" alt="{{ $student->name }}" loading="lazy">
+                <img class="student-avatar"
+                    src="{{ \App\Http\Controllers\Admin\StudentController::getStudentPhotoUrl($student, 50) }}"
+                    alt="{{ $student->name }}" loading="lazy">
                 <div class="student-details">
                     <h6>
                         <a href="{{ route('admin.students.show', $student) }}">
@@ -33,7 +35,7 @@
                         </span>
                         @if($student->batch->internship_start_date)
                             <small class="text-muted d-block">
-                                Since: {{ $student->batch->internship_start_date->format('M Y') }}
+                                Since: {{ \Carbon\Carbon::parse($student->batch->internship_start_date)->format('M Y') }}
                             </small>
                         @endif
                     </div>
@@ -77,25 +79,23 @@
                     title="View Profile">
                     <i class="fas fa-eye"></i>
                 </a>
-                @can('manage students')
-                    <a href="{{ route('admin.students.edit', $student) }}" class="btn btn-warning btn-table-action"
-                        title="Edit Student">
-                        <i class="fas fa-edit"></i>
-                    </a>
+                <a href="{{ route('admin.students.edit', $student) }}" class="btn btn-warning btn-table-action"
+                    title="Edit Student">
+                    <i class="fas fa-edit"></i>
+                </a>
 
-                    {{-- DROPOUT MANAGEMENT BUTTONS --}}
-                    @if($student->status === 'active')
-                        <a href="{{ route('admin.students.confirm-dropout', $student) }}" class="btn btn-warning btn-table-action"
-                            title="Mark as Dropout">
-                            <i class="fas fa-user-times"></i>
-                        </a>
-                    @elseif($student->status === 'dropout')
-                        <button class="btn btn-success btn-table-action reactivate-student-btn" data-student-id="{{ $student->id }}"
-                            data-student-name="{{ $student->name }}" title="Reactivate Student">
-                            <i class="fas fa-user-check"></i>
-                        </button>
-                    @endif
-                @endcan
+                {{-- DROPOUT MANAGEMENT BUTTONS --}}
+                @if($student->status === 'active')
+                    <a href="{{ route('admin.students.confirm-dropout', $student) }}" class="btn btn-warning btn-table-action"
+                        title="Mark as Dropout">
+                        <i class="fas fa-user-times"></i>
+                    </a>
+                @elseif($student->status === 'dropout')
+                    <button class="btn btn-success btn-table-action reactivate-student-btn" data-student-id="{{ $student->id }}"
+                        data-student-name="{{ $student->name }}" title="Reactivate Student">
+                        <i class="fas fa-user-check"></i>
+                    </button>
+                @endif
 
                 @if(auth()->user()->hasRole('super-admin'))
                     <button class="btn btn-table-action btn-danger delete-student-btn" data-student-id="{{ $student->id }}"
