@@ -504,96 +504,8 @@ class WebhookController extends Controller
             $eventInfo = ['name' => 'Test Event'];
         }
 
-        // Check if this is a daily summary webhook and send appropriate test payload
-        if ($webhook->event_name === 'daily.summary') {
-            $payload = [
-                'date' => now()->format('Y-m-d'),
-                'report_day' => now()->format('l'),
-                'report_generated_at' => now()->toISOString(),
-                'payments' => [
-                    'total_amount' => 1200.50,
-                    'total_payers' => 8
-                ],
-                'attendance' => [
-                    'present' => 45,
-                    'absent' => 5,
-                    'total_students' => 50,
-                    'attendance_percentage' => 90.0
-                ]
-            ];
-        } elseif ($webhook->event_name === 'attendance.daily_absent') {
-            $payload = [
-                'event' => 'attendance.daily_absent',
-                'event_id' => 'evt_' . uniqid(),
-                'created_at' => now()->toIso8601String(),
-                'app_name' => config('app.name'),
-                'data' => [
-                    'date' => now()->toDateString(),
-                    'absent_count' => 3,
-                    'total_students' => 150,
-                    'students' => [
-                        [
-                            'id' => 101,
-                            'name' => 'John Doe',
-                            'enrollment_number' => 'STD-2024-001',
-                            'batch' => 'Class X-A',
-                            'parent_phone' => '9876543210'
-                        ],
-                        [
-                            'id' => 105,
-                            'name' => 'Jane Smith',
-                            'enrollment_number' => 'STD-2024-005',
-                            'batch' => 'Class X-B',
-                            'parent_phone' => '9123456780'
-                        ],
-                        [
-                            'id' => 112,
-                            'name' => 'Robert Johnson',
-                            'enrollment_number' => 'STD-2024-012',
-                            'batch' => 'Class X-A',
-                            'parent_phone' => '9988776655'
-                        ]
-                    ]
-                ]
-            ];
-        } else {
-            // Standard test payload for other events
-            $payload = [
-                'event' => 'payment.created',
-                'event_id' => 'evt_' . uniqid(),
-                'created_at' => now()->toIso8601String(),
-                'app_name' => config('app.name'),
-                'data' => [
-                    'message' => 'This is a test webhook for a component-based payment.',
-                    'webhook_id' => $webhook->id,
-                    'payment' => [
-                        'id' => rand(1000, 9999),
-                        'amount' => 5000.00,
-                        'formatted_amount' => '₹5,000.00',
-                        'payment_method' => 'online',
-                        'payment_date' => now()->toDateString(),
-                        'receipt_number' => 'RCP-2025-' . rand(100, 999),
-                        'status' => 'completed',
-                        'payment_type' => 'component'
-                    ],
-                    'student' => [
-                        'id' => rand(1, 100),
-                        'name' => 'Test Student',
-                        'enrollment_number' => 'TEST-001'
-                    ],
-                    'components_paid' => [
-                        [
-                            'category_name' => 'Tuition Fee',
-                            'amount_paid' => 4500.00
-                        ],
-                        [
-                            'category_name' => 'Library Fee',
-                            'amount_paid' => 500.00
-                        ]
-                    ]
-                ]
-            ];
-        }
+        // Generate dynamic payload based on event name
+        $payload = $this->generateTestPayload($webhook);
 
         $startTime = microtime(true);
 
@@ -916,6 +828,136 @@ class WebhookController extends Controller
     /**
      * Health check for all webhooks
      */
+    /**
+     * Generate a realistic test payload based on the event name
+     */
+    private function generateTestPayload(Webhook $webhook): array
+    {
+        $eventName = $webhook->event_name;
+        $basePayload = [
+            'event' => $eventName,
+            'event_id' => 'evt_' . Str::random(12),
+            'webhook_id' => $webhook->id,
+            'created_at' => now()->toISOString(),
+            'app_name' => config('app.name'),
+        ];
+
+        $data = [];
+
+        // Determine specific data based on event type
+        if (Str::startsWith($eventName, 'payment.')) {
+            $data = [
+                'payment' => [
+                    'id' => rand(1000, 9999),
+                    'amount' => 5000.00,
+                    'formatted_amount' => '₹5,000.00',
+                    'payment_method' => 'online',
+                    'payment_date' => now()->toDateString(),
+                    'receipt_number' => 'RCP-2025-' . rand(100, 999),
+                    'status' => 'completed',
+                ],
+                'student' => [
+                    'id' => rand(1, 100),
+                    'name' => 'John Doe',
+                    'enrollment_number' => 'STD-2024-001'
+                ]
+            ];
+        } elseif (Str::startsWith($eventName, 'student.')) {
+            if ($eventName === 'student.birthday') {
+                $data = [
+                    'student' => [
+                        'id' => rand(1, 100),
+                        'name' => 'Jane Smith',
+                        'birthday' => now()->toDateString(),
+                        'age' => 15,
+                        'enrollment_number' => 'STD-2024-045'
+                    ]
+                ];
+            } else {
+                $data = [
+                    'student' => [
+                        'id' => rand(1, 100),
+                        'name' => 'John Doe',
+                        'email' => 'john.doe@example.com',
+                        'phone' => '9876543210',
+                        'enrollment_number' => 'STD-2024-001',
+                        'status' => 'active'
+                    ]
+                ];
+            }
+        } elseif (Str::startsWith($eventName, 'enquiry.')) {
+            $data = [
+                'enquiry' => [
+                    'id' => rand(100, 999),
+                    'name' => 'Prospective Student',
+                    'email' => 'prospect@example.com',
+                    'phone' => '9123456780',
+                    'course' => 'Full Stack Development',
+                    'message' => 'I am interested in learning more about your web development program.'
+                ]
+            ];
+        } elseif ($eventName === 'daily.summary') {
+            return array_merge($basePayload, [
+                'date' => now()->format('Y-m-d'),
+                'report_day' => now()->format('l'),
+                'report_generated_at' => now()->toISOString(),
+                'summary' => [
+                    'payments' => [
+                        'total_amount' => 125000.75,
+                        'payment_count' => 12,
+                        'method_distribution' => [
+                            'Cash' => 45000.00,
+                            'Online' => 80000.75
+                        ]
+                    ],
+                    'attendance' => [
+                        'present' => 142,
+                        'absent' => 8,
+                        'total_students' => 150,
+                        'percentage' => 94.6
+                    ],
+                    'enquiries' => [
+                        'new_count' => 5,
+                        'follow_ups' => 12
+                    ]
+                ]
+            ]);
+        } elseif ($eventName === 'attendance.daily_absent') {
+            return array_merge($basePayload, [
+                'date' => now()->toDateString(),
+                'absent_count' => 2,
+                'students' => [
+                    [
+                        'id' => 101,
+                        'name' => 'Alice Brown',
+                        'batch' => 'Evening Batch A',
+                        'parent_phone' => '9887766554'
+                    ],
+                    [
+                        'id' => 108,
+                        'name' => 'Bob White',
+                        'batch' => 'Evening Batch A',
+                        'parent_phone' => '9776655443'
+                    ]
+                ]
+            ]);
+        } else {
+            // Generic sample data for other eloquent events (created/updated/deleted)
+            $modelName = ucfirst(explode('.', $eventName)[0] ?? 'Resource');
+            $data = [
+                'model' => $modelName,
+                'id' => rand(1, 1000),
+                'action' => explode('.', $eventName)[1] ?? 'updated',
+                'attributes' => [
+                    'status' => 'active',
+                    'updated_at' => now()->toISOString()
+                ]
+            ];
+        }
+
+        return array_merge($basePayload, ['data' => $data]);
+    }
+
     public function healthCheck()
     {
         $webhooks = Webhook::where('is_active', true)->get();
