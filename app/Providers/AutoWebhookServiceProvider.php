@@ -3,7 +3,7 @@
 // App/Providers/AutoWebhookServiceProvider.php
 namespace App\Providers;
 
-use App\Services\EventDiscoveryService;
+use App\Services\WebhookEventDiscoveryService;
 use App\Listeners\UniversalWebhookListener;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Event;
@@ -17,7 +17,7 @@ class AutoWebhookServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->app->singleton(EventDiscoveryService::class);
+        $this->app->singleton(WebhookEventDiscoveryService::class);
     }
 
     /**
@@ -27,7 +27,7 @@ class AutoWebhookServiceProvider extends ServiceProvider
     {
         // Auto-register webhook listeners for all events
         $this->autoRegisterWebhookListeners();
-        
+
         // Register console commands
         if ($this->app->runningInConsole()) {
             $this->commands([
@@ -40,27 +40,27 @@ class AutoWebhookServiceProvider extends ServiceProvider
     /**
      * Automatically register webhook listeners for all events
      */
-protected function autoRegisterWebhookListeners(): void
-{
-    // This provider will no longer register listeners automatically.
-    // All event listening will be explicitly defined in EventServiceProvider.
-}
+    protected function autoRegisterWebhookListeners(): void
+    {
+        // This provider will no longer register listeners automatically.
+        // All event listening will be explicitly defined in EventServiceProvider.
+    }
     /**
      * Register listeners for all events in App/Events directory
      */
     protected function registerEventDirectoryListeners(): void
     {
         $eventsPath = app_path('Events');
-        
+
         if (!File::exists($eventsPath)) {
             return;
         }
 
         $files = File::allFiles($eventsPath);
-        
+
         foreach ($files as $file) {
             $className = 'App\\Events\\' . str_replace(['/', '.php'], ['\\', ''], $file->getRelativePathname());
-            
+
             if (class_exists($className)) {
                 Event::listen($className, UniversalWebhookListener::class);
             }
@@ -73,20 +73,20 @@ protected function autoRegisterWebhookListeners(): void
     protected function registerEloquentEventListeners(): void
     {
         $modelsPath = app_path('Models');
-        
+
         if (!File::exists($modelsPath)) {
             return;
         }
 
         $files = File::allFiles($modelsPath);
         $eloquentEvents = ['creating', 'created', 'updating', 'updated', 'deleting', 'deleted', 'saving', 'saved'];
-        
+
         foreach ($files as $file) {
             $className = 'App\\Models\\' . str_replace(['/', '.php'], ['\\', ''], $file->getRelativePathname());
-            
+
             if (class_exists($className)) {
                 $modelName = class_basename($className);
-                
+
                 foreach ($eloquentEvents as $eventType) {
                     $eventName = "eloquent.{$eventType}: {$className}";
                     Event::listen($eventName, function ($event, $models) use ($eventType, $modelName) {

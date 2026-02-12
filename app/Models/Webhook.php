@@ -3,7 +3,7 @@
 // App/Models/Webhook.php - Updated with universal event discovery
 namespace App\Models;
 
-use App\Services\EventDiscoveryService;
+use App\Services\WebhookEventDiscoveryService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -16,10 +16,10 @@ class Webhook extends Model
 
     protected $fillable = [
         'event_name',
-        'url', 
+        'url',
         'is_active',
         'description',
-     
+
         'retry_count',
         'timeout_seconds',
         'headers',
@@ -54,7 +54,7 @@ class Webhook extends Model
      */
     public static function getAvailableEvents(): array
     {
-        return EventDiscoveryService::getAvailableEvents();
+        return WebhookEventDiscoveryService::getAvailableEvents();
     }
 
     /**
@@ -62,7 +62,7 @@ class Webhook extends Model
      */
     public static function getEventCategories(): array
     {
-        return EventDiscoveryService::getEventsByCategory();
+        return WebhookEventDiscoveryService::getEventsByCategory();
     }
 
     /**
@@ -72,9 +72,9 @@ class Webhook extends Model
     {
         $events = self::getAvailableEvents();
         $categories = self::getEventCategories();
-        
+
         $dropdown = [];
-        
+
         // Add wildcard option
         $dropdown['*'] = [
             'name' => 'All Events (Wildcard)',
@@ -82,14 +82,14 @@ class Webhook extends Model
             'category' => ['name' => 'Universal', 'icon' => 'fas fa-globe', 'emoji' => '🌐'],
             'icon' => 'fas fa-globe'
         ];
-        
+
         // Add categorized events
         foreach ($categories as $categoryName => $categoryData) {
             foreach ($categoryData['events'] as $eventKey => $eventData) {
                 $dropdown[$eventKey] = $eventData;
             }
         }
-        
+
         return $dropdown;
     }
 
@@ -98,7 +98,7 @@ class Webhook extends Model
      */
     public static function syncAvailableEvents(): array
     {
-        $service = app(EventDiscoveryService::class);
+        $service = app(WebhookEventDiscoveryService::class);
         return $service->syncWithWebhookSystem();
     }
 
@@ -115,9 +115,9 @@ class Webhook extends Model
      */
     public function scopeForEvent($query, string $eventName)
     {
-        return $query->where(function($q) use ($eventName) {
+        return $query->where(function ($q) use ($eventName) {
             $q->where('event_name', $eventName)
-              ->orWhere('event_name', '*'); // Include wildcard webhooks
+                ->orWhere('event_name', '*'); // Include wildcard webhooks
         });
     }
 
@@ -126,9 +126,9 @@ class Webhook extends Model
      */
     public function scopeHealthy($query)
     {
-        return $query->where(function($q) {
+        return $query->where(function ($q) {
             $q->where('auto_disable_after_failures', false)
-              ->orWhere('consecutive_failures', '<', 'max_failures_before_disable');
+                ->orWhere('consecutive_failures', '<', 'max_failures_before_disable');
         });
     }
 
@@ -150,7 +150,7 @@ class Webhook extends Model
     public function markAsFailed()
     {
         $consecutiveFailures = $this->consecutive_failures + 1;
-        
+
         $updateData = [
             'last_called_at' => now(),
             'last_failure_at' => now(),
@@ -158,8 +158,10 @@ class Webhook extends Model
         ];
 
         // Auto-disable if threshold reached
-        if ($this->auto_disable_after_failures && 
-            $consecutiveFailures >= $this->max_failures_before_disable) {
+        if (
+            $this->auto_disable_after_failures &&
+            $consecutiveFailures >= $this->max_failures_before_disable
+        ) {
             $updateData['is_active'] = false;
         }
 
@@ -201,9 +203,9 @@ class Webhook extends Model
         $totalCalls = $this->calls()->count();
         $successfulCalls = $this->calls()->where('success', true)->count();
         $failedCalls = $this->calls()->where('success', false)->count();
-        
+
         $successRate = $totalCalls > 0 ? ($successfulCalls / $totalCalls) * 100 : 0;
-        
+
         $status = 'healthy';
         if ($this->consecutive_failures >= 5) {
             $status = 'warning';
@@ -228,10 +230,8 @@ class Webhook extends Model
     /**
      * Get event information from discovery service
      */
-    public function getEventInfo(): array
+    public function getEventInfo(): ?array
     {
-        $events = self::getAvailableEvents();
-        
         // Handle wildcard webhooks
         if ($this->event_name === '*') {
             return [
@@ -241,7 +241,7 @@ class Webhook extends Model
                 'icon' => 'fas fa-globe'
             ];
         }
-        
+
         return $events[$this->event_name] ?? [
             'name' => $this->formatEventName($this->event_name),
             'description' => 'Auto-discovered event',
@@ -275,16 +275,16 @@ class Webhook extends Model
     public function getStatusBadgeAttribute(): string
     {
         $health = $this->getHealthStatus();
-        
-        $badgeClass = match($health['status']) {
+
+        $badgeClass = match ($health['status']) {
             'healthy' => 'badge-success',
-            'warning' => 'badge-warning', 
+            'warning' => 'badge-warning',
             'critical' => 'badge-danger',
             default => 'badge-secondary'
         };
 
         $statusText = $this->is_active ? 'Active' : 'Inactive';
-        
+
         return "<span class='badge {$badgeClass}'>{$statusText}</span>";
     }
 
@@ -310,8 +310,8 @@ class Webhook extends Model
     public function getAverageResponseTime(): float
     {
         return $this->calls()
-                   ->where('success', true)
-                   ->avg('execution_time_ms') ?? 0;
+            ->where('success', true)
+            ->avg('execution_time_ms') ?? 0;
     }
 
     /**
@@ -344,7 +344,7 @@ class Webhook extends Model
         if ($this->event_name === '*') {
             return true; // Wildcard always exists
         }
-        
+
         $events = self::getAvailableEvents();
         return isset($events[$this->event_name]);
     }
@@ -356,16 +356,16 @@ class Webhook extends Model
     {
         $events = self::getAvailableEvents();
         $suggestions = [];
-        
+
         // Simple keyword matching for suggestions
         $keywords = array_filter(array_merge(
             explode(' ', strtolower($description)),
             explode('/', parse_url($url, PHP_URL_PATH) ?? '')
         ));
-        
+
         foreach ($events as $eventKey => $eventData) {
             $score = 0;
-            
+
             foreach ($keywords as $keyword) {
                 if (stripos($eventKey, $keyword) !== false) {
                     $score += 3;
@@ -377,7 +377,7 @@ class Webhook extends Model
                     $score += 1;
                 }
             }
-            
+
             if ($score > 0) {
                 $suggestions[$eventKey] = [
                     'event' => $eventData,
@@ -386,10 +386,10 @@ class Webhook extends Model
                 ];
             }
         }
-        
+
         // Sort by score and return top 5
         uasort($suggestions, fn($a, $b) => $b['score'] <=> $a['score']);
-        
+
         return array_slice($suggestions, 0, 5, true);
     }
 
@@ -409,7 +409,7 @@ class Webhook extends Model
                 return "Description mentions '{$keyword}'";
             }
         }
-        
+
         return "Keyword match";
     }
 
@@ -435,15 +435,15 @@ class Webhook extends Model
     protected static function getTodaySuccessRate(): float
     {
         $callsToday = \App\Models\WebhookCall::whereDate('created_at', today())->count();
-        
+
         if ($callsToday === 0) {
             return 100.0;
         }
-        
+
         $successfulToday = \App\Models\WebhookCall::whereDate('created_at', today())
-                                                  ->where('success', true)
-                                                  ->count();
-        
+            ->where('success', true)
+            ->count();
+
         return round(($successfulToday / $callsToday) * 100, 1);
     }
 
@@ -465,7 +465,7 @@ class Webhook extends Model
                 'description' => 'Track new students and approved admissions'
             ],
             [
-                'name' => 'Lead Management', 
+                'name' => 'Lead Management',
                 'events' => ['enquiry.created'],
                 'description' => 'Capture new leads from enquiry forms'
             ],
@@ -475,26 +475,26 @@ class Webhook extends Model
                 'description' => 'Listen to all events in the system'
             ]
         ];
-        
+
         return $commonIntegrations;
     }
 
-   protected static function boot()
-{
-    parent::boot();
-    
-    static::creating(function ($webhook) {
-        if (empty($webhook->secret_key)) {
-            $webhook->secret_key = 'whsec_' . bin2hex(random_bytes(32));
-        }
-        
-        if (is_null($webhook->timeout_seconds)) {
-            $webhook->timeout_seconds = 30;
-        }
-        
-        if (is_null($webhook->consecutive_failures)) {
-            $webhook->consecutive_failures = 0;
-        }
-    });
-}
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($webhook) {
+            if (empty($webhook->secret_key)) {
+                $webhook->secret_key = 'whsec_' . bin2hex(random_bytes(32));
+            }
+
+            if (is_null($webhook->timeout_seconds)) {
+                $webhook->timeout_seconds = 30;
+            }
+
+            if (is_null($webhook->consecutive_failures)) {
+                $webhook->consecutive_failures = 0;
+            }
+        });
+    }
 }

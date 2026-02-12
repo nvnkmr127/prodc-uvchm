@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Services\EventDiscoveryService;
+use App\Services\WebhookEventDiscoveryService;
 use App\Models\Webhook;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -26,12 +26,12 @@ class SyncWebhookEvents extends Command
     /**
      * The event discovery service
      */
-    protected EventDiscoveryService $eventDiscovery;
+    protected WebhookEventDiscoveryService $eventDiscovery;
 
     /**
      * Create a new command instance
      */
-    public function __construct(EventDiscoveryService $eventDiscovery)
+    public function __construct(WebhookEventDiscoveryService $eventDiscovery)
     {
         parent::__construct();
         $this->eventDiscovery = $eventDiscovery;
@@ -97,14 +97,15 @@ class SyncWebhookEvents extends Command
     protected function showCurrentStats(): void
     {
         $this->info('📊 Current System Statistics:');
-        
+
         try {
             $totalWebhooks = Webhook::count();
             $activeWebhooks = Webhook::where('is_active', true)->count();
             $failingWebhooks = Webhook::where('consecutive_failures', '>=', 3)->count();
-            
+
             $this->table([
-                'Metric', 'Value'
+                'Metric',
+                'Value'
             ], [
                 ['Total Webhooks', $totalWebhooks],
                 ['Active Webhooks', $activeWebhooks],
@@ -113,7 +114,7 @@ class SyncWebhookEvents extends Command
         } catch (\Exception $e) {
             $this->warn('Could not fetch webhook statistics: ' . $e->getMessage());
         }
-        
+
         $this->newLine();
     }
 
@@ -123,7 +124,7 @@ class SyncWebhookEvents extends Command
     protected function showDiscoveredSummary(array $discovered): void
     {
         $this->info('📋 Discovered Events by Category:');
-        
+
         $tableData = [];
         foreach ($discovered['categories'] as $categoryName => $categoryData) {
             $tableData[] = [
@@ -132,11 +133,13 @@ class SyncWebhookEvents extends Command
                 $this->getEventTypes($categoryData['events'])
             ];
         }
-        
+
         $this->table([
-            'Category', 'Count', 'Sample Events'
+            'Category',
+            'Count',
+            'Sample Events'
         ], $tableData);
-        
+
         $this->newLine();
     }
 
@@ -147,12 +150,12 @@ class SyncWebhookEvents extends Command
     {
         $samples = array_slice(array_keys($events), 0, 3);
         $remaining = count($events) - 3;
-        
+
         $result = implode(', ', $samples);
         if ($remaining > 0) {
             $result .= " (+ {$remaining} more)";
         }
-        
+
         return $result;
     }
 
@@ -162,12 +165,12 @@ class SyncWebhookEvents extends Command
     protected function showWhatWouldBeChanged(array $discovered): void
     {
         $this->info('🔍 Changes that would be made:');
-        
+
         $previousEvents = cache()->get('webhook_available_events', []);
         $newEvents = array_diff_key($discovered['events'], $previousEvents);
         $removedEvents = array_diff_key($previousEvents, $discovered['events']);
         $updatedEvents = $this->findUpdatedEvents($discovered['events'], $previousEvents);
-        
+
         if (!empty($newEvents)) {
             $this->info('➕ New Events (' . count($newEvents) . '):');
             foreach ($newEvents as $eventKey => $eventData) {
@@ -175,7 +178,7 @@ class SyncWebhookEvents extends Command
             }
             $this->newLine();
         }
-        
+
         if (!empty($removedEvents)) {
             $this->warn('➖ Removed Events (' . count($removedEvents) . '):');
             foreach ($removedEvents as $eventKey => $eventData) {
@@ -183,7 +186,7 @@ class SyncWebhookEvents extends Command
             }
             $this->newLine();
         }
-        
+
         if (!empty($updatedEvents)) {
             $this->info('🔄 Updated Events (' . count($updatedEvents) . '):');
             foreach ($updatedEvents as $eventKey => $changes) {
@@ -191,7 +194,7 @@ class SyncWebhookEvents extends Command
             }
             $this->newLine();
         }
-        
+
         if (empty($newEvents) && empty($removedEvents) && empty($updatedEvents)) {
             $this->info('✨ No changes detected - all events are up to date!');
         }
@@ -203,26 +206,26 @@ class SyncWebhookEvents extends Command
     protected function findUpdatedEvents(array $currentEvents, array $previousEvents): array
     {
         $updated = [];
-        
+
         foreach ($currentEvents as $eventKey => $currentData) {
             if (isset($previousEvents[$eventKey])) {
                 $previousData = $previousEvents[$eventKey];
                 $changes = [];
-                
+
                 if (($currentData['description'] ?? '') !== ($previousData['description'] ?? '')) {
                     $changes[] = 'description';
                 }
-                
+
                 if (($currentData['category']['name'] ?? '') !== ($previousData['category']['name'] ?? '')) {
                     $changes[] = 'category';
                 }
-                
+
                 if (!empty($changes)) {
                     $updated[$eventKey] = $changes;
                 }
             }
         }
-        
+
         return $updated;
     }
 
@@ -232,7 +235,7 @@ class SyncWebhookEvents extends Command
     protected function showSyncResults(array $result): void
     {
         $this->info("✅ Synced {$result['synced_events']} events across {$result['categories']} categories");
-        
+
         if (count($result['new_events']) > 0) {
             $this->info("🆕 Found " . count($result['new_events']) . " new events:");
             foreach ($result['new_events'] as $eventKey => $eventData) {
@@ -252,26 +255,26 @@ class SyncWebhookEvents extends Command
     protected function cleanObsoleteReferences(array $currentEvents): void
     {
         $this->info('🧹 Cleaning obsolete event references...');
-        
+
         try {
             // Find webhooks that reference non-existent events
             $obsoleteWebhooks = Webhook::whereNotIn('event_name', array_merge(
                 array_keys($currentEvents),
                 ['*'] // Keep wildcard webhooks
             ))->get();
-            
+
             if ($obsoleteWebhooks->count() > 0) {
                 $this->warn("Found {$obsoleteWebhooks->count()} webhooks with obsolete event references:");
-                
+
                 foreach ($obsoleteWebhooks as $webhook) {
                     $this->line("   • {$webhook->url} -> {$webhook->event_name}");
                 }
-                
+
                 if ($this->confirm('Do you want to disable these webhooks?')) {
                     $obsoleteWebhooks->each(function ($webhook) {
                         $webhook->update(['is_active' => false]);
                     });
-                    
+
                     $this->info("✅ Disabled {$obsoleteWebhooks->count()} obsolete webhooks");
                 }
             } else {
@@ -280,7 +283,7 @@ class SyncWebhookEvents extends Command
         } catch (\Exception $e) {
             $this->warn('Could not clean obsolete references: ' . $e->getMessage());
         }
-        
+
         $this->newLine();
     }
 
@@ -290,18 +293,18 @@ class SyncWebhookEvents extends Command
     protected function clearEventCaches(): void
     {
         $this->info('🧹 Clearing event discovery caches...');
-        
+
         $cacheKeys = [
             'discovered_events',
             'webhook_available_events',
             'webhook_events_by_category',
             'event_discovery_stats'
         ];
-        
+
         foreach ($cacheKeys as $key) {
             cache()->forget($key);
         }
-        
+
         $this->info("✅ Cleared " . count($cacheKeys) . " cache keys");
     }
 
@@ -314,7 +317,7 @@ class SyncWebhookEvents extends Command
             $this->info('📊 Final Statistics:');
             $totalWebhooks = Webhook::count();
             $activeWebhooks = Webhook::where('is_active', true)->count();
-            
+
             $this->line("   📊 Total Webhooks: {$totalWebhooks}");
             $this->line("   ✅ Active Webhooks: {$activeWebhooks}");
         } catch (\Exception $e) {

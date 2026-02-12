@@ -8,13 +8,13 @@ use Illuminate\Support\Str;
 use ReflectionClass;
 use ReflectionProperty;
 
-class EventDiscoveryService
+class WebhookEventDiscoveryService
 {
     protected array $eventCategories = [
-        'payment' => ['name' => 'Financial Events', 'icon' => 'fas fa-money-bill-wave', 'emoji' => '💰'],
+        'payment' => ['name' => 'Financial', 'icon' => 'fas fa-money-bill-wave', 'emoji' => '💰'],
         // 'invoice' => ['name' => 'Financial Events', 'icon' => 'fas fa-file-invoice', 'emoji' => '💰'], // MODIFIED: Removed as it's part of the old system
-        'receipt' => ['name' => 'Financial Events', 'icon' => 'fas fa-receipt', 'emoji' => '💰'],
-        'fee' => ['name' => 'Financial Events', 'icon' => 'fas fa-bell', 'emoji' => '💰'],
+        'receipt' => ['name' => 'Financial', 'icon' => 'fas fa-receipt', 'emoji' => '💰'],
+        'fee' => ['name' => 'Financial', 'icon' => 'fas fa-bell', 'emoji' => '💰'],
 
         'student' => ['name' => 'Student Management', 'icon' => 'fas fa-user-graduate', 'emoji' => '👨‍🎓'],
         'admission' => ['name' => 'Student Management', 'icon' => 'fas fa-user-plus', 'emoji' => '👨‍🎓'],
@@ -99,6 +99,7 @@ class EventDiscoveryService
             'class' => 'scheduled_command'
         ];
 
+        \Log::info('EventDiscoveryService: Discovering events', ['count' => count($events)]);
         return $this->organizeAndFormatEvents($events);
     }
 
@@ -144,22 +145,40 @@ class EventDiscoveryService
             return $events;
         }
 
+        // Whitelist of models that should have webhooks enabled (to reduce noise)
+        $webhookWhitelist = [
+            'Student',
+            'Payment',
+            'Enquiry',
+            'Admission',
+            'Batch',
+            'Attendance',
+            'FeeCategory',
+            'StudentFee'
+        ];
+
         $files = File::allFiles($modelsPath);
-        $eloquentEvents = ['creating', 'created', 'updating', 'updated', 'deleting', 'deleted', 'saving', 'saved'];
+        $eloquentEvents = ['created', 'updated', 'deleted'];
 
         foreach ($files as $file) {
+            $filename = $file->getFilename();
+            $modelName = str_replace('.php', '', $filename);
+
+            if (!in_array($modelName, $webhookWhitelist)) {
+                continue;
+            }
+
             $className = 'App\\Models\\' . str_replace(['/', '.php'], ['\\', ''], $file->getRelativePathname());
 
             if (class_exists($className)) {
-                $modelName = class_basename($className);
-
                 foreach ($eloquentEvents as $eventType) {
+                    $eventKey = strtolower($modelName) . '.' . $eventType;
                     $events[] = [
-                        'event_key' => strtolower($modelName) . '.' . $eventType,
+                        'event_key' => $eventKey,
                         'name' => $modelName . ' ' . ucfirst($eventType),
-                        'description' => "Triggered when {$modelName} is {$eventType}",
+                        'description' => "Triggers whenever a " . strtolower($modelName) . " is " . $eventType . ".",
                         'class' => "eloquent:{$className}:{$eventType}",
-                        'category' => $this->categorizeEvent(strtolower($modelName)),
+                        'category' => $this->categorizeEvent($eventKey),
                         'auto_discovered' => true,
                         'model' => $modelName,
                         'eloquent_event' => $eventType
@@ -494,7 +513,7 @@ class EventDiscoveryService
      */
     public static function getAvailableEvents(): array
     {
-        return cache()->remember('webhook_available_events', now()->addHours(24), function () {
+        return cache()->remember('webhook_available_events_v3', now()->addHours(24), function () {
             $service = new self();
             $discovered = $service->discoverAllEvents();
             return $discovered['events'];
@@ -505,7 +524,7 @@ class EventDiscoveryService
      */
     public static function getEventsByCategory(): array
     {
-        return cache()->remember('webhook_events_by_category', now()->addHours(24), function () {
+        return cache()->remember('webhook_events_by_category_v3', now()->addHours(24), function () {
             $service = new self();
             $discovered = $service->discoverAllEvents();
             return $discovered['categories'];

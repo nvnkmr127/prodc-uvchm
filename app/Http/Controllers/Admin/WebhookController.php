@@ -60,6 +60,7 @@ class WebhookController extends Controller
                     'student_fee.created' => ['name' => 'Student Fee Created', 'description' => 'When a new fee component is assigned to a student', 'category' => 'Financial'],
                     'concession.applied' => ['name' => 'Concession Applied', 'description' => 'When a concession is applied to a student fee', 'category' => 'Financial'],
                     'student.created' => ['name' => 'Student Created', 'description' => 'When a new student is added', 'category' => 'Student Management'],
+                    'student.birthday' => ['name' => 'Student Birthday Today', 'description' => 'Triggers daily for each active student celebrating their birthday today.', 'category' => 'Student Management'],
                     'enquiry.created' => ['name' => 'Enquiry Created', 'description' => 'When a new enquiry is submitted', 'category' => 'Lead Management'],
                     'daily.summary' => ['name' => 'Daily Summary Report', 'description' => 'Automated daily report with payment totals and attendance summary. Sent at 5:00 PM on working days (Monday-Saturday)', 'category' => 'Automation'],
 
@@ -141,10 +142,13 @@ class WebhookController extends Controller
         } catch (\Exception $e) {
             // Fallback to basic event types including daily.summary
             $eventTypes = [
-                'payment.created' => ['name' => 'Payment Created', 'description' => 'When a component payment is made', 'category' => 'Financial'],
-                'student_fee.created' => ['name' => 'Student Fee Created', 'description' => 'When a new fee component is assigned to a student', 'category' => 'Financial'],
-                'concession.applied' => ['name' => 'Concession Applied', 'description' => 'When a concession is applied to a student fee', 'category' => 'Financial'],
+                'payment.created' => ['name' => 'Payment Created', 'description' => 'When a new payment is recorded', 'category' => 'Financial'],
+                'payment.updated' => ['name' => 'Payment Updated', 'description' => 'When a payment record is modified', 'category' => 'Financial'],
+                'student_fee.created' => ['name' => 'Student Fee Created', 'description' => 'When a new fee is assigned', 'category' => 'Financial'],
                 'student.created' => ['name' => 'Student Created', 'description' => 'When a new student is added', 'category' => 'Student Management'],
+                'student.updated' => ['name' => 'Student Updated', 'description' => 'When student profile/details are changed', 'category' => 'Student Management'],
+                'student.birthday' => ['name' => 'Student Birthday Today', 'description' => 'Daily triggers for student birthdays', 'category' => 'Student Management'],
+                'attendance.daily_absent' => ['name' => 'Daily Absent Report', 'description' => 'Daily list of absent students', 'category' => 'Student Management'],
                 'enquiry.created' => ['name' => 'Enquiry Created', 'description' => 'When a new enquiry is submitted', 'category' => 'Lead Management'],
                 'attendance.daily_absent' => [
                     'name' => 'Daily Absent Report',
@@ -159,28 +163,23 @@ class WebhookController extends Controller
                     'icon' => '💰',
                     'events' => [
                         'payment.created' => $eventTypes['payment.created'],
+                        'payment.updated' => $eventTypes['payment.updated'],
                         'student_fee.created' => $eventTypes['student_fee.created'],
-                        'concession.applied' => $eventTypes['concession.applied'],
                     ]
                 ],
                 'Student Management' => [
                     'icon' => '👨‍🎓',
                     'events' => [
                         'student.created' => $eventTypes['student.created'],
+                        'student.updated' => $eventTypes['student.updated'],
+                        'student.birthday' => $eventTypes['student.birthday'],
+                        'attendance.daily_absent' => $eventTypes['attendance.daily_absent'],
                     ]
                 ],
                 'Lead Management' => [
                     'icon' => '📞',
                     'events' => [
                         'enquiry.created' => $eventTypes['enquiry.created'],
-                    ]
-                ],
-
-                'Student Management' => [
-                    'icon' => '👨‍🎓',
-                    'events' => [
-                        'student.created' => $eventTypes['student.created'],
-                        'attendance.daily_absent' => $eventTypes['attendance.daily_absent'], // [ADD THIS LINE]
                     ]
                 ],
                 'Automation' => [
@@ -198,34 +197,30 @@ class WebhookController extends Controller
         ]);
     }
 
-    /**
-     * Store a newly created webhook
-     */
     public function store(Request $request)
     {
-        // Get available events with fallback including daily.summary
+        // Get available events with fallback consistently
         $availableEvents = [];
         try {
             $availableEvents = Webhook::getAvailableEvents();
-        } catch (\Exception $e) {
-            // Fallback events including daily.summary
-            $availableEvents = [
-                'payment.created' => [],
-                'student_fee.created' => [],
-                'concession.applied' => [],
-                'student.created' => [],
-                'enquiry.created' => [],
-                'daily.summary' => [], // Include daily.summary in validation
+        } catch (\Exception $e) {}
 
+        // Ensure critical fallbacks are always in the validation array if discovery fails
+        $validationKeys = array_keys($availableEvents);
+        if (empty($validationKeys)) {
+            $validationKeys = [
+                'payment.created', 'student_fee.created', 'concession.applied',
+                'student.created', 'student.birthday', 'enquiry.created',
+                'daily.summary', 'attendance.daily_absent'
             ];
         }
-        $availableEvents['attendance.daily_absent'] = [];
+
         $request->validate([
             'url' => 'required|url|unique:webhooks,url',
             'event_name' => [
                 'required',
                 'string',
-                Rule::in(array_keys($availableEvents))
+                Rule::in($validationKeys)
             ],
             'description' => 'nullable|string|max:500',
             'timeout_seconds' => 'nullable|integer|min:5|max:120',
@@ -320,36 +315,15 @@ class WebhookController extends Controller
 
             // Fallback data - completely safe (COMPONENT-BASED) with daily.summary
             $eventTypes = [
-                'payment.created' => [
-                    'name' => 'Payment Created',
-                    'description' => 'When a component payment is made',
-                    'category' => 'Financial'
-                ],
-                'student_fee.created' => [
-                    'name' => 'Student Fee Created',
-                    'description' => 'When a new fee component is assigned',
-                    'category' => 'Financial'
-                ],
-                'concession.applied' => [
-                    'name' => 'Concession Applied',
-                    'description' => 'When a concession is applied',
-                    'category' => 'Financial'
-                ],
-                'student.created' => [
-                    'name' => 'Student Created',
-                    'description' => 'When a new student is added',
-                    'category' => 'Student Management'
-                ],
-                'enquiry.created' => [
-                    'name' => 'Enquiry Created',
-                    'description' => 'When an enquiry is submitted',
-                    'category' => 'Lead Management'
-                ],
-                'daily.summary' => [
-                    'name' => 'Daily Summary Report',
-                    'description' => 'Automated daily report with payment totals and attendance summary. Sent at 5:00 PM on working days (Monday-Saturday)',
-                    'category' => 'Automation'
-                ],
+                'payment.created' => ['name' => 'Payment Created', 'category' => 'Financial'],
+                'payment.updated' => ['name' => 'Payment Updated', 'category' => 'Financial'],
+                'student_fee.created' => ['name' => 'Student Fee Created', 'category' => 'Financial'],
+                'student.created' => ['name' => 'Student Created', 'category' => 'Student Management'],
+                'student.updated' => ['name' => 'Student Updated', 'category' => 'Student Management'],
+                'student.birthday' => ['name' => 'Student Birthday Today', 'category' => 'Student Management'],
+                'attendance.daily_absent' => ['name' => 'Daily Absent Report', 'category' => 'Student Management'],
+                'enquiry.created' => ['name' => 'Enquiry Created', 'category' => 'Lead Management'],
+                'daily.summary' => ['name' => 'Daily Summary Report', 'category' => 'Automation'],
             ];
 
             $eventCategories = [
@@ -357,14 +331,17 @@ class WebhookController extends Controller
                     'icon' => '💰',
                     'events' => [
                         'payment.created' => $eventTypes['payment.created'],
+                        'payment.updated' => $eventTypes['payment.updated'],
                         'student_fee.created' => $eventTypes['student_fee.created'],
-                        'concession.applied' => $eventTypes['concession.applied'],
                     ]
                 ],
                 'Student Management' => [
                     'icon' => '👨‍🎓',
                     'events' => [
                         'student.created' => $eventTypes['student.created'],
+                        'student.updated' => $eventTypes['student.updated'],
+                        'student.birthday' => $eventTypes['student.birthday'],
+                        'attendance.daily_absent' => $eventTypes['attendance.daily_absent'],
                     ]
                 ],
                 'Lead Management' => [
@@ -426,6 +403,7 @@ class WebhookController extends Controller
                 'student_fee.created' => [],
                 'concession.applied' => [],
                 'student.created' => [],
+                'student.birthday' => [],
                 'enquiry.created' => [],
                 'daily.summary' => [], // Include daily.summary in validation
             ];

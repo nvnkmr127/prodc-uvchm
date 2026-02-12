@@ -244,56 +244,64 @@
                     </div>
 
                     <!-- 2. Event Selector -->
-                    <div class="mb-4">
-                        <h5 class="font-weight-bold text-gray-800 mb-3 px-1">
-                            <i class="fas fa-bolt mr-2 text-warning"></i>Select Trigger Event
-                        </h5>
+                    <div class="card card-premium mb-4">
+                        <div class="card-body p-4">
+                            <h5 class="font-weight-bold text-gray-800 mb-4">
+                                <i class="fas fa-bolt mr-2 text-warning"></i>Select Trigger Event
+                            </h5>
 
-                        @error('event_name')
-                            <div class="alert alert-danger shadow-sm rounded-lg mb-3 border-0">
-                                <i class="fas fa-exclamation-circle mr-2"></i> Please select an event type below.
-                            </div>
-                        @enderror
-
-                        @php
-                            $iconMap = [
-                                'payment.created' => 'fas fa-money-bill-wave',
-                                'invoice.generated' => 'fas fa-file-invoice-dollar',
-                                'student_fee.created' => 'fas fa-file-invoice',
-                                'concession.applied' => 'fas fa-percent',
-                                'student.created' => 'fas fa-user-plus',
-                                'admission.approved' => 'fas fa-check-circle',
-                                'attendance.daily_absent' => 'fas fa-user-clock',
-                                'daily.summary' => 'fas fa-robot',
-                                'enquiry.created' => 'fas fa-question-circle',
-                            ];
-                        @endphp
-
-                        @if(isset($eventCategories) && count($eventCategories) > 0)
-                            @foreach($eventCategories as $categoryName => $categoryData)
-                                <div class="mb-3">
-                                    <span class="category-badge pl-1">{{ $categoryName }}</span>
-                                    <div class="event-selector-grid">
-                                        @if(isset($categoryData['events']))
-                                            @foreach($categoryData['events'] as $eventKey => $eventInfo)
-                                                <div class="event-card" onclick="selectEvent('{{ $eventKey }}', this)">
-                                                    <div class="event-icon-wrapper">
-                                                        <i class="{{ $iconMap[$eventKey] ?? 'fas fa-bolt' }}"></i>
-                                                    </div>
-                                                    <span class="event-name">{{ $eventInfo['name'] ?? $eventKey }}</span>
-                                                    <span class="event-desc">{{ $eventInfo['description'] ?? '' }}</span>
-                                                </div>
-                                            @endforeach
-                                        @endif
+                            <div class="mb-0">
+                                <label for="event_name_select" class="form-label-premium">Trigger Event</label>
+                                
+                                <div class="mb-2">
+                                    <div class="input-group-premium">
+                                        <div class="input-group-icon">
+                                            <i class="fas fa-search"></i>
+                                        </div>
+                                        <input type="text" id="event_filter" class="form-control form-control-premium" 
+                                               placeholder="Quick search (e.g. 'update', 'student')..." 
+                                               style="border: none; padding-left: 0;"
+                                               onkeyup="filterEvents(this.value)">
                                     </div>
                                 </div>
-                            @endforeach
-                        @else
-                            <!-- Fallback if no categories are passed -->
-                            <div class="alert alert-warning">
-                                <i class="fas fa-exclamation-circle mr-2"></i> No event categories available.
+
+                                <div class="input-group-premium">
+                                    <div class="input-group-icon">
+                                        <i class="fas fa-magic"></i>
+                                    </div>
+                                    <select name="event_name" id="event_name_select" class="form-control form-control-premium" required onchange="updateEventDescription(this)">
+                                        <option value="" disabled {{ !old('event_name') ? 'selected' : '' }}>-- Select an Event Category / Type --</option>
+                                        
+                                        @if(isset($eventCategories) && count($eventCategories) > 0)
+                                            @foreach($eventCategories as $categoryName => $categoryData)
+                                                <optgroup label="{{ strtoupper($categoryName) }}">
+                                                    @if(isset($categoryData['events']))
+                                                        @foreach($categoryData['events'] as $eventKey => $eventInfo)
+                                                            <option value="{{ $eventKey }}" 
+                                                                    data-description="{{ $eventInfo['description'] ?? '' }}"
+                                                                    {{ old('event_name') == $eventKey ? 'selected' : '' }}>
+                                                                {{ $eventInfo['name'] ?? $eventKey }}
+                                                            </option>
+                                                        @endforeach
+                                                    @endif
+                                                </optgroup>
+                                            @endforeach
+                                        @else
+                                            <option value="" disabled>No events available</option>
+                                        @endif
+                                    </select>
+                                </div>
+                                <div id="event-description-box" class="mt-3 p-3 rounded-lg border-0 shadow-none" style="background: var(--primary-light); display: {{ old('event_name') ? 'block' : 'none' }};">
+                                    <p class="mb-0 text-primary small">
+                                        <i class="fas fa-info-circle mr-2"></i>
+                                        <span id="event-description-text">{{ old('event_name') ? ($eventTypes[old('event_name')]['description'] ?? '') : '' }}</span>
+                                    </p>
+                                </div>
+                                @error('event_name')
+                                    <div class="text-danger small mt-1 font-weight-bold ml-1">{{ $message }}</div>
+                                @enderror
                             </div>
-                        @endif
+                        </div>
                     </div>
 
                     <div class="text-right">
@@ -339,39 +347,74 @@
     </div>
 
     <script>
-        function selectEvent(eventName, cardElement) {
-            // Update Hidden Input
-            document.getElementById('selected_event_input').value = eventName;
+        function filterEvents(query) {
+            const select = document.getElementById('event_name_select');
+            const options = select.querySelectorAll('option');
+            const groups = select.querySelectorAll('optgroup');
+            query = query.toLowerCase();
 
-            // Update UI Classes
-            document.querySelectorAll('.event-card').forEach(el => el.classList.remove('selected'));
-            cardElement.classList.add('selected');
+            // Filter options and determine which groups have matches
+            let matchesFound = 0;
+            const groupsToHide = new Set(groups);
 
-            // Optional: Auto-fill description if empty
-            const descInput = document.getElementById('description');
-            if (!descInput.value) {
-                const cardDesc = cardElement.querySelector('.event-desc').innerText;
-                // Shorten for placeholder/value if needed, or just set it
-                // descInput.value = "Webhook for " + cardElement.querySelector('.event-name').innerText;
-            }
+            options.forEach(opt => {
+                if (!opt.value) return; // Skip placeholder
+                
+                const text = opt.innerText.toLowerCase();
+                const value = opt.value.toLowerCase();
+                const isMatch = text.includes(query) || value.includes(query);
+                
+                if (isMatch) {
+                    opt.style.display = 'block';
+                    opt.disabled = false;
+                    matchesFound++;
+                    // Find parent group and mark it as visible
+                    const group = opt.closest('optgroup');
+                    if (group) groupsToHide.delete(group);
+                } else {
+                    opt.style.display = 'none';
+                    opt.disabled = true;
+                }
+            });
 
-            // Add visual pulse effect
-            cardElement.animate([
-                { transform: 'scale(1)' },
-                { transform: 'scale(0.98)' },
-                { transform: 'scale(1)' }
-            ], {
-                duration: 200,
-                easing: 'ease-out'
+            // Hide/Show groups based on whether they have matching options
+            groups.forEach(group => {
+                if (groupsToHide.has(group)) {
+                    group.style.display = 'none';
+                } else {
+                    group.style.display = 'block';
+                }
             });
         }
 
-        // Pre-select if validation failed
+        function updateEventDescription(select) {
+            const descriptionBox = document.getElementById('event-description-box');
+            const descriptionText = document.getElementById('event-description-text');
+            const selectedOption = select.options[select.selectedIndex];
+            
+            if (selectedOption && selectedOption.value) {
+                const description = selectedOption.getAttribute('data-description');
+                descriptionText.innerText = description || 'No description available for this event.';
+                descriptionBox.style.display = 'block';
+                
+                // Animate entry
+                descriptionBox.animate([
+                    { opacity: 0, transform: 'translateY(-10px)' },
+                    { opacity: 1, transform: 'translateY(0)' }
+                ], {
+                    duration: 300,
+                    easing: 'ease-out'
+                });
+            } else {
+                descriptionBox.style.display = 'none';
+            }
+        }
+
+        // Handle page load for 'old' values
         window.addEventListener('DOMContentLoaded', () => {
-            const oldValue = "{{ old('event_name') }}";
-            if(oldValue) {
-                const card = document.querySelector(`[onclick="selectEvent('${oldValue}', this)"]`);
-                if(card) selectEvent(oldValue, card);
+            const select = document.getElementById('event_name_select');
+            if (select.value) {
+                updateEventDescription(select);
             }
         });
     </script>
