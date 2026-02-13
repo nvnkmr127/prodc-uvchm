@@ -809,6 +809,10 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
                 ->name('toggle')
                 ->where('webhook', '[0-9]+');
 
+            Route::post('/logs/{call}/replay', [WebhookController::class, 'replay'])
+                ->name('logs.replay')
+                ->where('call', '[0-9]+');
+
             Route::post('/admin/webhooks/test-daily-summary', [WebhookController::class, 'testDailySummary'])
                 ->name('admin.webhooks.test-daily-summary');
 

@@ -414,6 +414,12 @@
                                                     <i
                                                         class="fas fa-power-off {{ $webhook->is_active ? 'text-danger' : 'text-success' }}"></i>
                                                 </button>
+                                                <button type="button" class="btn btn-sm btn-white border"
+                                                    onclick="deleteWebhook(this)"
+                                                    data-url="{{ route('admin.webhooks.destroy', $webhook) }}"
+                                                    title="Delete Webhook">
+                                                    <i class="fas fa-trash text-danger"></i>
+                                                </button>
                                             </div>
                                         </td>
                                     </tr>
@@ -508,6 +514,33 @@
                         'Accept': 'application/json'
                     }
                 }).then(() => window.location.reload());
+            }
+
+            // Action: Delete Webhook
+            function deleteWebhook(button) {
+                if (!confirm('Are you sure you want to delete this webhook? This action cannot be undone.')) return;
+
+                const url = button.getAttribute('data-url');
+                
+                // Create a form dynamically
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = url;
+                
+                const csrfToken = document.createElement('input');
+                csrfToken.type = 'hidden';
+                csrfToken.name = '_token';
+                csrfToken.value = '{{ csrf_token() }}';
+                
+                const methodField = document.createElement('input');
+                methodField.type = 'hidden';
+                methodField.name = '_method';
+                methodField.value = 'DELETE';
+                
+                form.appendChild(csrfToken);
+                form.appendChild(methodField);
+                document.body.appendChild(form);
+                form.submit();
             }
 
             // Action: Test Daily Summary (Global)

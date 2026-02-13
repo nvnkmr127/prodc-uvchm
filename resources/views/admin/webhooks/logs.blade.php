@@ -146,7 +146,13 @@
                             <div class="small text-muted">
                                 ID: {{ $log->id }} | {{ $log->created_at }}
                             </div>
-                            <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Close</button>
+                            <div class="d-flex align-items-center">
+                                <button type="button" class="btn btn-info btn-sm mr-2"
+                                    onclick="replayEvent(this, {{ $log->id }})">
+                                    <i class="fas fa-redo-alt mr-1"></i> Replay Event
+                                </button>
+                                <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Close</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -154,4 +160,40 @@
         </div>
     @endforeach
 
+@push('scripts')
+    <script>
+        function replayEvent(button, logId) {
+            if (!confirm('Re-send this exact payload to the webhook endpoint?')) return;
+
+            const originalText = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Replaying...';
+            button.disabled = true;
+
+            fetch(`/admin/webhooks/logs/${logId}/replay`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json'
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    window.location.reload();
+                } else {
+                    alert('Replay failed: ' + data.message);
+                }
+            })
+            .catch(err => {
+                alert('Network error occurred.');
+                console.error(err);
+            })
+            .finally(() => {
+                button.innerHTML = originalText;
+                button.disabled = false;
+            });
+        }
+    </script>
+@endpush
 @endsection

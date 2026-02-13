@@ -148,7 +148,6 @@ class WebhookController extends Controller
                 'student.created' => ['name' => 'Student Created', 'description' => 'When a new student is added', 'category' => 'Student Management'],
                 'student.updated' => ['name' => 'Student Updated', 'description' => 'When student profile/details are changed', 'category' => 'Student Management'],
                 'student.birthday' => ['name' => 'Student Birthday Today', 'description' => 'Daily triggers for student birthdays', 'category' => 'Student Management'],
-                'attendance.daily_absent' => ['name' => 'Daily Absent Report', 'description' => 'Daily list of absent students', 'category' => 'Student Management'],
                 'enquiry.created' => ['name' => 'Enquiry Created', 'description' => 'When a new enquiry is submitted', 'category' => 'Lead Management'],
                 'attendance.daily_absent' => [
                     'name' => 'Daily Absent Report',
@@ -203,15 +202,21 @@ class WebhookController extends Controller
         $availableEvents = [];
         try {
             $availableEvents = Webhook::getAvailableEvents();
-        } catch (\Exception $e) {}
+        } catch (\Exception $e) {
+        }
 
         // Ensure critical fallbacks are always in the validation array if discovery fails
         $validationKeys = array_keys($availableEvents);
         if (empty($validationKeys)) {
             $validationKeys = [
-                'payment.created', 'student_fee.created', 'concession.applied',
-                'student.created', 'student.birthday', 'enquiry.created',
-                'daily.summary', 'attendance.daily_absent'
+                'payment.created',
+                'student_fee.created',
+                'concession.applied',
+                'student.created',
+                'student.birthday',
+                'enquiry.created',
+                'daily.summary',
+                'attendance.daily_absent'
             ];
         }
 
@@ -659,7 +664,7 @@ class WebhookController extends Controller
             $query->whereDate('created_at', '<=', $request->date_to);
         }
 
-        $logs = $query->paginate(20);
+        $logs = $query->latest()->paginate(20);
 
         // Get summary statistics
         $stats = [
@@ -671,6 +676,64 @@ class WebhookController extends Controller
         ];
 
         return view('admin.webhooks.logs', compact('webhook', 'logs', 'stats'));
+    }
+
+    /**
+     * Replay a specific webhook call
+     */
+    public function replay(Request $request, WebhookCall $call)
+    {
+        $webhook = $call->webhook;
+
+        if (!$webhook) {
+            if ($request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Parent webhook not found.'], 404);
+            }
+            return back()->with('error', 'Parent webhook not found.');
+        }
+
+        $payload = $call->payload;
+        $startTime = microtime(true);
+
+        try {
+            $signature = hash_hmac('sha256', json_encode($payload), $webhook->signing_secret ?? '');
+
+            $response = Http::timeout($webhook->timeout_seconds ?? 30)
+                ->withHeaders(['X-App-Signature' => $signature])
+                ->post($webhook->url, $payload);
+
+            $executionTime = round((microtime(true) - $startTime) * 1000);
+
+            // Log the replayed call as a new entry
+            $newCall = $webhook->calls()->create([
+                'success' => $response->successful(),
+                'status_code' => $response->status(),
+                'payload' => $payload,
+                'response_body' => $response->body(),
+                'execution_time_ms' => $executionTime,
+            ]);
+
+            $message = "Webhook replayed successfully! Response Code: " . $response->status();
+
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'success' => $response->successful(),
+                    'message' => $message,
+                    'status_code' => $response->status(),
+                    'new_call_id' => $newCall->id
+                ]);
+            }
+
+            return back()->with($response->successful() ? 'success' : 'error', $message);
+
+        } catch (\Exception $e) {
+            $message = 'Webhook replay failed: ' . $e->getMessage();
+
+            if ($request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => $message], 500);
+            }
+            return back()->with('error', $message);
+        }
     }
 
     /**
@@ -712,7 +775,7 @@ class WebhookController extends Controller
                     $webhook = Webhook::find($webhookId);
                     if ($webhook) {
                         dispatch(function () use ($webhook) {
-                            $this->test($webhook);
+                            $this->test(request(), $webhook);
                         })->afterResponse();
                     }
                 }
@@ -869,6 +932,7 @@ class WebhookController extends Controller
                         'id' => rand(1, 100),
                         'name' => 'Jane Smith',
                         'birthday' => now()->toDateString(),
+                        'student_mobile' => '9876543210',
                         'age' => 15,
                         'enrollment_number' => 'STD-2024-045'
                     ]
@@ -879,7 +943,7 @@ class WebhookController extends Controller
                         'id' => rand(1, 100),
                         'name' => 'John Doe',
                         'email' => 'john.doe@example.com',
-                        'phone' => '9876543210',
+                        'student_mobile' => '9887766554',
                         'enrollment_number' => 'STD-2024-001',
                         'status' => 'active'
                     ]
