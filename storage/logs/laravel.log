@@ -330,3 +330,42 @@ Did you mean one of these?
 #19 /Users/naveenadicharla/Documents/test/prodc-uvchm/artisan(13): Illuminate\\Foundation\\Application->handleCommand(Object(Symfony\\Component\\Console\\Input\\ArgvInput))
 #20 {main}
 "} 
+[2026-02-17 13:12:33] local.ERROR: The "--table" option does not exist. {"exception":"[object] (Symfony\\Component\\Console\\Exception\\RuntimeException(code: 0): The \"--table\" option does not exist. at /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Input/ArgvInput.php:226)
+[stacktrace]
+#0 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Input/ArgvInput.php(155): Symfony\\Component\\Console\\Input\\ArgvInput->addLongOption('table', NULL)
+#1 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Input/ArgvInput.php(88): Symfony\\Component\\Console\\Input\\ArgvInput->parseLongOption('--table')
+#2 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Input/ArgvInput.php(77): Symfony\\Component\\Console\\Input\\ArgvInput->parseToken('--table', true)
+#3 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Input/Input.php(53): Symfony\\Component\\Console\\Input\\ArgvInput->parse()
+#4 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Command/Command.php(276): Symfony\\Component\\Console\\Input\\Input->bind(Object(Symfony\\Component\\Console\\Input\\InputDefinition))
+#5 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Console/Command.php(182): Symfony\\Component\\Console\\Command\\Command->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Illuminate\\Console\\OutputStyle))
+#6 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Application.php(1092): Illuminate\\Console\\Command->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#7 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Application.php(341): Symfony\\Component\\Console\\Application->doRunCommand(Object(Illuminate\\Database\\Console\\ShowCommand), Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#8 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Application.php(192): Symfony\\Component\\Console\\Application->doRun(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#9 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(198): Symfony\\Component\\Console\\Application->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#10 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1235): Illuminate\\Foundation\\Console\\Kernel->handle(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#11 /Users/naveenadicharla/Documents/test/prodc-uvchm/artisan(13): Illuminate\\Foundation\\Application->handleCommand(Object(Symfony\\Component\\Console\\Input\\ArgvInput))
+#12 {main}
+"} 
+[2026-02-17 13:12:43] local.ERROR: The "intl" PHP extension is required to use the [format] method. {"exception":"[object] (RuntimeException(code: 0): The \"intl\" PHP extension is required to use the [format] method. at /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Support/Number.php:385)
+[stacktrace]
+#0 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Support/Number.php(38): Illuminate\\Support\\Number::ensureIntlExtensionIsInstalled()
+#1 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Support/Number.php(173): Illuminate\\Support\\Number::format(64, 2, NULL)
+#2 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Database/Console/TableCommand.php(212): Illuminate\\Support\\Number::fileSize(64, 2)
+#3 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Database/Console/TableCommand.php(180): Illuminate\\Database\\Console\\TableCommand->displayForCli(Array)
+#4 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Database/Console/TableCommand.php(81): Illuminate\\Database\\Console\\TableCommand->display(Array)
+#5 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(36): Illuminate\\Database\\Console\\TableCommand->handle(Object(Illuminate\\Database\\DatabaseManager))
+#6 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Container/Util.php(43): Illuminate\\Container\\BoundMethod::{closure:Illuminate\\Container\\BoundMethod::call():35}()
+#7 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(95): Illuminate\\Container\\Util::unwrapIfClosure(Object(Closure))
+#8 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(35): Illuminate\\Container\\BoundMethod::callBoundMethod(Object(Illuminate\\Foundation\\Application), Array, Object(Closure))
+#9 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Container/Container.php(696): Illuminate\\Container\\BoundMethod::call(Object(Illuminate\\Foundation\\Application), Array, Array, NULL)
+#10 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Console/Command.php(213): Illuminate\\Container\\Container->call(Array)
+#11 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Command/Command.php(318): Illuminate\\Console\\Command->execute(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Illuminate\\Console\\OutputStyle))
+#12 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Console/Command.php(182): Symfony\\Component\\Console\\Command\\Command->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Illuminate\\Console\\OutputStyle))
+#13 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Application.php(1092): Illuminate\\Console\\Command->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#14 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Application.php(341): Symfony\\Component\\Console\\Application->doRunCommand(Object(Illuminate\\Database\\Console\\TableCommand), Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#15 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Application.php(192): Symfony\\Component\\Console\\Application->doRun(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#16 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(198): Symfony\\Component\\Console\\Application->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#17 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1235): Illuminate\\Foundation\\Console\\Kernel->handle(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#18 /Users/naveenadicharla/Documents/test/prodc-uvchm/artisan(13): Illuminate\\Foundation\\Application->handleCommand(Object(Symfony\\Component\\Console\\Input\\ArgvInput))
+#19 {main}
+"} 

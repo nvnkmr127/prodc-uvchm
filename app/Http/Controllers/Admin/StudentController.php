@@ -101,11 +101,11 @@ class StudentController extends Controller
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('enrollment_number', 'like', "%{$search}%")
-                    ->orWhere('student_mobile', 'like', "%{$search}%")
-                    ->orWhere('father_mobile', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%");
+                $q->where('students.name', 'like', "%{$search}%")
+                    ->orWhere('students.enrollment_number', 'like', "%{$search}%")
+                    ->orWhere('students.student_mobile', 'like', "%{$search}%")
+                    ->orWhere('students.father_mobile', 'like', "%{$search}%")
+                    ->orWhere('students.email', 'like', "%{$search}%");
             });
         }
 

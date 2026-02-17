@@ -11,6 +11,7 @@
                 <th class="text-center">Total Working Days</th>
                 <th class="text-center">Days Present</th>
                 <th class="text-center">Days Absent</th>
+                <th class="text-center">Holidays</th>
                 <th class="text-center sortable {{ $sortBy === 'attendance_percentage' ? 'text-primary' : '' }}"
                     data-sort="attendance_percentage">
                     Attendance %
@@ -27,21 +28,22 @@
                             <div class="bg-light rounded-circle p-2 mr-3"
                                 style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
                                 <i
-                                    class="fas fa-user {{ $student['attendance_percentage'] >= 75 ? 'text-success' : ($student['attendance_percentage'] >= 50 ? 'text-warning' : 'text-danger') }}"></i>
+                                    class="fas fa-user {{ $student->attendance_percentage >= 75 ? 'text-success' : ($student->attendance_percentage >= 50 ? 'text-warning' : 'text-danger') }}"></i>
                             </div>
-                            <a href="{{ route('admin.students.show', $student['id']) }}"
+                            <a href="{{ route('admin.students.show', $student->id) }}"
                                 class="font-weight-bold text-gray-800 hover-primary">
-                                {{ $student['student_name'] }}
+                                {{ $student->student_name }}
                             </a>
                         </div>
                     </td>
-                    <td>{{ $student['enrollment_number'] }}</td>
-                    <td class="text-center">{{ $student['total_working_days'] }}</td>
-                    <td class="text-center text-success font-weight-bold">{{ $student['present_days'] }}</td>
-                    <td class="text-center text-danger">{{ $student['absent_days'] }}</td>
+                    <td>{{ $student->enrollment_number }}</td>
+                    <td class="text-center">{{ $student->total_working_days }}</td>
+                    <td class="text-center text-success font-weight-bold">{{ $student->present_days }}</td>
+                    <td class="text-center text-danger">{{ $student->absent_days }}</td>
+                    <td class="text-center text-info">{{ $student->holidays }}</td>
                     <td class="text-center">
                         @php
-                            $percentage = $student['attendance_percentage'];
+                            $percentage = $student->attendance_percentage;
                             $color = $percentage >= 75 ? 'success' : ($percentage >= 60 ? 'info' : ($percentage >= 50 ? 'warning' : 'danger'));
                         @endphp
                         <div class="d-flex align-items-center justify-content-center">
@@ -58,7 +60,7 @@
             @empty
                 <tr>
                     <td colspan="6" class="text-center py-5">
-                        <img src="{{ asset('img/undraw_no_data.svg') }}" style="width: 150px; opacity: 0.5;">
+                        <i class="fas fa-search fa-3x text-gray-300 mb-3"></i>
                         <p class="mt-3 text-gray-500">No attendance data found for the selected criteria.</p>
                     </td>
                 </tr>

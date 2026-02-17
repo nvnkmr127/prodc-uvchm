@@ -33,11 +33,14 @@ class StudentAttendanceSummaryExport implements FromCollection, WithHeadings, Sh
         $this->startDate = $startDate ? Carbon::parse($startDate) : Carbon::now()->startOfMonth();
         $this->endDate = $endDate ? Carbon::parse($endDate) : Carbon::now();
 
-        // Calculate months in range
+        // Calculate months in range robustly
         $this->months = [];
-        $period = CarbonPeriod::create($this->startDate, '1 month', $this->endDate);
-        foreach ($period as $dt) {
-            $this->months[] = $dt->copy();
+        $current = $this->startDate->copy()->startOfMonth();
+        $final = $this->endDate->copy()->startOfMonth();
+
+        while ($current->lte($final)) {
+            $this->months[] = $current->copy();
+            $current->addMonth();
         }
     }
 
@@ -74,10 +77,10 @@ class StudentAttendanceSummaryExport implements FromCollection, WithHeadings, Sh
 
         $students = $studentsQuery->with(['batch'])->get();
 
-        // 2. Fetch Holidays
+        // 2. Fetch Holidays - Ensure consistent string format
         $holidays = Holiday::whereBetween('date', [$this->startDate->format('Y-m-d'), $this->endDate->format('Y-m-d')])
-            ->pluck('date')
-            ->map(fn($date) => $date->format('Y-m-d'))
+            ->get()
+            ->map(fn($h) => (is_string($h->date) ? substr($h->date, 0, 10) : $h->date->format('Y-m-d')))
             ->toArray();
 
         // 3. Fetch Attendance Data
@@ -87,10 +90,27 @@ class StudentAttendanceSummaryExport implements FromCollection, WithHeadings, Sh
             ->get()
             ->groupBy('student_id');
 
+        // 3b. Fetch Daily Punch Counts for "Low Attendance" holiday check (Global)
+        $dailyCounts = Attendance::whereBetween('attendance_date', [$this->startDate->format('Y-m-d'), $this->endDate->format('Y-m-d')])
+            ->selectRaw('DATE(attendance_date) as date, count(distinct student_id) as count')
+            ->groupBy('date')
+            ->get()
+            ->mapWithKeys(function ($item) {
+                // Handle different potential date formats from DB
+                $dateStr = is_string($item->date) ? substr($item->date, 0, 10) : Carbon::parse($item->date)->format('Y-m-d');
+                return [$dateStr => $item->count];
+            })
+            ->toArray();
+
         $output = collect();
 
         foreach ($students as $student) {
-            $studentAttendance = $attendanceRecords->get($student->id, collect());
+            // Pre-map student attendance for this range to avoid repetitive parsing
+            // This is indexed by 'Y-m-d' date string
+            $studentRecordsMap = $attendanceRecords->get($student->id, collect())->mapWithKeys(function ($item) {
+                $d = is_string($item->attendance_date) ? substr($item->attendance_date, 0, 10) : $item->attendance_date->format('Y-m-d');
+                return [$d => $item];
+            });
 
             // Basic Info
             $row = [
@@ -111,7 +131,7 @@ class StudentAttendanceSummaryExport implements FromCollection, WithHeadings, Sh
                     $monthEnd = $this->endDate->copy();
 
                 if ($monthStart->gt($monthEnd)) {
-                    // Should not happen with CarbonPeriod logic usually, but safe guard
+                    $row[] = 0;
                     $row[] = 0;
                     $row[] = 0;
                     $row[] = 0;
@@ -120,20 +140,22 @@ class StudentAttendanceSummaryExport implements FromCollection, WithHeadings, Sh
                     continue;
                 }
 
-                $stats = $this->calculateStats($monthStart, $monthEnd, $holidays, $studentAttendance);
+                $stats = $this->calculateStats($monthStart, $monthEnd, $holidays, $studentRecordsMap, $student, $dailyCounts);
 
                 $row[] = $stats['working_days'];
                 $row[] = $stats['present'];
                 $row[] = $stats['absent'];
+                $row[] = $stats['holidays'];
                 $row[] = $stats['percentage'] . '%';
                 $row[] = ''; // Separator
             }
 
             // Overall Stats
-            $overallStats = $this->calculateStats($this->startDate, $this->endDate, $holidays, $studentAttendance);
+            $overallStats = $this->calculateStats($this->startDate, $this->endDate, $holidays, $studentRecordsMap, $student, $dailyCounts);
             $row[] = $overallStats['working_days'];
             $row[] = $overallStats['present'];
             $row[] = $overallStats['absent'];
+            $row[] = $overallStats['holidays'];
             $row[] = $overallStats['percentage'] . '%';
 
             $output->push($row);
@@ -142,23 +164,95 @@ class StudentAttendanceSummaryExport implements FromCollection, WithHeadings, Sh
         return $output;
     }
 
-    private function calculateStats($start, $end, $allHolidays, $studentRecords)
+    private function calculateStats($start, $end, $allHolidays, $recordMap, $student, $dailyCounts = [])
     {
+        // Determine effective start date for this student
+        $effectiveStartDate = $student->admission_date
+            ? Carbon::parse($student->admission_date)->startOfDay()
+            : $student->created_at->copy()->startOfDay();
+
         $current = $start->copy();
         $workingDays = 0;
+        $holidaysCount = 0;
+        $today = Carbon::now()->startOfDay();
 
+        // Loop through every day in the period
         while ($current->lte($end)) {
-            if (!$current->isSunday() && !in_array($current->format('Y-m-d'), $allHolidays)) {
-                $workingDays++;
+            $dateStr = $current->format('Y-m-d');
+            $isSunday = $current->isSunday();
+            $isExplicitHoliday = in_array($dateStr, $allHolidays);
+
+            // Low Attendance Holiday Logic
+            $isLowAttendanceHoliday = false;
+            // Only past/today can be low attendance holidays based on actual data
+            if ($current->lte($today) && !$isSunday && !$isExplicitHoliday) {
+                $dayPunchCount = $dailyCounts[$dateStr] ?? 0;
+                if ($dayPunchCount < 10) {
+                    $isLowAttendanceHoliday = true;
+                }
+            }
+
+            $isHoliday = $isSunday || $isExplicitHoliday || $isLowAttendanceHoliday;
+
+            if ($isHoliday) {
+                $holidaysCount++;
+            } else {
+                // 2. Working Day Logic
+                // Only count as working day if student has started
+                if ($current->gte($effectiveStartDate)) {
+                    $workingDays++;
+                }
             }
             $current->addDay();
         }
 
-        $present = $studentRecords->whereBetween('attendance_date', [$start->format('Y-m-d'), $end->format('Y-m-d')])
-            ->where('status', 'present')->count();
+        // Calculate Present and Absent
+        // We need to loop again or use the counters from above?
+        // Let's loop again properly for Present/Absent strictly based on working days
 
-        $absent = $studentRecords->whereBetween('attendance_date', [$start->format('Y-m-d'), $end->format('Y-m-d')])
-            ->where('status', 'absent')->count();
+        $present = 0;
+        $absent = 0;
+
+        $current = $start->copy();
+        while ($current->lte($end)) {
+            $dateStr = $current->format('Y-m-d');
+            $isSunday = $current->isSunday();
+            $isExplicitHoliday = in_array($dateStr, $allHolidays);
+
+            $isLowAttendanceHoliday = false;
+            if ($current->lte($today) && !$isSunday && !$isExplicitHoliday) {
+                $dayPunchCount = $dailyCounts[$dateStr] ?? 0;
+                if ($dayPunchCount < 10) {
+                    $isLowAttendanceHoliday = true;
+                }
+            }
+
+            $isHoliday = $isSunday || $isExplicitHoliday || $isLowAttendanceHoliday;
+
+            // We only care about attendance on "Working Days" for this student
+            if (!$isHoliday && $current->gte($effectiveStartDate)) {
+
+                // If the day is in the future, ignore it for attendance stats
+                if ($current->gt($today)) {
+                    $current->addDay();
+                    continue;
+                }
+
+                if (isset($recordMap[$dateStr])) {
+                    $status = strtolower(trim($recordMap[$dateStr]->status));
+                    if (in_array($status, ['present', 'late'])) {
+                        $present++;
+                    } elseif ($status === 'absent') {
+                        $absent++;
+                    }
+                } else {
+                    // No Record Found.
+                    // If it's a past working day and student had joined, count as Absent (Implicit)
+                    $absent++;
+                }
+            }
+            $current->addDay();
+        }
 
         $percentage = ($workingDays > 0) ? round(($present / $workingDays) * 100, 1) : 0;
         if ($percentage > 100)
@@ -168,6 +262,7 @@ class StudentAttendanceSummaryExport implements FromCollection, WithHeadings, Sh
             'working_days' => $workingDays,
             'present' => $present,
             'absent' => $absent,
+            'holidays' => $holidaysCount,
             'percentage' => $percentage
         ];
     }
@@ -178,8 +273,9 @@ class StudentAttendanceSummaryExport implements FromCollection, WithHeadings, Sh
         $row2 = ['', '', ''];
 
         foreach ($this->months as $month) {
-            // Header 1: Month Name spanning 4 columns + 1 separator
+            // Header 1: Month Name spanning 5 columns + 1 separator
             $row1[] = $month->format('F Y');
+            $row1[] = ''; // spanned
             $row1[] = ''; // spanned
             $row1[] = ''; // spanned
             $row1[] = ''; // spanned
@@ -189,6 +285,7 @@ class StudentAttendanceSummaryExport implements FromCollection, WithHeadings, Sh
             $row2[] = 'Working Days';
             $row2[] = 'Present';
             $row2[] = 'Absent';
+            $row2[] = 'Holidays';
             $row2[] = 'Attendance %';
             $row2[] = ''; // separator
         }
@@ -198,10 +295,12 @@ class StudentAttendanceSummaryExport implements FromCollection, WithHeadings, Sh
         $row1[] = ''; // spanned
         $row1[] = ''; // spanned
         $row1[] = ''; // spanned
+        $row1[] = ''; // spanned
 
         $row2[] = 'Working Days';
         $row2[] = 'Present';
         $row2[] = 'Absent';
+        $row2[] = 'Holidays';
         $row2[] = 'Attendance %';
 
         return [$row1, $row2];
@@ -233,21 +332,21 @@ class StudentAttendanceSummaryExport implements FromCollection, WithHeadings, Sh
                 $col = 4;
 
                 foreach ($this->months as $month) {
-                    // Merge Month Header (4 columns)
+                    // Merge Month Header (5 columns)
                     $start = Coordinate::stringFromColumnIndex($col);
-                    $end = Coordinate::stringFromColumnIndex($col + 3);
+                    $end = Coordinate::stringFromColumnIndex($col + 4);
                     $sheet->mergeCells("{$start}1:{$end}1");
 
                     // Center Month Header
                     $sheet->getStyle("{$start}1:{$end}1")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
 
-                    // Move to next block (4 columns + 1 separator)
-                    $col += 5;
+                    // Move to next block (5 columns + 1 separator)
+                    $col += 6;
                 }
 
-                // Merge Overall Header (4 columns)
+                // Merge Overall Header (5 columns)
                 $start = Coordinate::stringFromColumnIndex($col);
-                $end = Coordinate::stringFromColumnIndex($col + 3);
+                $end = Coordinate::stringFromColumnIndex($col + 4);
                 $sheet->mergeCells("{$start}1:{$end}1");
                 $sheet->getStyle("{$start}1:{$end}1")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
             },
