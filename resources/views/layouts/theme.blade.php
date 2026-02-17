@@ -76,7 +76,7 @@
 
             @can('view attendance')
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ route('admin.attendance.dashboard') }}">
+                    <a class="nav-link" href="{{ route('admin.reports.attendance.index') }}">
                         <i class="fas fa-fw fa-chart-line"></i>
                         <span>View Attendance</span>
                     </a>
@@ -374,10 +374,10 @@
                         @endcan
                         @can('view attendance')
                             {{--
-                            <a class="collapse-item" href="{{ route('admin.attendance.dashboard') }}">
-                                <i class="fas fa-tachometer-alt fa-sm fa-fw mr-1"></i> Dashboard
-                            </a>
-                            --}}
+                            <a class="collapse-item" href="{{ route('admin.reports.attendance.index') }}">
+                                    <i class="fas fa-tachometer-alt fa-sm fa-fw mr-1"></i> Dashboard
+                                </a>
+                                --}}
                         @endcan
 
                         @can('take attendance')
@@ -724,15 +724,15 @@
                                     <a class="collapse-item" href="{{ route('admin.reports.referrals.index') }}">Referral
                                         Tracking</a>
                                     <a class="collapse-item" href="{{ route('admin.reports.referrals.index') }}">Referral
-                                                    Tracking</a>
-                                                <a class="collapse-item" href="{{ route('admin.reports.age.index') }}">Age Report</a>
-                                                <a class="collapse-item" href="{{ route('admin.reports.certificates.index') }}">Certificate
-                                                    Reports</a>
+                                        Tracking</a>
+                                    <a class="collapse-item" href="{{ route('admin.reports.age.index') }}">Age Report</a>
+                                    <a class="collapse-item" href="{{ route('admin.reports.certificates.index') }}">Certificate
+                                        Reports</a>
                                 @endcan
                             @endif
-                            </div>
                         </div>
-                    </li>
+                    </div>
+                </li>
             @endif
 
             <hr class="sidebar-divider d-none d-md-block">

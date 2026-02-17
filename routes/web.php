@@ -573,7 +573,6 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
             Route::get('/export/reminders', [PaymentReminderController::class, 'export'])->name('export');
             Route::get('/reports/summary', [PaymentReminderController::class, 'summaryReport'])->name('reports.summary');
             Route::get('/reports/analytics', [PaymentReminderController::class, 'analytics'])->name('reports.analytics');
-
             // System operations
             Route::post('/process-pending', [PaymentReminderController::class, 'processPending'])->name('process-pending');
             Route::get('/health-check', [PaymentReminderController::class, 'healthCheck'])->name('health-check');
@@ -691,6 +690,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
     // --- Reports ---
     Route::middleware(['permission:manage reports'])->group(function () {
         Route::get('reports/attendance', [AttendanceReportController::class, 'index'])->name('reports.attendance.index');
+        Route::get('reports/attendance/export', [AttendanceReportController::class, 'export'])->name('reports.attendance.export');
         Route::get('reports/financial', [FinancialReportController::class, 'show'])->name('reports.financial.show');
         Route::get('reports/assets', [AssetReportController::class, 'index'])->name('reports.assets.index');
         Route::get('reports/admissions', [AdmissionReportController::class, 'index'])->name('reports.admissions.index');
