@@ -321,52 +321,52 @@
 
             if (students.length === 0) {
                 tbody.append(`
-                            <tr>
-                                <td colspan="5" class="text-center py-4 text-muted">
-                                    <i class="fas fa-info-circle mr-2"></i>
-                                    No students found in this batch
-                                </td>
-                            </tr>
-                        `);
+                                <tr>
+                                    <td colspan="5" class="text-center py-4 text-muted">
+                                        <i class="fas fa-info-circle mr-2"></i>
+                                        No students found in this batch
+                                    </td>
+                                </tr>
+                            `);
                 return;
             }
 
             students.forEach((student, index) => {
                 const existingStatus = student.existing_status || 'absent';
                 tbody.append(`
-                            <tr>
-                                <td>${index + 1}</td>
-                                <td>
-                                    <strong>${student.name}</strong>
-                                    ${student.student_mobile ? `<br><small class="text-muted">${student.student_mobile}</small>` : ''}
-                                </td>
-                                <td>
-                                    <span class="badge badge-secondary">${student.enrollment_number || 'N/A'}</span>
-                                </td>
-                                <td>
-                                    <div class="btn-group btn-group-toggle" data-toggle="buttons">
-                                        <label class="btn btn-outline-success btn-sm ${existingStatus === 'present' ? 'active' : ''}">
-                                            <input type="radio" name="attendance[${student.id}][status]" value="present" ${existingStatus === 'present' ? 'checked' : ''} onchange="updateCounts()"> Present
-                                        </label>
-                                        <label class="btn btn-outline-warning btn-sm ${existingStatus === 'late' ? 'active' : ''}">
-                                            <input type="radio" name="attendance[${student.id}][status]" value="late" ${existingStatus === 'late' ? 'checked' : ''} onchange="updateCounts()"> Late
-                                        </label>
-                                        <label class="btn btn-outline-danger btn-sm ${existingStatus === 'absent' ? 'active' : ''}">
-                                            <input type="radio" name="attendance[${student.id}][status]" value="absent" ${existingStatus === 'absent' ? 'checked' : ''} onchange="updateCounts()"> Absent
-                                        </label>
-                                        <label class="btn btn-outline-info btn-sm ${existingStatus === 'excused' ? 'active' : ''}">
-                                            <input type="radio" name="attendance[${student.id}][status]" value="excused" ${existingStatus === 'excused' ? 'checked' : ''} onchange="updateCounts()"> Excused
-                                        </label>
-                                    </div>
-                                    <input type="hidden" name="attendance[${student.id}][student_id]" value="${student.id}">
-                                </td>
-                                <td>
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addRemarks(${student.id})">
-                                        <i class="fas fa-comment"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                        `);
+                                <tr>
+                                    <td>${index + 1}</td>
+                                    <td>
+                                        <strong>${student.name}</strong>
+                                        ${student.student_mobile ? `<br><small class="text-muted">${student.student_mobile}</small>` : ''}
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-secondary">${student.enrollment_number || 'N/A'}</span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-toggle" data-toggle="buttons">
+                                            <label class="btn btn-outline-success btn-sm ${existingStatus === 'present' ? 'active' : ''}">
+                                                <input type="radio" name="attendance[${student.id}][status]" value="present" ${existingStatus === 'present' ? 'checked' : ''} onchange="updateCounts()"> Present
+                                            </label>
+                                            <label class="btn btn-outline-warning btn-sm ${existingStatus === 'late' ? 'active' : ''}">
+                                                <input type="radio" name="attendance[${student.id}][status]" value="late" ${existingStatus === 'late' ? 'checked' : ''} onchange="updateCounts()"> Late
+                                            </label>
+                                            <label class="btn btn-outline-danger btn-sm ${existingStatus === 'absent' ? 'active' : ''}">
+                                                <input type="radio" name="attendance[${student.id}][status]" value="absent" ${existingStatus === 'absent' ? 'checked' : ''} onchange="updateCounts()"> Absent
+                                            </label>
+                                            <label class="btn btn-outline-info btn-sm ${existingStatus === 'excused' ? 'active' : ''}">
+                                                <input type="radio" name="attendance[${student.id}][status]" value="excused" ${existingStatus === 'excused' ? 'checked' : ''} onchange="updateCounts()"> Excused
+                                            </label>
+                                        </div>
+                                        <input type="hidden" name="attendance[${student.id}][student_id]" value="${student.id}">
+                                    </td>
+                                    <td>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addRemarks(${student.id})">
+                                            <i class="fas fa-comment"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            `);
             });
 
             updateCounts();
@@ -393,8 +393,8 @@
             if (remarks !== null) {
                 // Add hidden input for remarks
                 $(`input[name="attendance[${studentId}][student_id]"]`).after(`
-                            <input type="hidden" name="attendance[${studentId}][remarks]" value="${remarks}">
-                        `);
+                                <input type="hidden" name="attendance[${studentId}][remarks]" value="${remarks}">
+                            `);
             }
         }
 
@@ -435,12 +435,12 @@
             // Prepare form data
             formData.append('_token', $('input[name="_token"]').val());
             formData.append('batch_id', batchId);
-            formData.append('date', date);
+            formData.append('attendance_date', date);
             attendanceData.forEach((item, index) => {
-                formData.append(`attendance[${index}][student_id]`, item.student_id);
-                formData.append(`attendance[${index}][status]`, item.status);
+                formData.append(`attendances[${index}][student_id]`, item.student_id);
+                formData.append(`attendances[${index}][status]`, item.status);
                 if (item.remarks) {
-                    formData.append(`attendance[${index}][remarks]`, item.remarks);
+                    formData.append(`attendances[${index}][remarks]`, item.remarks);
                 }
             });
 
@@ -485,27 +485,27 @@
 
         function showSuccess(message) {
             const alertHtml = `
-                        <div class="alert alert-success alert-dismissible fade show" role="alert">
-                            <i class="fas fa-check-circle mr-2"></i>
-                            ${message}
-                            <button type="button" class="close" data-dismiss="alert">
-                                <span aria-hidden="true">&times;</span>
-                            </button>
-                        </div>
-                    `;
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                <i class="fas fa-check-circle mr-2"></i>
+                                ${message}
+                                <button type="button" class="close" data-dismiss="alert">
+                                    <span aria-hidden="true">&times;</span>
+                                </button>
+                            </div>
+                        `;
             $('.container-fluid').prepend(alertHtml);
         }
 
         function showError(message) {
             const alertHtml = `
-                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                            <i class="fas fa-exclamation-triangle mr-2"></i>
-                            ${message}
-                            <button type="button" class="close" data-dismiss="alert">
-                                <span aria-hidden="true">&times;</span>
-                            </button>
-                        </div>
-                    `;
+                            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                <i class="fas fa-exclamation-triangle mr-2"></i>
+                                ${message}
+                                <button type="button" class="close" data-dismiss="alert">
+                                    <span aria-hidden="true">&times;</span>
+                                </button>
+                            </div>
+                        `;
             $('.container-fluid').prepend(alertHtml);
         }
 
@@ -640,11 +640,11 @@
                 const isSelected = selectedDates.has(dateStr) ? 'selected' : '';
 
                 html += `
-                        <div class="calendar-day ${statusClass} ${isSelected}" onclick="toggleDateSelection(this, '${dateStr}')" data-date="${dateStr}">
-                            <div class="day-number">${day}</div>
-                            ${status ? `<span class="day-status badge badge-light">${status}</span>` : ''}
-                        </div>
-                    `;
+                            <div class="calendar-day ${statusClass} ${isSelected}" onclick="toggleDateSelection(this, '${dateStr}')" data-date="${dateStr}">
+                                <div class="day-number">${day}</div>
+                                ${status ? `<span class="day-status badge badge-light">${status}</span>` : ''}
+                            </div>
+                        `;
             }
 
             html += '</div></div>';

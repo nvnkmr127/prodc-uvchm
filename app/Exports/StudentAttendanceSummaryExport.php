@@ -46,15 +46,15 @@ class StudentAttendanceSummaryExport implements FromCollection, WithHeadings, Sh
 
     public function collection()
     {
-        // 1. Fetch Students
-        $studentsQuery = Student::query();
+        // 1. Fetch Students - Bypass Global Scope
+        $studentsQuery = Student::withoutGlobalScope('academic_year');
 
         // 1a. Exclude Dropouts
         $studentsQuery->where('status', '!=', 'dropout');
 
         if ($this->courseId) {
             $studentsQuery->whereHas('batch', function ($q) {
-                $q->where('course_id', $this->courseId);
+                $q->withoutGlobalScope('academic_year')->where('course_id', $this->courseId);
             });
 
             // 1b. Internship Specific Rule
@@ -68,14 +68,18 @@ class StudentAttendanceSummaryExport implements FromCollection, WithHeadings, Sh
             $studentsQuery->where('batch_id', $this->batchId);
 
             if (!$this->courseId) {
-                $batch = \App\Models\Batch::with('course')->find($this->batchId);
+                $batch = \App\Models\Batch::withoutGlobalScope('academic_year')->with('course')->find($this->batchId);
                 if ($batch && $batch->course && stripos($batch->course->name, 'Internship') !== false) {
                     $studentsQuery->where('status', 'active');
                 }
             }
         }
 
-        $students = $studentsQuery->with(['batch'])->get();
+        $students = $studentsQuery->with([
+            'batch' => function ($q) {
+                $q->withoutGlobalScope('academic_year');
+            }
+        ])->get();
 
         // 2. Fetch Holidays - Ensure consistent string format
         $holidays = Holiday::whereBetween('date', [$this->startDate->format('Y-m-d'), $this->endDate->format('Y-m-d')])
@@ -83,15 +87,17 @@ class StudentAttendanceSummaryExport implements FromCollection, WithHeadings, Sh
             ->map(fn($h) => (is_string($h->date) ? substr($h->date, 0, 10) : $h->date->format('Y-m-d')))
             ->toArray();
 
-        // 3. Fetch Attendance Data
-        $attendanceRecords = Attendance::whereIn('student_id', $students->pluck('id'))
+        // 3. Fetch Attendance Data - Bypass Global Scope
+        $attendanceRecords = Attendance::withoutGlobalScope('academic_year')
+            ->whereIn('student_id', $students->pluck('id'))
             ->whereBetween('attendance_date', [$this->startDate->format('Y-m-d'), $this->endDate->format('Y-m-d')])
             ->select('student_id', 'attendance_date', 'status')
             ->get()
             ->groupBy('student_id');
 
-        // 3b. Fetch Daily Punch Counts for "Low Attendance" holiday check (Global)
-        $dailyCounts = Attendance::whereBetween('attendance_date', [$this->startDate->format('Y-m-d'), $this->endDate->format('Y-m-d')])
+        // 3b. Fetch Daily Punch Counts for "Low Attendance" holiday check (Global) - Bypass Global Scope
+        $dailyCounts = Attendance::withoutGlobalScope('academic_year')
+            ->whereBetween('attendance_date', [$this->startDate->format('Y-m-d'), $this->endDate->format('Y-m-d')])
             ->selectRaw('DATE(attendance_date) as date, count(distinct student_id) as count')
             ->groupBy('date')
             ->get()

@@ -34,7 +34,7 @@
                     <td>{{ $student->enrollment_number }}</td>
                     <td>
                         <div class="d-flex align-items-center">
-                            <img src="{{ \App\Http\Controllers\Admin\StudentController::getStudentPhotoUrl($student, 40) }}"
+                            <img src="{{ $student->small_photo }}"
                                 class="rounded-circle mr-2" width="40" height="40" alt="">
                             <a href="{{ route('admin.students.show', $student->id) }}"
                                 class="font-weight-bold text-gray-800 hover-primary">
@@ -66,10 +66,17 @@
                         @endif
                     </td>
                     <td class="text-center">
-                        <a href="{{ route('admin.students.edit', $student) }}"
-                            class="btn btn-sm btn-light border hover-primary" title="Edit Student">
-                            <i class="fas fa-edit text-primary"></i>
-                        </a>
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-light border hover-success btn-update-cert"
+                                data-id="{{ $student->id }}" data-received="{{ $student->is_certificate_received ? 1 : 0 }}"
+                                data-type="{{ $student->certificate_type }}" title="Update Certificate Info">
+                                <i class="fas fa-certificate text-success"></i>
+                            </button>
+                            <a href="{{ route('admin.students.edit', $student) }}"
+                                class="btn btn-sm btn-light border hover-primary" title="Edit Student">
+                                <i class="fas fa-edit text-primary"></i>
+                            </a>
+                        </div>
                     </td>
                 </tr>
             @empty

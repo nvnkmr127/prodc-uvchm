@@ -23,6 +23,12 @@ class AgeReportController extends Controller
 
         $query = Student::query();
 
+        // [Filter] Exclude Dropouts and Internship students
+        $query->where('status', '!=', 'dropout')
+            ->whereHas('batch', function ($q) {
+                $q->where('is_on_internship', 0);
+            });
+
         if ($courseId) {
             $query->whereHas('batch', function ($q) use ($courseId) {
                 $q->where('course_id', $courseId);
@@ -89,7 +95,9 @@ class AgeReportController extends Controller
         $averageAgeByCourseQuery = Course::select('courses.name', DB::raw('AVG(TIMESTAMPDIFF(YEAR, students.dob, CURDATE())) as avg_age'))
             ->join('batches', 'courses.id', '=', 'batches.course_id')
             ->join('students', 'batches.id', '=', 'students.batch_id')
-            ->whereNotNull('students.dob');
+            ->whereNotNull('students.dob')
+            ->where('students.status', '!=', 'dropout')
+            ->where('batches.is_on_internship', 0);
 
         if ($courseId)
             $averageAgeByCourseQuery->where('courses.id', $courseId);

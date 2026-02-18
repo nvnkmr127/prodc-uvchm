@@ -174,6 +174,14 @@ class DailyAttendanceController extends Controller
      */
     public function store(Request $request)
     {
+        // Normalize field names for robustness
+        if (!$request->has('attendance_date') && $request->has('date')) {
+            $request->merge(['attendance_date' => $request->date]);
+        }
+        if (!$request->has('attendances') && $request->has('attendance')) {
+            $request->merge(['attendances' => $request->attendance]);
+        }
+
         try {
             $request->validate([
                 'batch_id' => 'required|exists:batches,id',
@@ -199,12 +207,26 @@ class DailyAttendanceController extends Controller
 
             DB::commit();
 
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Attendance marked successfully for ' . count($request->attendances) . ' students.'
+                ]);
+            }
+
             return redirect()->route('admin.daily-attendance.index')
                 ->with('success', 'Attendance marked successfully for ' . count($request->attendances) . ' students.');
 
         } catch (\Exception $e) {
             DB::rollback();
             Log::error('Daily attendance store error: ' . $e->getMessage());
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to save attendance. Error: ' . $e->getMessage()
+                ], 422);
+            }
 
             return back()
                 ->withInput()

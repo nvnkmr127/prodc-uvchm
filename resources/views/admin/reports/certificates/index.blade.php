@@ -167,7 +167,20 @@
                     <input type="hidden" name="sort_by" id="sort_by" value="{{ $sortBy }}">
                     <input type="hidden" name="sort_order" id="sort_order" value="{{ $sortOrder }}">
 
-                    <div class="col-md-3 mb-3 mb-md-0">
+                    <div class="col-md-3 mb-3">
+                        <label class="small font-weight-bold text-gray-600">Search Students</label>
+                        <div class="input-group">
+                            <div class="input-group-prepend">
+                                <span class="input-group-text bg-light border-0"><i
+                                        class="fas fa-search text-muted"></i></span>
+                            </div>
+                            <input type="text" name="search" id="search_input"
+                                class="form-control bg-light border-0 shadow-none"
+                                placeholder="Name, Enrollment, Mobile...">
+                        </div>
+                    </div>
+
+                    <div class="col-md-2 mb-3">
                         <label class="small font-weight-bold text-gray-600">Filter by Course</label>
                         <select name="course_id" class="form-control bg-light border-0 shadow-none select2"
                             id="course_filter">
@@ -208,10 +221,10 @@
                             <option value="Inter" {{ $certificateType == 'Inter' ? 'selected' : '' }}>Intermediate</option>
                         </select>
                     </div>
-                    <div class="col-md-2 text-right">
+                    <div class="col-md-1 mb-3">
                         <a href="{{ route('admin.reports.certificates.index') }}"
                             class="btn btn-light px-3 border btn-block">
-                            <i class="fas fa-undo mr-1"></i> Reset
+                            <i class="fas fa-undo"></i>
                         </a>
                     </div>
                 </form>
@@ -289,6 +302,49 @@
             </div>
             <div class="card-body p-0" id="table_container">
                 @include('admin.reports.certificates._table')
+            </div>
+        </div>
+    </div>
+
+    <!-- Update Certificate Modal -->
+    <div class="modal fade" id="updateCertificateModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-primary text-white border-0">
+                    <h5 class="modal-title font-weight-bold">Update Certificate Status</h5>
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <form id="update_certificate_form">
+                    @csrf
+                    <input type="hidden" id="update_student_id">
+                    <div class="modal-body p-4">
+                        <div class="form-group">
+                            <label class="font-weight-bold">Received Status</label>
+                            <div class="custom-control custom-switch custom-switch-lg">
+                                <input type="checkbox" class="custom-control-input" id="is_received_switch"
+                                    name="is_certificate_received">
+                                <label class="custom-control-label" for="is_received_switch">Mark as Received</label>
+                            </div>
+                        </div>
+                        <div class="form-group mt-4">
+                            <label class="font-weight-bold">Certificate Type</label>
+                            <select name="certificate_type" id="update_certificate_type"
+                                class="form-control bg-light border-0">
+                                <option value="">Select Type</option>
+                                <option value="10th">10th</option>
+                                <option value="Inter">Intermediate</option>
+                                <option value="Degree">Degree</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer border-0 p-4">
+                        <button type="button" class="btn btn-light" data-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary px-4">Save Changes</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -409,6 +465,55 @@
             // Filter Form Submission
             $('#certificate_report_filters').on('change', 'select', function () {
                 refreshReport();
+            });
+
+            // Search with debounce
+            let searchTimer;
+            $('#search_input').on('keyup', function () {
+                clearTimeout(searchTimer);
+                searchTimer = setTimeout(() => {
+                    refreshReport();
+                }, 500);
+            });
+
+            // Update Status Logic
+            $(document).on('click', '.btn-update-cert', function () {
+                const studentId = $(this).data('id');
+                const isReceived = $(this).data('received');
+                const certType = $(this).data('type');
+
+                $('#update_student_id').val(studentId);
+                $('#is_received_switch').prop('checked', isReceived == 1);
+                $('#update_certificate_type').val(certType);
+                $('#updateCertificateModal').modal('show');
+            });
+
+            $('#update_certificate_form').on('submit', function (e) {
+                e.preventDefault();
+                const studentId = $('#update_student_id').val();
+                const formData = {
+                    _token: '{{ csrf_token() }}',
+                    is_certificate_received: $('#is_received_switch').is(':checked') ? 1 : 0,
+                    certificate_type: $('#update_certificate_type').val()
+                };
+
+                const url = '{{ route("admin.reports.certificates.update-status", ":id") }}'.replace(':id', studentId);
+
+                $.ajax({
+                    url: url,
+                    method: 'POST',
+                    data: formData,
+                    success: function (response) {
+                        if (response.success) {
+                            $('#updateCertificateModal').modal('hide');
+                            refreshReport();
+                            // Optional: show toast/alert
+                        }
+                    },
+                    error: function (xhr) {
+                        alert('Error updating status');
+                    }
+                });
             });
 
             // Sorting Logic

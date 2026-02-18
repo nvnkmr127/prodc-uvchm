@@ -29,30 +29,49 @@ class AttendanceReportController extends Controller
         $sortOrder = $request->input('sort_order', 'desc');
 
         $courses = Course::all();
-        $batches = Batch::when($courseId, function ($query) use ($courseId) {
-            return $query->where('course_id', $courseId);
-        })->get();
 
-        // Initial Load without filers
+        $currentYear = \App\Models\AcademicYear::where('is_current', true)->first();
+
+        $batches = Batch::withoutGlobalScope('academic_year')
+            ->when($courseId, function ($query) use ($courseId) {
+                return $query->where('course_id', $courseId);
+            })
+            ->when($currentYear, function ($query) use ($currentYear) {
+                // If no course/batch selected, maybe still show current year batches by default?
+                // But generally, for reports, we might want to see all or specific.
+                // Let's at least allow all batches to show up if sorted by date.
+            })->get();
+
+        // Initial Load without filters
         if (!$request->ajax() && !$request->has('start_date')) {
-            return view('admin.reports.attendance.index', compact('courses', 'batches'));
+            $startDate = $currentYear ? $currentYear->start_date : Carbon::now()->startOfMonth()->format('Y-m-d');
+            $endDate = $currentYear ? $currentYear->end_date : Carbon::now()->format('Y-m-d');
+
+            // If current year end date is far in future, cap it to today for report
+            if ($endDate > Carbon::now()->format('Y-m-d')) {
+                $endDate = Carbon::now()->format('Y-m-d');
+            }
+
+            return view('admin.reports.attendance.index', compact('courses', 'batches', 'startDate', 'endDate'));
         }
 
-        // Default dates if somehow triggered without them (though UI enforces required)
-        if (!$startDate)
-            $startDate = Carbon::now()->startOfMonth()->format('Y-m-d');
-        if (!$endDate)
+        // Default dates if somehow triggered without them
+        if (!$startDate) {
+            $startDate = $currentYear ? $currentYear->start_date : Carbon::now()->startOfMonth()->format('Y-m-d');
+        }
+        if (!$endDate) {
             $endDate = Carbon::now()->format('Y-m-d');
+        }
 
-        // 1. Fetch Students
-        $studentsQuery = Student::query();
+        // 1. Fetch Students - Bypass Academic Year Global Scope to allow historical reporting
+        $studentsQuery = Student::withoutGlobalScope('academic_year');
 
         // 1a. Exclude Dropouts (Global Rule for this report)
         $studentsQuery->where('status', '!=', 'dropout');
 
         if ($courseId) {
             $studentsQuery->whereHas('batch', function ($q) use ($courseId) {
-                $q->where('course_id', $courseId);
+                $q->withoutGlobalScope('academic_year')->where('course_id', $courseId);
             });
 
             // 1b. Internship Specific Rule: Only Active Students
@@ -70,7 +89,7 @@ class AttendanceReportController extends Controller
             // For now, let's rely on Course check if course selected, or we can check relation.
             // If only batch is selected, we can check its course.
             if (!$courseId) {
-                $batch = Batch::with('course')->find($batchId);
+                $batch = Batch::withoutGlobalScope('academic_year')->with('course')->find($batchId);
                 if ($batch && $batch->course && stripos($batch->course->name, 'Internship') !== false) {
                     $studentsQuery->where('status', 'active');
                 }
@@ -78,7 +97,13 @@ class AttendanceReportController extends Controller
         }
 
         // Get basic student info
-        $allStudents = $studentsQuery->select('id', 'name', 'enrollment_number', 'batch_id', 'admission_date', 'created_at')->with(['batch.course'])->get();
+        $allStudents = $studentsQuery->select('id', 'name', 'enrollment_number', 'batch_id', 'admission_date', 'created_at')
+            ->with([
+                'batch' => function ($q) {
+                    $q->withoutGlobalScope('academic_year');
+                },
+                'batch.course'
+            ])->get();
 
         // 2. Fetch Holidays (Global) - Ensure consistent date format
         $holidays = Holiday::whereBetween('date', [$startDate, $endDate])
@@ -86,15 +111,17 @@ class AttendanceReportController extends Controller
             ->map(fn($h) => (is_string($h->date) ? substr($h->date, 0, 10) : $h->date->format('Y-m-d')))
             ->toArray();
 
-        // 3. Fetch Attendance Data Efficiently
-        $attendanceRecords = Attendance::whereIn('student_id', $allStudents->pluck('id'))
+        // 3. Fetch Attendance Data Efficiently - Bypass Global Scope
+        $attendanceRecords = Attendance::withoutGlobalScope('academic_year')
+            ->whereIn('student_id', $allStudents->pluck('id'))
             ->whereBetween('attendance_date', [$startDate, $endDate])
             ->select('student_id', 'attendance_date', 'status')
             ->get()
             ->groupBy('student_id');
 
-        // 3b. Fetch Daily Punch Counts for "Low Attendance" holiday check
-        $dailyCounts = Attendance::whereBetween('attendance_date', [$startDate, $endDate])
+        // 3b. Fetch Daily Punch Counts for "Low Attendance" holiday check - Bypass Global Scope
+        $dailyCounts = Attendance::withoutGlobalScope('academic_year')
+            ->whereBetween('attendance_date', [$startDate, $endDate])
             ->selectRaw('DATE(attendance_date) as date, count(distinct student_id) as count')
             ->groupBy('date')
             ->get()

@@ -18,9 +18,18 @@ class CertificateReportController extends Controller
         $batchId = $request->get('batch_id');
         $status = $request->get('status');
         $certificateType = $request->get('certificate_type');
+        $search = $request->get('search');
 
         $query = Student::with(['batch.course'])
             ->where('status', 'active'); // Only active students
+
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('enrollment_number', 'like', "%{$search}%")
+                    ->orWhere('student_mobile', 'like', "%{$search}%");
+            });
+        }
 
         // Filters
         if ($status) {
@@ -63,9 +72,19 @@ class CertificateReportController extends Controller
 
         // Stats Calculation (respecting current filters)
         $statsQuery = Student::where('status', 'active');
+
+        if ($search) {
+            $statsQuery->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('enrollment_number', 'like', "%{$search}%")
+                    ->orWhere('student_mobile', 'like', "%{$search}%");
+            });
+        }
+
         if ($courseId) {
             $statsQuery->whereHas('batch', function ($q) use ($courseId) {
-                $q->where('course_id', $courseId); });
+                $q->where('course_id', $courseId);
+            });
         }
         if ($batchId) {
             $statsQuery->where('batch_id', $batchId);
@@ -84,11 +103,28 @@ class CertificateReportController extends Controller
             ->toArray();
 
         // Course-wise Pending Stats
-        $coursePendingStats = \DB::table('students')
+        $coursePendingStatsQuery = \DB::table('students')
             ->join('batches', 'students.batch_id', '=', 'batches.id')
             ->join('courses', 'batches.course_id', '=', 'courses.id')
             ->where('students.status', 'active')
-            ->where('students.is_certificate_received', false)
+            ->where('students.is_certificate_received', false);
+
+        if ($search) {
+            $coursePendingStatsQuery->where(function ($q) use ($search) {
+                $q->where('students.name', 'like', "%{$search}%")
+                    ->orWhere('students.enrollment_number', 'like', "%{$search}%")
+                    ->orWhere('students.student_mobile', 'like', "%{$search}%");
+            });
+        }
+
+        if ($courseId) {
+            $coursePendingStatsQuery->where('courses.id', $courseId);
+        }
+        if ($batchId) {
+            $coursePendingStatsQuery->where('batches.id', $batchId);
+        }
+
+        $coursePendingStats = $coursePendingStatsQuery
             ->select('courses.name', \DB::raw('count(*) as count'))
             ->groupBy('courses.name')
             ->get();
@@ -125,5 +161,23 @@ class CertificateReportController extends Controller
             'certTypeStats',
             'coursePendingStats'
         ));
+    }
+
+    public function updateStatus(Request $request, Student $student)
+    {
+        $request->validate([
+            'is_certificate_received' => 'required|boolean',
+            'certificate_type' => 'nullable|string|max:255'
+        ]);
+
+        $student->update([
+            'is_certificate_received' => $request->is_certificate_received,
+            'certificate_type' => $request->certificate_type
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Certificate status updated successfully.'
+        ]);
     }
 }
