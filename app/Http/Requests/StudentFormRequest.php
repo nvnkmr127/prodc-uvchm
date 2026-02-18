@@ -21,34 +21,34 @@ class StudentFormRequest extends FormRequest
     public function rules(): array
     {
         $studentId = $this->route('student')?->id;
-        
+
         return [
             'name' => 'required|string|max:255',
             'email' => [
-                'nullable', 
-                'string', 
-                'email', 
-                'max:255', 
+                'nullable',
+                'string',
+                'email',
+                'max:255',
                 Rule::unique('students')->ignore($studentId)
             ],
             'enrollment_number' => [
-                'required', 
-                'string', 
-                'max:255', 
+                'required',
+                'string',
+                'max:255',
                 Rule::unique('students')->ignore($studentId)
             ],
             'gender' => 'required|in:Male,Female,Other',
             'father_name' => 'nullable|string|max:255',
             'student_mobile' => [
-                'nullable', 
-                'string', 
+                'nullable',
+                'string',
                 'max:20',
                 'regex:/^[6-9]\d{9}$/',
                 Rule::unique('students')->ignore($studentId)
             ],
             'father_mobile' => [
-                'nullable', 
-                'string', 
+                'nullable',
+                'string',
                 'max:20',
                 'regex:/^[6-9]\d{9}$/',
                 Rule::unique('students')->ignore($studentId)
@@ -57,15 +57,14 @@ class StudentFormRequest extends FormRequest
             'admission_date' => 'required|date_format:Y-m-d',
             'batch_id' => 'nullable|exists:batches,id',
             'photo' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'biometric_employee_code' => [
+                'nullable',
+                'string',
+                'max:50',
+                'regex:/^[a-zA-Z0-9\-]+$/',
+                Rule::unique('students')->ignore($studentId)
+            ],
         ];
-        
-        'biometric_employee_code' => [
-    'nullable', 
-    'string', 
-    'max:50', 
-    'regex:/^[a-zA-Z0-9\-]+$/',
-    Rule::unique('students')->ignore($studentId)
-],
     }
 
     /**
@@ -102,8 +101,10 @@ class StudentFormRequest extends FormRequest
     {
         $validator->after(function ($validator) {
             // Custom validation: Check if student_mobile and father_mobile are the same
-            if ($this->student_mobile && $this->father_mobile && 
-                $this->student_mobile === $this->father_mobile) {
+            if (
+                $this->student_mobile && $this->father_mobile &&
+                $this->student_mobile === $this->father_mobile
+            ) {
                 $validator->errors()->add('father_mobile', 'Father mobile number cannot be the same as student mobile number.');
             }
 

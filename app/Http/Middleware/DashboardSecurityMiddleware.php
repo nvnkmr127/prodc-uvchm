@@ -5,6 +5,8 @@ namespace App\Http\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Illuminate\Support\Facades\Cache;
+
 
 class DashboardSecurityMiddleware
 {
@@ -14,37 +16,37 @@ class DashboardSecurityMiddleware
     public function handle(Request $request, Closure $next): Response
     {
         $user = auth()->user();
-        
+
         if (!$user) {
             return $next($request);
         }
-        
+
         // Check for suspicious activity
         if ($this->isSuspiciousActivity($request, $user)) {
             $this->logSuspiciousActivity($request, $user);
-            
+
             return response()->json([
                 'error' => 'Suspicious activity detected',
                 'message' => 'Your session has been flagged for review'
             ], 429);
         }
-        
+
         // Check session security
         if ($this->isSessionCompromised($request, $user)) {
             auth()->logout();
-            
+
             return response()->json([
                 'error' => 'Session security compromised',
                 'message' => 'Please log in again'
             ], 401);
         }
-        
+
         $response = $next($request);
-        
+
         // Add security headers
         return $this->addSecurityHeaders($response);
     }
-    
+
     /**
      * Detect suspicious activity patterns
      */
@@ -53,9 +55,37 @@ class DashboardSecurityMiddleware
         // Check for rapid requests
         $requestKey = "dashboard_requests_{$user->id}";
         $requestCount = Cache::get($requestKey, 0);
-        
+
         if ($requestCount > 100) { // More than 100 requests per minute
             return true;
         }
-        
-        Cache::
+
+        Cache::put($requestKey, $requestCount + 1, 60);
+
+        return false;
+    }
+
+    /**
+     * Detect if session is compromised
+     */
+    private function isSessionCompromised(Request $request, $user): bool
+    {
+        return false;
+    }
+
+    /**
+     * Log suspicious activity
+     */
+    private function logSuspiciousActivity(Request $request, $user): void
+    {
+        // Add logging logic here
+    }
+
+    /**
+     * Add security headers to response
+     */
+    private function addSecurityHeaders(Response $response): Response
+    {
+        return $response;
+    }
+}

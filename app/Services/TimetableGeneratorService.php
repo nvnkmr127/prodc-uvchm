@@ -61,9 +61,9 @@ class TimetableGeneratorService
             foreach ($courseIds as $courseId) {
                 $course = Course::with(['batches.students', 'subjects'])->findOrFail($courseId);
                 $result['report'] .= "🎓 Processing Course: {$course->name}\n";
-                
+
                 $courseResult = $this->generateCourseWeeklyTimetable($course, $academicYear, $weekStart, $workingDays, $options);
-                
+
                 // Merge results
                 $result['sessions_created'] += $courseResult['sessions_created'];
                 $result['lab_sessions'] += $courseResult['lab_sessions'];
@@ -77,20 +77,20 @@ class TimetableGeneratorService
             DB::commit();
 
             $result['message'] = "✅ Timetable generated successfully! Created {$result['sessions_created']} sessions " .
-                               "({$result['theory_sessions']} theory, {$result['lab_sessions']} lab). " .
-                               "Conflicts: {$result['conflicts']}, Skipped: {$result['skipped']}";
+                "({$result['theory_sessions']} theory, {$result['lab_sessions']} lab). " .
+                "Conflicts: {$result['conflicts']}, Skipped: {$result['skipped']}";
 
             Log::info('Timetable generation completed', $result);
-            
+
             return $result;
 
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Timetable generation failed', [
-                'error' => $e->getMessage(), 
+                'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             return [
                 'success' => false,
                 'message' => 'Timetable generation failed: ' . $e->getMessage(),
@@ -138,17 +138,18 @@ class TimetableGeneratorService
 
         // Process each batch
         foreach ($batches as $batch) {
-            $result['report'] .= "    📋 Processing Batch: {$batch->name} ({$batch->students_count ?? 0} students)\n";
-            
+            $count = isset($batch->students_count) ? $batch->students_count : 0;
+            $result['report'] .= "    📋 Processing Batch: {$batch->name} ({$count} students)\n";
+
             $batchResult = $this->generateBatchWeeklyTimetable(
-                $batch, 
-                $subjects, 
-                $academicYear, 
-                $weekStart, 
-                $workingDays, 
+                $batch,
+                $subjects,
+                $academicYear,
+                $weekStart,
+                $workingDays,
                 $options
             );
-            
+
             // Merge batch results
             $result['sessions_created'] += $batchResult['sessions_created'];
             $result['lab_sessions'] += $batchResult['lab_sessions'];
@@ -234,10 +235,10 @@ class TimetableGeneratorService
 
         $isLabSubject = $subject->requires_lab ?? false;
         $sessionsNeeded = $subject->weekly_hours ?? 2; // Default 2 sessions per week
-        
-        $result['report'] .= "        📖 Subject: {$subject->name} " . 
-                           ($isLabSubject ? "(LAB)" : "(THEORY)") . 
-                           " - Need {$sessionsNeeded} sessions\n";
+
+        $result['report'] .= "        📖 Subject: {$subject->name} " .
+            ($isLabSubject ? "(LAB)" : "(THEORY)") .
+            " - Need {$sessionsNeeded} sessions\n";
 
         $sessionsScheduled = 0;
 
@@ -266,13 +267,13 @@ class TimetableGeneratorService
                 if ($sessionResult['success']) {
                     $sessionsScheduled++;
                     $result['sessions_created']++;
-                    
+
                     if ($isLabSubject) {
                         $result['lab_sessions']++;
                     } else {
                         $result['theory_sessions']++;
                     }
-                    
+
                     $result['details'][] = $sessionResult['session'];
                     $result['report'] .= "          ✅ Scheduled: {$date->format('D M d')} at {$timeSlot->start_time}-{$timeSlot->end_time}\n";
                 } else {
@@ -301,7 +302,7 @@ class TimetableGeneratorService
         try {
             // Check for conflicts first
             $conflicts = $this->checkForConflicts($batch, $date, $timeSlot, $options);
-            
+
             if (!empty($conflicts) && !($options['allow_conflicts'] ?? false)) {
                 return [
                     'success' => false,
@@ -401,7 +402,7 @@ class TimetableGeneratorService
     {
         // Get all staff members
         $faculties = User::role('staff')->get();
-        
+
         // Filter based on subject expertise if relationship exists
         if (method_exists($subject, 'qualifiedFaculties')) {
             $qualifiedFaculties = $subject->qualifiedFaculties;
@@ -432,7 +433,7 @@ class TimetableGeneratorService
     private function findAvailableClassroom($date, $timeSlot, $isLabSession = false)
     {
         $query = Classroom::query();
-        
+
         // Filter by lab requirement
         if ($isLabSession) {
             $query->where('is_lab', true);
@@ -461,12 +462,12 @@ class TimetableGeneratorService
     private function getWorkingDaysConfig()
     {
         $workingDays = Setting::where('key', 'working_days')->first();
-        
+
         if ($workingDays && $workingDays->value) {
             $configured = json_decode($workingDays->value, true);
             return is_array($configured) ? $configured : ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
         }
-        
+
         return ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']; // Default 5 days
     }
 
@@ -502,15 +503,15 @@ class TimetableGeneratorService
     private function shouldGenerateSubject($subject, $options)
     {
         $isLab = $subject->requires_lab ?? false;
-        
+
         if ($isLab && !($options['generate_labs'] ?? true)) {
             return false;
         }
-        
+
         if (!$isLab && !($options['generate_theory'] ?? true)) {
             return false;
         }
-        
+
         return true;
     }
 

@@ -19,7 +19,7 @@ trait GeneratesReports
     public function generateStudentReport(int $studentId, array $filters = []): array
     {
         $student = Student::with(['batch', 'user'])->findOrFail($studentId);
-        
+
         // Get attendance data for the period
         $query = Attendance::where('student_id', $studentId);
         $this->applyDateFilters($query, $filters);
@@ -27,16 +27,16 @@ trait GeneratesReports
 
         // Calculate basic statistics
         $stats = $this->calculateStudentStats($attendances);
-        
+
         // Generate monthly breakdown
         $monthlyData = $this->generateMonthlyBreakdown($attendances);
-        
+
         // Generate subject-wise analysis
         $subjectAnalysis = $this->generateSubjectWiseAnalysis($attendances);
-        
+
         // Calculate attendance patterns
         $patterns = $this->analyzeAttendancePatterns($attendances);
-        
+
         // Generate recommendations
         $recommendations = $this->generateStudentRecommendations($stats, $patterns);
 
@@ -68,7 +68,7 @@ trait GeneratesReports
     public function generateBatchReport(int $batchId, array $filters = []): array
     {
         $batch = Batch::with(['course', 'students'])->findOrFail($batchId);
-        
+
         // Get attendance data for all students in the batch
         $query = Attendance::where('batch_id', $batchId);
         $this->applyDateFilters($query, $filters);
@@ -76,16 +76,16 @@ trait GeneratesReports
 
         // Calculate batch statistics
         $stats = $this->calculateBatchStats($attendances, $batch);
-        
+
         // Generate student-wise summary
         $studentSummary = $this->generateStudentWiseSummary($attendances);
-        
+
         // Generate daily attendance trends
         $dailyTrends = $this->generateDailyTrends($attendances);
-        
+
         // Identify at-risk students
         $atRiskStudents = $this->identifyAtRiskStudents($attendances);
-        
+
         // Generate performance insights
         $insights = $this->generateBatchInsights($stats, $studentSummary);
 
@@ -117,10 +117,10 @@ trait GeneratesReports
     public function generateCustomReport(array $config): array
     {
         $query = Attendance::query();
-        
+
         // Apply filters from configuration
         $this->applyCustomFilters($query, $config['filters'] ?? []);
-        
+
         // Load relationships based on config
         $relationships = $config['include'] ?? ['student', 'batch', 'subject', 'faculty'];
         $attendances = $query->with($relationships)->get();
@@ -160,7 +160,7 @@ trait GeneratesReports
     public function generateFacultyReport(int $facultyId, array $filters = []): array
     {
         $faculty = User::findOrFail($facultyId);
-        
+
         // Get attendance records marked by this faculty
         $query = Attendance::where('faculty_id', $facultyId);
         $this->applyDateFilters($query, $filters);
@@ -172,10 +172,10 @@ trait GeneratesReports
 
         // Calculate faculty statistics
         $stats = $this->calculateFacultyStats($attendances, $assignedBatches);
-        
+
         // Generate batch-wise breakdown
         $batchBreakdown = $this->generateFacultyBatchBreakdown($attendances);
-        
+
         // Calculate marking efficiency
         $efficiency = $this->calculateMarkingEfficiency($facultyId, $filters);
 
@@ -212,7 +212,7 @@ trait GeneratesReports
     public function generateComparativeReport(array $entities, string $type, array $filters = []): array
     {
         $comparisons = [];
-        
+
         foreach ($entities as $entityId) {
             switch ($type) {
                 case 'batch':
@@ -223,7 +223,7 @@ trait GeneratesReports
                         'statistics' => $data['statistics']
                     ];
                     break;
-                    
+
                 case 'student':
                     $data = $this->generateStudentReport($entityId, $filters);
                     $comparisons[] = [
@@ -232,7 +232,7 @@ trait GeneratesReports
                         'statistics' => $data['statistics']
                     ];
                     break;
-                    
+
                 case 'faculty':
                     $data = $this->generateFacultyReport($entityId, $filters);
                     $comparisons[] = [
@@ -244,13 +244,20 @@ trait GeneratesReports
             }
         }
 
- /**
+        return [
+            'type' => $type,
+            'comparisons' => $comparisons,
+            'generated_at' => now()->toISOString()
+        ];
+    }
+
+    /**
      * Generate attendance insights for batch analysis
      */
     private function generateBatchInsights(array $stats, array $studentSummary): array
     {
         $insights = [];
-        
+
         // Overall performance insight
         if ($stats['batch_attendance_rate'] >= 90) {
             $insights[] = [
@@ -265,11 +272,11 @@ trait GeneratesReports
                 'description' => 'Batch attendance is below the required 75% threshold'
             ];
         }
-        
+
         // At-risk students insight
         $atRiskCount = collect($studentSummary)->where('risk_level', 'high')->count() +
-                      collect($studentSummary)->where('risk_level', 'critical')->count();
-        
+            collect($studentSummary)->where('risk_level', 'critical')->count();
+
         if ($atRiskCount > 0) {
             $insights[] = [
                 'type' => 'warning',
@@ -277,7 +284,7 @@ trait GeneratesReports
                 'description' => "{$atRiskCount} students are at high or critical risk based on attendance patterns"
             ];
         }
-        
+
         return $insights;
     }
 
@@ -292,13 +299,13 @@ trait GeneratesReports
 
         // Hourly analysis (if time data is available)
         $hourlyData = $this->generateHourlyAnalysis($attendances);
-        
+
         // Day of week analysis
         $weeklyData = $this->generateWeeklyAnalysis($attendances);
-        
+
         // Monthly progression
         $monthlyProgression = $this->generateMonthlyProgression($attendances);
-        
+
         // Peak and low periods
         $peakAnalysis = $this->identifyPeakAndLowPeriods($attendances);
 
@@ -324,10 +331,10 @@ trait GeneratesReports
     {
         // Get students who need intervention
         $atRiskStudents = $this->identifyStudentsForIntervention($filters);
-        
+
         // Generate intervention strategies
         $interventionStrategies = $this->generateInterventionStrategies($atRiskStudents);
-        
+
         // Track intervention effectiveness
         $effectivenessData = $this->analyzeInterventionEffectiveness($filters);
 
@@ -352,13 +359,13 @@ trait GeneratesReports
         $attendances = $query->with(['student.batch'])->get();
 
         $minAttendancePercentage = config('attendance.minimum_percentage', 75);
-        
+
         // Calculate compliance metrics
         $complianceData = $this->calculateComplianceMetrics($attendances, $minAttendancePercentage);
-        
+
         // Identify non-compliant students
         $nonCompliantStudents = $this->identifyNonCompliantStudents($attendances, $minAttendancePercentage);
-        
+
         // Generate compliance trends
         $complianceTrends = $this->generateComplianceTrends($attendances, $filters);
 
@@ -386,7 +393,7 @@ trait GeneratesReports
                 'hour' => $hour,
                 'hour_display' => Carbon::createFromTime($hour)->format('H:i'),
                 'total_records' => $hourAttendances->count(),
-                'status_breakdown' => $hourAttendances->groupBy('status')->map->count()->toArray()
+                'status_breakdown' => $hourAttendances->groupBy('status')->map(fn($group) => $group->count())->toArray()
             ];
         })->sortBy('hour')->values()->toArray();
     }
@@ -405,7 +412,7 @@ trait GeneratesReports
                 'total_classes' => $total,
                 'present_count' => $present,
                 'attendance_percentage' => $total > 0 ? round(($present / $total) * 100, 2) : 0,
-                'status_breakdown' => $dayAttendances->groupBy('status')->map->count()->toArray()
+                'status_breakdown' => $dayAttendances->groupBy('status')->map(fn($group) => $group->count())->toArray()
             ];
         })->sortBy('day_of_week')->values()->toArray();
     }
@@ -414,7 +421,7 @@ trait GeneratesReports
     {
         return $attendances->groupBy(function ($attendance) {
             return Carbon::parse($attendance->attendance_date)->format('Y-m');
-        })->map(function ($monthAttendances, $month) {
+        })->map(function ($monthAttendances, $month) use ($attendances) {
             $total = $monthAttendances->count();
             $present = $monthAttendances->whereIn('status', ['present', 'late', 'excused'])->count();
 
@@ -477,12 +484,12 @@ trait GeneratesReports
         $threshold = config('attendance.intervention_threshold', 70);
         $query = Attendance::query();
         $this->applyDateFilters($query, $filters);
-        
+
         $studentStats = $query->get()->groupBy('student_id')
             ->map(function ($studentAttendances) {
                 $student = $studentAttendances->first()->student;
                 $stats = $this->calculateStudentStats($studentAttendances);
-                
+
                 return [
                     'student_id' => $student->id,
                     'student_name' => $student->name,
@@ -628,7 +635,7 @@ trait GeneratesReports
         return [
             'total_students' => $studentStats->count(),
             'compliant_students' => $compliantStudents->count(),
-            'compliance_rate' => $studentStats->count() > 0 ? 
+            'compliance_rate' => $studentStats->count() > 0 ?
                 round(($compliantStudents->count() / $studentStats->count()) * 100, 2) : 0,
             'average_attendance' => round($studentStats->avg(), 2),
             'threshold' => $threshold
@@ -641,7 +648,7 @@ trait GeneratesReports
             ->map(function ($studentAttendances) use ($threshold) {
                 $student = $studentAttendances->first()->student;
                 $percentage = $this->calculateAttendancePercentage($studentAttendances);
-                
+
                 return [
                     'student_id' => $student->id,
                     'student_name' => $student->name,
@@ -714,11 +721,11 @@ trait GeneratesReports
         // Calculate improvement from previous month
         $currentMonth = Carbon::createFromFormat('Y-m', $month);
         $previousMonth = $currentMonth->copy()->subMonth()->format('Y-m');
-        
+
         $currentAttendances = $attendances->filter(function ($attendance) use ($month) {
             return Carbon::parse($attendance->attendance_date)->format('Y-m') === $month;
         });
-        
+
         $previousAttendances = $attendances->filter(function ($attendance) use ($previousMonth) {
             return Carbon::parse($attendance->attendance_date)->format('Y-m') === $previousMonth;
         });
