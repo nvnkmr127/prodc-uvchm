@@ -151,7 +151,7 @@ class StudentAttendanceSummaryExport implements FromCollection, WithHeadings, Sh
                 $row[] = $stats['working_days'];
                 $row[] = $stats['present'];
                 $row[] = $stats['absent'];
-                $row[] = $stats['holidays'];
+                $row[] = $stats['excused'];
                 $row[] = $stats['percentage'] . '%';
                 $row[] = ''; // Separator
             }
@@ -161,7 +161,7 @@ class StudentAttendanceSummaryExport implements FromCollection, WithHeadings, Sh
             $row[] = $overallStats['working_days'];
             $row[] = $overallStats['present'];
             $row[] = $overallStats['absent'];
-            $row[] = $overallStats['holidays'];
+            $row[] = $overallStats['excused'];
             $row[] = $overallStats['percentage'] . '%';
 
             $output->push($row);
@@ -177,20 +177,24 @@ class StudentAttendanceSummaryExport implements FromCollection, WithHeadings, Sh
             ? Carbon::parse($student->admission_date)->startOfDay()
             : $student->created_at->copy()->startOfDay();
 
-        $current = $start->copy();
+        $today = Carbon::now()->startOfDay();
         $workingDays = 0;
         $holidaysCount = 0;
-        $today = Carbon::now()->startOfDay();
 
-        // Loop through every day in the period
+        // Fetch Student Profile Join Date
+        $firstBiometricUse = \App\Models\Attendance::withoutGlobalScope('academic_year')
+            ->where('student_id', $student->id)
+            ->whereIn('status', ['present', 'late'])
+            ->orderBy('attendance_date', 'asc')
+            ->value('attendance_date');
+
+        $current = $start->copy();
         while ($current->lte($end)) {
             $dateStr = $current->format('Y-m-d');
             $isSunday = $current->isSunday();
             $isExplicitHoliday = in_array($dateStr, $allHolidays);
 
-            // Low Attendance Holiday Logic
             $isLowAttendanceHoliday = false;
-            // Only past/today can be low attendance holidays based on actual data
             if ($current->lte($today) && !$isSunday && !$isExplicitHoliday) {
                 $dayPunchCount = $dailyCounts[$dateStr] ?? 0;
                 if ($dayPunchCount < 10) {
@@ -203,21 +207,29 @@ class StudentAttendanceSummaryExport implements FromCollection, WithHeadings, Sh
             if ($isHoliday) {
                 $holidaysCount++;
             } else {
-                // 2. Working Day Logic
-                // Only count as working day if student has started
-                if ($current->gte($effectiveStartDate)) {
+                // Working Day Criterion: Admission Date is priority
+                $hasStarted = $student->admission_date
+                    ? $current->gte(Carbon::parse($student->admission_date)->startOfDay())
+                    : ($firstBiometricUse ? $current->gte(Carbon::parse($firstBiometricUse)->startOfDay()) : false);
+
+                if ($hasStarted) {
                     $workingDays++;
                 }
             }
             $current->addDay();
         }
 
-        // Calculate Present and Absent
-        // We need to loop again or use the counters from above?
-        // Let's loop again properly for Present/Absent strictly based on working days
+        $working_days_in_loop = $workingDays;
 
+        // Calculate Present and Absent
         $present = 0;
         $absent = 0;
+        $internship = 0;
+        $excused = 0;
+
+        // Determine if Student is on Internship
+        $isOnInternship = $student->batch && $student->batch->is_on_internship;
+        $internshipStartDate = $isOnInternship ? $student->batch->internship_start_date : null;
 
         $current = $start->copy();
         while ($current->lte($end)) {
@@ -236,39 +248,58 @@ class StudentAttendanceSummaryExport implements FromCollection, WithHeadings, Sh
             $isHoliday = $isSunday || $isExplicitHoliday || $isLowAttendanceHoliday;
 
             // We only care about attendance on "Working Days" for this student
-            if (!$isHoliday && $current->gte($effectiveStartDate)) {
+            if (!$isHoliday) {
+                $hasStarted = $student->admission_date
+                    ? $current->gte(Carbon::parse($student->admission_date)->startOfDay())
+                    : ($firstBiometricUse ? $current->gte(Carbon::parse($firstBiometricUse)->startOfDay()) : false);
 
-                // If the day is in the future, ignore it for attendance stats
-                if ($current->gt($today)) {
-                    $current->addDay();
-                    continue;
-                }
-
-                if (isset($recordMap[$dateStr])) {
-                    $status = strtolower(trim($recordMap[$dateStr]->status));
-                    if (in_array($status, ['present', 'late'])) {
-                        $present++;
-                    } elseif ($status === 'absent') {
-                        $absent++;
+                if ($hasStarted) {
+                    // If the day is in the future, ignore it for attendance stats
+                    if ($current->gt($today)) {
+                        $current->addDay();
+                        continue;
                     }
-                } else {
-                    // No Record Found.
-                    // If it's a past working day and student had joined, count as Absent (Implicit)
-                    $absent++;
+
+                    if (isset($recordMap[$dateStr])) {
+                        $status = strtolower(trim($recordMap[$dateStr]->status));
+                        if (in_array($status, ['present', 'late'])) {
+                            $present++;
+                        } elseif ($status === 'absent') {
+                            $absent++;
+                        } elseif ($status === 'internship') {
+                            $internship++;
+                        } elseif ($status === 'excused') {
+                            $excused++;
+                        }
+                    } else {
+                        // No Record Found. Check if student is on internship
+                        $isInternshipDay = false;
+                        if ($isOnInternship && $internshipStartDate) {
+                            $isInternshipDay = $current->gte(Carbon::parse($internshipStartDate)->startOfDay());
+                        }
+
+                        if ($isInternshipDay) {
+                            $internship++;
+                        } else {
+                            // Missing record on working day -> Absent (Implicit)
+                            $absent++;
+                        }
+                    }
                 }
             }
             $current->addDay();
         }
 
-        $percentage = ($workingDays > 0) ? round(($present / $workingDays) * 100, 1) : 0;
+        $totalAttended = $present + $internship + $excused;
+        $percentage = ($working_days_in_loop > 0) ? round(($totalAttended / $working_days_in_loop) * 100, 1) : 0;
         if ($percentage > 100)
             $percentage = 100;
 
         return [
-            'working_days' => $workingDays,
+            'working_days' => $working_days_in_loop,
             'present' => $present,
             'absent' => $absent,
-            'holidays' => $holidaysCount,
+            'excused' => $excused,
             'percentage' => $percentage
         ];
     }
@@ -291,7 +322,7 @@ class StudentAttendanceSummaryExport implements FromCollection, WithHeadings, Sh
             $row2[] = 'Working Days';
             $row2[] = 'Present';
             $row2[] = 'Absent';
-            $row2[] = 'Holidays';
+            $row2[] = 'Excused';
             $row2[] = 'Attendance %';
             $row2[] = ''; // separator
         }
@@ -306,7 +337,7 @@ class StudentAttendanceSummaryExport implements FromCollection, WithHeadings, Sh
         $row2[] = 'Working Days';
         $row2[] = 'Present';
         $row2[] = 'Absent';
-        $row2[] = 'Holidays';
+        $row2[] = 'Excused';
         $row2[] = 'Attendance %';
 
         return [$row1, $row2];

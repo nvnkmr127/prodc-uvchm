@@ -106,6 +106,7 @@
             padding: 1rem;
             vertical-align: middle;
             border-bottom: 1px solid #f0f2f5;
+            white-space: nowrap;
         }
 
         .sortable {

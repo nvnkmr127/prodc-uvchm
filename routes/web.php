@@ -1401,6 +1401,10 @@ Route::get('/admin/test-direct-sync', [AttendanceSettingsController::class, 'tes
 Route::get('/test-lab-generation', [TimetableController::class, 'testLabGeneration']);
 
 // Student Self-Service Portal Routes
+Route::get('students/login', function () {
+    return redirect()->away('https://uvchm.com');
+});
+
 Route::prefix('student')->name('student.')->group(function () {
     // Public/Guest
     Route::get('/login', [App\Http\Controllers\StudentPortalController::class, 'loginPage'])->name('login');
