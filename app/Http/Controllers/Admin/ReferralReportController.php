@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use App\Models\Student;
+use App\Models\StudentFee;
+use App\Models\StudentConcession;
 
 class ReferralReportController extends Controller
 {
@@ -257,14 +259,50 @@ class ReferralReportController extends Controller
             $referrer = Student::where('name', $student->referral_name)->first();
 
             if ($referrer) {
-                // Find Active Fee Record (using default global scope/latest)
-                $feeRecord = \App\Models\StudentFee::where('student_id', $referrer->id)
+                // Find Active Fee Record (latest unpaid/partial first, fallback to any latest)
+                $feeRecord = StudentFee::withoutGlobalScope('academic_year')
+                    ->where('student_id', $referrer->id)
+                    ->whereIn('status', ['unpaid', 'partial'])
                     ->orderBy('created_at', 'desc')
                     ->first();
 
+                // Fallback: any fee record if no unpaid found
+                if (!$feeRecord) {
+                    $feeRecord = StudentFee::withoutGlobalScope('academic_year')
+                        ->where('student_id', $referrer->id)
+                        ->orderBy('created_at', 'desc')
+                        ->first();
+                }
+
                 if ($feeRecord) {
-                    $feeRecord->applyConcession($request->amount, "Referral Reward for student: " . $student->name);
-                    $message .= ". Concession applied to referrer {$referrer->name}.";
+                    $appliedAmount = $feeRecord->applyConcession(
+                        $request->amount,
+                        "Referral Reward for referred student: " . $student->name
+                    );
+
+                    // Log a StudentConcession record so it appears in the activity timeline
+                    if ($appliedAmount > 0) {
+                        StudentConcession::create([
+                            'student_id' => $referrer->id,
+                            'student_fee_id' => $feeRecord->id,
+                            'fee_category_id' => $feeRecord->fee_category_id,
+                            'concession_type' => 'discount',
+                            'concession_amount' => $appliedAmount,
+                            'reason' => 'Referral Reward: ' . $student->name . ' was referred by ' . $referrer->name,
+                            'notes' => 'Applied via Referral Commission (Fee Discount mode)',
+                            'status' => 'applied',
+                            'approved_by' => auth()->id(),
+                            'approved_at' => Carbon::now(),
+                            'applied_by' => auth()->id(),
+                            'applied_at' => Carbon::now(),
+                        ]);
+                    }
+
+                    $message .= ". Discount of ₹" . number_format($appliedAmount, 2) . " applied to referrer {$referrer->name}.";
+
+                    if ($appliedAmount < $request->amount) {
+                        $warning = "Only ₹" . number_format($appliedAmount, 2) . " applied (requested ₹" . number_format($request->amount, 2) . "). Fee balance was insufficient for the full amount.";
+                    }
                 } else {
                     $warning = "Referrer found ({$referrer->name}), but no fee record exists to apply discount.";
                 }

@@ -222,7 +222,13 @@ trait WebhookEnabled
     public function setWebhookEventName(string $action): void
     {
         $modelName = strtolower(class_basename(static::class));
-        $this->webhookEventName = "{$modelName}.{$action}";
+
+        // If action already starts with model name and a dot, don't prefix it
+        if (str_starts_with($action, $modelName . '.')) {
+            $this->webhookEventName = $action;
+        } else {
+            $this->webhookEventName = "{$modelName}.{$action}";
+        }
     }
 
     /**

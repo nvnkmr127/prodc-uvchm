@@ -289,8 +289,9 @@ class StudentFee extends Model
      */
     public function applyConcession($amount, $notes = null)
     {
-        $maxConcession = $this->amount - $this->paid_amount;
-        $concessionAmount = min($amount, $maxConcession);
+        // Max additional concession = amount - already paid - already conceded
+        $maxConcession = $this->amount - $this->paid_amount - $this->concession_amount;
+        $concessionAmount = min($amount, max(0, $maxConcession));
 
         if ($concessionAmount <= 0) {
             return 0;
