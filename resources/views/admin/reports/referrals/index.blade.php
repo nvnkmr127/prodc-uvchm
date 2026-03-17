@@ -134,13 +134,11 @@
                     <div class="row align-items-end">
                         <div class="col-md-2 mb-3">
                             <label class="small font-weight-bold text-gray-600">Start Date</label>
-                            <input type="date" name="start_date" id="start_date" class="form-control bg-light border-0"
-                                value="{{ \Carbon\Carbon::now()->subDays(90)->toDateString() }}">
+                            <input type="date" name="start_date" id="start_date" class="form-control bg-light border-0">
                         </div>
                         <div class="col-md-2 mb-3">
                             <label class="small font-weight-bold text-gray-600">End Date</label>
-                            <input type="date" name="end_date" id="end_date" class="form-control bg-light border-0"
-                                value="{{ \Carbon\Carbon::now()->toDateString() }}">
+                            <input type="date" name="end_date" id="end_date" class="form-control bg-light border-0">
                         </div>
                         <div class="col-md-2 mb-3">
                             <label class="small font-weight-bold text-gray-600">Course</label>
@@ -355,8 +353,12 @@
 
             // Reset Button Handler
             $('#resetBtn').click(function () {
-                // Reset form to default values (including server-side rendered dates)
+                // Reset all form fields
                 $('#filterForm')[0].reset();
+
+                // Explicitly clear the date fields (reset() only restores default values)
+                $('#start_date').val('');
+                $('#end_date').val('');
 
                 // Disable batch select and reset it
                 $('#batch_id').prop('disabled', true).empty().append('<option value="">All Batches</option>');
@@ -423,19 +425,19 @@
 
             stats.forEach(stat => {
                 tbody.append(`
-                                                                            <tr>
-                                                                                <td><span class="badge-source">${stat.source}</span></td>
-                                                                                <td class="text-center font-weight-bold">${stat.total_admissions}</td>
-                                                                                <td>
-                                                                                    <div class="d-flex align-items-center">
-                                                                                        <div class="progress flex-grow-1 mr-2" style="height: 8px;">
-                                                                                            <div class="progress-bar bg-success" role="progressbar" style="width: ${stat.share}%"></div>
+                                                                                <tr>
+                                                                                    <td><span class="badge-source">${stat.source}</span></td>
+                                                                                    <td class="text-center font-weight-bold">${stat.total_admissions}</td>
+                                                                                    <td>
+                                                                                        <div class="d-flex align-items-center">
+                                                                                            <div class="progress flex-grow-1 mr-2" style="height: 8px;">
+                                                                                                <div class="progress-bar bg-success" role="progressbar" style="width: ${stat.share}%"></div>
+                                                                                            </div>
+                                                                                            <small class="font-weight-bold text-success">${stat.share}%</small>
                                                                                         </div>
-                                                                                        <small class="font-weight-bold text-success">${stat.share}%</small>
-                                                                                    </div>
-                                                                                </td>
-                                                                            </tr>
-                                                                        `);
+                                                                                    </td>
+                                                                                </tr>
+                                                                            `);
             });
         }
 
@@ -455,22 +457,22 @@
                 const totalPayout = stat.total_payout || 0;
 
                 tbody.append(`
-                                    <tr>
-                                        <td><span class="badge-referrer">${stat.referral_name}</span></td>
-                                        <td class="text-center font-weight-bold">${stat.total_admissions}</td>
-                                        <td class="text-center text-success font-weight-bold">${paid}</td>
-                                        <td class="text-center text-danger font-weight-bold">${remaining}</td>
-                                        <td class="text-right font-weight-bold">${new Intl.NumberFormat().format(totalPayout)}</td>
-                                        <td>
-                                            <div class="d-flex align-items-center">
-                                                <div class="progress flex-grow-1 mr-2" style="height: 8px;">
-                                                    <div class="progress-bar bg-primary" role="progressbar" style="width: ${stat.share}%"></div>
+                                        <tr>
+                                            <td><span class="badge-referrer">${stat.referral_name}</span></td>
+                                            <td class="text-center font-weight-bold">${stat.total_admissions}</td>
+                                            <td class="text-center text-success font-weight-bold">${paid}</td>
+                                            <td class="text-center text-danger font-weight-bold">${remaining}</td>
+                                            <td class="text-right font-weight-bold">${new Intl.NumberFormat().format(totalPayout)}</td>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <div class="progress flex-grow-1 mr-2" style="height: 8px;">
+                                                        <div class="progress-bar bg-primary" role="progressbar" style="width: ${stat.share}%"></div>
+                                                    </div>
+                                                    <small class="font-weight-bold text-primary">${stat.share}%</small>
                                                 </div>
-                                                <small class="font-weight-bold text-primary">${stat.share}%</small>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                `);
+                                            </td>
+                                        </tr>
+                                    `);
             });
         }
 
@@ -495,14 +497,14 @@
                 totalPayoutSum += amount;
 
                 tbody.append(`
-                                    <tr>
-                                        <td class="small text-muted">${std.commission_paid_at}</td>
-                                        <td><span class="badge-referrer">${std.referral_name}</span></td>
-                                        <td class="font-weight-bold">${std.student_name}</td>
-                                        <td><span class="badge badge-light border">${std.payment_mode || '-'}</span></td>
-                                        <td class="text-right font-weight-bold text-success">${new Intl.NumberFormat('en-IN').format(amount)}</td>
-                                    </tr>
-                                `);
+                                        <tr>
+                                            <td class="small text-muted">${std.commission_paid_at}</td>
+                                            <td><span class="badge-referrer">${std.referral_name}</span></td>
+                                            <td class="font-weight-bold">${std.student_name}</td>
+                                            <td><span class="badge badge-light border">${std.payment_mode || '-'}</span></td>
+                                            <td class="text-right font-weight-bold text-success">${new Intl.NumberFormat('en-IN').format(amount)}</td>
+                                        </tr>
+                                    `);
             });
 
             footerTotal.text(new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(totalPayoutSum));
@@ -524,40 +526,40 @@
                 if (std.status === 'Graduated') statusClass = 'badge-info';
 
                 tbody.append(`
-                                                                            <tr>
-                                                                                <td class="small text-muted">${std.admission_date}</td>
-                                                                                <td>
-                                                                                    <div class="font-weight-bold text-gray-800">${std.student_name}</div>
-                                                                                </td>
-                                                                                <td>
-                                                                                    <div class="small font-weight-bold">${std.course_name}</div>
-                                                                                    <div class="small text-muted">${std.batch_name}</div>
-                                                                                </td>
-                                                                                <td>
-                                                                                    <div class="mb-1"><span class="badge-source">${std.source}</span></div>
-                                                                                    ${std.referral_name !== '-' ? `<span class="badge-referrer">${std.referral_name}</span>` : ''}
-                                                                                </td>
-                                                                                <td>
-                                                                                    <div class="small font-weight-bold text-dark">${std.percentage_paid}% Paid</div>
-                                                                                    <div class="progress mt-1" style="height: 6px;">
-                                                                                        <div class="progress-bar ${std.percentage_paid >= 30 ? 'bg-success' : 'bg-warning'}" 
-                                                                                             role="progressbar" style="width: ${Math.min(std.percentage_paid, 100)}%"></div>
-                                                                                    </div>
-                                                                                </td>
-                                                                                <td>
-                                                                                    ${getCommissionStatusHtml(std)}
-                                                                                </td>
-                                                                                <td>
-                                                                                    <div class="small">
-                                                                                        <div class="d-flex justify-content-between"><span>Total:</span> <span class="font-weight-bold">${std.total_amount}</span></div>
-                                                                                        <div class="d-flex justify-content-between text-info"><span>Concession:</span> <span>${std.concession}</span></div>
-                                                                                        <div class="d-flex justify-content-between text-success"><span>Paid:</span> <span>${std.paid}</span></div>
-                                                                                        <div class="d-flex justify-content-between text-danger" style="border-top:1px dashed #ddd"><span>Due:</span> <span class="font-weight-bold">${std.remaining}</span></div>
-                                                                                    </div>
-                                                                                </td>
-                                                                                <td><span class="badge ${statusClass}">${std.status}</span></td>
-                                                                            </tr>
-                                                                        `);
+                                                                                <tr>
+                                                                                    <td class="small text-muted">${std.admission_date}</td>
+                                                                                    <td>
+                                                                                        <div class="font-weight-bold text-gray-800">${std.student_name}</div>
+                                                                                    </td>
+                                                                                    <td>
+                                                                                        <div class="small font-weight-bold">${std.course_name}</div>
+                                                                                        <div class="small text-muted">${std.batch_name}</div>
+                                                                                    </td>
+                                                                                    <td>
+                                                                                        <div class="mb-1"><span class="badge-source">${std.source}</span></div>
+                                                                                        ${std.referral_name !== '-' ? `<span class="badge-referrer">${std.referral_name}</span>` : ''}
+                                                                                    </td>
+                                                                                    <td>
+                                                                                        <div class="small font-weight-bold text-dark">${std.percentage_paid}% Paid</div>
+                                                                                        <div class="progress mt-1" style="height: 6px;">
+                                                                                            <div class="progress-bar ${std.percentage_paid >= 30 ? 'bg-success' : 'bg-warning'}" 
+                                                                                                 role="progressbar" style="width: ${Math.min(std.percentage_paid, 100)}%"></div>
+                                                                                        </div>
+                                                                                    </td>
+                                                                                    <td>
+                                                                                        ${getCommissionStatusHtml(std)}
+                                                                                    </td>
+                                                                                    <td>
+                                                                                        <div class="small">
+                                                                                            <div class="d-flex justify-content-between"><span>Total:</span> <span class="font-weight-bold">${std.total_amount}</span></div>
+                                                                                            <div class="d-flex justify-content-between text-info"><span>Concession:</span> <span>${std.concession}</span></div>
+                                                                                            <div class="d-flex justify-content-between text-success"><span>Paid:</span> <span>${std.paid}</span></div>
+                                                                                            <div class="d-flex justify-content-between text-danger" style="border-top:1px dashed #ddd"><span>Due:</span> <span class="font-weight-bold">${std.remaining}</span></div>
+                                                                                        </div>
+                                                                                    </td>
+                                                                                    <td><span class="badge ${statusClass}">${std.status}</span></td>
+                                                                                </tr>
+                                                                            `);
             });
         }
 
@@ -570,25 +572,25 @@
             // If already paid
             if (std.is_commission_paid) {
                 return `
-                                                    <div class="text-center">
-                                                        <span class="badge badge-success px-2 py-1"><i class="fas fa-check-circle mr-1"></i> Paid</span>
-                                                        <div class="small text-muted mt-1" style="font-size: 0.7rem;">${std.commission_paid_at}</div>
-                                                    </div>
-                                                `;
+                                                        <div class="text-center">
+                                                            <span class="badge badge-success px-2 py-1"><i class="fas fa-check-circle mr-1"></i> Paid</span>
+                                                            <div class="small text-muted mt-1" style="font-size: 0.7rem;">${std.commission_paid_at}</div>
+                                                        </div>
+                                                    `;
             }
 
             // Checks eligibility
             if (std.is_eligible) {
                 return `
-                                                    <button class="btn btn-sm btn-info shadow-sm py-0" style="font-size: 0.8rem;" 
-                                                        onclick="openPaymentModal(${std.student_id}, '${std.student_name}', '${std.referral_name || ''}', '${std.source}')">
-                                                    Pay / Reward
-                                                </button>
-                                                `;
+                                                        <button class="btn btn-sm btn-info shadow-sm py-0" style="font-size: 0.8rem;" 
+                                                            onclick="openPaymentModal(${std.student_id}, '${std.student_name}', '${std.referral_name || ''}', '${std.source}')">
+                                                        Pay / Reward
+                                                    </button>
+                                                    `;
             } else {
                 return `
-                                                   <span class="badge badge-warning text-dark" title="Needs 30% paid">Pending (${std.percentage_paid}%)</span>
-                                                `;
+                                                       <span class="badge badge-warning text-dark" title="Needs 30% paid">Pending (${std.percentage_paid}%)</span>
+                                                    `;
             }
         }
 

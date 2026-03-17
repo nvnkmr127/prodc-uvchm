@@ -7,7 +7,7 @@ use Illuminate\Http\Request;
 use Carbon\Carbon;
 use App\Models\Student;
 use App\Models\StudentFee;
-use App\Models\StudentConcession;
+use Illuminate\Support\Facades\DB;
 
 class ReferralReportController extends Controller
 {
@@ -280,21 +280,22 @@ class ReferralReportController extends Controller
                         "Referral Reward for referred student: " . $student->name
                     );
 
-                    // Log a StudentConcession record so it appears in the activity timeline
+                    // Log a StudentConcession record so it appears in the activity timeline.
+                    // Using raw DB insert to bypass the model boot() which auto-injects
+                    // 'status' and 'requested_by' columns that don't exist in the actual DB table.
                     if ($appliedAmount > 0) {
-                        StudentConcession::create([
+                        $now = Carbon::now();
+                        DB::table('student_concessions')->insert([
                             'student_id' => $referrer->id,
-                            'student_fee_id' => $feeRecord->id,
                             'fee_category_id' => $feeRecord->fee_category_id,
-                            'concession_type' => 'discount',
+                            'concession_type' => 'fixed',
+                            'concession_value' => $appliedAmount,
                             'concession_amount' => $appliedAmount,
-                            'reason' => 'Referral Reward: ' . $student->name . ' was referred by ' . $referrer->name,
-                            'notes' => 'Applied via Referral Commission (Fee Discount mode)',
-                            'status' => 'applied',
-                            'approved_by' => auth()->id(),
-                            'approved_at' => Carbon::now(),
+                            'notes' => 'Referral Reward for: ' . $student->name . '. Applied via Referral Commission (Fee Discount mode)',
                             'applied_by' => auth()->id(),
-                            'applied_at' => Carbon::now(),
+                            'applied_at' => $now,
+                            'created_at' => $now,
+                            'updated_at' => $now,
                         ]);
                     }
 

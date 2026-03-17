@@ -543,37 +543,36 @@ class StudentController extends Controller
                 ];
             });
 
-        // Get concession activities from logs - FIXED with safe property access
+        // Get concession activities from student_concessions table
         $concessionActivities = collect();
         if (class_exists('App\\Models\\StudentConcession')) {
+            // Load with only relationships whose FK columns actually exist in the table
             $concessionActivities = \App\Models\StudentConcession::where('student_id', $student->id)
-                ->with(['requestedBy', 'approvedBy', 'studentFee.feeCategory'])
+                ->with(['appliedBy', 'feeCategory'])
                 ->orderBy('created_at', 'desc')
                 ->take($limit)
                 ->get()
-                // Removed toBase()
                 ->map(function ($concession) {
-                    $categoryName = 'Unknown';
-                    if ($concession->studentFee && $concession->studentFee->feeCategory) {
-                        $categoryName = $concession->studentFee->feeCategory->name;
-                    }
+                    // Resolve category name via feeCategory relationship (uses fee_category_id, which exists)
+                    $categoryName = optional($concession->feeCategory)->name ?? 'Unknown';
 
                     return [
                         'type' => 'concession',
-                        'icon' => 'fa-percent',
-                        'title' => 'Concession Applied',
-                        'description' => 'Concession of ₹' . number_format($concession->amount ?? 0, 2) . ' applied to ' . $categoryName,
-                        'user' => optional($concession->approvedBy)->name ?? optional($concession->requestedBy)->name ?? 'System',
-                        'timestamp' => $concession->approved_at ?? $concession->created_at,
+                        'icon' => 'fa-tag',
+                        'title' => 'Discount / Concession Applied',
+                        'description' => 'Concession of ₹' . number_format($concession->concession_amount ?? 0, 2) . ' applied to ' . $categoryName,
+                        'user' => optional($concession->appliedBy)->name ?? 'System',
+                        'timestamp' => $concession->applied_at ?? $concession->created_at,
                         'properties' => [
-                            'amount' => $concession->amount ?? 0,
-                            'reason' => $concession->reason ?? 'N/A',
-                            'status' => $concession->status ?? 'unknown'
+                            'amount' => $concession->concession_amount ?? 0,
+                            'reason' => $concession->notes ?? 'N/A',
+                            'status' => 'applied',
                         ],
                         'color' => 'warning'
                     ];
                 });
         }
+
 
         // Get fee generation activities from student fees - FIXED to avoid reading large log files
         $feeActivities = collect();
