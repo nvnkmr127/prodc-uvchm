@@ -607,6 +607,11 @@ class AttendanceSettingsController extends Controller
                 ]);
 
             if (!$response->successful()) {
+                \Log::channel('attendance-webhook')->error("ETimeOffice API request failed", [
+                    'status' => $response->status(),
+                    'from' => $fromDate,
+                    'to' => $toDate
+                ]);
                 return [
                     'success' => false,
                     'message' => "ETimeOffice API request failed: HTTP {$response->status()}",
@@ -633,6 +638,10 @@ class AttendanceSettingsController extends Controller
             try {
                 $apiData = $response->json();
             } catch (\Exception $e) {
+                \Log::channel('attendance-webhook')->error('Invalid JSON response from ETimeOffice API', [
+                    'error' => $e->getMessage(),
+                    'response' => substr($responseBody, 0, 500)
+                ]);
                 return [
                     'success' => false,
                     'message' => 'Invalid JSON response from ETimeOffice API',
@@ -649,6 +658,9 @@ class AttendanceSettingsController extends Controller
 
             // Check for API errors
             if (is_array($apiData) && isset($apiData['Error']) && $apiData['Error'] === true) {
+                \Log::channel('attendance-webhook')->error('ETimeOffice API Error Response', [
+                    'msg' => $apiData['Msg'] ?? 'Unknown error'
+                ]);
                 return [
                     'success' => false,
                     'message' => 'ETimeOffice API Error: ' . ($apiData['Msg'] ?? 'Unknown error'),
@@ -929,11 +941,10 @@ class AttendanceSettingsController extends Controller
                     $empCode = isset($punch) && is_array($punch) ? ($punch['Empcode'] ?? 'unknown') : 'unknown';
                     $errors[] = "Error processing punch for {$empCode}: " . $e->getMessage();
                     $skippedRecords++;
-                    \Log::error('Error processing ETimeOffice punch', [
+                    \Log::channel('attendance-webhook')->error('Error processing ETimeOffice punch', [
                         'record_index' => $index,
                         'punch_data' => $punch ?? 'null',
-                        'error' => $e->getMessage(),
-                        'trace' => $e->getTraceAsString()
+                        'error' => $e->getMessage()
                     ]);
                 }
             }

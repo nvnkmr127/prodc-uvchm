@@ -60,7 +60,7 @@ return [
         'attendance-webhook' => [
             'driver' => 'single',
             'path' => storage_path('logs/attendance-webhook.log'),
-            'level' => env('LOG_ATTENDANCE_WEBHOOK_LEVEL', 'debug'),
+            'level' => env('LOG_ATTENDANCE_WEBHOOK_LEVEL', 'error'),
         ],
 
         'webhook-events' => [

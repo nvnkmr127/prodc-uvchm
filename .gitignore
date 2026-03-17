@@ -1,41 +1,80 @@
 # Environment
 .env
 .env.backup
+.env.production
+.env.local
+.env.*.local
+
+# Git
+.git/
 
 # Logs
+/storage/logs/*
+!/storage/logs/.gitignore
 *.log
 error_log
 error_log.old
 
-# Cache
+# Laravel / Storage
+/storage/app/*
+!/storage/app/.gitignore
+/storage/framework/cache/*
+!/storage/framework/cache/.gitignore
+/storage/framework/sessions/*
+!/storage/framework/sessions/.gitignore
+/storage/framework/testing/*
+!/storage/framework/testing/.gitignore
+/storage/framework/views/*
+!/storage/framework/views/.gitignore
+/storage/*.key
+
+# Cache & Bootstrap
 bootstrap/cache/*
-storage/*.key
+!bootstrap/cache/.gitignore
+/cache
+/cache/
 
 # Uploads and generated files
-public/storage
-public/images
-public/css
+/public/storage
+/public/hot
+/public/build
+/public/css
+/public/images
+/public/docs
+/public/info.php
+/public/notification-demo.html
 
-# Debug / test files
+# Debug / developer scripts
 test.php
 debug_*.php
 check_*.php
 verify_*.php
-
-# Backup files
-*.bak
-*.bak*
-crontab_backup.txt
-
-# OS files
-.DS_Store
-
-# Composer
-/vendor
-
-# Node
-/node_modules
-
-# Misc
+fix_permissions.php
+gdrive_diagnosis.php
+redis-test.php
 routes.json
 sample_certificate.html
+push-to-github.sh
+crontab_backup.txt
+deploy.sh
+
+# IDE / Editor
+.DS_Store
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.phpunit.result.cache
+
+# Package Managers
+/node_modules
+/vendor
+composer.phar
+composer.lock.backup
+
+# Misc
+*.bak
+*.bak*

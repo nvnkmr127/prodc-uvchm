@@ -76,7 +76,7 @@
 
             @can('view attendance')
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ route('admin.reports.attendance.index') }}">
+                    <a class="nav-link" href="{{ route('admin.attendance.dashboard') }}">
                         <i class="fas fa-fw fa-chart-line"></i>
                         <span>View Attendance</span>
                     </a>

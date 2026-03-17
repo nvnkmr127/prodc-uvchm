@@ -257,8 +257,7 @@ Schedule::command('attendance:send-daily-absent-webhook')
     })
     ->onFailure(function () {
         logSchedulerActivity('attendance:send-daily-absent-webhook', 'Daily Absent Webhook Check', 'FAILED');
-    })
-    ->appendOutputTo(storage_path('logs/attendance-webhook.log'));
+    });
 
 // Tuition fee reminders (high priority)
 Schedule::command('payments:enhanced-reminders', ['--fee-type=tuition_fee'])
