@@ -7,6 +7,11 @@
 
 // Import CSS
 import '../css/app.css';
+import Alpine from 'alpinejs';
+
+window.Alpine = Alpine;
+
+Alpine.start();
 
 // Initialize application when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {

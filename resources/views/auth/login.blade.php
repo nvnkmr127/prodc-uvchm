@@ -116,7 +116,7 @@
     </style>
 </head>
 
-<body class="h-full font-sans antialiased text-gray-900 bg-gray-50 overflow-hidden">
+<body class="h-full font-sans antialiased text-gray-900 bg-gray-50 overflow-x-hidden">
     <div class="min-h-screen flex">
 
         <!-- Left Side: Visual/Branding (Animated) -->
@@ -224,12 +224,12 @@
                                 </svg>
                             </div>
                             <input type="email" id="email" name="email" required autofocus value="{{ old('email') }}"
-                                class="block w-full pl-12 pr-4 py-4 text-lg bg-gray-50/50 border-2 border-gray-100 rounded-2xl focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-brand-500/10 transition-all duration-300 outline-none"
+                                class="peer block w-full pl-12 pr-4 py-4 text-lg bg-gray-50/50 border-2 border-gray-100 rounded-2xl focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-brand-500/10 transition-all duration-300 outline-none"
                                 placeholder=" " />
                             <label for="email" class="absolute left-12 top-4 text-lg text-gray-400 transition-all duration-300 pointer-events-none
-                                group-focus-within:-translate-y-7 group-focus-within:bg-white group-focus-within:px-2 group-focus-within:text-sm group-focus-within:font-semibold
-                                peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 
-                                scale-75 -translate-y-7 bg-white px-2 text-sm font-semibold
+                                peer-focus:-translate-y-7 peer-focus:bg-white peer-focus:px-2 peer-focus:text-sm peer-focus:font-semibold
+                                peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0
+                                peer-not-placeholder-shown:-translate-y-7 peer-not-placeholder-shown:bg-white peer-not-placeholder-shown:px-2 peer-not-placeholder-shown:text-sm peer-not-placeholder-shown:font-semibold
                                 ">
                                 Email
                             </label>
@@ -247,12 +247,12 @@
                             </div>
                             <input type="password" id="password" name="password" required
                                 autocomplete="current-password"
-                                class="block w-full pl-12 pr-4 py-4 text-lg bg-gray-50/50 border-2 border-gray-100 rounded-2xl focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-brand-500/10 transition-all duration-300 outline-none"
+                                class="peer block w-full pl-12 pr-4 py-4 text-lg bg-gray-50/50 border-2 border-gray-100 rounded-2xl focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-brand-500/10 transition-all duration-300 outline-none"
                                 placeholder=" " />
                             <label for="password" class="absolute left-12 top-4 text-lg text-gray-400 transition-all duration-300 pointer-events-none
-                                group-focus-within:-translate-y-7 group-focus-within:bg-white group-focus-within:px-2 group-focus-within:text-sm group-focus-within:font-semibold
-                                peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 
-                                scale-75 -translate-y-7 bg-white px-2 text-sm font-semibold
+                                peer-focus:-translate-y-7 peer-focus:bg-white peer-focus:px-2 peer-focus:text-sm peer-focus:font-semibold
+                                peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0
+                                peer-not-placeholder-shown:-translate-y-7 peer-not-placeholder-shown:bg-white peer-not-placeholder-shown:px-2 peer-not-placeholder-shown:text-sm peer-not-placeholder-shown:font-semibold
                                 ">
                                 Password
                             </label>
