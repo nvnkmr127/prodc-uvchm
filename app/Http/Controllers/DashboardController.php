@@ -754,13 +754,20 @@ private function getFacultyPerformance()
  */
 private function getCoursePerformance()
 {
-    $courses = Course::with(['batches.students'])->get();
+    $courses = Course::query()
+        ->leftJoin('batches', 'courses.id', '=', 'batches.course_id')
+        ->leftJoin('students', function ($join) {
+            $join->on('batches.id', '=', 'students.batch_id')
+                ->where('students.status', '=', 'active');
+        })
+        ->groupBy('courses.id', 'courses.name')
+        ->select('courses.name')
+        ->selectRaw('COUNT(students.id) as active_students')
+        ->get();
     $performance = [];
 
     foreach ($courses as $course) {
-        $totalStudents = $course->batches->sum(function($batch) {
-            return $batch->students->where('status', 'active')->count();
-        });
+        $totalStudents = (int) $course->active_students;
 
         // You can implement actual pass rate and satisfaction calculations
         $performance[$course->name] = [

@@ -14,10 +14,14 @@ class FollowUpCalendarController extends Controller
     {
         // 1. Handle AJAX Request from FullCalendar (JSON Response)
         if ($request->ajax()) {
-            
+            $startDate = $request->filled('start') ? Carbon::parse($request->input('start'))->startOfDay() : now()->subMonths(1)->startOfDay();
+            $endDate = $request->filled('end') ? Carbon::parse($request->input('end'))->endOfDay() : now()->addMonths(2)->endOfDay();
+
             // Fetch Data
             $query = Enquiry::whereNotNull('next_follow_up_date')
-                            ->where('status', '!=', 'Admitted');
+                            ->where('status', '!=', 'Admitted')
+                            ->whereBetween('next_follow_up_date', [$startDate, $endDate])
+                            ->select(['id', 'student_name', 'phone_number', 'status', 'next_follow_up_date']);
 
             // Role Check
             $user = Auth::user();
@@ -25,7 +29,7 @@ class FollowUpCalendarController extends Controller
                 $query->where('assigned_to_user_id', $user->id);
             }
 
-            $enquiries = $query->get();
+            $enquiries = $query->orderBy('next_follow_up_date')->get();
 
             // Format Events
             $events = $enquiries->map(function ($enquiry) {
@@ -81,7 +85,10 @@ class FollowUpCalendarController extends Controller
             $query->where('assigned_to_user_id', $user->id);
         }
         
-        $enquiries = $query->orderBy('next_follow_up_date', 'asc')->get();
+        $enquiries = $query->orderBy('next_follow_up_date', 'asc')
+            ->select(['id', 'student_name', 'phone_number', 'status', 'next_follow_up_date'])
+            ->limit(500)
+            ->get();
 
         // Logic corrected: If admin view exists, return ADMIN view.
         if (view()->exists('admin.calendar.index')) {
