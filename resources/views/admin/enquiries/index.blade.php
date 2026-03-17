@@ -620,6 +620,17 @@
                                 @endforeach
                             </select>
                         </div>
+                        <div class="form-group">
+                            <label>Default Source (optional):</label>
+                            <select class="form-control" name="default_source">
+                                <option value="">Use source from sheet / fallback to Bulk Import</option>
+                                @foreach($sources as $value => $label)
+                                    <option value="{{ $value }}">{{ $label }}</option>
+                                @endforeach
+                                <option value="Bulk Import">Bulk Import</option>
+                            </select>
+                            <small class="form-text text-muted">If source column is empty in a row, this value will be used.</small>
+                        </div>
                         <div class="custom-file mb-3">
                             <input type="file" class="custom-file-input" name="file" required>
                             <label class="custom-file-label">Choose CSV/Excel...</label>

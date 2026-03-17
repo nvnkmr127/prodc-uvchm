@@ -14,13 +14,15 @@ class EnquiriesImport implements ToModel, WithHeadingRow
 {
     protected $assignedTo;
     protected $leadDistribution;
+    protected $defaultSource;
     public $importedCount = 0;
     public $skippedCount = 0;
 
-    public function __construct($assignedTo = null, $leadDistribution = null)
+    public function __construct($assignedTo = null, $leadDistribution = null, $defaultSource = null)
     {
         $this->assignedTo = $assignedTo;
         $this->leadDistribution = $leadDistribution;
+        $this->defaultSource = is_string($defaultSource) ? trim($defaultSource) : null;
     }
 
     public function model(array $row)
@@ -82,13 +84,28 @@ class EnquiriesImport implements ToModel, WithHeadingRow
 
         $this->importedCount++;
 
+        // Support common sheet header variants, then fallback to modal default, then system default.
+        $rowSource = $row['source']
+            ?? $row['lead_source']
+            ?? $row['enquiry_source']
+            ?? $row['source_of_enquiry']
+            ?? null;
+
+        $resolvedSource = is_string($rowSource) ? trim($rowSource) : null;
+        if (empty($resolvedSource)) {
+            $resolvedSource = $this->defaultSource;
+        }
+        if (empty($resolvedSource)) {
+            $resolvedSource = 'Bulk Import';
+        }
+
         return new Enquiry([
             'student_name' => $name,
             'phone_number' => $phone,
             'address' => $row['address'] ?? null,
             'email' => $row['email'] ?? null,
             'course_id' => $courseId,
-            'source' => $row['source'] ?? 'Bulk Import',
+            'source' => $resolvedSource,
             'notes' => $row['notes'] ?? null,
             'status' => 'New',
             'assigned_to_user_id' => $assignedId,

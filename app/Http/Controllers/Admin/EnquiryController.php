@@ -558,12 +558,17 @@ class EnquiryController extends Controller
     {
         $request->validate([
             'file' => 'required|mimes:csv,xlsx,xls|max:5120', // 5 MB limit
-            'assigned_to_user_id' => 'nullable|exists:users,id'
+            'assigned_to_user_id' => 'nullable|exists:users,id',
+            'default_source' => 'nullable|string|max:255'
         ]);
 
         try {
             // 1. Create the instance explicitly (Pass service)
-            $import = new EnquiriesImport($request->assigned_to_user_id, $leadDistribution);
+            $import = new EnquiriesImport(
+                $request->assigned_to_user_id,
+                $leadDistribution,
+                $request->input('default_source')
+            );
 
             // 2. Run the import
             Excel::import($import, $request->file('file'));
