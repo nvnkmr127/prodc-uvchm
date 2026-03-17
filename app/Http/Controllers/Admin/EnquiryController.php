@@ -48,6 +48,11 @@ class EnquiryController extends Controller
             $statsQuery->whereDate('created_at', '<=', $filters['end_date']);
         }
 
+        // Apply Source Filter
+        if (isset($filters['source']) && $filters['source']) {
+            $statsQuery->where('source', $filters['source']);
+        }
+
         // Apply Search Filter (stats should reflect search too! drill-down behavior)
         if (isset($filters['search']) && $filters['search']) {
             $term = $filters['search'];
@@ -119,6 +124,9 @@ class EnquiryController extends Controller
         if ($request->filled('assigned_to_user_id')) {
             $query->where('enquiries.assigned_to_user_id', $request->assigned_to_user_id);
         }
+        if ($request->filled('source')) {
+            $query->where('enquiries.source', $request->source);
+        }
 
         // Date Filters
         if ($request->filled('start_date')) {
@@ -170,11 +178,14 @@ class EnquiryController extends Controller
             ]);
         }
 
+        $sources = \App\Models\Enquiry::SOURCES;
+
         return view('admin.enquiries.index', compact(
             'enquiries',
             'courses',
             'counselors',
-            'counts'
+            'counts',
+            'sources'
         ));
     }
 
@@ -229,7 +240,7 @@ class EnquiryController extends Controller
     public function quickUpdate(Request $request, Enquiry $enquiry)
     {
         $validated = $request->validate([
-            'field' => 'required|in:assigned_to_user_id,next_follow_up_date,status',
+            'field' => 'required|in:assigned_to_user_id,next_follow_up_date,status,source',
             'value' => 'nullable',
             'filter_assigned_to' => 'nullable|exists:users,id' // Helper for stats
         ]);
@@ -370,9 +381,12 @@ class EnquiryController extends Controller
 
         // Update the next follow-up date if provided
         if ($request->filled('next_follow_up_date')) {
+            // Only advance to 'Contacted' if status is still 'New' — do not degrade more advanced statuses
+            $advancedStatuses = ['Interested', 'Follow-up', 'Interested Next Year', 'Admitted'];
+            $newStatus = in_array($enquiry->status, $advancedStatuses) ? $enquiry->status : 'Contacted';
             $enquiry->update([
                 'next_follow_up_date' => $request->next_follow_up_date,
-                'status' => 'Contacted'
+                'status' => $newStatus
             ]);
         }
 
@@ -530,13 +544,20 @@ class EnquiryController extends Controller
     // Ensure your destroy method looks like this (it likely already does)
     public function destroy(Enquiry $enquiry)
     {
+        $user = Auth::user();
+        $isAdmin = $user->hasAnyRole(['admin', 'super-admin', 'Admin', 'Super-admin']);
+
+        if (!$isAdmin && $enquiry->assigned_to_user_id != $user->id) {
+            abort(403, 'Unauthorized access to this enquiry.');
+        }
+
         $enquiry->delete();
         return redirect()->route('admin.enquiries.index')->with('success', 'Enquiry deleted successfully.');
     }
     public function import(Request $request, LeadDistributionService $leadDistribution)
     {
         $request->validate([
-            'file' => 'required|mimes:csv,xlsx,xls',
+            'file' => 'required|mimes:csv,xlsx,xls|max:5120', // 5 MB limit
             'assigned_to_user_id' => 'nullable|exists:users,id'
         ]);
 

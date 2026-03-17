@@ -15,6 +15,17 @@ class Enquiry extends Model
     use WebhookEnabled;
     use HasFactory, LogsActivity;
 
+    /** Single source of truth for all enquiry source options */
+    const SOURCES = [
+        'Website'       => 'Website / Google',
+        'Social Media'  => 'Social Media',
+        'Agent'         => 'Agent',
+        'Referrals'     => 'Referrals',
+        'Student Refer' => 'Student Referral',
+        'Walk-in'       => 'Walk-in',
+        'Other'         => 'Other',
+    ];
+
     protected $fillable = [
         'student_name',
         'phone_number',

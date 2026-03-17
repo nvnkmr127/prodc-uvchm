@@ -145,13 +145,12 @@
                     <label class="form-label-small">Source</label>
                     <select name="source" class="form-control form-control-sm-custom" id="modalSourceSelect">
                         <option value="">Select Source</option>
-                        @php
-                            $sources = ['Website', 'Social Media', 'Agent', 'Referrals', 'pro', 'list', 'Student Refer', 'Walk-in', 'Other'];
-                            if($enquiry->source && !in_array($enquiry->source, $sources)) array_push($sources, $enquiry->source);
-                        @endphp
-                        @foreach($sources as $src)
-                            <option value="{{ $src }}" {{ $enquiry->source == $src ? 'selected' : '' }}>{{ $src }}</option>
+                        @foreach(\App\Models\Enquiry::SOURCES as $value => $label)
+                            <option value="{{ $value }}" {{ $enquiry->source == $value ? 'selected' : '' }}>{{ $label }}</option>
                         @endforeach
+                        @if($enquiry->source && !array_key_exists($enquiry->source, \App\Models\Enquiry::SOURCES))
+                            <option value="{{ $enquiry->source }}" selected>{{ $enquiry->source }}</option>
+                        @endif
                     </select>
                 </div>
 

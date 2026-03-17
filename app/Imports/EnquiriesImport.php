@@ -7,11 +7,10 @@ use App\Models\Course;
 use App\Models\Student;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
-use Maatwebsite\Excel\Concerns\WithValidation;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log; // Import Log
+use Illuminate\Support\Facades\Log;
 
-class EnquiriesImport implements ToModel, WithHeadingRow, WithValidation
+class EnquiriesImport implements ToModel, WithHeadingRow
 {
     protected $assignedTo;
     protected $leadDistribution;
@@ -34,10 +33,10 @@ class EnquiriesImport implements ToModel, WithHeadingRow, WithValidation
         $rawPhone = $row['mobile_number'] ?? $row['phone'] ?? $row['mobile'] ?? null;
         $phone = preg_replace('/[^0-9]/', '', (string) $rawPhone);
 
-        // 2. Basic Validation
-        if (empty($phone)) {
+        // 2. Basic Validation — must be at least 10 digits
+        if (strlen($phone) < 10) {
             $this->skippedCount++;
-            return null; // Skip rows without phone
+            return null;
         }
 
         // 3. Check Duplicates (Students)
@@ -52,10 +51,12 @@ class EnquiriesImport implements ToModel, WithHeadingRow, WithValidation
             return null;
         }
 
-        // 5. Course Matching
+        // 5. Course Matching — exact match first, then partial fallback
         $courseId = null;
         if (!empty($row['course'])) {
-            $course = Course::where('name', 'LIKE', '%' . trim($row['course']) . '%')->first();
+            $courseName = trim($row['course']);
+            $course = Course::where('name', $courseName)->first()
+                ?? Course::where('name', 'LIKE', '%' . $courseName . '%')->first();
             $courseId = $course ? $course->id : null;
         }
 
@@ -91,15 +92,7 @@ class EnquiriesImport implements ToModel, WithHeadingRow, WithValidation
             'notes' => $row['notes'] ?? null,
             'status' => 'New',
             'assigned_to_user_id' => $assignedId,
-            'next_follow_up_date' => now()->addDays(1),
+            // next_follow_up_date intentionally null — counselor should set it after review
         ]);
-    }
-
-    public function rules(): array
-    {
-        return [
-            // Loose validation here. We check for 'name' or 'student_name' inside model()
-            // 'mobile_number' => 'required', // We handle this manually in model() too
-        ];
     }
 }

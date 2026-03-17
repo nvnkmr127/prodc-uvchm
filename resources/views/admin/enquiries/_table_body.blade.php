@@ -1,16 +1,22 @@
 @forelse($enquiries as $enquiry)
     @php
         $date = $enquiry->next_follow_up_date;
-        $isUrgent = false;
+        $isOverdue = false;
+        $isDueToday = false;
         if ($date && $enquiry->status != 'Admitted') {
-            $followUpDate = \Carbon\Carbon::parse($date)->format('Y-m-d');
-            $today = now()->format('Y-m-d');
-            if ($followUpDate <= $today) {
-                $isUrgent = true;
+            $followUpDate = \Carbon\Carbon::parse($date)->startOfDay();
+            $today        = now()->startOfDay();
+            if ($followUpDate->lt($today)) {
+                $isOverdue = true;
+            } elseif ($followUpDate->eq($today)) {
+                $isDueToday = true;
             }
         }
+
+        // Source badge CSS class
+        $sourceClass = 'source-' . Str::slug($enquiry->source ?? 'other');
     @endphp
-    <tr class="{{ $isUrgent ? 'row-urgent' : '' }}">
+    <tr class="{{ $isOverdue ? 'row-urgent' : ($isDueToday ? 'row-due-today' : '') }}">
         <td class="pl-3">
             <div class="custom-control custom-checkbox">
                 <input type="checkbox" class="custom-control-input enquiry-checkbox" id="check_{{ $enquiry->id }}"
@@ -24,11 +30,15 @@
                     {{ strtoupper(substr($enquiry->student_name, 0, 1)) }}
                 </div>
                 <div>
-                    <h6 class="mb-0 font-weight-bold text-gray-800">{{ $enquiry->student_name }}
-                    </h6>
+                    <h6 class="mb-0 font-weight-bold text-gray-800">{{ $enquiry->student_name }}</h6>
                     <div class="small text-muted">
                         <i class="fas fa-phone fa-xs mr-1"></i>{{ $enquiry->phone_number }}
                     </div>
+                    @if($enquiry->address)
+                        <div class="small text-muted" style="font-size:0.7rem;">
+                            <i class="fas fa-map-marker-alt fa-xs mr-1"></i>{{ Str::limit($enquiry->address, 25) }}
+                        </div>
+                    @endif
                 </div>
             </div>
         </td>
@@ -36,6 +46,13 @@
             <span class="badge badge-light border text-gray-600">
                 {{ $enquiry->course->name ?? 'General' }}
             </span>
+        </td>
+        <td>
+            @if($enquiry->source)
+                <span class="source-badge {{ $sourceClass }}">{{ $enquiry->source }}</span>
+            @else
+                <span class="text-muted small">—</span>
+            @endif
         </td>
         <td>
             <select class="inline-edit" onchange="quickUpdate({{ $enquiry->id }}, 'assigned_to_user_id', this.value)">
@@ -48,7 +65,12 @@
             </select>
         </td>
         <td>
-            <input type="date" class="inline-edit {{ $isUrgent ? 'text-urgent' : '' }}"
+            @if($isOverdue)
+                <div class="small text-urgent mb-1"><i class="fas fa-exclamation-circle mr-1"></i>Overdue</div>
+            @elseif($isDueToday)
+                <div class="small text-due-today mb-1"><i class="fas fa-clock mr-1"></i>Due Today</div>
+            @endif
+            <input type="date" class="inline-edit {{ $isOverdue ? 'text-urgent' : ($isDueToday ? 'text-due-today' : '') }}"
                 value="{{ $enquiry->next_follow_up_date ? \Carbon\Carbon::parse($enquiry->next_follow_up_date)->format('Y-m-d') : '' }}"
                 onchange="quickUpdate({{ $enquiry->id }}, 'next_follow_up_date', this.value)">
         </td>
@@ -82,7 +104,7 @@
     </tr>
 @empty
     <tr>
-        <td colspan="7" class="text-center py-5 text-muted">
+        <td colspan="8" class="text-center py-5 text-muted">
             <i class="fas fa-inbox fa-3x mb-3 opacity-25"></i>
             <h5>No enquiries found</h5>
         </td>

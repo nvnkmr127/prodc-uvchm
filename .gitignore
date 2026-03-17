@@ -1,3 +1,41 @@
-node_modules
-node_modules
-node_modules
+# Environment
+.env
+.env.backup
+
+# Logs
+*.log
+error_log
+error_log.old
+
+# Cache
+bootstrap/cache/*
+storage/*.key
+
+# Uploads and generated files
+public/storage
+public/images
+public/css
+
+# Debug / test files
+test.php
+debug_*.php
+check_*.php
+verify_*.php
+
+# Backup files
+*.bak
+*.bak*
+crontab_backup.txt
+
+# OS files
+.DS_Store
+
+# Composer
+/vendor
+
+# Node
+/node_modules
+
+# Misc
+routes.json
+sample_certificate.html

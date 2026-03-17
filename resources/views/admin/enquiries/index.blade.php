@@ -70,6 +70,10 @@
             border-left-color: #0f6848 !important;
         }
 
+        .status-Next-Year-border {
+            border-left-color: #6f42c1 !important;
+        }
+
         .status-dropped-border {
             border-left-color: #e74a3b !important;
         }
@@ -262,10 +266,39 @@
             border-left: 4px solid #e74a3b;
         }
 
+        /* Due today (follow-up is today, not yet past) */
+        .row-due-today td:first-child {
+            border-left: 4px solid #fd7e14;
+        }
+
         .text-urgent {
             color: #e74a3b !important;
             font-weight: 800;
         }
+
+        .text-due-today {
+            color: #fd7e14 !important;
+            font-weight: 800;
+        }
+
+        /* Source Badges */
+        .source-badge {
+            display: inline-block;
+            font-size: 0.65rem;
+            font-weight: 700;
+            padding: 0.15em 0.55em;
+            border-radius: 50px;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+        .source-website      { background: #e3f2fd; color: #1565c0; }
+        .source-social-media { background: #f3e5f5; color: #6a1b9a; }
+        .source-agent        { background: #e8f5e9; color: #2e7d32; }
+        .source-referrals    { background: #fff8e1; color: #e65100; }
+        .source-student-refer{ background: #fff3cd; color: #856404; }
+        .source-walk-in      { background: #fce4ec; color: #880e4f; }
+        .source-bulk-import  { background: #e0f2f1; color: #004d40; }
+        .source-other        { background: #f5f5f5; color: #424242; }
     </style>
 @endpush
 
@@ -353,10 +386,12 @@
                         <div class="col-lg-3 col-md-6 mb-2 mb-lg-0 d-flex">
                             <input type="date"
                                 class="form-control border-0 bg-light small font-weight-bold mr-1 filter-input"
-                                name="start_date" placeholder="Start Date" title="Start Date">
+                                name="start_date" placeholder="Start Date" title="Start Date"
+                                value="{{ request('start_date') }}">
                             <input type="date"
                                 class="form-control border-0 bg-light small font-weight-bold ml-1 filter-input"
-                                name="end_date" placeholder="End Date" title="End Date">
+                                name="end_date" placeholder="End Date" title="End Date"
+                                value="{{ request('end_date') }}">
                         </div>
 
                         <!-- FILTERS -->
@@ -416,6 +451,26 @@
                             </div>
                         </div>
                     </div>
+
+                    {{-- Row 2: Course + Source filters --}}
+                    <div class="row mt-2">
+                        <div class="col-lg-3 col-md-6 mb-2 mb-lg-0">
+                            <select class="form-control border-0 bg-light small font-weight-bold filter-input" name="course_id">
+                                <option value="">All Courses</option>
+                                @foreach($courses as $id => $name)
+                                    <option value="{{ $id }}" {{ request('course_id') == $id ? 'selected' : '' }}>{{ $name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-lg-3 col-md-6 mb-2 mb-lg-0">
+                            <select class="form-control border-0 bg-light small font-weight-bold filter-input" name="source">
+                                <option value="">All Sources</option>
+                                @foreach($sources as $value => $label)
+                                    <option value="{{ $value }}" {{ request('source') == $value ? 'selected' : '' }}>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
                 </form>
             </div>
         </div>
@@ -426,17 +481,18 @@
                     <table class="table table-custom" id="dataTable" width="100%" cellspacing="0">
                         <thead>
                             <tr>
-                                <th width="5%" class="pl-3">
+                                <th width="4%" class="pl-3">
                                     <div class="custom-control custom-checkbox">
                                         <input type="checkbox" class="custom-control-input" id="selectAll">
                                         <label class="custom-control-label" for="selectAll"></label>
                                     </div>
                                 </th>
                                 <!-- Headers -->
-                                <th width="25%">Student Profile</th>
-                                <th width="15%">Course</th>
-                                <th width="18%">Counselor</th>
-                                <th width="15%">Follow-up</th>
+                                <th width="23%">Student Profile</th>
+                                <th width="12%">Course</th>
+                                <th width="10%">Source</th>
+                                <th width="16%">Counselor</th>
+                                <th width="13%">Follow-up</th>
                                 <th width="8%" class="text-center">Status</th>
                                 <th width="14%" class="text-center">Actions</th>
                             </tr>
@@ -510,12 +566,9 @@
                                 <label class="small font-weight-bold text-gray-600">Source</label>
                                 <select class="form-control bg-light border-0" name="source" id="sourceSelect">
                                     <option value="">-- Select Source --</option>
-                                    <option value="Website">Website / Google</option>
-                                    <option value="Social Media">Social Media</option>
-                                    <option value="Agent">Agent</option>
-                                    <option value="Referrals">Referrals</option>
-                                    <option value="Walk-in">Walk-in</option>
-                                    <option value="Other">Other</option>
+                                    @foreach($sources as $value => $label)
+                                        <option value="{{ $value }}">{{ $label }}</option>
+                                    @endforeach
                                 </select>
                             </div>
                             <div class="col-md-6 mb-3" id="referralWrapper" style="display: none;">
@@ -610,12 +663,13 @@
                 fetchEnquiries(page);
             });
 
-            // --- Source/Referral Toggle ---
+            // --- Source/Referral Toggle (New Enquiry modal) ---
             $('#sourceSelect').on('change', function () {
                 const val = $(this).val();
-                const show = ['Agent', 'Referrals', 'Walk-in', 'Other'].includes(val);
+                const show = ['Agent', 'Referrals', 'Student Refer', 'Walk-in', 'Other'].includes(val);
                 $('#referralWrapper').toggle(show);
-                if (show) $('#referralLabel').text(val === 'Agent' ? 'Agent Name' : (val === 'Other' ? 'Specify' : 'Referral Name'));
+                const labels = { 'Agent': 'Agent Name', 'Other': 'Specify Source', 'Walk-in': 'Referred By' };
+                $('#referralLabel').text(labels[val] || 'Referral Name');
             });
 
 

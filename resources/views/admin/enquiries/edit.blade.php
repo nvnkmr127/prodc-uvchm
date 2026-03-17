@@ -230,7 +230,7 @@
                         <div class="form-label-group">
                             <label>Current Status</label>
                             <select name="status" class="form-control font-weight-bold text-{{ $enquiry->status == 'New' ? 'primary' : 'dark' }}">
-                                @foreach(['New', 'Contacted', 'Interested', 'Follow-up', 'Not Interested', 'Admitted'] as $status)
+                                @foreach(['New', 'Contacted', 'Interested', 'Follow-up', 'Interested Next Year', 'Not Interested', 'Admitted'] as $status)
                                     <option value="{{ $status }}" {{ $enquiry->status == $status ? 'selected' : '' }}>
                                         {{ $status }}
                                     </option>
@@ -242,17 +242,13 @@
                             <label>Source</label>
                             <select name="source" class="form-control" id="sourceSelect">
                                 <option value="">-- Select Source --</option>
-                                @php
-                                    // Standard sources
-                                    $sources = ['Website', 'Social Media', 'Agent', 'Referrals', 'pro', 'list', 'Student Refer', 'Walk-in', 'Other'];
-                                    // Add current source if not in list
-                                    if($enquiry->source && !in_array($enquiry->source, $sources)) {
-                                        array_push($sources, $enquiry->source);
-                                    }
-                                @endphp
-                                @foreach($sources as $src)
-                                    <option value="{{ $src }}" {{ $enquiry->source == $src ? 'selected' : '' }}>{{ $src }}</option>
+                                @foreach(\App\Models\Enquiry::SOURCES as $value => $label)
+                                    <option value="{{ $value }}" {{ $enquiry->source == $value ? 'selected' : '' }}>{{ $label }}</option>
                                 @endforeach
+                                {{-- Keep current value selectable even if non-standard --}}
+                                @if($enquiry->source && !array_key_exists($enquiry->source, \App\Models\Enquiry::SOURCES))
+                                    <option value="{{ $enquiry->source }}" selected>{{ $enquiry->source }}</option>
+                                @endif
                             </select>
                         </div>
                         
