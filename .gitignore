@@ -78,3 +78,8 @@ composer.lock.backup
 # Misc
 *.bak
 *.bak*
+
+# Tools
+.phpstan.cache/
+.phpstan.result.cache
+.phpunit.cache/

@@ -9,6 +9,13 @@ use Illuminate\Support\Facades\View;
 use Illuminate\Pagination\Paginator;
 use App\Models\StudentFee;
 use Illuminate\Support\Facades\DB;
+use Spatie\Health\Facades\Health;
+use Spatie\Health\Checks\Checks\UsedDiskSpaceCheck;
+use Spatie\Health\Checks\Checks\DatabaseCheck;
+use Spatie\Health\Checks\Checks\DebugModeCheck;
+use Spatie\Health\Checks\Checks\PingCheck;
+use Spatie\Health\Checks\Checks\CacheCheck;
+
 
 
 class AppServiceProvider extends ServiceProvider
@@ -164,6 +171,17 @@ class AppServiceProvider extends ServiceProvider
         } catch (\Exception $e) {
             // Database might not be available yet (e.g. during compilation)
             // We suppress this error to allow commands like route:cache to run
+        }
+
+        // Register Health Checks
+        if (class_exists(Health::class)) {
+            Health::checks([
+                UsedDiskSpaceCheck::new(),
+                DatabaseCheck::new(),
+                DebugModeCheck::new(),
+                CacheCheck::new(),
+                PingCheck::new()->name('Internet Connection')->url('https://google.com'),
+            ]);
         }
     }
 

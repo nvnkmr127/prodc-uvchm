@@ -1,0 +1,14 @@
+includes:
+    - ./vendor/nunomaduro/larastan/extension.neon
+
+parameters:
+
+    paths:
+        - app/
+
+    # Level 9 is the highest level. 
+    # Starting with 5 is a good balance for existing projects.
+    level: 5
+
+    checkMissingIterableValueType: false
+    checkGenericClassInNonGenericObjectType: false
