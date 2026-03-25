@@ -11,13 +11,25 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('enquiries', function (Blueprint $table) {
+        $existingIndexes = collect(Schema::getIndexes('enquiries'))->pluck('name')->toArray();
+
+        Schema::table('enquiries', function (Blueprint $table) use ($existingIndexes) {
             // Indexing common filter columns for performance on large datasets (500k+)
-            $table->index('status');
-            $table->index('source');
-            $table->index('phone_number');
-            $table->index('created_at');
-            $table->index('next_follow_up_date');
+            if (!in_array('enquiries_status_index', $existingIndexes)) {
+                $table->index('status');
+            }
+            if (!in_array('enquiries_source_index', $existingIndexes)) {
+                $table->index('source');
+            }
+            if (!in_array('enquiries_phone_number_index', $existingIndexes)) {
+                $table->index('phone_number');
+            }
+            if (!in_array('enquiries_created_at_index', $existingIndexes)) {
+                $table->index('created_at');
+            }
+            if (!in_array('enquiries_next_follow_up_date_index', $existingIndexes)) {
+                $table->index('next_follow_up_date');
+            }
             
             // Note: student_name LIKE '%%' cannot be efficiently indexed with B-Tree.
             // Consider MySQL Full-Text Search or Laravel Scout if name search is slow.
@@ -29,12 +41,24 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('enquiries', function (Blueprint $table) {
-            $table->dropIndex(['status']);
-            $table->dropIndex(['source']);
-            $table->dropIndex(['phone_number']);
-            $table->dropIndex(['created_at']);
-            $table->dropIndex(['next_follow_up_date']);
+        $existingIndexes = collect(Schema::getIndexes('enquiries'))->pluck('name')->toArray();
+
+        Schema::table('enquiries', function (Blueprint $table) use ($existingIndexes) {
+            if (in_array('enquiries_status_index', $existingIndexes)) {
+                $table->dropIndex(['status']);
+            }
+            if (in_array('enquiries_source_index', $existingIndexes)) {
+                $table->dropIndex(['source']);
+            }
+            if (in_array('enquiries_phone_number_index', $existingIndexes)) {
+                $table->dropIndex(['phone_number']);
+            }
+            if (in_array('enquiries_created_at_index', $existingIndexes)) {
+                $table->dropIndex(['created_at']);
+            }
+            if (in_array('enquiries_next_follow_up_date_index', $existingIndexes)) {
+                $table->dropIndex(['next_follow_up_date']);
+            }
         });
     }
 };
