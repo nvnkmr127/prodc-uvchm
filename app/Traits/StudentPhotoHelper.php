@@ -18,9 +18,34 @@ trait StudentPhotoHelper
      */
     public static function getStudentPhotoUrl(Student $student, int $size = 100, string $background = '4e73df', string $color = 'fff'): string
     {
-        // Check if student has a photo and it exists in storage
-        if ($student->photo && Storage::disk('public')->exists($student->photo)) {
-            return asset('storage/' . $student->photo);
+        if ($student->photo) {
+            // Try multiple methods to verify file existence
+            $photoPath = $student->photo;
+            
+            // Method 1: Try direct storage disk check
+            if (Storage::disk('public')->exists($photoPath)) {
+                return asset('storage/' . $photoPath);
+            }
+            
+            // Method 2: Check if it needs student_photos prefix
+            if (!str_contains($photoPath, '/')) {
+                $prefixedPath = 'student_photos/' . $photoPath;
+                if (Storage::disk('public')->exists($prefixedPath)) {
+                    return asset('storage/' . $prefixedPath);
+                }
+            }
+            
+            // Method 3: Direct filesystem check
+            $fullPath = storage_path('app/public/' . $photoPath);
+            if (file_exists($fullPath)) {
+                return asset('storage/' . $photoPath);
+            }
+            
+            // Method 4: Check with student_photos prefix on filesystem
+            $fullPathWithPrefix = storage_path('app/public/student_photos/' . basename($photoPath));
+            if (file_exists($fullPathWithPrefix)) {
+                return asset('storage/student_photos/' . basename($photoPath));
+            }
         }
         
         // Generate dummy avatar using UI Avatars service

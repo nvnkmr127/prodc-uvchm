@@ -54,8 +54,9 @@ if (!function_exists('logSchedulerActivity')) {
 
             // Also use Laravel's built-in logging for critical events
             if ($phase === 'FAILED') {
-                Log::error("Scheduler: {$command} failed", [
+                \Log::error("Scheduler: {$command} failed", [
                     'description' => $description,
+                    'last_output' => $additionalData['last_output'] ?? 'No output captured',
                     'data' => $additionalData
                 ]);
             }
@@ -1087,7 +1088,12 @@ Schedule::command('etimeoffice:auto-sync', ['--range=today'])
         logSchedulerActivity('etimeoffice:auto-sync', 'ETimeOffice Auto-Sync', 'COMPLETED');
     })
     ->onFailure(function () {
-        logSchedulerActivity('etimeoffice:auto-sync', 'ETimeOffice Auto-Sync', 'FAILED');
+        $logPath = storage_path('logs/etimeoffice-sync.log');
+        $lastLines = '';
+        if (file_exists($logPath)) {
+            $lastLines = shell_exec("tail -n 20 " . escapeshellarg($logPath));
+        }
+        logSchedulerActivity('etimeoffice:auto-sync', 'ETimeOffice Auto-Sync', 'FAILED', ['last_output' => $lastLines]);
     })
     ->appendOutputTo(storage_path('logs/etimeoffice-sync.log'))
     ->description('ETimeOffice attendance auto-sync');

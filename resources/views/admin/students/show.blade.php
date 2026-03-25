@@ -703,17 +703,43 @@
                 <div class="col-lg-auto text-center text-lg-left">
                     <div class="student-avatar-container">
                         @php
-                            // 1. Determine Photo URL
-                            if ($student->photo && \Storage::disk('public')->exists($student->photo)) {
-                                $photoUrl = asset('storage/' . $student->photo);
-                            } else {
-                                // Reliable Fallback: UI Avatars
-                                // Uses name initials, consistent color, and high availability
+                            // 1. Determine Photo URL with robust fallback
+                            $photoUrl = null;
+                            
+                            if ($student->photo) {
+                                $photoPath = $student->photo;
+                                
+                                // Try multiple methods to find the photo
+                                if (\Storage::disk('public')->exists($photoPath)) {
+                                    $photoUrl = asset('storage/' . $photoPath);
+                                } elseif (!str_contains($photoPath, '/')) {
+                                    // Check if it needs student_photos prefix
+                                    $prefixedPath = 'student_photos/' . $photoPath;
+                                    if (\Storage::disk('public')->exists($prefixedPath)) {
+                                        $photoUrl = asset('storage/' . $prefixedPath);
+                                    }
+                                } else {
+                                    // Direct filesystem check
+                                    $fullPath = storage_path('app/public/' . $photoPath);
+                                    if (file_exists($fullPath)) {
+                                        $photoUrl = asset('storage/' . $photoPath);
+                                    } else {
+                                        // Check with student_photos prefix on filesystem
+                                        $fullPathWithPrefix = storage_path('app/public/student_photos/' . basename($photoPath));
+                                        if (file_exists($fullPathWithPrefix)) {
+                                            $photoUrl = asset('storage/student_photos/' . basename($photoPath));
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            // 2. Fallback to UI Avatars if photo not found
+                            if (!$photoUrl) {
                                 $name = urlencode($student->name);
                                 $photoUrl = "https://ui-avatars.com/api/?name={$name}&background=random&color=fff&size=200&font-size=0.33&bold=true";
                             }
 
-                            // 2. Status Color Logic
+                            // 3. Status Color Logic
                             $statusColor = match ($student->status) {
                                 'active' => '#1cc88a', // Green
                                 'graduated' => '#36b9cc', // Info Blue
