@@ -105,6 +105,7 @@ Route::post('/biometric/realtime', [BiometricWebhookController::class, 'handleRe
 
 Route::prefix('webhooks')->group(function () {
     Route::post('/attendance', [AttendanceController::class, 'store']);
+    Route::post('/external-leads', [WebhookController::class, 'handleExternalLeads'])->name('api.webhooks.external-leads');
 });
 
 // Attendance route without conflicting middleware

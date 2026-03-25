@@ -11,6 +11,7 @@ use Spatie\Activitylog\Models\Activity;
 use App\Models\Admission;
 use Carbon\Carbon;
 use App\Services\LeadDistributionService;
+use Illuminate\Support\Facades\Cache;
 // Add these imports
 use App\Imports\EnquiriesImport;
 use Maatwebsite\Excel\Facades\Excel;
@@ -24,58 +25,62 @@ class EnquiryController extends Controller
         $user = Auth::user();
         $isAdmin = $user->hasAnyRole(['admin', 'super-admin', 'Admin', 'Super-admin']);
 
-        $statsQuery = Enquiry::selectRaw('status, count(*) as count');
+        // Optimization: Cache stats for 2 minutes to prevent heavy DB hits on every refresh
+        // Cache key is unique to the user and the specific filters applied
+        $cacheKey = 'enquiry_stats_' . md5(serialize($filters) . $user->id);
 
-        // Apply Visibility for Stats (Admin can see all, others only their own)
-        if (!$isAdmin) {
-            $statsQuery->where('assigned_to_user_id', $user->id);
-            // Ignore filter if non-admin tries to see others (security check)
-        } elseif (isset($filters['assigned_to_user_id']) && $filters['assigned_to_user_id']) {
-            // Apply assignments filter if provided (and user is admin)
-            $statsQuery->where('assigned_to_user_id', $filters['assigned_to_user_id']);
-        }
+        return Cache::remember($cacheKey, now()->addMinutes(2), function () use ($filters, $isAdmin, $user) {
+            $statsQuery = Enquiry::selectRaw('status, count(*) as count');
 
-        // Apply Course Filter
-        if (isset($filters['course_id']) && $filters['course_id']) {
-            $statsQuery->where('course_id', $filters['course_id']);
-        }
+            // Apply Visibility for Stats
+            if (!$isAdmin) {
+                $statsQuery->where('assigned_to_user_id', $user->id);
+            } elseif (isset($filters['assigned_to_user_id']) && $filters['assigned_to_user_id']) {
+                $statsQuery->where('assigned_to_user_id', $filters['assigned_to_user_id']);
+            }
 
-        // Apply Date Filters
-        if (isset($filters['start_date']) && $filters['start_date']) {
-            $statsQuery->whereDate('created_at', '>=', $filters['start_date']);
-        }
-        if (isset($filters['end_date']) && $filters['end_date']) {
-            $statsQuery->whereDate('created_at', '<=', $filters['end_date']);
-        }
+            // Apply Course Filter
+            if (isset($filters['course_id']) && $filters['course_id']) {
+                $statsQuery->where('course_id', $filters['course_id']);
+            }
 
-        // Apply Source Filter
-        if (isset($filters['source']) && $filters['source']) {
-            $statsQuery->where('source', $filters['source']);
-        }
+            // Apply Date Filters (Optimized for indexes: avoid whereDate if possible)
+            if (isset($filters['start_date']) && $filters['start_date']) {
+                $statsQuery->where('created_at', '>=', $filters['start_date'] . ' 00:00:00');
+            }
+            if (isset($filters['end_date']) && $filters['end_date']) {
+                $statsQuery->where('created_at', '<=', $filters['end_date'] . ' 23:59:59');
+            }
 
-        // Apply Search Filter (stats should reflect search too! drill-down behavior)
-        if (isset($filters['search']) && $filters['search']) {
-            $term = $filters['search'];
-            $statsQuery->where(function ($q) use ($term) {
-                $q->where('student_name', 'LIKE', '%' . $term . '%')
-                    ->orWhere('phone_number', 'LIKE', '%' . $term . '%');
-            });
-        }
+            // Apply Source Filter
+            if (isset($filters['source']) && $filters['source']) {
+                $statsQuery->where('source', $filters['source']);
+            }
 
-        $stats = $statsQuery->groupBy('status')
-            ->pluck('count', 'status')
-            ->toArray();
+            // Apply Search Filter
+            if (isset($filters['search']) && $filters['search']) {
+                $term = $filters['search'];
+                $statsQuery->where(function ($q) use ($term) {
+                    $q->where('student_name', 'LIKE', '%' . $term . '%')
+                        ->orWhere('phone_number', 'LIKE', '%' . $term . '%');
+                });
+            }
 
-        return [
-            'New' => $stats['New'] ?? 0,
-            'Contacted' => $stats['Contacted'] ?? 0,
-            'Interested' => $stats['Interested'] ?? 0,
-            'Next Year' => $stats['Interested Next Year'] ?? 0,
-            'Not Interested' => $stats['Not Interested'] ?? 0,
-            'Admitted' => $stats['Admitted'] ?? 0,
-            'Follow-up' => $stats['Follow-up'] ?? 0,
-            'Total' => array_sum($stats)
-        ];
+            $stats = $statsQuery->groupBy('status')
+                ->pluck('count', 'status')
+                ->toArray();
+
+            return [
+                'New' => $stats['New'] ?? 0,
+                'Contacted' => $stats['Contacted'] ?? 0,
+                'Interested' => $stats['Interested'] ?? 0,
+                'Next Year' => $stats['Interested Next Year'] ?? 0,
+                'Not Interested' => $stats['Not Interested'] ?? 0,
+                'Admitted' => $stats['Admitted'] ?? 0,
+                'Follow-up' => $stats['Follow-up'] ?? 0,
+                'Total' => array_sum($stats)
+            ];
+        });
     }
 
     public function index(Request $request)
@@ -128,12 +133,12 @@ class EnquiryController extends Controller
             $query->where('enquiries.source', $request->source);
         }
 
-        // Date Filters
+        // Date Filters (Optimized for indexes)
         if ($request->filled('start_date')) {
-            $query->whereDate('enquiries.created_at', '>=', $request->start_date);
+            $query->where('enquiries.created_at', '>=', $request->start_date . ' 00:00:00');
         }
         if ($request->filled('end_date')) {
-            $query->whereDate('enquiries.created_at', '<=', $request->end_date);
+            $query->where('enquiries.created_at', '<=', $request->end_date . ' 23:59:59');
         }
 
         // --- 3. Sorting Logic ---
@@ -180,13 +185,28 @@ class EnquiryController extends Controller
 
         $sources = \App\Models\Enquiry::SOURCES;
 
+        $isFacebookView = session('is_facebook_view', false) || $request->input('source') === 'Social Media';
+
         return view('admin.enquiries.index', compact(
             'enquiries',
             'courses',
             'counselors',
             'counts',
-            'sources'
+            'sources',
+            'isFacebookView'
         ));
+    }
+
+    public function facebookLeads(Request $request)
+    {
+        // Force the source to Social Media (Facebook)
+        $request->merge(['source' => 'Social Media']);
+        
+        // Let the index method handle the rest of the logic (stats, query, pagination)
+        // We set a flag so the view can show "Facebook Leads" instead of "Enquiries"
+        session()->flash('is_facebook_view', true);
+        
+        return $this->index($request);
     }
 
     public function create()

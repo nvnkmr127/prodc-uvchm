@@ -9,6 +9,9 @@ use Illuminate\Http\Request;
 use App\Models\Student;
 use App\Models\Attendance;
 use App\Models\Setting;
+use App\Models\Enquiry;
+use App\Models\Course;
+use App\Services\LeadDistributionService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 
@@ -70,6 +73,83 @@ class WebhookController extends Controller
         } catch (\Exception $e) {
             Log::error('Error processing biometric webhook: ' . $e->getMessage());
             return response()->json(['message' => 'Server Error'], 500);
+        }
+    }
+
+    /**
+     * Handle incoming leads from external services like Pabbly Connect or Zapier.
+     * This connects Facebook Lead Ads to the enquiry list.
+     */
+    public function handleExternalLeads(Request $request, LeadDistributionService $leadService)
+    {
+        // 1. Basic Security Check
+        // We look for a token in the query or header to verify the source.
+        // It's configurable via Settings > Facebook Leads in the dashboard.
+        $webhookToken = Setting::get('facebook_lead_webhook_token') 
+                        ?? env('WEBHOOK_TOKEN') 
+                        ?? 'b97fcbb4a2fb607a5366fbf06614dcbc';
+        $sentToken = $request->header('X-Webhook-Token') ?? $request->input('token');
+
+        if ($webhookToken && $sentToken !== $webhookToken) {
+            Log::warning('Unauthorized external lead webhook attempt.');
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        // 2. Validate & Sanitize Input
+        // Map common Facebook/Pabbly/Zapier field names if they vary
+        $data = $request->all();
+        
+        $fullName = $request->input('full_name') ?? $request->input('name') ?? $request->input('lead_name');
+        $phone = $request->input('phone_number') ?? $request->input('phone') ?? $request->input('mobile');
+        $courseName = $request->input('course') ?? $request->input('program') ?? $request->input('course_name');
+        $notes = $request->input('notes') ?? $request->input('comments') ?? '';
+        
+        if (!$fullName || !$phone) {
+            return response()->json([
+                'message' => 'Validation failed: name and phone are required.',
+                'received' => $data
+            ], 422);
+        }
+
+        try {
+            // 3. Find Course ID if course name is provided
+            $courseId = null;
+            if ($courseName) {
+                $course = Course::where('name', 'like', "%{$courseName}%")
+                               ->orWhere('code', 'like', "%{$courseName}%")
+                               ->first();
+                $courseId = $course?->id;
+                
+                if (!$courseId) {
+                    $notes .= "\nInternal Note: Interested in Course: {$courseName}";
+                }
+            }
+
+            // 4. Get Automatic Assignment (Round Robin)
+            $assignedUserId = $leadService->getNextCounselorId();
+
+            // 5. Create the Enquiry
+            $enquiry = Enquiry::create([
+                'student_name' => $fullName,
+                'phone_number' => $phone,
+                'course_id'    => $courseId,
+                'source'       => 'Social Media', // Facebook Campaign
+                'notes'        => trim($notes),
+                'status'       => 'New',
+                'assigned_to_user_id' => $assignedUserId,
+            ]);
+
+            Log::info("New lead created via webhook: #{$enquiry->id} - {$fullName}");
+
+            return response()->json([
+                'message' => 'Lead processed successfully',
+                'enquiry_id' => $enquiry->id,
+                'assigned_to' => $enquiry->assignedTo?->name ?? 'None'
+            ], 201);
+
+        } catch (\Exception $e) {
+            Log::error('Error processing external lead webhook: ' . $e->getMessage());
+            return response()->json(['message' => 'Server Error: ' . $e->getMessage()], 500);
         }
     }
 }

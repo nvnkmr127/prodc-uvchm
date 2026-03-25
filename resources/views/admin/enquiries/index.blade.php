@@ -306,7 +306,13 @@
     <div class="container-fluid">
 
         <div class="d-sm-flex align-items-center justify-content-between mb-4">
-            <h1 class="h3 mb-0 text-gray-800 font-weight-bold">Enquiry Hub</h1>
+            <h1 class="h3 mb-0 text-gray-800 font-weight-bold">
+                @if($isFacebookView ?? false)
+                    <i class="fab fa-facebook text-primary mr-2"></i> Facebook Leads
+                @else
+                    Enquiry Hub
+                @endif
+            </h1>
             <button type="button" class="btn btn-primary shadow-sm font-weight-bold" data-toggle="modal"
                 data-target="#addEnquiryModal">
                 <i class="fas fa-plus fa-sm text-white-50 mr-1"></i> New Enquiry

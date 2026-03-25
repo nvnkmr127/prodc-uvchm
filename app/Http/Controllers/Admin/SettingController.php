@@ -697,6 +697,19 @@ class SettingController extends Controller
                     ],
                 ]
             ],
+            'facebook_leads' => [
+                'title' => 'Facebook Leads',
+                'icon' => 'fab fa-facebook',
+                'description' => 'Configure incoming leads from Facebook. Your Webhook URL is: ' . url('/api/webhooks/external-leads'),
+                'fields' => [
+                    'facebook_lead_webhook_token' => [
+                        'label' => 'Webhook Secret Token',
+                        'type' => 'text',
+                        'help' => 'Use this token in Pabbly/Zapier as a query parameter (token=...) or header (X-Webhook-Token).',
+                        'default' => 'b97fcbb4a2fb607a5366fbf06614dcbc'
+                    ],
+                ]
+            ],
             'backup' => [
                 'title' => 'Backup Settings',
                 'icon' => 'fas fa-database',

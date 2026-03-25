@@ -183,6 +183,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
     Route::middleware(['permission:manage admissions'])->group(function () {
         Route::get('enquiries/check-mobile', [EnquiryController::class, 'checkMobile'])
             ->name('enquiries.check-mobile');
+        Route::get('enquiries/facebook-leads', [EnquiryController::class, 'facebookLeads'])->name('enquiries.facebook-leads');
         Route::get('enquiries/ajax-search', [EnquiryController::class, 'ajaxSearch'])->name('enquiries.ajax-search');
         Route::resource('enquiries', EnquiryController::class);
         Route::get('/enquiries/{enquiry}/convert', [EnquiryController::class, 'convertToAdmission'])->name('enquiries.convertToAdmission');

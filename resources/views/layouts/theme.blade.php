@@ -139,7 +139,12 @@
                     <div id="collapseEnquiries" class="collapse" data-parent="#accordionSidebar">
                         <div class="bg-white py-2 collapse-inner rounded">
                             <h6 class="collapse-header">Enquiry Management</h6>
-
+                            <a class="collapse-item" href="{{ route('admin.enquiries.index') }}">
+                                <i class="fas fa-list"></i> All Enquiries
+                            </a>
+                            <a class="collapse-item" href="{{ route('admin.enquiries.facebook-leads') }}">
+                                <i class="fab fa-facebook text-primary"></i> Facebook Leads
+                            </a>
                             <a class="collapse-item" href="{{ route('admin.enquiries.create') }}">
                                 <i class="fas fa-plus"></i> Add New Enquiry
                             </a>
