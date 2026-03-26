@@ -12,14 +12,19 @@ use Illuminate\Support\Str;
 class UniversalWebhookListener
 {
     /**
-     * Track processed events to prevent infinite loops
+     * Stack to track events currently being processed (prevents infinite recursion)
+     */
+    protected static array $processingStack = [];
+
+    /**
+     * Track processed events in the current request to avoid redundant webhooks
      */
     protected static array $processedEvents = [];
 
     /**
-     * Maximum number of times to process the same event
+     * Maximum number of times to process the same event RECURSIVELY
      */
-    protected static int $maxProcessCount = 1;
+    protected static int $maxRecursionDepth = 1;
 
     protected int $maxRetries = 3;
     protected int $retryDelay = 10;
@@ -39,23 +44,23 @@ class UniversalWebhookListener
             'model_id' => property_exists($event, 'model') && $event->model ? $event->model->getKey() : 'no_id',
         ]);
 
-        // Prevent infinite loops by tracking processed events
+        // Prevent infinite loops by tracking currently processing events (recursion detection)
         $eventHash = $this->generateEventHash($event);
 
-        if (isset(static::$processedEvents[$eventHash])) {
-            static::$processedEvents[$eventHash]++;
-
-            if (static::$processedEvents[$eventHash] > static::$maxProcessCount) {
-                Log::channel('webhook-events')->warning('Webhook infinite loop prevented in UniversalWebhookListener', [
-                    'event_class' => get_class($event),
-                    'event_hash' => $eventHash,
-                    'process_count' => static::$processedEvents[$eventHash]
-                ]);
-                return;
-            }
-        } else {
-            static::$processedEvents[$eventHash] = 1;
+        if (in_array($eventHash, static::$processingStack)) {
+            Log::channel('webhook-events')->warning('Webhook infinite loop prevented in UniversalWebhookListener (Recursion detected)', [
+                'event_class' => get_class($event),
+                'event_hash' => $eventHash,
+                'stack_depth' => count(static::$processingStack)
+            ]);
+            return;
         }
+
+        // Add to stack before processing
+        static::$processingStack[] = $eventHash;
+        
+        // Track overall processing count for this hash in this request
+        static::$processedEvents[$eventHash] = (static::$processedEvents[$eventHash] ?? 0) + 1;
 
         try {
             $eventName = $this->determineEventName($event);
@@ -94,7 +99,10 @@ class UniversalWebhookListener
                 'trace' => $e->getTraceAsString()
             ]);
         } finally {
-            // Clean up tracking after a delay to prevent memory leaks
+            // Remove from stack after processing
+            static::$processingStack = array_values(array_diff(static::$processingStack, [$eventHash]));
+            
+            // Cleanup the processed count after a delay (if running in a long-lived process)
             $this->scheduleCleanup($eventHash);
         }
     }
@@ -104,10 +112,15 @@ class UniversalWebhookListener
      */
     private function generateEventHash($event)
     {
+        // For EloquentWebhookEvent, we want to hash the specific model and event combination
+        if (get_class($event) === 'App\Events\EloquentWebhookEvent') {
+            return md5(get_class($event) . ':' . get_class($event->model) . ':' . $event->model->getKey() . ':' . $event->eventType);
+        }
+
+        // Fallback for other events
         $data = [
             'class' => get_class($event),
             'model_id' => property_exists($event, 'model') && $event->model ? $event->model->getKey() : 'no_id',
-            'timestamp' => now()->format('Y-m-d H:i:s')
         ];
 
         return md5(json_encode($data));
