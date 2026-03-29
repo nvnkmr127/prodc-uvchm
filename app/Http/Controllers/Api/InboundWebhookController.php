@@ -8,9 +8,11 @@ use App\Models\InboundWebhookLog;
 use App\Models\Enquiry;
 use App\Models\Course;
 use App\Services\LeadDistributionService;
+use Illuminate\Support\Str;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+
 
 class InboundWebhookController extends Controller
 {
@@ -39,26 +41,45 @@ class InboundWebhookController extends Controller
 
         // 1. Security Check
         $token = $this->extractIncomingToken($request);
-        if ($webhook->secret_token && !$this->tokenMatches($token, $webhook->secret_token)) {
+        
+        $isAuthorized = true;
+        $authError = null;
+
+        if ($webhook->secret_token) {
+            if (!$token) {
+                $isAuthorized = false;
+                $authError = 'No token provided in headers or parameters';
+            } elseif (!$this->tokenMatches($token, $webhook->secret_token)) {
+                $isAuthorized = false;
+                $authError = 'Invalid security token provided';
+            }
+        }
+
+        if (!$isAuthorized) {
             $webhook->increment('failure_count');
 
             Log::channel('inbound-webhooks')->warning('Inbound webhook unauthorized request', [
                 'webhook_id' => $webhook->id,
                 'slug' => $webhook->slug,
                 'ip' => $request->ip(),
-                'token_sources' => [
-                    'x_webhook_token' => $request->hasHeader('X-Webhook-Token'),
-                    'authorization_header' => $request->hasHeader('Authorization'),
-                    'x_api_key' => $request->hasHeader('X-API-Key'),
-                    'token_input' => $request->filled('token'),
-                    'secret_token_input' => $request->filled('secret_token'),
-                    'api_key_input' => $request->filled('api_key'),
+                'error' => $authError,
+                'token_present' => (bool) $token,
+                'token_masked' => $token ? Str::mask($token, '*', 2, -2) : null,
+                'headers' => [
+                    'x-webhook-token' => $request->hasHeader('X-Webhook-Token'),
+                    'authorization' => $request->hasHeader('Authorization'),
+                    'x-api-key' => $request->hasHeader('X-API-Key'),
                 ],
             ]);
 
-            $this->logCall($webhook->id, $request->all(), 401, 'Unauthorized request');
-            return response()->json(['message' => 'Unauthorized'], 401);
+            $this->logCall($webhook->id, $request->all(), 401, 'Unauthorized: ' . $authError);
+            return response()->json([
+                'message' => 'Unauthorized',
+                'error' => $authError,
+                'tip' => 'Ensure you are sending the X-Webhook-Token header or token parameter correctly.'
+            ], 401);
         }
+
 
         $payload = $request->all();
 

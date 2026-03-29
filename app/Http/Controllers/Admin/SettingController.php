@@ -1219,16 +1219,15 @@ class SettingController extends Controller
 
             $duplicatesRemoved = 0;
             foreach ($duplicates as $duplicate) {
-                // Keep the most recent one, delete the rest
-                $settingsToDelete = Setting::where('key', $duplicate->key)
+                $idsToDelete = Setting::where('key', $duplicate->key)
                     ->orderBy('updated_at', 'desc')
                     ->skip(1)
                     ->take($duplicate->count - 1)
-                    ->get();
+                    ->pluck('id');
 
-                foreach ($settingsToDelete as $setting) {
-                    $setting->delete();
-                    $duplicatesRemoved++;
+                if ($idsToDelete->count() > 0) {
+                    $deletedCount = Setting::whereIn('id', $idsToDelete)->delete();
+                    $duplicatesRemoved += $deletedCount;
                 }
             }
 
