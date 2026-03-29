@@ -42,14 +42,6 @@
                         </div>
 
                         <div class="form-group">
-                            <div class="custom-control custom-checkbox custom-control-lg">
-                                <input type="checkbox" class="custom-control-input" id="autoAssign" name="auto_assign" value="1" checked>
-                                <label class="custom-control-label font-weight-bold" for="autoAssign">Auto-Assignment (Round Robin)</label>
-                            </div>
-                            <small class="text-muted">Automatically assign enquiries to counselors in a round-robin sequence. If unchecked, newly created enquiries will remain unassigned.</small>
-                        </div>
-
-                        <div class="form-group">
                             <label for="description">Note / Description (Optional)</label>
                             <textarea class="form-control" name="description" id="description" rows="3"></textarea>
                         </div>

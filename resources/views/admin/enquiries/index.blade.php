@@ -6,219 +6,280 @@
         /* --- Modern CRM Design System --- */
         :root {
             --crm-primary: #4e73df;
-            --crm-primary-light: #f8f9fc;
-            --crm-success: #1cc88a;
-            --crm-info: #36b9cc;
-            --crm-warning: #f6c23e;
-            --crm-danger: #e74a3b;
             --crm-secondary: #858796;
-            --crm-gray-100: #f8f9fc;
-            --crm-gray-200: #eaecf4;
-            --crm-gray-800: #5a5c69;
         }
 
         /* --- Stats Grid System --- */
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(7, 1fr);
-            gap: 1.25rem;
-            margin-bottom: 2rem;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.5rem;
         }
 
-        .stat-card-modern {
+        .stat-card-mini {
             background: white;
-            padding: 1.25rem;
-            border-radius: 1rem;
-            border: 1px solid var(--crm-gray-200);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
-            overflow: hidden;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.1);
+            border-left: 0.25rem solid #e3e6f0;
+            transition: transform 0.2s;
+            height: 100%;
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
-            min-height: 100px;
+            justify-content: center;
         }
 
-        .stat-card-modern:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.05);
-            border-color: var(--crm-primary);
+        .stat-card-mini:hover {
+            transform: translateY(-3px);
         }
 
-        .stat-card-modern .stat-icon {
-            position: absolute;
-            right: -10px;
-            top: -10px;
-            font-size: 3rem;
-            opacity: 0.05;
-            transform: rotate(-15deg);
-            transition: all 0.3s;
-        }
-
-        .stat-card-modern:hover .stat-icon {
-            opacity: 0.1;
-            transform: rotate(0deg) scale(1.1);
-        }
-
-        .stat-card-modern .stat-label {
-            font-size: 0.75rem;
-            font-weight: 700;
-            color: var(--crm-secondary);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 0.5rem;
-        }
-
-        .stat-card-modern .stat-value {
-            font-size: 1.75rem;
+        .stat-label {
+            font-size: 0.7rem;
             font-weight: 800;
-            color: var(--crm-gray-800);
-            line-height: 1;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.25rem;
         }
 
-        .stat-card-modern.active {
-            background: var(--crm-primary);
-            border-color: var(--crm-primary);
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: #5a5c69;
+            line-height: 1.2;
         }
 
-        .stat-card-modern.active .stat-label,
-        .stat-card-modern.active .stat-value {
+        /* Status Colors */
+        .status-new-border {
+            border-left-color: #36b9cc !important;
+        }
+
+        .status-contacted-border {
+            border-left-color: #1cc88a !important;
+        }
+
+        .status-interested-border {
+            border-left-color: #f6c23e !important;
+        }
+
+        .status-followup-border {
+            border-left-color: #fd7e14 !important;
+        }
+
+        .status-admitted-border {
+            border-left-color: #0f6848 !important;
+        }
+
+        .status-Next-Year-border {
+            border-left-color: #6f42c1 !important;
+        }
+
+        .status-dropped-border {
+            border-left-color: #e74a3b !important;
+        }
+
+        /* --- Live Search Dropdown --- */
+        .search-box-container {
+            position: relative;
+        }
+
+        #liveSearchResults {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #e3e6f0;
+            border-radius: 0 0 0.5rem 0.5rem;
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            max-height: 350px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .search-item {
+            padding: 12px 15px;
+            border-bottom: 1px solid #f8f9fc;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            transition: background 0.1s;
+        }
+
+        .search-item:hover {
+            background: #f0f2f5;
+        }
+
+        .search-item:last-child {
+            border-bottom: none;
+        }
+
+        .search-avatar {
+            width: 35px;
+            height: 35px;
+            background: #4e73df;
             color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+            margin-right: 12px;
         }
 
-        /* Border Accents */
-        .border-left-primary { border-left: 4px solid var(--crm-primary) !important; }
-        .border-left-success { border-left: 4px solid var(--crm-success) !important; }
-        .border-left-info { border-left: 4px solid var(--crm-info) !important; }
-        .border-left-warning { border-left: 4px solid var(--crm-warning) !important; }
-        .border-left-danger { border-left: 4px solid var(--crm-danger) !important; }
+        /* --- Sortable Headers --- */
+        .sort-link {
+            color: #858796;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+        }
 
-        /* --- Enhanced Table --- */
+        .sort-link:hover {
+            color: #4e73df;
+            text-decoration: none;
+        }
+
+        .sort-link.active {
+            color: #4e73df;
+        }
+
+        /* --- Responsive Tweaks --- */
+        @media (max-width: 1200px) {
+            .stats-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        /* --- Other Styles from previous file --- */
         .table-custom {
             margin: 0;
             width: 100%;
+            border-collapse: separate;
             border-spacing: 0;
         }
 
         .table-custom thead th {
-            background: var(--crm-gray-100);
-            color: var(--crm-secondary);
-            font-size: 0.7rem;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            padding: 1.25rem 1rem;
-            border-top: none;
-            border-bottom: 2px solid var(--crm-gray-200);
-            position: sticky;
-            top: 0;
-            z-index: 10;
+            border: none;
+            background: #f8f9fc;
+            padding: 1rem;
+            border-bottom: 2px solid #e3e6f0;
         }
 
-        .hover-row:hover {
-            background-color: rgba(78, 115, 223, 0.02) !important;
+        .table-custom tbody td {
+            padding: 1rem;
+            vertical-align: middle;
+            border-top: 1px solid #f0f2f5;
         }
 
         .inline-edit {
-            border: 1px solid transparent;
             background: transparent;
-            padding: 0.35rem 0.5rem;
-            border-radius: 0.5rem;
-            transition: all 0.2s;
-            max-width: 100%;
+            border: 1px solid transparent;
+            padding: 0.4rem;
+            border-radius: 0.35rem;
+            width: 100%;
+            cursor: pointer;
         }
 
-        .inline-edit:hover {
-            background: white;
-            border-color: var(--crm-gray-200);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-
+        .inline-edit:hover,
         .inline-edit:focus {
-            outline: none;
             background: white;
-            border-color: var(--crm-primary);
-            box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.1);
+            border-color: #d1d3e2;
         }
 
-        /* Badge Soft Colors */
-        .badge-success-soft { background-color: #e8f5e9; color: #2e7d32; }
-        .badge-info-soft { background-color: #e3f2fd; color: #1565c0; }
-        .badge-warning-soft { background-color: #fff8e1; color: #e65100; }
-        .badge-danger-soft { background-color: #fbe9e7; color: #d84315; }
-        .badge-primary-soft { background-color: #e8eaf6; color: #283593; }
-
-        /* Action Buttons */
-        .btn-icon {
-            width: 32px;
-            height: 32px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 8px;
-            padding: 0;
-            transition: all 0.2s;
-        }
-
-        .btn-light-primary { background: #eef2ff; color: #4e73df; border: none; }
-        .btn-light-primary:hover { background: #4e73df; color: white; }
-        
-        .btn-light-secondary { background: #f8f9fc; color: #858796; border: none; }
-        .btn-light-secondary:hover { background: #eaecf4; color: #5a5c69; }
-
-        /* Status Pills (Enhanced) */
-        .badge-pill-custom {
-            padding: 0.5rem 1rem;
-            font-size: 0.7rem;
-            letter-spacing: 0.3px;
-            border-radius: 2rem;
-        }
-
-        .status-new { background-color: #e0f7fa; color: #00838f; }
-        .status-contacted { background-color: #e8f5e9; color: #2e7d32; }
-        .status-interested { background-color: #fff8e1; color: #f57f17; }
-        .status-follow-up { background-color: #fff3e0; color: #e65100; }
-        .status-admitted { background-color: #f1f8e9; color: #33691e; }
-        .status-interested-next-year { background-color: #f3e5f5; color: #7b1fa2; }
-        .status-not-interested { background-color: #ffeef0; color: #d32f2f; }
-
-        /* Filter Modernization */
-        .filter-input-group {
-            background: var(--crm-gray-100);
-            border-radius: 0.75rem;
-            padding: 0.25rem 0.75rem;
-            border: 1px solid var(--crm-gray-200);
+        .student-trigger {
             display: flex;
             align-items: center;
-            transition: all 0.2s;
+            cursor: pointer;
         }
 
-        .filter-input-group:focus-within {
-            border-color: var(--crm-primary);
-            background: white;
-            box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.1);
-        }
-
-        .filter-input-group i { color: var(--crm-secondary); }
-
-        /* Avatar */
         .student-avatar-small {
-            width: 40px;
-            height: 40px;
-            border-radius: 12px;
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 50%;
+            background: #4e73df;
+            color: white;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: 800;
-            color: white;
-            text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            margin-right: 0.75rem;
+            font-weight: bold;
         }
 
-        /* Custom Scrollbar */
-        .table-responsive::-webkit-scrollbar { height: 6px; width: 6px; }
-        .table-responsive::-webkit-scrollbar-thumb { background: #cbd5e0; border-radius: 10px; }
-        .table-responsive::-webkit-scrollbar-track { background: #f7fafc; }
+        /* Badges */
+        .badge-pill-custom {
+            padding: 0.4em 1em;
+            border-radius: 50px;
+            font-weight: 700;
+            font-size: 0.7rem;
+        }
 
+        .status-new {
+            background-color: #e3f2fd;
+            color: #36b9cc;
+        }
+
+        .status-contacted {
+            background-color: #e8f5e9;
+            color: #1cc88a;
+        }
+
+        .status-interested {
+            background-color: #fff3cd;
+            color: #f6c23e;
+        }
+
+        .status-follow-up {
+            background-color: #fff3e0;
+            color: #fd7e14;
+        }
+
+        .status-admitted {
+            background-color: #d1e7dd;
+            color: #0f6848;
+        }
+
+        .status-Next-Year {
+            background-color: #d1e7dd;
+            color: #0f6848;
+        }
+
+        .status-not-interested {
+            background-color: #f8d7da;
+            color: #e74a3b;
+        }
+
+        /* Urgent Row */
+        .row-urgent td:first-child {
+            border-left: 4px solid #e74a3b;
+        }
+
+        /* Due today (follow-up is today, not yet past) */
+        .row-due-today td:first-child {
+            border-left: 4px solid #fd7e14;
+        }
+
+        .text-urgent {
+            color: #e74a3b !important;
+            font-weight: 800;
+        }
+
+        .text-due-today {
+            color: #fd7e14 !important;
+            font-weight: 800;
+        }
 
         /* Source Badges */
         .source-badge {
@@ -238,25 +299,6 @@
         .source-walk-in      { background: #fce4ec; color: #880e4f; }
         .source-bulk-import  { background: #e0f2f1; color: #004d40; }
         .source-other        { background: #f5f5f5; color: #424242; }
-        /* Loading Overlay */
-        #tableLoader {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(255,255,255,0.7);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 100;
-            backdrop-filter: blur(2px);
-        }
-
-        .gap-1 { gap: 0.25rem; }
-        .gap-2 { gap: 0.5rem; }
-        
-        .btn-icon i { font-size: 0.85rem; }
     </style>
 @endpush
 
@@ -271,196 +313,175 @@
                     Enquiry Hub
                 @endif
             </h1>
-            <div class="d-flex gap-2">
-                @hasanyrole('super-admin|Super-Admin')
-                <button type="button" class="btn btn-light text-primary shadow-sm font-weight-bold mr-2"
-                    data-toggle="modal" data-target="#importEnquiryModal">
-                    <i class="fas fa-file-import fa-sm mr-1"></i> Import
-                </button>
-                @endhasanyrole
-                <button type="button" class="btn btn-primary shadow-sm font-weight-bold px-4" data-toggle="modal"
-                    data-target="#addEnquiryModal">
-                    <i class="fas fa-plus fa-sm text-white-50 mr-1"></i> New Enquiry
-                </button>
-            </div>
+            <button type="button" class="btn btn-primary shadow-sm font-weight-bold" data-toggle="modal"
+                data-target="#addEnquiryModal">
+                <i class="fas fa-plus fa-sm text-white-50 mr-1"></i> New Enquiry
+            </button>
         </div>
 
         <div class="stats-grid">
-            <div class="stat-card-modern border-left-info {{ request('status') == 'New' ? 'active' : '' }}" onclick="setStatusFilter('New', this)">
-                <div class="h-100 d-flex flex-column justify-content-between cursor-pointer">
-                    <i class="fas fa-star stat-icon"></i>
-                    <div class="stat-label">New Leads</div>
+            <div class="stat-card-mini status-new-border">
+                <a href="{{ route('admin.enquiries.index', ['status' => 'New']) }}" class="text-decoration-none">
+                    <div class="stat-label text-info">New Leads</div>
                     <div class="stat-value" id="count-New">{{ $counts['New'] ?? 0 }}</div>
-                </div>
+                </a>
             </div>
-            <div class="stat-card-modern border-left-primary {{ request('status') == 'Interested Next Year' ? 'active' : '' }}" onclick="setStatusFilter('Interested Next Year', this)">
-                <div class="h-100 d-flex flex-column justify-content-between cursor-pointer">
-                    <i class="fas fa-calendar-alt stat-icon"></i>
-                    <div class="stat-label">Next Year</div>
+            <div class="stat-card-mini status-Next-Year-border">
+                <a href="{{ route('admin.enquiries.index', ['status' => 'Interested Next Year']) }}"
+                    class="text-decoration-none">
+                    <div class="stat-label text-info">Next Year</div>
                     <div class="stat-value" id="count-Next-Year">{{ $counts['Next Year'] }}</div>
-                </div>
+                </a>
             </div>
-            <div class="stat-card-modern border-left-success {{ request('status') == 'Contacted' ? 'active' : '' }}" onclick="setStatusFilter('Contacted', this)">
-                <div class="h-100 d-flex flex-column justify-content-between cursor-pointer">
-                    <i class="fas fa-phone-alt stat-icon"></i>
-                    <div class="stat-label">Contacted</div>
+            <div class="stat-card-mini status-contacted-border">
+                <a href="{{ route('admin.enquiries.index', ['status' => 'Contacted']) }}" class="text-decoration-none">
+                    <div class="stat-label text-success">Contacted</div>
                     <div class="stat-value" id="count-Contacted">{{ $counts['Contacted'] ?? 0 }}</div>
-                </div>
+                </a>
             </div>
-            <div class="stat-card-modern border-left-warning {{ request('status') == 'Follow-up' ? 'active' : '' }}" onclick="setStatusFilter('Follow-up', this)">
-                <div class="h-100 d-flex flex-column justify-content-between cursor-pointer">
-                    <i class="fas fa-clock stat-icon"></i>
-                    <div class="stat-label">Follow-Up</div>
+            <div class="stat-card-mini status-followup-border">
+                <a href="{{ route('admin.enquiries.index', ['status' => 'Follow-up']) }}" class="text-decoration-none">
+                    <div class="stat-label text-warning">Follow-Up</div>
                     <div class="stat-value" id="count-Follow-up">{{ $counts['Follow-up'] ?? 0 }}</div>
-                </div>
+                </a>
             </div>
-            <div class="stat-card-modern border-left-warning {{ request('status') == 'Interested' ? 'active' : '' }}" onclick="setStatusFilter('Interested', this)">
-                <div class="h-100 d-flex flex-column justify-content-between cursor-pointer">
-                    <i class="fas fa-heart stat-icon"></i>
-                    <div class="stat-label">Interested</div>
+            <div class="stat-card-mini status-interested-border">
+                <a href="{{ route('admin.enquiries.index', ['status' => 'Interested']) }}" class="text-decoration-none">
+                    <div class="stat-label text-warning">Interested</div>
                     <div class="stat-value" id="count-Interested">{{ $counts['Interested'] ?? 0 }}</div>
-                </div>
+                </a>
             </div>
-            <div class="stat-card-modern border-left-success {{ request('status') == 'Admitted' ? 'active' : '' }}" onclick="setStatusFilter('Admitted', this)">
-                <div class="h-100 d-flex flex-column justify-content-between cursor-pointer">
-                    <i class="fas fa-user-check stat-icon"></i>
-                    <div class="stat-label">Admitted</div>
+            <div class="stat-card-mini status-admitted-border">
+                <a href="{{ route('admin.enquiries.index', ['status' => 'Admitted']) }}" class="text-decoration-none">
+                    <div class="stat-label text-success">Admitted</div>
                     <div class="stat-value" id="count-Admitted">{{ $counts['Admitted'] ?? 0 }}</div>
-                </div>
+                </a>
             </div>
-            <div class="stat-card-modern border-left-danger {{ request('status') == 'Not Interested' ? 'active' : '' }}" onclick="setStatusFilter('Not Interested', this)">
-                <div class="h-100 d-flex flex-column justify-content-between cursor-pointer">
-                    <i class="fas fa-user-times stat-icon"></i>
-                    <div class="stat-label">Dropped</div>
+            <div class="stat-card-mini status-dropped-border">
+                <a href="{{ route('admin.enquiries.index', ['status' => 'Not Interested']) }}" class="text-decoration-none">
+                    <div class="stat-label text-danger">Dropped</div>
                     <div class="stat-value" id="count-Not-Interested">{{ $counts['Not Interested'] ?? 0 }}</div>
-                </div>
+                </a>
             </div>
         </div>
 
 
 
-        <div class="card shadow-sm mb-4 border-0" style="border-radius: 1rem;">
-            <div class="card-body p-3">
+        <div class="card shadow mb-4 border-0" style="border-radius: 1rem;">
+            <div class="card-body py-3">
                 <form id="filterForm">
-                    <input type="hidden" name="status" id="filterStatus" class="filter-input" value="{{ request('status') }}">
-                    <input type="hidden" name="sort" id="filterSort" class="filter-input" value="{{ request('sort', 'next_follow_up_date') }}">
-                    <input type="hidden" name="direction" id="filterDirection" class="filter-input" value="{{ request('direction', 'asc') }}">
-
-                    <div class="row g-2 align-items-center">
+                    <div class="row align-items-center">
 
                         <!-- SEARCH -->
-                        <div class="col-lg-3 col-md-6">
+                        <div class="col-lg-3 col-md-6 mb-2 mb-lg-0">
                             <div class="search-box-container">
-                                <div class="filter-input-group">
-                                    <i class="fas fa-search mr-2"></i>
-                                    <input type="text" class="form-control border-0 bg-transparent small filter-input"
+                                <div class="input-group">
+                                    <div class="input-group-prepend">
+                                        <span class="input-group-text bg-light border-0 pl-3"><i
+                                                class="fas fa-search text-gray-400"></i></span>
+                                    </div>
+                                    <input type="text" class="form-control bg-light border-0 small filter-input"
                                         name="search" id="liveSearchInput" value="{{ request('search') }}"
-                                        placeholder="Search name or phone..." autocomplete="off">
+                                        placeholder="Name, Phone..." autocomplete="off">
                                 </div>
                                 <div id="liveSearchResults"></div>
                             </div>
                         </div>
 
                         <!-- DATE FILTERS -->
-                        <div class="col-lg-3 col-md-6 d-flex gap-2">
-                            <div class="filter-input-group flex-fill mr-1">
-                                <i class="fas fa-calendar-day mr-2"></i>
-                                <input type="date" class="form-control border-0 bg-transparent small font-weight-bold filter-input"
-                                    name="start_date" title="Start Date" value="{{ request('start_date') }}">
-                            </div>
-                            <div class="filter-input-group flex-fill ml-1">
-                                <i class="fas fa-calendar-check mr-2"></i>
-                                <input type="date" class="form-control border-0 bg-transparent small font-weight-bold filter-input"
-                                    name="end_date" title="End Date" value="{{ request('end_date') }}">
-                            </div>
+                        <div class="col-lg-3 col-md-6 mb-2 mb-lg-0 d-flex">
+                            <input type="date"
+                                class="form-control border-0 bg-light small font-weight-bold mr-1 filter-input"
+                                name="start_date" placeholder="Start Date" title="Start Date"
+                                value="{{ request('start_date') }}">
+                            <input type="date"
+                                class="form-control border-0 bg-light small font-weight-bold ml-1 filter-input"
+                                name="end_date" placeholder="End Date" title="End Date"
+                                value="{{ request('end_date') }}">
                         </div>
 
-                        <!-- STATUS & COUNSELOR -->
-                        <div class="col-lg-2 col-md-4">
-                            <div class="filter-input-group">
-                                <i class="fas fa-layer-group mr-2"></i>
-                                <select class="form-control border-0 bg-transparent small font-weight-bold filter-input" name="status">
-                                    <option value="">All Statuses</option>
-                                    @foreach(['New', 'Contacted', 'Interested', 'Follow-up', 'Admitted', 'Interested Next Year', 'Not Interested'] as $s)
-                                        <option value="{{ $s }}" {{ request('status') == $s ? 'selected' : '' }}>{{ $s }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
+                        <!-- FILTERS -->
+                        <div class="col-lg-2 col-md-4 mb-2 mb-lg-0">
+                            <select class="form-control border-0 bg-light small font-weight-bold filter-input"
+                                name="status">
+                                <option value="">All Statuses</option>
+                                @foreach(['New', 'Contacted', 'Interested', 'Follow-up', 'Admitted', 'Interested Next Year', 'Not Interested'] as $s)
+                                    <option value="{{ $s }}" {{ request('status') == $s ? 'selected' : '' }}>{{ $s }}</option>
+                                @endforeach
+                            </select>
                         </div>
-                        <div class="col-lg-2 col-md-4">
-                            <div class="filter-input-group">
-                                <i class="fas fa-user-tie mr-2"></i>
-                                <select class="form-control border-0 bg-transparent small font-weight-bold filter-input" name="assigned_to_user_id">
-                                    <option value="">All Counselors</option>
-                                    @foreach($counselors as $counselor)
-                                        <option value="{{ $counselor->id }}" {{ request('assigned_to_user_id') == $counselor->id ? 'selected' : '' }}>
-                                            {{ $counselor->name }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                            </div>
+                        <div class="col-lg-2 col-md-4 mb-2 mb-lg-0">
+                            <select class="form-control border-0 bg-light small font-weight-bold filter-input"
+                                name="assigned_to_user_id">
+                                <option value="">All Counselors</option>
+                                @foreach($counselors as $counselor)
+                                    <option value="{{ $counselor->id }}" {{ request('assigned_to_user_id') == $counselor->id ? 'selected' : '' }}>
+                                        {{ $counselor->name }}
+                                    </option>
+                                @endforeach
+                            </select>
                         </div>
 
-                        <!-- ACTIONS -->
+                        <!-- ACTIONS ROW (Inline) -->
                         <div class="col-lg-2 text-lg-right d-flex align-items-center justify-content-end">
-                             <!-- Bulk Actions -->
-                             <div id="bulkActionBar" style="display:none; gap:5px; margin-right:5px;">
-                                <button type="button" class="btn btn-danger btn-sm rounded-circle" onclick="bulkDelete()" title="Delete Selected">
+                            <!-- Bulk Actions (Hidden by default) -->
+                            <div id="bulkActionBar" style="display:none; gap:5px; margin-right:5px;">
+                                <button type="button" class="btn btn-danger btn-sm" onclick="bulkDelete()"
+                                    title="Delete Selected">
                                     <i class="fas fa-trash"></i>
                                 </button>
-                                <div class="input-group input-group-sm" style="width: 140px;">
-                                    <select class="custom-select" id="bulkAssignUser">
-                                        <option value="">Assign to...</option>
-                                        @foreach($counselors as $c)
-                                            <option value="{{ $c->id }}">{{ $c->name }}</option>
-                                        @endforeach
-                                    </select>
-                                    <div class="input-group-append">
-                                        <button class="btn btn-success" type="button" onclick="bulkAssign()"><i class="fas fa-check"></i></button>
-                                    </div>
-                                </div>
+                                <select class="custom-select custom-select-sm" id="bulkAssignUser" style="width: 100px;">
+                                    <option value="">Assign...</option>
+                                    @foreach($counselors as $c)
+                                        <option value="{{ $c->id }}">{{ $c->name }}</option>
+                                    @endforeach
+                                </select>
+                                <button type="button" class="btn btn-success btn-sm" onclick="bulkAssign()">
+                                    <i class="fas fa-check"></i>
+                                </button>
                             </div>
 
-                            <button type="button" onclick="resetFilters()" class="btn btn-light btn-sm text-secondary font-weight-bold" title="Reset Filters">
-                                <i class="fas fa-sync-alt"></i>
-                            </button>
+                            <!-- Permanent Actions -->
+                            <div class="btn-group">
+                                @hasanyrole('super-admin|Super-Admin')
+                                <button type="button" class="btn btn-sm btn-light text-primary shadow-sm font-weight-bold"
+                                    data-toggle="modal" data-target="#importEnquiryModal" title="Import CSV">
+                                    <i class="fas fa-file-import mr-1"></i> Import
+                                </button>
+                                @endhasanyrole
+                                <button type="button" onclick="resetFilters()"
+                                    class="btn btn-sm btn-light text-secondary shadow-sm font-weight-bold"
+                                    title="Reset Filters">
+                                    <i class="fas fa-sync-alt mr-1"></i> Reset
+                                </button>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="row mt-2 g-2">
-                        <div class="col-lg-3 col-md-6 text-xs text-muted font-weight-bold mb-1">ADVANCED FILTERS:</div>
-                        <div class="w-100"></div>
-                        <div class="col-lg-3 col-md-6">
-                            <div class="filter-input-group">
-                                <i class="fas fa-book mr-2"></i>
-                                <select class="form-control border-0 bg-transparent small font-weight-bold filter-input" name="course_id">
-                                    <option value="">All Courses</option>
-                                    @foreach($courses as $id => $name)
-                                        <option value="{{ $id }}" {{ request('course_id') == $id ? 'selected' : '' }}>{{ $name }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
+                    {{-- Row 2: Course + Source filters --}}
+                    <div class="row mt-2">
+                        <div class="col-lg-3 col-md-6 mb-2 mb-lg-0">
+                            <select class="form-control border-0 bg-light small font-weight-bold filter-input" name="course_id">
+                                <option value="">All Courses</option>
+                                @foreach($courses as $id => $name)
+                                    <option value="{{ $id }}" {{ request('course_id') == $id ? 'selected' : '' }}>{{ $name }}</option>
+                                @endforeach
+                            </select>
                         </div>
-                        <div class="col-lg-3 col-md-6">
-                            <div class="filter-input-group">
-                                <i class="fas fa-link mr-2"></i>
-                                <select class="form-control border-0 bg-transparent small font-weight-bold filter-input" name="source">
-                                    <option value="">All Sources</option>
-                                    @foreach($sources as $value => $label)
-                                        <option value="{{ $value }}" {{ request('source') == $value ? 'selected' : '' }}>{{ $label }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
+                        <div class="col-lg-3 col-md-6 mb-2 mb-lg-0">
+                            <select class="form-control border-0 bg-light small font-weight-bold filter-input" name="source">
+                                <option value="">All Sources</option>
+                                @foreach($sources as $value => $label)
+                                    <option value="{{ $value }}" {{ request('source') == $value ? 'selected' : '' }}>{{ $label }}</option>
+                                @endforeach
+                            </select>
                         </div>
                     </div>
                 </form>
             </div>
         </div>
 
-        <div class="card shadow-sm mb-4 border-0" style="border-radius: 1rem; overflow: hidden; position: relative;">
-            <div id="tableLoader">
-                <div class="spinner-border text-primary" role="status"></div>
-            </div>
+        <div class="card shadow mb-4 border-0" style="border-radius: 1rem; overflow: hidden;">
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-custom" id="dataTable" width="100%" cellspacing="0">
@@ -473,24 +494,12 @@
                                     </div>
                                 </th>
                                 <!-- Headers -->
-                                <th width="23%" class="sortable" data-sort="student_name">
-                                    Student Profile <i class="fas fa-sort ml-1"></i>
-                                </th>
-                                <th width="12%" class="sortable" data-sort="course_name">
-                                    Course <i class="fas fa-sort ml-1"></i>
-                                </th>
-                                <th width="10%" class="sortable" data-sort="source">
-                                    Source <i class="fas fa-sort ml-1"></i>
-                                </th>
-                                <th width="16%" class="sortable" data-sort="counselor_name">
-                                    Counselor <i class="fas fa-sort ml-1"></i>
-                                </th>
-                                <th width="13%" class="sortable" data-sort="next_follow_up_date">
-                                    Follow-up <i class="fas fa-sort ml-1"></i>
-                                </th>
-                                <th width="8%" class="text-center sortable" data-sort="status">
-                                    Status <i class="fas fa-sort ml-1"></i>
-                                </th>
+                                <th width="23%">Student Profile</th>
+                                <th width="12%">Course</th>
+                                <th width="10%">Source</th>
+                                <th width="16%">Counselor</th>
+                                <th width="13%">Follow-up</th>
+                                <th width="8%" class="text-center">Status</th>
                                 <th width="14%" class="text-center">Actions</th>
                             </tr>
                         </thead>
@@ -529,84 +538,69 @@
     </div>
 
     <div class="modal fade" id="addEnquiryModal" tabindex="-1" role="dialog" aria-hidden="true" data-backdrop="static">
-        <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
-            <div class="modal-content border-0 shadow-lg" style="border-radius: 1.25rem;">
-                <div class="modal-header border-bottom-0 pt-4 px-4 pb-0">
-                    <div>
-                        <h4 class="modal-title font-weight-bold text-gray-800">Log New Enquiry</h4>
-                        <p class="text-muted small mb-0">Fill in the details to create a new lead.</p>
-                    </div>
-                    <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title font-weight-bold"><i class="fas fa-plus-circle mr-2"></i>New Enquiry</h5>
+                    <button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button>
                 </div>
                 <div class="modal-body p-4">
                     <form id="addEnquiryForm" action="{{ route('admin.enquiries.store') }}" method="POST">
                         @csrf
                         <div class="row">
-                            <div class="col-md-6 mb-4">
-                                <label class="small font-weight-bold text-gray-700 mb-1">Student Name <span class="text-danger">*</span></label>
-                                <div class="filter-input-group">
-                                    <i class="fas fa-user mr-2"></i>
-                                    <input type="text" class="form-control border-0 bg-transparent" name="student_name" placeholder="Full name" required>
+                            <div class="col-md-6 mb-3">
+                                <label class="small font-weight-bold text-gray-600">Student Name *</label>
+                                <input type="text" class="form-control bg-light border-0" name="student_name" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="small font-weight-bold text-gray-600">Phone Number *</label>
+                                <input type="tel" class="form-control" name="phone_number" id="createPhoneInput" required
+                                    onkeyup="checkMobileCreate(this.value)" autocomplete="off">
+                                <div id="createPhoneFeedback" class="small font-weight-bold mt-1" style="display:none;">
                                 </div>
                             </div>
-                            <div class="col-md-6 mb-4">
-                                <label class="small font-weight-bold text-gray-700 mb-1">Phone Number <span class="text-danger">*</span></label>
-                                <div class="filter-input-group">
-                                    <i class="fas fa-phone mr-2"></i>
-                                    <input type="tel" class="form-control border-0 bg-transparent" name="phone_number" id="createPhoneInput" 
-                                        placeholder="10-digit mobile" required onkeyup="checkMobileCreate(this.value)" autocomplete="off">
-                                </div>
-                                <div id="createPhoneFeedback" class="small font-weight-bold mt-1" style="display:none;"></div>
+                            <div class="col-md-6 mb-3">
+                                <label class="small font-weight-bold text-gray-600">Course Interest</label>
+                                <select class="form-control bg-light border-0" name="course_id">
+                                    <option value="">Select Course</option>
+                                    @foreach($courses as $id => $name)
+                                        <option value="{{ $id }}">{{ $name }}</option>
+                                    @endforeach
+                                </select>
                             </div>
-                            <div class="col-md-6 mb-4">
-                                <label class="small font-weight-bold text-gray-700 mb-1">Course Interest</label>
-                                <div class="filter-input-group">
-                                    <i class="fas fa-graduation-cap mr-2"></i>
-                                    <select class="form-control border-0 bg-transparent" name="course_id">
-                                        <option value="">Select Course</option>
-                                        @foreach($courses as $id => $name)
-                                            <option value="{{ $id }}">{{ $name }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="small font-weight-bold text-gray-600">Source</label>
+                                <select class="form-control bg-light border-0" name="source" id="sourceSelect">
+                                    <option value="">-- Select Source --</option>
+                                    @foreach($sources as $value => $label)
+                                        <option value="{{ $value }}">{{ $label }}</option>
+                                    @endforeach
+                                </select>
                             </div>
-                            <div class="col-md-6 mb-4">
-                                <label class="small font-weight-bold text-gray-700 mb-1">Source</label>
-                                <div class="filter-input-group">
-                                    <i class="fas fa-bullhorn mr-2"></i>
-                                    <select class="form-control border-0 bg-transparent" name="source" id="sourceSelect">
-                                        <option value="">-- Select Source --</option>
-                                        @foreach($sources as $value => $label)
-                                            <option value="{{ $value }}">{{ $label }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
+                            <div class="col-md-6 mb-3" id="referralWrapper" style="display: none;">
+                                <label class="small font-weight-bold text-gray-600" id="referralLabel">Referral Name</label>
+                                <input type="text" class="form-control bg-light border-0" name="referral_name"
+                                    id="referralInput">
                             </div>
-                            <div class="col-md-12 mb-4" id="referralWrapper" style="display: none;">
-                                <label class="small font-weight-bold text-gray-700 mb-1" id="referralLabel">Referral Name</label>
-                                <div class="filter-input-group">
-                                    <i class="fas fa-handshake mr-2"></i>
-                                    <input type="text" class="form-control border-0 bg-transparent" name="referral_name" id="referralInput" placeholder="Specify details">
-                                </div>
+                            <!-- Manual Assignment Hidden for Auto-Assign -->
+
+                            <div class="col-md-6 mb-3">
+                                <label for="address" class="small font-weight-bold text-gray-600">Address / Village</label>
+                                <i class="fas fa-map-marker-alt"></i>
+                                <input type="text" class="form-control bg-light border-0" id="address" name="address"
+                                    value="{{ old('address') }}" placeholder="Enter address or village">
                             </div>
-                            <div class="col-md-12 mb-4">
-                                <label class="small font-weight-bold text-gray-700 mb-1">Address / Location</label>
-                                <div class="filter-input-group">
-                                    <i class="fas fa-map-marker-alt mr-2"></i>
-                                    <input type="text" class="form-control border-0 bg-transparent" name="address" placeholder="Enter village or city">
-                                </div>
-                            </div>
-                            <div class="col-12 mb-0">
-                                <label class="small font-weight-bold text-gray-700 mb-1">Notes</label>
-                                <textarea class="form-control bg-light border-0" name="notes" rows="3" placeholder="Any specific requirements or context..." style="border-radius: 0.75rem;"></textarea>
+                            <div class="col-12 mb-3">
+                                <label class="small font-weight-bold text-gray-600">Notes</label>
+                                <textarea class="form-control bg-light border-0" name="notes" rows="2"></textarea>
                             </div>
                         </div>
                     </form>
                 </div>
-                <div class="modal-footer border-top-0 pb-4 px-4 pt-0">
-                    <button type="button" class="btn btn-light font-weight-bold px-4" data-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-primary font-weight-bold px-5 shadow-sm"
-                        onclick="document.getElementById('addEnquiryForm').submit()">Create Lead</button>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary shadow-sm"
+                        onclick="document.getElementById('addEnquiryForm').submit()">Save</button>
                 </div>
             </div>
         </div>
@@ -665,42 +659,7 @@
 @push('scripts')
     <script>
         $(document).ready(function () {
-            // --- UI Helpers ---
-            window.setStatusFilter = function(status, el) {
-                const currentStatus = $('#filterStatus').val();
-                
-                // Toggle if clicking same card
-                const newStatus = (currentStatus === status) ? '' : status;
-                
-                $('#filterStatus').val(newStatus);
-                
-                // Update UI active state
-                $('.stat-card-modern').removeClass('active');
-                if (newStatus) $(el).addClass('active');
-                
-                fetchEnquiries();
-            };
-
-            window.resetFilters = function() {
-                $('#filterForm')[0].reset();
-                $('#filterStatus').val('');
-                $('#filterSort').val('next_follow_up_date');
-                $('#filterDirection').val('asc');
-                $('.stat-card-modern').removeClass('active');
-                
-                // Reset Sort UI
-                $('.sortable').removeClass('active-sort sort-asc sort-desc');
-                $('.sortable i').removeClass('fa-sort-up fa-sort-down').addClass('fa-sort');
-                const defaultSort = $('.sortable[data-sort="next_follow_up_date"]');
-                defaultSort.addClass('active-sort sort-asc');
-                defaultSort.find('i').removeClass('fa-sort').addClass('fa-sort-up');
-                
-                fetchEnquiries();
-            };
-
-
             // --- Filter Logic (Main AJAX) ---
-
             let debounceTimer;
             $('.filter-input').on('change keyup', function (e) {
                 // For text inputs (search), debounce
@@ -752,31 +711,7 @@
         }
 
         // --- Main AJAX Fetch ---
-        $(document).on('click', '.sortable', function() {
-            const field = $(this).data('sort');
-            const currentSort = $('#filterSort').val();
-            const currentDirection = $('#filterDirection').val();
-            
-            let newDirection = 'asc';
-            if (field === currentSort && currentDirection === 'asc') {
-                newDirection = 'desc';
-            }
-            
-            $('#filterSort').val(field);
-            $('#filterDirection').val(newDirection);
-            
-            // Update UI indicators
-            $('.sortable').removeClass('active-sort sort-asc sort-desc');
-            $('.sortable i').removeClass('fa-sort-up fa-sort-down').addClass('fa-sort');
-            
-            $(this).addClass('active-sort ' + (newDirection === 'asc' ? 'sort-asc' : 'sort-desc'));
-            $(this).find('i').removeClass('fa-sort').addClass(newDirection === 'asc' ? 'fa-sort-up' : 'fa-sort-down');
-            
-            fetchEnquiries(1);
-        });
-
         function fetchEnquiries(page = 1) {
-
             // Collect all filters
             let data = $('#filterForm').serializeArray().reduce(function (obj, item) {
                 obj[item.name] = item.value;
@@ -785,8 +720,8 @@
 
             data.page = page;
 
-            // Show Loading Indicator
-            $('#tableLoader').css('display', 'flex');
+            // Show Loading Indicator (Optional: Add a spinner or opacity)
+            $('#dataTable').css('opacity', '0.5');
 
             $.ajax({
                 url: "{{ route('admin.enquiries.index') }}",
@@ -798,7 +733,7 @@
                     if (response.stats) {
                         updateStats(response.stats);
                     }
-                    $('#tableLoader').css('display', 'none');
+                    $('#dataTable').css('opacity', '1');
 
                     // Update URL (Push State)
                     const params = new URLSearchParams(data);
@@ -806,7 +741,7 @@
                 },
                 error: function () {
                     alert("Failed to load data");
-                    $('#tableLoader').css('display', 'none');
+                    $('#dataTable').css('opacity', '1');
                 }
             });
         }

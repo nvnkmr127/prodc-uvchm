@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('inbound_webhooks', function (Blueprint $table) {
-            $table->boolean('auto_assign')->default(true)->after('is_active');
+            //
         });
     }
 
@@ -22,7 +22,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('inbound_webhooks', function (Blueprint $table) {
-            $table->dropColumn('auto_assign');
+            //
         });
     }
 };

@@ -170,7 +170,7 @@ class InboundWebhookController extends Controller
             }
 
             // 4. Distribution
-            $assignedUserId = $webhook->auto_assign ? $leadService->getNextCounselorId() : null;
+            $assignedUserId = $leadService->getNextCounselorId();
 
             // 5. Create Enquiry
             $enquiryData = [

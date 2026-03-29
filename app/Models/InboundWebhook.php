@@ -17,7 +17,6 @@ class InboundWebhook extends Model
         'mapping_rules',
         'last_payload',
         'is_active',
-        'auto_assign',
         'source_name',
         'auto_followup_days',
         'description',
