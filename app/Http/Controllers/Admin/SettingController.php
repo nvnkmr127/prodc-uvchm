@@ -708,6 +708,84 @@ class SettingController extends Controller
                         'help' => 'Use this token in Pabbly/Zapier as a query parameter (token=...) or header (X-Webhook-Token).',
                         'default' => 'b97fcbb4a2fb607a5366fbf06614dcbc'
                     ],
+                    'fb_lead_name_field' => [
+                        'label' => 'Name Field Mapping',
+                        'type' => 'text',
+                        'placeholder' => 'full_name',
+                        'help' => 'Name of the field in the incoming JSON that contains the lead name. (Default: full_name)',
+                        'default' => 'full_name'
+                    ],
+                    'fb_lead_phone_field' => [
+                        'label' => 'Phone Field Mapping',
+                        'type' => 'text',
+                        'placeholder' => 'phone_number',
+                        'help' => 'Name of the field in the incoming JSON that contains the phone number. (Default: phone_number)',
+                        'default' => 'phone_number'
+                    ],
+                    'fb_lead_course_field' => [
+                        'label' => 'Course/Interest Field Mapping',
+                        'type' => 'text',
+                        'placeholder' => 'course',
+                        'help' => 'Name of the field that contains the course or program name. (Default: course)',
+                        'default' => 'course'
+                    ],
+                    'fb_lead_notes_field' => [
+                        'label' => 'Notes/Comments Field Mapping',
+                        'type' => 'text',
+                        'placeholder' => 'notes',
+                        'help' => 'Name of the field that contains additional notes or comments. (Default: notes)',
+                        'default' => 'notes'
+                    ],
+                    'fb_lead_gender_field' => [
+                        'label' => 'Gender Field Mapping',
+                        'type' => 'text',
+                        'placeholder' => 'gender',
+                        'help' => 'Map the incoming gender field (e.g., gender, sex).',
+                        'default' => 'gender'
+                    ],
+                    'fb_lead_dob_field' => [
+                        'label' => 'Date of Birth Field Mapping',
+                        'type' => 'text',
+                        'placeholder' => 'dob',
+                        'help' => 'Map the incoming date of birth field (e.g., dob, birth_date).',
+                        'default' => 'dob'
+                    ],
+                    'fb_lead_address_field' => [
+                        'label' => 'Address Field Mapping',
+                        'type' => 'text',
+                        'placeholder' => 'address',
+                        'help' => 'Map the incoming address field (e.g., address, city, location).',
+                        'default' => 'address'
+                    ],
+                    'fb_lead_qualification_field' => [
+                        'label' => 'Qualification Field Mapping',
+                        'type' => 'text',
+                        'placeholder' => 'qualification',
+                        'help' => 'Map the incoming education qualification field (e.g., qualification, degree).',
+                        'default' => 'qualification'
+                    ],
+                    'fb_lead_referral_field' => [
+                        'label' => 'Referral/Recommender Mapping',
+                        'type' => 'text',
+                        'placeholder' => 'referral',
+                        'help' => 'Map the incoming referral name field (e.g., referral, referred_by).',
+                        'default' => 'referral'
+                    ],
+                    'fb_lead_source_field' => [
+                        'label' => 'Source Field Mapping',
+                        'type' => 'text',
+                        'placeholder' => 'source',
+                        'help' => 'Map the incoming source field (e.g., source, campaign_name). Falls back to "Social Media".',
+                        'default' => 'source'
+                    ],
+                    'fb_lead_default_followup_days' => [
+                        'label' => 'Auto Follow-up (Days)',
+                        'type' => 'number',
+                        'min' => 0,
+                        'max' => 30,
+                        'help' => 'Automatically set the follow-up date for X days from today (0 = today, 1 = tomorrow).',
+                        'default' => '0'
+                    ],
                 ]
             ],
             'backup' => [

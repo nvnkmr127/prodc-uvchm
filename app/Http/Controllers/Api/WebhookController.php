@@ -96,13 +96,33 @@ class WebhookController extends Controller
         }
 
         // 2. Validate & Sanitize Input
-        // Map common Facebook/Pabbly/Zapier field names if they vary
+        // Map common Facebook/Pabbly/Zapier field names based on settings
         $data = $request->all();
         
-        $fullName = $request->input('full_name') ?? $request->input('name') ?? $request->input('lead_name');
-        $phone = $request->input('phone_number') ?? $request->input('phone') ?? $request->input('mobile');
-        $courseName = $request->input('course') ?? $request->input('program') ?? $request->input('course_name');
-        $notes = $request->input('notes') ?? $request->input('comments') ?? '';
+        $nameKey = Setting::get('fb_lead_name_field', 'full_name');
+        $phoneKey = Setting::get('fb_lead_phone_field', 'phone_number');
+        $courseKey = Setting::get('fb_lead_course_field', 'course');
+        $notesKey = Setting::get('fb_lead_notes_field', 'notes');
+        $genderKey = Setting::get('fb_lead_gender_field', 'gender');
+        $dobKey = Setting::get('fb_lead_dob_field', 'dob');
+        $addressKey = Setting::get('fb_lead_address_field', 'address');
+        $qualificationKey = Setting::get('fb_lead_qualification_field', 'qualification');
+        $referralKey = Setting::get('fb_lead_referral_field', 'referral');
+        $sourceKey = Setting::get('fb_lead_source_field', 'source');
+        $followUpDays = Setting::get('fb_lead_default_followup_days', 0);
+
+        // Extract values with smart fallback to common variants
+        $fullName = $request->input($nameKey) ?? $request->input('full_name') ?? $request->input('name') ?? $request->input('lead_name');
+        $phone = $request->input($phoneKey) ?? $request->input('phone_number') ?? $request->input('phone') ?? $request->input('mobile');
+        $courseName = $request->input($courseKey) ?? $request->input('course') ?? $request->input('program') ?? $request->input('course_name');
+        $notes = $request->input($notesKey) ?? $request->input('notes') ?? $request->input('comments') ?? '';
+        
+        $gender = $request->input($genderKey) ?? $request->input('gender') ?? $request->input('sex');
+        $dob = $request->input($dobKey) ?? $request->input('dob') ?? $request->input('birth_date');
+        $address = $request->input($addressKey) ?? $request->input('address') ?? $request->input('city') ?? $request->input('location');
+        $qualification = $request->input($qualificationKey) ?? $request->input('qualification') ?? $request->input('education') ?? $request->input('degree');
+        $referral = $request->input($referralKey) ?? $request->input('referral') ?? $request->input('referred_by');
+        $source = $request->input($sourceKey) ?? $request->input('source') ?? $request->input('campaign_name') ?? 'Social Media';
         
         if (!$fullName || !$phone) {
             return response()->json([
@@ -132,14 +152,20 @@ class WebhookController extends Controller
             $enquiry = Enquiry::create([
                 'student_name' => $fullName,
                 'phone_number' => $phone,
+                'gender'       => $gender,
+                'date_of_birth'=> $dob ? Carbon::parse($dob)->toDateString() : null,
+                'address'      => $address,
+                'education_qualification' => $qualification,
                 'course_id'    => $courseId,
-                'source'       => 'Social Media', // Facebook Campaign
+                'source'       => $source,
+                'referral_name'=> $referral,
                 'notes'        => trim($notes),
                 'status'       => 'New',
                 'assigned_to_user_id' => $assignedUserId,
+                'next_follow_up_date' => Carbon::today()->addDays((int)$followUpDays)->toDateString(),
             ]);
 
-            Log::info("New lead created via webhook: #{$enquiry->id} - {$fullName}");
+            Log::info("New lead created via webhook: #{$enquiry->id} - {$fullName}. Assigned to: " . ($enquiry->assignedTo?->name ?? 'Unassigned'));
 
             return response()->json([
                 'message' => 'Lead processed successfully',
