@@ -63,6 +63,39 @@ class InboundWebhookController extends Controller
         return redirect()->route('admin.inbound-webhooks.index')->with('success', 'Inbound Webhook created successfully.');
     }
 
+    public function edit(InboundWebhook $inboundWebhook)
+    {
+        $counselors = \App\Models\User::whereHas('roles', function ($q) {
+            $q->whereIn('name', ['admin', 'super-admin', 'college-admin', 'counselor']);
+        })->where('status', 'active')->orderBy('name')->get();
+
+        return view('admin.inbound_webhooks.edit', compact('inboundWebhook', 'counselors'));
+    }
+
+    public function update(Request $request, InboundWebhook $inboundWebhook)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'slug' => 'required|string|unique:inbound_webhooks,slug,' . $inboundWebhook->id,
+            'description' => 'nullable|string',
+            'source_name' => 'nullable|string',
+            'auto_followup_days' => 'required|integer|min:0',
+            'assigned_to_user_id' => 'nullable|exists:users,id',
+        ]);
+
+        $validated['auto_assign'] = $request->boolean('auto_assign', false);
+
+        $inboundWebhook->update($validated);
+
+        Log::channel('inbound-webhooks')->info('Inbound webhook updated from admin panel', [
+            'webhook_id' => $inboundWebhook->id,
+            'slug' => $inboundWebhook->slug,
+            'updated_by' => Auth::id(),
+        ]);
+
+        return redirect()->route('admin.inbound-webhooks.index')->with('success', 'Inbound Webhook updated successfully.');
+    }
+
     public function show(InboundWebhook $inboundWebhook)
     {
         $inboundWebhook->load(['logs' => function($query) {
