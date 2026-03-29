@@ -132,13 +132,16 @@ class InboundWebhookController extends Controller
                 return response()->json(['message' => 'Name and Phone are required'], 422);
             }
 
-            // 2.5 Duplicate Check (Simple window-based check: same name & phone within 24h)
-            $isDuplicate = Enquiry::where('phone_number', $phoneNumber)
-                ->where('student_name', $studentName)
+            // 2.5 Duplicate Check (Improved: Normalized phone check in last 24h)
+            $cleanPhone = preg_replace('/[^0-9]/', '', $phoneNumber);
+            $searchSuffix = strlen($cleanPhone) >= 10 ? substr($cleanPhone, -10) : $cleanPhone;
+
+            $isDuplicate = Enquiry::where('phone_number', 'LIKE', "%{$searchSuffix}")
                 ->where('created_at', '>=', now()->subHours(24))
                 ->exists();
 
             if ($isDuplicate) {
+
                 Log::channel('inbound-webhooks')->info("Duplicate lead ignored from webhook [{$webhook->name}]: {$studentName} ({$phoneNumber})", [
                     'webhook_id' => $webhook->id,
                     'slug' => $webhook->slug,

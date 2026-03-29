@@ -238,6 +238,30 @@ class EnquiryController extends Controller
             'assigned_to_user_id' => 'nullable|exists:users,id',
         ]);
 
+        // Smart Duplicate Check before create
+        $cleanPhone = preg_replace('/[^0-9]/', '', $validated['phone_number']);
+        $searchSuffix = strlen($cleanPhone) >= 10 ? substr($cleanPhone, -10) : $cleanPhone;
+
+        if (!empty($searchSuffix)) {
+            $duplicateEnquiry = Enquiry::where('phone_number', 'LIKE', "%{$searchSuffix}")->first();
+            if ($duplicateEnquiry) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "❌ Duplicate Record: A lead already exists for this number ({$duplicateEnquiry->student_name})."
+                ], 422);
+            }
+
+            $duplicateStudent = \App\Models\Student::where('student_mobile', 'LIKE', "%{$searchSuffix}")
+                ->orWhere('father_mobile', 'LIKE', "%{$searchSuffix}")
+                ->first();
+            if ($duplicateStudent) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "❌ Registered Student: This number is already registered to student '{$duplicateStudent->name}'."
+                ], 422);
+            }
+        }
+
         // Get the next counselor ID from the service if not manually assigned
         $assignedTo = $validated['assigned_to_user_id'] ?? $leadDistribution->getNextCounselorId() ?? Auth::id();
 
@@ -245,8 +269,10 @@ class EnquiryController extends Controller
         unset($validated['assigned_to_user_id']);
 
         $enquiry = Enquiry::create($validated + [
-            'assigned_to_user_id' => $assignedTo
+            'assigned_to_user_id' => $assignedTo,
+            'status' => 'New'
         ]);
+
 
         // Handle AJAX request
         if ($request->ajax() || $request->wantsJson()) {
@@ -449,22 +475,30 @@ class EnquiryController extends Controller
         if (!$phone)
             return response()->json(['status' => 'success']);
 
-        // 1. Check Students (Student Mobile OR Father Mobile) --- UPDATED
-        $student = \App\Models\Student::where(function ($q) use ($phone) {
-            $q->where('student_mobile', $phone)
-                ->orWhere('father_mobile', $phone);
+        // Normalize the phone number for smarter checking (get last 10 digits)
+        $cleanPhone = preg_replace('/[^0-9]/', '', $phone);
+        $searchSuffix = strlen($cleanPhone) >= 10 ? substr($cleanPhone, -10) : $cleanPhone;
+
+        if (empty($searchSuffix)) {
+             return response()->json(['status' => 'success']);
+        }
+
+        // 1. Check Students (Student Mobile OR Father Mobile)
+        $student = \App\Models\Student::where(function ($q) use ($searchSuffix) {
+            $q->where('student_mobile', 'LIKE', "%{$searchSuffix}")
+                ->orWhere('father_mobile', 'LIKE', "%{$searchSuffix}");
         })->first();
 
         if ($student) {
-            $type = ($student->student_mobile == $phone) ? 'Student' : 'Father';
+            $matchingField = (str_ends_with($student->student_mobile, $searchSuffix)) ? 'Student' : 'Father';
             return response()->json([
                 'status' => 'error',
-                'message' => "❌ Found in Students ({$type}): {$student->name} (Batch: " . ($student->batch->name ?? 'N/A') . ")"
+                'message' => "❌ Found in Students ({$matchingField}): {$student->name} (Batch: " . ($student->batch->name ?? 'N/A') . ")"
             ]);
         }
 
-        // 2. Check Enquiries (Existing Logic)
-        $query = Enquiry::where('phone_number', $phone);
+        // 2. Check Enquiries
+        $query = Enquiry::where('phone_number', 'LIKE', "%{$searchSuffix}");
         if ($currentId) {
             $query->where('id', '!=', $currentId);
         }
@@ -477,6 +511,7 @@ class EnquiryController extends Controller
                 'message' => "❌ Duplicate Enquiry: {$existing->student_name} (Assigned to: {$counselor})"
             ]);
         }
+
 
         // 3. Check Staff (Existing Logic)
         $staff = User::where('email', $phone)->orWhere('name', $phone)->first();

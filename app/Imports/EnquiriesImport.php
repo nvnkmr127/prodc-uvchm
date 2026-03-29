@@ -33,25 +33,36 @@ class EnquiriesImport implements ToModel, WithHeadingRow
 
         // 1. Sanitize Phone (Handle mismatched headers gracefully)
         $rawPhone = $row['mobile_number'] ?? $row['phone'] ?? $row['mobile'] ?? null;
+        if (empty($rawPhone)) {
+            $this->skippedCount++;
+            return null;
+        }
+
         $phone = preg_replace('/[^0-9]/', '', (string) $rawPhone);
+        $searchSuffix = strlen($phone) >= 10 ? substr($phone, -10) : $phone;
 
         // 2. Basic Validation — must be at least 10 digits
-        if (strlen($phone) < 10) {
+        if (strlen($phone) < 6) { // Allowing shorter numbers just in case, but usually 10
             $this->skippedCount++;
             return null;
         }
 
-        // 3. Check Duplicates (Students)
-        if (Student::where('student_mobile', $phone)->orWhere('father_mobile', $phone)->exists()) {
+        // 3. Smart Duplicate Check (Students)
+        $duplicateStudent = Student::where('student_mobile', 'LIKE', "%{$searchSuffix}")
+            ->orWhere('father_mobile', 'LIKE', "%{$searchSuffix}")
+            ->exists();
+
+        if ($duplicateStudent) {
             $this->skippedCount++;
             return null;
         }
 
-        // 4. Check Duplicates (Enquiries)
-        if (Enquiry::where('phone_number', $phone)->exists()) {
+        // 4. Smart Duplicate Check (Enquiries)
+        if (Enquiry::where('phone_number', 'LIKE', "%{$searchSuffix}")->exists()) {
             $this->skippedCount++;
             return null;
         }
+
 
         // 5. Course Matching — exact match first, then partial fallback
         $courseId = null;
