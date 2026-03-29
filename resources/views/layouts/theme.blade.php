@@ -145,6 +145,9 @@
                             <a class="collapse-item" href="{{ route('admin.enquiries.facebook-leads') }}">
                                 <i class="fab fa-facebook text-primary"></i> Facebook Leads
                             </a>
+                            <a class="collapse-item {{ request()->routeIs('admin.inbound-webhooks.*') ? 'active' : '' }}" href="{{ route('admin.inbound-webhooks.index') }}">
+                                <i class="fas fa-satellite-dish text-info"></i> Inbound Webhooks
+                            </a>
                             <a class="collapse-item" href="{{ route('admin.enquiries.create') }}">
                                 <i class="fas fa-plus"></i> Add New Enquiry
                             </a>
@@ -650,6 +653,9 @@
                                 </a>
                                 <a class="collapse-item" href="{{ route('admin.webhooks.index') }}">
                                     <i class="fas fa-exchange-alt fa-sm fa-fw mr-1"></i> Webhooks
+                                </a>
+                                <a class="collapse-item {{ request()->routeIs('admin.inbound-webhooks.*') ? 'active' : '' }}" href="{{ route('admin.inbound-webhooks.index') }}">
+                                    <i class="fas fa-satellite-dish fa-sm fa-fw mr-1"></i> Inbound Webhooks
                                 </a>
                             @endif
                         </div>

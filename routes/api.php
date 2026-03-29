@@ -108,6 +108,11 @@ Route::prefix('webhooks')->group(function () {
     Route::post('/external-leads', [WebhookController::class, 'handleExternalLeads'])->name('api.webhooks.external-leads');
 });
 
+// Dynamic Inbound Webhooks (V1)
+Route::prefix('v1/webhooks')->group(function () {
+    Route::post('/{slug}', [\App\Http\Controllers\Api\InboundWebhookController::class, 'handle'])->name('api.v1.webhooks.dynamic');
+});
+
 // Attendance route without conflicting middleware
 Route::post('/attendance', [AttendanceController::class, 'store'])->name('api.attendance.store');
 

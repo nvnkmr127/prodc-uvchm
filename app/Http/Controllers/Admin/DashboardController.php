@@ -393,7 +393,9 @@ class DashboardController extends Controller
             'enquiry_stats' => [
                 'today_new' => Enquiry::whereDate('created_at', now())->count(),
                 'pending_followups' => 0, // FollowUp table has no status column
-                'conversion_rate' => $this->calculateConversionRate()
+                'conversion_rate' => $this->calculateConversionRate(),
+                'webhooks_count' => \App\Models\InboundWebhook::count(),
+                'active_webhooks' => \App\Models\InboundWebhook::where('is_active', true)->count(),
             ],
             'academic_stats' => [
                 'total_subjects' => Subject::count(),

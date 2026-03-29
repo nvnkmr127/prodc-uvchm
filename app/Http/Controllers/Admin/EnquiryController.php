@@ -183,7 +183,11 @@ class EnquiryController extends Controller
             ]);
         }
 
-        $sources = \App\Models\Enquiry::SOURCES;
+        // 3. Prepare View Data
+        // Combine static sources from model with any custom sources found in database
+        $staticSources = \App\Models\Enquiry::SOURCES;
+        $dbSources = Enquiry::select('source')->distinct()->pluck('source', 'source')->toArray();
+        $sources = array_merge($staticSources, $dbSources);
 
         $isFacebookView = session('is_facebook_view', false) || $request->input('source') === 'Social Media';
 

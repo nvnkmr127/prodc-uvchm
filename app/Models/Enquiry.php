@@ -40,6 +40,7 @@ class Enquiry extends Model
         'next_follow_up_date',
         'status',
         'assigned_to_user_id',
+        'email',
     ];
 
     /**
