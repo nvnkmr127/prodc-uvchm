@@ -743,28 +743,31 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
         Route::post('notifications/settings', [NotificationSettingsController::class, 'update'])->name('notifications.settings.update')->middleware('permission:manage settings');
 
         // Backups & System Health
-        Route::get('backups/download/{fileName}', [BackupController::class, 'download'])->name('backups.download')->middleware('permission:manage settings');
         Route::get('system/health', [SystemHealthController::class, 'performHealthCheck'])->name('system.health')->middleware('permission:manage settings');
-        Route::resource('backups', BackupController::class)->only(['index', 'destroy'])->middleware('permission:manage settings');
-        Route::get('backups/create', [BackupController::class, 'index'])->name('backups.create')->middleware('permission:manage settings');
-        Route::post('backups/create', [BackupController::class, 'store'])->name('backups.store')->middleware('permission:manage settings');
-
-        // Google Drive Backup Routes
-        Route::post('backups/gdrive/authorize', [BackupController::class, 'authorizeGoogleDrive'])->name('backups.gdrive.authorize');
-        Route::get('backups/gdrive/callback', [BackupController::class, 'handleGoogleDriveCallback'])->name('backups.gdrive.callback'); // FIXED: GET instead of POST
-
-        // Google Drive Additional Routes
-        Route::get('backups/gdrive/test', [BackupController::class, 'testGoogleDriveConnection'])->name('backups.gdrive.test');
-        Route::get('backups/gdrive/list', [BackupController::class, 'listGoogleDriveBackups'])->name('backups.gdrive.list');
-
-        // Manual Backup Routes (consolidated)
-        Route::post('backups/manual', [BackupController::class, 'createManualBackup'])->name('backups.manual')->middleware('permission:manage settings');
-        Route::post('backups/cleanup', [BackupController::class, 'cleanupBackups'])->name('backups.cleanup')->middleware('permission:manage settings');
-        Route::get('backups/download/{fileName}', [BackupController::class, 'download'])->name('backups.download');
-
-        // Restore Routes
-        Route::post('backups/restore/database', [BackupController::class, 'restoreDatabase'])->name('backups.restore.database')->middleware('permission:manage settings');
-        Route::post('backups/restore/settings', [BackupController::class, 'restoreSettings'])->name('backups.restore.settings')->middleware('permission:manage settings');
+        
+        Route::prefix('backups')->name('backups.')->middleware('permission:manage settings')->group(function () {
+            Route::get('/', [BackupController::class, 'index'])->name('index');
+            Route::post('/', [BackupController::class, 'store'])->name('store');
+            Route::get('/create', [BackupController::class, 'index'])->name('create');
+            Route::delete('/{id}', [BackupController::class, 'destroy'])->name('destroy');
+            Route::get('/download/{fileName}', [BackupController::class, 'download'])->name('download');
+            
+            // Manual Backup / Actions
+            Route::post('/manual', [BackupController::class, 'createManualBackup'])->name('manual');
+            Route::post('/test', [BackupController::class, 'createManualBackup'])->name('test');
+            Route::post('/cleanup', [BackupController::class, 'cleanupBackups'])->name('cleanup');
+            Route::put('/settings', [BackupController::class, 'updateSettings'])->name('settings.update');
+            
+            // Restore Routes
+            Route::post('/restore/database', [BackupController::class, 'restoreDatabase'])->name('restore.database');
+            Route::post('/restore/settings', [BackupController::class, 'restoreSettings'])->name('restore.settings');
+            
+            // Google Drive
+            Route::post('/gdrive/authorize', [BackupController::class, 'authorizeGoogleDrive'])->name('gdrive.authorize');
+            Route::get('/gdrive/callback', [BackupController::class, 'handleGoogleDriveCallback'])->name('gdrive.callback');
+            Route::get('/gdrive/test', [BackupController::class, 'testGoogleDriveConnection'])->name('gdrive.test');
+            Route::get('/gdrive/list', [BackupController::class, 'listGoogleDriveBackups'])->name('gdrive.list');
+        });
 
         // API & Webhooks
         Route::resource('api-tokens', ApiTokenController::class)->middleware('permission:manage api tokens');

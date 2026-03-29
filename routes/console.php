@@ -1138,6 +1138,14 @@ Schedule::call(function () {
     \Illuminate\Support\Facades\Log::info("Cleaned up $deleted old notifications.");
 
 })->dailyAt('04:00');
+    
+/*
+|--------------------------------------------------------------------------
+| TELESCOPE PRUNING schedule
+|--------------------------------------------------------------------------
+*/
+Schedule::command('telescope:prune --hours=48')->daily();
+
 
 
 

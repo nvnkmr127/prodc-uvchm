@@ -120,7 +120,7 @@
                 </h6>
             </div>
             <div class="card-body">
-                <form action="/admin/backups/settings" method="POST" id="backupSettingsForm">
+                <form action="{{ route('admin.backups.settings.update') }}" method="POST" id="backupSettingsForm">
                     @csrf
                     @method('PUT')
                     
@@ -190,7 +190,7 @@
                 <!-- Restore Settings -->
                 <div>
                     <h6 class="text-gray-800 mb-2">Restore Settings</h6>
-                    <form action="/admin/backups/restore-settings" method="POST" enctype="multipart/form-data" id="restoreForm">
+                    <form action="{{ route('admin.backups.restore.settings') }}" method="POST" enctype="multipart/form-data" id="restoreForm">
                         @csrf
                         <div class="form-group">
                             <input type="file" class="form-control-file" name="backup_file" accept=".json" required>
@@ -266,7 +266,7 @@
                                                 <td>{{ $backup['created_at']->format('M j, Y g:i A') }}</td>
                                                 <td>
                                                     <div class="btn-group btn-group-sm" role="group">
-                                                        <a href="/admin/backups/download/{{ $backup['filename'] }}" 
+                                                        <a href="{{ route('admin.backups.download', $backup['filename']) }}" 
                                                            class="btn btn-success" title="Download">
                                                             <i class="fas fa-download"></i>
                                                         </a>
@@ -326,7 +326,7 @@
                                                 <td>{{ $backup['created_at']->format('M j, Y g:i A') }}</td>
                                                 <td>
                                                     <div class="btn-group btn-group-sm" role="group">
-                                                        <a href="/admin/backups/download/{{ $backup['filename'] }}" 
+                                                        <a href="{{ route('admin.backups.download', $backup['filename']) }}" 
                                                            class="btn btn-success" title="Download">
                                                             <i class="fas fa-download"></i>
                                                         </a>
@@ -374,7 +374,7 @@
                 </button>
             </div>
             <div class="modal-body">
-                <form id="createBackupForm" method="POST" action="/admin/backups">
+                <form id="createBackupForm" method="POST" action="{{ route('admin.backups.store') }}">
                     @csrf
                     <div class="form-group">
                         <label>Select Backup Type:</label>
@@ -492,7 +492,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                <form id="restoreSettingsForm" method="POST" action="/admin/backups/restore-settings" enctype="multipart/form-data" class="d-inline">
+                <form id="restoreSettingsForm" method="POST" action="{{ route('admin.backups.restore.settings') }}" enctype="multipart/form-data" class="d-inline">
                     @csrf
                     <input type="hidden" id="restoreFileName" name="backup_filename">
                     <button type="submit" class="btn btn-warning">
@@ -616,7 +616,7 @@ function createBackup() {
 
 function deleteBackup(filename) {
     $('#deleteBackupName').text(filename);
-    $('#deleteForm').attr('action', `/admin/backups/destroy/${filename}`);
+    $('#deleteForm').attr('action', `{{ url('admin/backups') }}/${filename}`);
     $('#deleteModal').modal('show');
 }
 
@@ -632,7 +632,7 @@ function refreshBackups() {
 
 function testBackup() {
     $.ajax({
-        url: '/admin/backups/test',
+        url: '{{ route("admin.backups.test") }}',
         method: 'POST',
         data: {
             _token: '{{ csrf_token() }}',
@@ -654,7 +654,7 @@ function testBackup() {
 function cleanupBackups() {
     if (confirm('Are you sure you want to cleanup old backups based on retention settings?')) {
         $.ajax({
-            url: '/admin/backups/cleanup',
+            url: '{{ route("admin.backups.cleanup") }}',
             method: 'POST',
             data: {
                 _token: '{{ csrf_token() }}'
@@ -678,11 +678,11 @@ function restoreDatabase(fileName) {
         loadingBtn.disabled = true;
         
         $.ajax({
-            url: '/admin/backups/restore/database',
+            url: '{{ route("admin.backups.restore.database") }}',
             method: 'POST',
             data: {
                 _token: '{{ csrf_token() }}',
-                backup_file: fileName
+                filename: fileName
             },
             success: function(response) {
                 showAlert('success', 'Database restored successfully!');
