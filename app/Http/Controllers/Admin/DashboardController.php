@@ -649,8 +649,12 @@ class DashboardController extends Controller
 
         // Calculate total outstanding for non-paying students
         $totalOutstandingNonPaying = $nonPayingStudents->sum(function ($student) {
-            return $student->studentFees->sum(function ($fee) {
-                return max(0, ($fee->amount ?? 0) - ($fee->paid_amount ?? 0) - ($fee->concession_amount ?? 0));
+            $fees = $student->studentFees()
+                ->where('status', '!=', 'paid')
+                ->get();
+
+            return $fees->sum(function ($fee) {
+                return max(0, (float)($fee->amount ?? 0) - (float)($fee->paid_amount ?? 0) - (float)($fee->concession_amount ?? 0));
             });
         });
 
@@ -940,12 +944,17 @@ class DashboardController extends Controller
         $totalOverdueAmount = 0;
 
         foreach ($defaulters as $student) {
-            $studentOverdue = $student->studentFees()
+            // Use the loaded relationship if available or get it
+            $fees = $student->studentFees;
+            if ($fees instanceof \Illuminate\Database\Eloquent\Relations\HasMany) {
+                $fees = $fees->get();
+            }
+
+            $studentOverdue = $fees
                 ->where('due_date', '<', now())
                 ->whereIn('status', ['unpaid', 'partial'])
-                ->get()
                 ->sum(function ($fee) {
-                    return max(0, ($fee->amount ?? 0) - ($fee->paid_amount ?? 0) - ($fee->concession_amount ?? 0));
+                    return max(0, (float)($fee->amount ?? 0) - (float)($fee->paid_amount ?? 0) - (float)($fee->concession_amount ?? 0));
                 });
 
             $totalOverdueAmount += $studentOverdue;

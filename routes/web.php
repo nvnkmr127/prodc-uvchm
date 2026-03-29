@@ -824,10 +824,10 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
         });
 
         // Dynamic Inbound Webhooks
-        Route::resource('inbound-webhooks', App\Http\Controllers\Admin\InboundWebhookController::class)->names('admin.inbound-webhooks');
-        Route::post('inbound-webhooks/{inboundWebhook}/mapping', [App\Http\Controllers\Admin\InboundWebhookController::class, 'updateMapping'])->name('admin.inbound-webhooks.update-mapping');
-        Route::post('inbound-webhooks/{inboundWebhook}/toggle', [App\Http\Controllers\Admin\InboundWebhookController::class, 'toggle'])->name('admin.inbound-webhooks.toggle');
-        Route::post('inbound-webhooks/bulk-action', [App\Http\Controllers\Admin\InboundWebhookController::class, 'bulkAction'])->name('admin.inbound-webhooks.bulk-action');
+        Route::resource('inbound-webhooks', App\Http\Controllers\Admin\InboundWebhookController::class);
+        Route::post('inbound-webhooks/{inboundWebhook}/mapping', [App\Http\Controllers\Admin\InboundWebhookController::class, 'updateMapping'])->name('inbound-webhooks.update-mapping');
+        Route::post('inbound-webhooks/{inboundWebhook}/toggle', [App\Http\Controllers\Admin\InboundWebhookController::class, 'toggle'])->name('inbound-webhooks.toggle');
+        Route::post('inbound-webhooks/bulk-action', [App\Http\Controllers\Admin\InboundWebhookController::class, 'bulkAction'])->name('inbound-webhooks.bulk-action');
 
         // Activity Log
         // Activity Log - REMOVE the 'admin.' prefix from ->name()
