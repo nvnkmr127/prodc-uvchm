@@ -98,6 +98,9 @@
                                         <a href="{{ route('admin.inbound-webhooks.show', $webhook) }}" class="btn btn-info btn-sm" title="Configure Mapping">
                                             <i class="fas fa-project-diagram"></i> Map Fields
                                         </a>
+                                        <a href="{{ route('admin.inbound-webhooks.logs', $webhook) }}" class="btn btn-secondary btn-sm" title="Execution Logs">
+                                            <i class="fas fa-list-ul"></i>
+                                        </a>
                                         <form action="{{ route('admin.inbound-webhooks.toggle', $webhook) }}" method="POST" style="display:inline;">
                                             @csrf
                                             <button type="submit" class="btn btn-warning btn-sm">

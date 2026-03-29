@@ -132,5 +132,129 @@
             </div>
         </div>
     </div>
+
+    <!-- Webhook History Logs (New Row) -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 bg-white d-flex align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-history mr-1"></i> Recent Activity Logs (Last 50)</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Status</th>
+                                    <th>Method/IP</th>
+                                    <th>Payload Preview</th>
+                                    <th>Result</th>
+                                    <th class="text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($inboundWebhook->logs as $log)
+                                    <tr>
+                                        <td>
+                                            <span class="small text-muted">{{ $log->created_at->format('M d, H:i:s') }}</span>
+                                            <br>
+                                            <small class="text-gray-500">{{ $log->created_at->diffForHumans() }}</small>
+                                        </td>
+                                        <td>
+                                            @if($log->status_code >= 200 && $log->status_code < 300)
+                                                <span class="badge badge-success">{{ $log->status_code }} OK</span>
+                                            @elseif($log->status_code >= 400 && $log->status_code < 500)
+                                                <span class="badge badge-warning">{{ $log->status_code }} Error</span>
+                                            @else
+                                                <span class="badge badge-danger">{{ $log->status_code }} Fail</span>
+                                            @endif
+                                        </td>
+                                        <td>
+                                            <code>{{ $log->method }}</code><br>
+                                            <small class="text-muted">{{ $log->ip_address }}</small>
+                                        </td>
+                                        <td>
+                                            <div class="text-truncate" style="max-width: 250px;">
+                                                <small class="text-muted">
+                                                    @php $keys = array_keys($log->payload ?? []); @endphp
+                                                    {{ implode(', ', array_slice($keys, 0, 5)) }}{{ count($keys) > 5 ? '...' : '' }}
+                                                </small>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            @if($log->enquiry_id)
+                                                <a href="{{ route('admin.enquiries.show', $log->enquiry_id) }}" class="btn btn-xs btn-outline-success">
+                                                    <i class="fas fa-user-plus mr-1"></i> Lead Created #{{ $log->enquiry_id }}
+                                                </a>
+                                            @elseif($log->error_message)
+                                                <span class="text-danger small"><i class="fas fa-exclamation-triangle mr-1"></i> {{ Str::limit($log->error_message, 50) }}</span>
+                                            @else
+                                                <small class="text-muted">Received</small>
+                                            @endif
+                                        </td>
+                                        <td class="text-right">
+                                            <button type="button" class="btn btn-sm btn-info" data-toggle="modal" data-target="#logModal{{ $log->id }}">
+                                                <i class="fas fa-eye shadow-sm"></i>
+                                            </button>
+
+                                            <!-- Modal for log details -->
+                                            <div class="modal fade" id="logModal{{ $log->id }}" tabindex="-1" role="dialog" aria-hidden="true">
+                                                <div class="modal-dialog modal-lg text-left" role="document">
+                                                    <div class="modal-content text-left">
+                                                        <div class="modal-header">
+                                                            <h5 class="modal-title">Webhook Call Details - {{ $log->created_at }}</h5>
+                                                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                                                <span aria-hidden="true">&times;</span>
+                                                            </button>
+                                                        </div>
+                                                        <div class="modal-body p-0">
+                                                            <div class="p-3 bg-light border-bottom">
+                                                                <div class="row">
+                                                                    <div class="col-md-6">
+                                                                        <p class="mb-1"><strong>Status Code:</strong> {{ $log->status_code }}</p>
+                                                                        <p class="mb-1"><strong>IP Address:</strong> {{ $log->ip_address }}</p>
+                                                                    </div>
+                                                                    <div class="col-md-6">
+                                                                        <p class="mb-1"><strong>Method:</strong> {{ $log->method }}</p>
+                                                                        <p class="mb-1"><strong>Timestamp:</strong> {{ $log->created_at->toDateTimeString() }}</p>
+                                                                    </div>
+                                                                </div>
+                                                                @if($log->error_message)
+                                                                    <div class="alert alert-danger mt-2 mb-0 py-2 px-3 small">
+                                                                        <strong>Error Detail:</strong> {{ $log->error_message }}
+                                                                    </div>
+                                                                @endif
+                                                            </div>
+                                                            <div class="bg-dark p-3">
+                                                                <h6 class="text-white small font-weight-bold mb-2 uppercase">Full Payload:</h6>
+                                                                <pre class="text-success mb-0" style="font-size: 0.85rem; max-height: 400px; overflow-y: auto;">{{ json_encode($log->payload, JSON_PRETTY_PRINT) }}</pre>
+                                                            </div>
+                                                        </div>
+                                                        <div class="modal-footer">
+                                                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                                                            @if($log->enquiry_id)
+                                                                <a href="{{ route('admin.enquiries.show', $log->enquiry_id) }}" class="btn btn-primary">View Created Lead</a>
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="6" class="text-center py-4">
+                                            <div class="text-muted">No historical calls found.</div>
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 @endsection

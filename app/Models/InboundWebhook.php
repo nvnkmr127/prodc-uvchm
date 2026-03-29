@@ -48,4 +48,11 @@ class InboundWebhook extends Model
     {
         return url("/api/v1/webhooks/{$this->slug}");
     }
+    /**
+     * Get the logs for the webhook.
+     */
+    public function logs(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(InboundWebhookLog::class);
+    }
 }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\InboundWebhook;
+use App\Models\InboundWebhookLog;
 use App\Models\Enquiry;
 use App\Models\Course;
 use App\Services\LeadDistributionService;
@@ -55,6 +56,7 @@ class InboundWebhookController extends Controller
                 ],
             ]);
 
+            $this->logCall($webhook->id, $request->all(), 401, 'Unauthorized request');
             return response()->json(['message' => 'Unauthorized'], 401);
         }
 
@@ -69,6 +71,7 @@ class InboundWebhookController extends Controller
                 'ip' => $request->ip(),
             ]);
 
+            $this->logCall($webhook->id, $request->all(), 400, 'Invalid data format. Expected JSON.');
             return response()->json(['message' => 'Invalid data format. Expected JSON.'], 400);
         }
         
@@ -104,6 +107,7 @@ class InboundWebhookController extends Controller
                     'has_phone_number' => (bool) $phoneNumber,
                 ]);
 
+                $this->logCall($webhook->id, $payload, 422, 'Name and Phone are required');
                 return response()->json(['message' => 'Name and Phone are required'], 422);
             }
 
@@ -120,6 +124,7 @@ class InboundWebhookController extends Controller
                     'student_name' => $studentName,
                     'phone_number' => $phoneNumber,
                 ]);
+                $this->logCall($webhook->id, $payload, 200, 'Duplicate lead ignored');
                 return response()->json(['message' => 'Duplicate lead ignored. Recieved within last 24h.'], 200);
             }
 
@@ -172,6 +177,8 @@ class InboundWebhookController extends Controller
                 'assigned_to_user_id' => $assignedUserId,
             ]);
 
+            $this->logCall($webhook->id, $payload, 201, null, $enquiry->id);
+
             return response()->json([
                 'message' => 'Lead processed successfully',
                 'enquiry_id' => $enquiry->id
@@ -188,6 +195,7 @@ class InboundWebhookController extends Controller
                 'file' => $e->getFile(),
             ]);
 
+            $this->logCall($webhook->id, $payload, 500, $e->getMessage());
             return response()->json(['message' => 'Server error: ' . $e->getMessage()], 500);
         }
     }
@@ -231,5 +239,24 @@ class InboundWebhookController extends Controller
         }
 
         return hash_equals((string) $expectedToken, (string) $incomingToken);
+    }
+    /**
+     * Log the webhook call to database.
+     */
+    private function logCall($webhookId, $payload, $statusCode, $errorMessage = null, $enquiryId = null)
+    {
+        try {
+            InboundWebhookLog::create([
+                'inbound_webhook_id' => $webhookId,
+                'payload' => $payload,
+                'status_code' => $statusCode,
+                'error_message' => $errorMessage,
+                'ip_address' => request()->ip(),
+                'method' => request()->method(),
+                'enquiry_id' => $enquiryId,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to log inbound webhook call: ' . $e->getMessage());
+        }
     }
 }

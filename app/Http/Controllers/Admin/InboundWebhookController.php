@@ -18,6 +18,12 @@ class InboundWebhookController extends Controller
         return view('admin.inbound_webhooks.index', compact('webhooks'));
     }
 
+    public function logs(InboundWebhook $inboundWebhook)
+    {
+        $logs = $inboundWebhook->logs()->with('enquiry')->latest()->paginate(50);
+        return view('admin.inbound_webhooks.logs', compact('inboundWebhook', 'logs'));
+    }
+
     public function create()
     {
         return view('admin.inbound_webhooks.create');
@@ -53,6 +59,10 @@ class InboundWebhookController extends Controller
 
     public function show(InboundWebhook $inboundWebhook)
     {
+        $inboundWebhook->load(['logs' => function($query) {
+            $query->latest()->limit(50);
+        }, 'logs.enquiry']);
+
         // Define fields available for mapping
         $enquiryFields = [
             'student_name' => 'Student Name',
