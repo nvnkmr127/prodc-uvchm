@@ -189,7 +189,40 @@
 
             </div>
 
-            <!-- Developer Integration Help -->
+            <!-- Global Webhook Settings -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 bg-white">
+                    <h6 class="m-0 font-weight-bold text-dark"><i class="fas fa-cog mr-1"></i> Global Webhook Settings</h6>
+                </div>
+                <div class="card-body">
+                    <form action="{{ route('admin.inbound-webhooks.update', $inboundWebhook) }}" method="POST">
+                        @csrf
+                        @method('PUT')
+                        <div class="form-group mb-3">
+                            <label class="small font-weight-bold">Webhook Friendly Name</label>
+                            <input type="text" name="name" class="form-control" value="{{ $inboundWebhook->name }}" required>
+                        </div>
+                        <div class="form-group mb-3">
+                            <label class="small font-weight-bold">CRM Source Label</label>
+                            <input type="text" name="source_name" class="form-control" value="{{ $inboundWebhook->source_name ?? 'Inbound Webhook' }}" required>
+                        </div>
+                        <div class="form-group mb-3">
+                            <label class="small font-weight-bold">Auto-Followup Offset (Days)</label>
+                            <input type="number" name="auto_followup_days" class="form-control" value="{{ $inboundWebhook->auto_followup_days }}" min="0" required>
+                        </div>
+                        <div class="form-group mb-3">
+                            <div class="custom-control custom-switch custom-control-lg">
+                                <input type="checkbox" class="custom-control-input" id="autoAssignSwitch" name="auto_assign" value="1" {{ $inboundWebhook->auto_assign ? 'checked' : '' }}>
+                                <label class="custom-control-label font-weight-bold" for="autoAssignSwitch">Auto-Assignment (Round Robin)</label>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-dark btn-sm btn-block shadow-sm">
+                            <i class="fas fa-check-circle mr-1"></i> Update Global Settings
+                        </button>
+                    </form>
+                </div>
+            </div>
+
             <div class="card shadow mb-4 border-left-success">
                 <div class="card-body">
                     <h6 class="font-weight-bold text-success">Quick Test (cURL)</h6>

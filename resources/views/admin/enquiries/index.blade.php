@@ -286,54 +286,54 @@
         </div>
 
         <div class="stats-grid">
-            <div class="stat-card-modern border-left-info {{ request('status') == 'New' ? 'active' : '' }}">
-                <a href="{{ route('admin.enquiries.index', ['status' => 'New']) }}" class="text-decoration-none h-100 d-flex flex-column justify-content-between">
+            <div class="stat-card-modern border-left-info {{ request('status') == 'New' ? 'active' : '' }}" onclick="setStatusFilter('New', this)">
+                <div class="h-100 d-flex flex-column justify-content-between cursor-pointer">
                     <i class="fas fa-star stat-icon"></i>
                     <div class="stat-label">New Leads</div>
                     <div class="stat-value" id="count-New">{{ $counts['New'] ?? 0 }}</div>
-                </a>
+                </div>
             </div>
-            <div class="stat-card-modern border-left-primary {{ request('status') == 'Interested Next Year' ? 'active' : '' }}">
-                <a href="{{ route('admin.enquiries.index', ['status' => 'Interested Next Year']) }}" class="text-decoration-none h-100 d-flex flex-column justify-content-between">
+            <div class="stat-card-modern border-left-primary {{ request('status') == 'Interested Next Year' ? 'active' : '' }}" onclick="setStatusFilter('Interested Next Year', this)">
+                <div class="h-100 d-flex flex-column justify-content-between cursor-pointer">
                     <i class="fas fa-calendar-alt stat-icon"></i>
                     <div class="stat-label">Next Year</div>
                     <div class="stat-value" id="count-Next-Year">{{ $counts['Next Year'] }}</div>
-                </a>
+                </div>
             </div>
-            <div class="stat-card-modern border-left-success {{ request('status') == 'Contacted' ? 'active' : '' }}">
-                <a href="{{ route('admin.enquiries.index', ['status' => 'Contacted']) }}" class="text-decoration-none h-100 d-flex flex-column justify-content-between">
+            <div class="stat-card-modern border-left-success {{ request('status') == 'Contacted' ? 'active' : '' }}" onclick="setStatusFilter('Contacted', this)">
+                <div class="h-100 d-flex flex-column justify-content-between cursor-pointer">
                     <i class="fas fa-phone-alt stat-icon"></i>
                     <div class="stat-label">Contacted</div>
                     <div class="stat-value" id="count-Contacted">{{ $counts['Contacted'] ?? 0 }}</div>
-                </a>
+                </div>
             </div>
-            <div class="stat-card-modern border-left-warning {{ request('status') == 'Follow-up' ? 'active' : '' }}">
-                <a href="{{ route('admin.enquiries.index', ['status' => 'Follow-up']) }}" class="text-decoration-none h-100 d-flex flex-column justify-content-between">
+            <div class="stat-card-modern border-left-warning {{ request('status') == 'Follow-up' ? 'active' : '' }}" onclick="setStatusFilter('Follow-up', this)">
+                <div class="h-100 d-flex flex-column justify-content-between cursor-pointer">
                     <i class="fas fa-clock stat-icon"></i>
                     <div class="stat-label">Follow-Up</div>
                     <div class="stat-value" id="count-Follow-up">{{ $counts['Follow-up'] ?? 0 }}</div>
-                </a>
+                </div>
             </div>
-            <div class="stat-card-modern border-left-warning {{ request('status') == 'Interested' ? 'active' : '' }}">
-                <a href="{{ route('admin.enquiries.index', ['status' => 'Interested']) }}" class="text-decoration-none h-100 d-flex flex-column justify-content-between">
+            <div class="stat-card-modern border-left-warning {{ request('status') == 'Interested' ? 'active' : '' }}" onclick="setStatusFilter('Interested', this)">
+                <div class="h-100 d-flex flex-column justify-content-between cursor-pointer">
                     <i class="fas fa-heart stat-icon"></i>
                     <div class="stat-label">Interested</div>
                     <div class="stat-value" id="count-Interested">{{ $counts['Interested'] ?? 0 }}</div>
-                </a>
+                </div>
             </div>
-            <div class="stat-card-modern border-left-success {{ request('status') == 'Admitted' ? 'active' : '' }}">
-                <a href="{{ route('admin.enquiries.index', ['status' => 'Admitted']) }}" class="text-decoration-none h-100 d-flex flex-column justify-content-between">
+            <div class="stat-card-modern border-left-success {{ request('status') == 'Admitted' ? 'active' : '' }}" onclick="setStatusFilter('Admitted', this)">
+                <div class="h-100 d-flex flex-column justify-content-between cursor-pointer">
                     <i class="fas fa-user-check stat-icon"></i>
                     <div class="stat-label">Admitted</div>
                     <div class="stat-value" id="count-Admitted">{{ $counts['Admitted'] ?? 0 }}</div>
-                </a>
+                </div>
             </div>
-            <div class="stat-card-modern border-left-danger {{ request('status') == 'Not Interested' ? 'active' : '' }}">
-                <a href="{{ route('admin.enquiries.index', ['status' => 'Not Interested']) }}" class="text-decoration-none h-100 d-flex flex-column justify-content-between">
+            <div class="stat-card-modern border-left-danger {{ request('status') == 'Not Interested' ? 'active' : '' }}" onclick="setStatusFilter('Not Interested', this)">
+                <div class="h-100 d-flex flex-column justify-content-between cursor-pointer">
                     <i class="fas fa-user-times stat-icon"></i>
                     <div class="stat-label">Dropped</div>
                     <div class="stat-value" id="count-Not-Interested">{{ $counts['Not Interested'] ?? 0 }}</div>
-                </a>
+                </div>
             </div>
         </div>
 
@@ -342,6 +342,10 @@
         <div class="card shadow-sm mb-4 border-0" style="border-radius: 1rem;">
             <div class="card-body p-3">
                 <form id="filterForm">
+                    <input type="hidden" name="status" id="filterStatus" class="filter-input" value="{{ request('status') }}">
+                    <input type="hidden" name="sort" id="filterSort" class="filter-input" value="{{ request('sort', 'next_follow_up_date') }}">
+                    <input type="hidden" name="direction" id="filterDirection" class="filter-input" value="{{ request('direction', 'asc') }}">
+
                     <div class="row g-2 align-items-center">
 
                         <!-- SEARCH -->
@@ -469,12 +473,24 @@
                                     </div>
                                 </th>
                                 <!-- Headers -->
-                                <th width="23%">Student Profile</th>
-                                <th width="12%">Course</th>
-                                <th width="10%">Source</th>
-                                <th width="16%">Counselor</th>
-                                <th width="13%">Follow-up</th>
-                                <th width="8%" class="text-center">Status</th>
+                                <th width="23%" class="sortable" data-sort="student_name">
+                                    Student Profile <i class="fas fa-sort ml-1"></i>
+                                </th>
+                                <th width="12%" class="sortable" data-sort="course_name">
+                                    Course <i class="fas fa-sort ml-1"></i>
+                                </th>
+                                <th width="10%" class="sortable" data-sort="source">
+                                    Source <i class="fas fa-sort ml-1"></i>
+                                </th>
+                                <th width="16%" class="sortable" data-sort="counselor_name">
+                                    Counselor <i class="fas fa-sort ml-1"></i>
+                                </th>
+                                <th width="13%" class="sortable" data-sort="next_follow_up_date">
+                                    Follow-up <i class="fas fa-sort ml-1"></i>
+                                </th>
+                                <th width="8%" class="text-center sortable" data-sort="status">
+                                    Status <i class="fas fa-sort ml-1"></i>
+                                </th>
                                 <th width="14%" class="text-center">Actions</th>
                             </tr>
                         </thead>
@@ -649,7 +665,42 @@
 @push('scripts')
     <script>
         $(document).ready(function () {
+            // --- UI Helpers ---
+            window.setStatusFilter = function(status, el) {
+                const currentStatus = $('#filterStatus').val();
+                
+                // Toggle if clicking same card
+                const newStatus = (currentStatus === status) ? '' : status;
+                
+                $('#filterStatus').val(newStatus);
+                
+                // Update UI active state
+                $('.stat-card-modern').removeClass('active');
+                if (newStatus) $(el).addClass('active');
+                
+                fetchEnquiries();
+            };
+
+            window.resetFilters = function() {
+                $('#filterForm')[0].reset();
+                $('#filterStatus').val('');
+                $('#filterSort').val('next_follow_up_date');
+                $('#filterDirection').val('asc');
+                $('.stat-card-modern').removeClass('active');
+                
+                // Reset Sort UI
+                $('.sortable').removeClass('active-sort sort-asc sort-desc');
+                $('.sortable i').removeClass('fa-sort-up fa-sort-down').addClass('fa-sort');
+                const defaultSort = $('.sortable[data-sort="next_follow_up_date"]');
+                defaultSort.addClass('active-sort sort-asc');
+                defaultSort.find('i').removeClass('fa-sort').addClass('fa-sort-up');
+                
+                fetchEnquiries();
+            };
+
+
             // --- Filter Logic (Main AJAX) ---
+
             let debounceTimer;
             $('.filter-input').on('change keyup', function (e) {
                 // For text inputs (search), debounce
@@ -701,7 +752,31 @@
         }
 
         // --- Main AJAX Fetch ---
+        $(document).on('click', '.sortable', function() {
+            const field = $(this).data('sort');
+            const currentSort = $('#filterSort').val();
+            const currentDirection = $('#filterDirection').val();
+            
+            let newDirection = 'asc';
+            if (field === currentSort && currentDirection === 'asc') {
+                newDirection = 'desc';
+            }
+            
+            $('#filterSort').val(field);
+            $('#filterDirection').val(newDirection);
+            
+            // Update UI indicators
+            $('.sortable').removeClass('active-sort sort-asc sort-desc');
+            $('.sortable i').removeClass('fa-sort-up fa-sort-down').addClass('fa-sort');
+            
+            $(this).addClass('active-sort ' + (newDirection === 'asc' ? 'sort-asc' : 'sort-desc'));
+            $(this).find('i').removeClass('fa-sort').addClass(newDirection === 'asc' ? 'fa-sort-up' : 'fa-sort-down');
+            
+            fetchEnquiries(1);
+        });
+
         function fetchEnquiries(page = 1) {
+
             // Collect all filters
             let data = $('#filterForm').serializeArray().reduce(function (obj, item) {
                 obj[item.name] = item.value;
