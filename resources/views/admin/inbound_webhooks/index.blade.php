@@ -95,6 +95,9 @@
                                 </td>
                                 <td>
                                     <div class="btn-group">
+                                        <a href="{{ route('admin.inbound-webhooks.edit', $webhook) }}" class="btn btn-primary btn-sm" title="Edit General Settings">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
                                         <a href="{{ route('admin.inbound-webhooks.show', $webhook) }}" class="btn btn-info btn-sm" title="Configure Mapping">
                                             <i class="fas fa-project-diagram"></i> Map Fields
                                         </a>

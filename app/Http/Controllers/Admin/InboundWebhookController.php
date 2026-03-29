@@ -41,14 +41,13 @@ class InboundWebhookController extends Controller
             'description' => 'nullable|string',
             'source_name' => 'nullable|string',
             'auto_followup_days' => 'required|integer|min:0',
+            'auto_assign' => 'boolean',
             'assigned_to_user_id' => 'nullable|exists:users,id',
         ]);
 
         if (empty($validated['slug'])) {
             $validated['slug'] = Str::slug($validated['name']) . '-' . Str::random(5);
         }
-
-        $validated['auto_assign'] = $request->boolean('auto_assign', true);
 
         $validated['secret_token'] = Str::random(32);
         $validated['created_by'] = Auth::id();

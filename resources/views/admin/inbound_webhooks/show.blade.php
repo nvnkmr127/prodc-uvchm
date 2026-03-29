@@ -14,9 +14,14 @@
             </nav>
             <div class="card shadow mb-4">
                 <div class="card-header py-3 bg-white d-flex align-items-center justify-content-between">
-                    <div>
-                        <h6 class="m-0 font-weight-bold text-primary">Webhook: {{ $inboundWebhook->name }}</h6>
-                        <small class="text-muted"><code>{{ $inboundWebhook->url }}</code></small>
+                    <div class="d-flex align-items-center">
+                        <div class="mr-3">
+                            <h6 class="m-0 font-weight-bold text-primary">Webhook: {{ $inboundWebhook->name }}</h6>
+                            <small class="text-muted"><code>{{ $inboundWebhook->url }}</code></small>
+                        </div>
+                        <a href="{{ route('admin.inbound-webhooks.edit', $inboundWebhook) }}" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-cog mr-1"></i> General Settings
+                        </a>
                     </div>
                 </div>
                 <div class="card-body">
