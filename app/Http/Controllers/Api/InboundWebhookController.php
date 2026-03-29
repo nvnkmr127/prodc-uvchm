@@ -169,8 +169,14 @@ class InboundWebhookController extends Controller
                 }
             }
 
-            // 4. Distribution
-            $assignedUserId = $leadService->getNextCounselorId();
+            // 4. Distribution logic based on webhook settings
+            $assignedUserId = null;
+            if ($webhook->auto_assign) {
+                $assignedUserId = $leadService->getNextCounselorId();
+            } else {
+                // Manually assigned counselor OR fallback to creator OR null
+                $assignedUserId = $webhook->assigned_to_user_id ?? $webhook->created_by;
+            }
 
             // 5. Create Enquiry
             $enquiryData = [

@@ -35,6 +35,27 @@
                             <small class="text-muted">0 = schedule for today, 1 = tomorrow, etc.</small>
                         </div>
 
+                        <div class="card bg-light border-0 mb-3">
+                            <div class="card-body py-3">
+                                <div class="custom-control custom-switch mb-2">
+                                    <input type="checkbox" class="custom-control-input" id="auto_assign" name="auto_assign" value="1" checked onchange="toggleAssignment()">
+                                    <label class="custom-control-label font-weight-bold" for="auto_assign">Auto-Assign Leads</label>
+                                </div>
+                                <small class="text-muted d-block mb-3">If enabled, leads will be distributed among active counselors automatically.</small>
+
+                                <div id="manual_assignment_box" style="display: none;">
+                                    <label for="assigned_to_user_id" class="small font-weight-bold">Assign to Specific Counselor</label>
+                                    <select class="form-control" name="assigned_to_user_id" id="assigned_to_user_id">
+                                        <option value="">-- No Default (Unassigned) --</option>
+                                        @foreach($counselors as $counselor)
+                                            <option value="{{ $counselor->id }}">{{ $counselor->name }}</option>
+                                        @endforeach
+                                    </select>
+                                    <small class="text-muted">Fixed assignment for every lead from this source.</small>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="form-group">
                             <label for="slug">Custom URL Slug (Optional)</label>
                             <input type="text" class="form-control" name="slug" id="slug" placeholder="fb-campaign-2024">
@@ -55,4 +76,14 @@
         </div>
     </div>
 </div>
+@push('scripts')
+<script>
+    function toggleAssignment() {
+        const auto = document.getElementById('auto_assign').checked;
+        document.getElementById('manual_assignment_box').style.display = auto ? 'none' : 'block';
+    }
+    // Initialize
+    window.onload = toggleAssignment;
+</script>
+@endpush
 @endsection

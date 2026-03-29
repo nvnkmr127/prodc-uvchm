@@ -17,6 +17,8 @@ class InboundWebhook extends Model
         'mapping_rules',
         'last_payload',
         'is_active',
+        'auto_assign',
+        'assigned_to_user_id',
         'source_name',
         'auto_followup_days',
         'description',
@@ -33,12 +35,17 @@ class InboundWebhook extends Model
         'last_called_at' => 'datetime',
     ];
 
-    /**
-     * Get the user who created the webhook.
-     */
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * Get the user assigned to this webhook.
+     */
+    public function assignedTo(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_to_user_id');
     }
 
     /**

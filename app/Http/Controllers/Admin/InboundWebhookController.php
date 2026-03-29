@@ -26,7 +26,11 @@ class InboundWebhookController extends Controller
 
     public function create()
     {
-        return view('admin.inbound_webhooks.create');
+        $counselors = \App\Models\User::whereHas('roles', function ($q) {
+            $q->whereIn('name', ['admin', 'super-admin', 'college-admin', 'counselor']);
+        })->where('status', 'active')->orderBy('name')->get();
+
+        return view('admin.inbound_webhooks.create', compact('counselors'));
     }
 
     public function store(Request $request)
@@ -37,11 +41,14 @@ class InboundWebhookController extends Controller
             'description' => 'nullable|string',
             'source_name' => 'nullable|string',
             'auto_followup_days' => 'required|integer|min:0',
+            'assigned_to_user_id' => 'nullable|exists:users,id',
         ]);
 
         if (empty($validated['slug'])) {
             $validated['slug'] = Str::slug($validated['name']) . '-' . Str::random(5);
         }
+
+        $validated['auto_assign'] = $request->boolean('auto_assign', true);
 
         $validated['secret_token'] = Str::random(32);
         $validated['created_by'] = Auth::id();
