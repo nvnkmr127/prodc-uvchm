@@ -370,6 +370,8 @@
         <div class="card shadow mb-4 border-0" style="border-radius: 1rem;">
             <div class="card-body py-3">
                 <form id="filterForm">
+                    <input type="hidden" name="sort" id="sortField" value="{{ request('sort', 'next_follow_up_date') }}">
+                    <input type="hidden" name="direction" id="sortDirection" value="{{ request('direction', 'asc') }}">
                     <div class="row align-items-center">
 
                         <!-- SEARCH -->
@@ -494,12 +496,42 @@
                                     </div>
                                 </th>
                                 <!-- Headers -->
-                                <th width="23%">Student Profile</th>
-                                <th width="12%">Course</th>
-                                <th width="10%">Source</th>
-                                <th width="16%">Counselor</th>
-                                <th width="13%">Follow-up</th>
-                                <th width="8%" class="text-center">Status</th>
+                                <th width="23%">
+                                    <a href="javascript:void(0)" onclick="sortList('student_name')" class="sort-link {{ request('sort') == 'student_name' ? 'active' : '' }}">
+                                        Student Profile
+                                        <i class="fas fa-sort{{ request('sort') == 'student_name' ? (request('direction') == 'asc' ? '-up' : '-down') : '' }} ml-1"></i>
+                                    </a>
+                                </th>
+                                <th width="12%">
+                                    <a href="javascript:void(0)" onclick="sortList('course_name')" class="sort-link {{ request('sort') == 'course_name' ? 'active' : '' }}">
+                                        Course
+                                        <i class="fas fa-sort{{ request('sort') == 'course_name' ? (request('direction') == 'asc' ? '-up' : '-down') : '' }} ml-1"></i>
+                                    </a>
+                                </th>
+                                <th width="10%">
+                                    <a href="javascript:void(0)" onclick="sortList('source')" class="sort-link {{ request('sort') == 'source' ? 'active' : '' }}">
+                                        Source
+                                        <i class="fas fa-sort{{ request('sort') == 'source' ? (request('direction') == 'asc' ? '-up' : '-down') : '' }} ml-1"></i>
+                                    </a>
+                                </th>
+                                <th width="16%">
+                                    <a href="javascript:void(0)" onclick="sortList('counselor_name')" class="sort-link {{ request('sort') == 'counselor_name' ? 'active' : '' }}">
+                                        Counselor
+                                        <i class="fas fa-sort{{ request('sort') == 'counselor_name' ? (request('direction') == 'asc' ? '-up' : '-down') : '' }} ml-1"></i>
+                                    </a>
+                                </th>
+                                <th width="13%">
+                                    <a href="javascript:void(0)" onclick="sortList('next_follow_up_date')" class="sort-link {{ request('sort', 'next_follow_up_date') == 'next_follow_up_date' ? 'active' : '' }}">
+                                        Follow-up
+                                        <i class="fas fa-sort{{ request('sort', 'next_follow_up_date') == 'next_follow_up_date' ? (request('direction', 'asc') == 'asc' ? '-up' : '-down') : '' }} ml-1"></i>
+                                    </a>
+                                </th>
+                                <th width="8%" class="text-center">
+                                    <a href="javascript:void(0)" onclick="sortList('status')" class="sort-link {{ request('sort') == 'status' ? 'active' : '' }}">
+                                        Status
+                                        <i class="fas fa-sort{{ request('sort') == 'status' ? (request('direction') == 'asc' ? '-up' : '-down') : '' }} ml-1"></i>
+                                    </a>
+                                </th>
                                 <th width="14%" class="text-center">Actions</th>
                             </tr>
                         </thead>
@@ -689,8 +721,6 @@
                 $('#referralLabel').text(labels[val] || 'Referral Name');
             });
 
-
-
             // --- Checkbox Logic ---
             $('#selectAll').on('change', function () {
                 $('.enquiry-checkbox').prop('checked', this.checked);
@@ -699,12 +729,40 @@
             $(document).on('change', '.enquiry-checkbox', toggleBulkActions);
         });
 
+        // --- Sorting logic ---
+        function sortList(field) {
+            let currentField = $('#sortField').val();
+            let currentDirection = $('#sortDirection').val();
+            let newDirection = 'asc';
+
+            if (currentField === field) {
+                newDirection = currentDirection === 'asc' ? 'desc' : 'asc';
+            }
+
+            $('#sortField').val(field);
+            $('#sortDirection').val(newDirection);
+
+            // Update UI icons immediately (optional but smoother)
+            $('.sort-link').removeClass('active').find('i').attr('class', 'fas fa-sort ml-1');
+            let $activeLink = $(`a[onclick="sortList('${field}')"]`);
+            $activeLink.addClass('active');
+            $activeLink.find('i').attr('class', `fas fa-sort-${newDirection === 'asc' ? 'up' : 'down'} ml-1`);
+
+            fetchEnquiries(1);
+        }
+
         // --- AJAX Reset ---
         function resetFilters() {
             // Reset all form fields
             $('#filterForm')[0].reset();
-            // Manually reset values in state to ensure 'change' events don't fire inappropriately or to sync UI
+            // Manually reset values in state
             $('#filterForm input, #filterForm select').val('');
+            
+            // Reset Sort to default
+            $('#sortField').val('next_follow_up_date');
+            $('#sortDirection').val('asc');
+            $('.sort-link').removeClass('active').find('i').attr('class', 'fas fa-sort ml-1');
+            $(`a[onclick="sortList('next_follow_up_date')"]`).addClass('active').find('i').attr('class', 'fas fa-sort-up ml-1');
 
             // Fetch clean list
             fetchEnquiries(1);
