@@ -97,16 +97,86 @@
         <!-- Last Received Payload Column (Right) -->
         <div class="col-lg-4">
             <div class="card shadow mb-4">
-                <div class="card-header py-3 bg-secondary text-white">
+                <div class="card-header py-3 bg-secondary text-white d-flex align-items-center justify-content-between">
                     <h6 class="m-0 font-weight-bold">Last Received Data</h6>
+                    @if($inboundWebhook->last_payload)
+                        <span class="badge badge-light">Interactive Picker Active</span>
+                    @endif
                 </div>
                 <div class="card-body p-0">
                     @if($inboundWebhook->last_payload)
-                        <div class="p-3 bg-dark text-white rounded-0" style="max-height: 500px; overflow-y: auto;">
-                            <pre class="text-success mb-0" style="font-size: 0.85rem;">{{ json_encode($inboundWebhook->last_payload, JSON_PRETTY_PRINT) }}</pre>
+                        <div class="p-3 bg-light border-bottom">
+                            <p class="small text-muted mb-2"><strong>Tip:</strong> Click any <span class="badge badge-primary shadow-sm" style="background-color: #4e73df; color: white;">blue</span> path below to copy it to your active mapping field.</p>
+                            <div id="jsonPathPicker" style="max-height: 400px; overflow-y: auto;">
+
+                                @php
+                                    function flattenJson($data, &$paths, $prefix = '') {
+                                        foreach ($data as $key => $value) {
+                                            $path = $prefix ? "$prefix.$key" : $key;
+                                            
+                                            // Handle special array structure for "fields"
+                                            if ($key === 'fields' && is_array($value)) {
+                                                foreach ($value as $index => $item) {
+                                                    $itemPath = "$path.$index";
+                                                    if (is_array($item) && isset($item['type'])) {
+                                                        $type = $item['type'];
+                                                        $advancedPath = "fields[type=$type]";
+                                                        flattenJson($item, $paths, $advancedPath);
+                                                    } elseif (is_array($item) && isset($item['question'])) {
+                                                        $q = Str::limit($item['question'], 20);
+                                                        $advancedPath = "fields[question=$q]";
+                                                        flattenJson($item, $paths, $advancedPath);
+                                                    }
+                                                    flattenJson($item, $paths, $itemPath);
+                                                }
+                                                continue;
+                                            }
+
+                                            if (is_array($value)) {
+                                                flattenJson($value, $paths, $path);
+                                            } else {
+                                                $paths[$path] = $value;
+                                            }
+                                        }
+                                    }
+                                    $allPaths = [];
+                                    flattenJson($inboundWebhook->last_payload, $allPaths);
+                                @endphp
+
+                                <div class="list-group list-group-flush shadow-sm">
+                                    @foreach($allPaths as $path => $value)
+                                        <button type="button" 
+                                                class="list-group-item list-group-item-action p-2 small d-flex justify-content-between align-items-center path-selector-btn"
+                                                onclick="copyPathToActive('{{ $path }}', '{{ Str::limit(is_string($value) ? $value : json_encode($value), 30) }}')">
+                                            <code class="text-primary font-weight-bold">{{ $path }}</code>
+                                            <span class="text-muted text-truncate ml-2" style="max-width: 150px;">{{ is_string($value) ? $value : json_encode($value) }}</span>
+                                        </button>
+                                    @endforeach
+                                </div>
+                            </div>
                         </div>
                         <div class="p-3 bg-light border-top">
                             <p class="small text-muted mb-0">Received on: {{ $inboundWebhook->last_called_at->format('M d, Y H:i:s') }}</p>
+                            <button type="button" class="btn btn-sm btn-link p-0 mt-1" data-toggle="modal" data-target="#rawJsonModal">View Raw JSON</button>
+                        </div>
+
+                        <!-- Modal for raw JSON -->
+                        <div class="modal fade" id="rawJsonModal" tabindex="-1" role="dialog" aria-hidden="true">
+                            <div class="modal-dialog modal-lg" role="document">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Raw Received Payload</h5>
+                                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                            <span aria-hidden="true">&times;</span>
+                                        </button>
+                                    </div>
+                                    <div class="modal-body p-0">
+                                        <div class="bg-dark p-3">
+                                            <pre class="text-success mb-0" style="font-size: 0.85rem;">{{ json_encode($inboundWebhook->last_payload, JSON_PRETTY_PRINT) }}</pre>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     @else
                         <div class="text-center py-5 px-3">
@@ -116,6 +186,7 @@
                         </div>
                     @endif
                 </div>
+
             </div>
 
             <!-- Developer Integration Help -->
@@ -258,3 +329,51 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+    let activeInput = null;
+
+    $(document).ready(function() {
+        // Track which input was last focused
+        $('input[name^="mapping"]').on('focus', function() {
+            activeInput = $(this);
+            // Highlight the active row
+            $('tr').removeClass('table-primary');
+            $(this).closest('tr').addClass('table-primary');
+        });
+
+        // Initialize tooltips if any
+        $('[data-toggle="tooltip"]').tooltip();
+    });
+
+    function copyPathToActive(path, value) {
+        if (activeInput) {
+            activeInput.val(path).fadeOut(100).fadeIn(100);
+            
+            // Show a tiny success toast or indicator if possible, 
+            // but just the fade effect is good for now
+            console.log('Mapped ' + path + ' to ' + activeInput.attr('name'));
+        } else {
+            alert('Please click on a mapping input field first to select where you want to put this path.');
+        }
+    }
+</script>
+<style>
+    .path-selector-btn {
+        transition: all 0.2s;
+        border-left: 3px solid transparent;
+    }
+    .path-selector-btn:hover {
+        border-left: 3px solid #4e73df;
+        background-color: #f8f9fc;
+    }
+    .table-primary {
+        background-color: rgba(78, 115, 223, 0.05) !important;
+    }
+    #jsonPathPicker code {
+        cursor: pointer;
+    }
+</style>
+@endpush
+

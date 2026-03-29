@@ -222,15 +222,63 @@ class InboundWebhookController extends Controller
     }
 
     /**
-     * Helper to get data from nested array using dot notation or simple key.
+     * Helper to get data from nested array using dot notation or advanced array search.
+     * Supports syntax: "fields[type=contact].answer.first_name"
      */
     private function getData($data, $key)
     {
         if (empty($key)) return null;
+
+        // If the key uses advanced syntax like fields[type=contact].value
+        if (str_contains($key, '[') && str_contains($key, ']')) {
+            return $this->resolveAdvancedPath($data, $key);
+        }
         
         // Support dot notation for nested JSON like "data.user.name"
         return data_get($data, $key);
     }
+
+    /**
+     * Resolve advanced paths like "fields[type=contact].answer.first_name"
+     */
+    private function resolveAdvancedPath($data, $path)
+    {
+        $segments = explode('.', $path);
+        $current = $data;
+
+        foreach ($segments as $segment) {
+            if (str_contains($segment, '[') && str_contains($segment, ']')) {
+                // Handle segments like fields[type=contact]
+                preg_match('/(.*)\[(.*)=(.*)\]/', $segment, $matches);
+                if (count($matches) === 4) {
+                    $arrayKey = $matches[1];
+                    $searchKey = $matches[2];
+                    $searchValue = $matches[3];
+
+                    $array = data_get($current, $arrayKey);
+                    if (!is_array($array)) return null;
+
+                    // Find the item in the array
+                    $found = false;
+                    foreach ($array as $item) {
+                        if (isset($item[$searchKey]) && (string)$item[$searchKey] === (string)$searchValue) {
+                            $current = $item;
+                            $found = true;
+                            break;
+                        }
+                    }
+                    if (!$found) return null;
+                    continue;
+                }
+            }
+
+            $current = data_get($current, $segment);
+            if (is_null($current)) return null;
+        }
+
+        return $current;
+    }
+
 
     /**
      * Extract token from common webhook auth locations.
