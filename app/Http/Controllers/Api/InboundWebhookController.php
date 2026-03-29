@@ -18,16 +18,43 @@ class InboundWebhookController extends Controller
      */
     public function handle(Request $request, $slug, LeadDistributionService $leadService)
     {
+        Log::channel('inbound-webhooks')->info('Inbound webhook request received', [
+            'slug' => $slug,
+            'ip' => $request->ip(),
+            'method' => $request->method(),
+            'payload_keys' => array_keys($request->all()),
+        ]);
+
         $webhook = InboundWebhook::where('slug', $slug)->where('is_active', true)->first();
 
         if (!$webhook) {
+            Log::channel('inbound-webhooks')->warning('Inbound webhook not found or inactive', [
+                'slug' => $slug,
+                'ip' => $request->ip(),
+            ]);
+
             return response()->json(['message' => 'Webhook not found or inactive'], 404);
         }
 
         // 1. Security Check
-        $token = $request->header('X-Webhook-Token') ?? $request->input('token');
-        if ($webhook->secret_token && $token !== $webhook->secret_token) {
+        $token = $this->extractIncomingToken($request);
+        if ($webhook->secret_token && !$this->tokenMatches($token, $webhook->secret_token)) {
             $webhook->increment('failure_count');
+
+            Log::channel('inbound-webhooks')->warning('Inbound webhook unauthorized request', [
+                'webhook_id' => $webhook->id,
+                'slug' => $webhook->slug,
+                'ip' => $request->ip(),
+                'token_sources' => [
+                    'x_webhook_token' => $request->hasHeader('X-Webhook-Token'),
+                    'authorization_header' => $request->hasHeader('Authorization'),
+                    'x_api_key' => $request->hasHeader('X-API-Key'),
+                    'token_input' => $request->filled('token'),
+                    'secret_token_input' => $request->filled('secret_token'),
+                    'api_key_input' => $request->filled('api_key'),
+                ],
+            ]);
+
             return response()->json(['message' => 'Unauthorized'], 401);
         }
 
@@ -35,6 +62,13 @@ class InboundWebhookController extends Controller
 
         if (!is_array($payload) || empty($payload)) {
             $webhook->increment('failure_count');
+
+            Log::channel('inbound-webhooks')->warning('Inbound webhook invalid payload', [
+                'webhook_id' => $webhook->id,
+                'slug' => $webhook->slug,
+                'ip' => $request->ip(),
+            ]);
+
             return response()->json(['message' => 'Invalid data format. Expected JSON.'], 400);
         }
         
@@ -62,6 +96,14 @@ class InboundWebhookController extends Controller
 
             if (!$studentName || !$phoneNumber) {
                 $webhook->increment('failure_count');
+
+                Log::channel('inbound-webhooks')->warning('Inbound webhook missing required fields', [
+                    'webhook_id' => $webhook->id,
+                    'slug' => $webhook->slug,
+                    'has_student_name' => (bool) $studentName,
+                    'has_phone_number' => (bool) $phoneNumber,
+                ]);
+
                 return response()->json(['message' => 'Name and Phone are required'], 422);
             }
 
@@ -72,7 +114,12 @@ class InboundWebhookController extends Controller
                 ->exists();
 
             if ($isDuplicate) {
-                Log::info("Duplicate lead ignored from webhook [{$webhook->name}]: {$studentName} ({$phoneNumber})");
+                Log::channel('inbound-webhooks')->info("Duplicate lead ignored from webhook [{$webhook->name}]: {$studentName} ({$phoneNumber})", [
+                    'webhook_id' => $webhook->id,
+                    'slug' => $webhook->slug,
+                    'student_name' => $studentName,
+                    'phone_number' => $phoneNumber,
+                ]);
                 return response()->json(['message' => 'Duplicate lead ignored. Recieved within last 24h.'], 200);
             }
 
@@ -118,7 +165,12 @@ class InboundWebhookController extends Controller
 
             $webhook->increment('success_count');
             
-            Log::info("Lead created via dynamic webhook [{$webhook->name}]: #{$enquiry->id}");
+            Log::channel('inbound-webhooks')->info("Lead created via dynamic webhook [{$webhook->name}]: #{$enquiry->id}", [
+                'webhook_id' => $webhook->id,
+                'slug' => $webhook->slug,
+                'enquiry_id' => $enquiry->id,
+                'assigned_to_user_id' => $assignedUserId,
+            ]);
 
             return response()->json([
                 'message' => 'Lead processed successfully',
@@ -127,7 +179,15 @@ class InboundWebhookController extends Controller
 
         } catch (\Exception $e) {
             $webhook->increment('failure_count');
-            Log::error("Dynamic Webhook Error [{$webhook->name}]: " . $e->getMessage());
+
+            Log::channel('inbound-webhooks')->error("Dynamic Webhook Error [{$webhook->name}]: " . $e->getMessage(), [
+                'webhook_id' => $webhook->id,
+                'slug' => $webhook->slug,
+                'exception' => get_class($e),
+                'line' => $e->getLine(),
+                'file' => $e->getFile(),
+            ]);
+
             return response()->json(['message' => 'Server error: ' . $e->getMessage()], 500);
         }
     }
@@ -141,5 +201,35 @@ class InboundWebhookController extends Controller
         
         // Support dot notation for nested JSON like "data.user.name"
         return data_get($data, $key);
+    }
+
+    /**
+     * Extract token from common webhook auth locations.
+     */
+    private function extractIncomingToken(Request $request): ?string
+    {
+        $authorization = $request->header('Authorization');
+
+        if (is_string($authorization) && str_starts_with($authorization, 'Bearer ')) {
+            return trim(substr($authorization, 7));
+        }
+
+        return $request->header('X-Webhook-Token')
+            ?? $request->header('X-API-Key')
+            ?? $request->input('token')
+            ?? $request->input('secret_token')
+            ?? $request->input('api_key');
+    }
+
+    /**
+     * Timing-safe token comparison.
+     */
+    private function tokenMatches(?string $incomingToken, ?string $expectedToken): bool
+    {
+        if ($incomingToken === null || $expectedToken === null) {
+            return false;
+        }
+
+        return hash_equals((string) $expectedToken, (string) $incomingToken);
     }
 }

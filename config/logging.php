@@ -69,6 +69,14 @@ return [
             'level' => env('LOG_WEBHOOK_EVENTS_LEVEL', 'info'),
         ],
 
+        'inbound-webhooks' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/inbound-webhooks.log'),
+            'level' => env('LOG_INBOUND_WEBHOOKS_LEVEL', 'info'),
+            'days' => env('LOG_INBOUND_WEBHOOKS_DAYS', 30),
+            'replace_placeholders' => true,
+        ],
+
         'cron' => [
             'driver' => 'single',
             'path' => storage_path('logs/cron-jobs.log'),

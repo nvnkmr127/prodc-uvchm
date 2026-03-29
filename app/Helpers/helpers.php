@@ -6,6 +6,37 @@ use App\Models\Setting;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 
+if (!function_exists('settings_table_available')) {
+    /**
+     * Check if settings table can be queried safely.
+     *
+     * Uses per-request static caching to avoid repeated DB metadata queries
+     * when the database is unavailable or misconfigured.
+     */
+    function settings_table_available(): bool
+    {
+        static $isAvailable = null;
+        static $hasLoggedError = false;
+
+        if ($isAvailable !== null) {
+            return $isAvailable;
+        }
+
+        try {
+            $isAvailable = Schema::hasTable('settings');
+        } catch (\Throwable $e) {
+            $isAvailable = false;
+
+            if (!$hasLoggedError) {
+                \Log::warning('Settings table availability check failed: ' . $e->getMessage());
+                $hasLoggedError = true;
+            }
+        }
+
+        return $isAvailable;
+    }
+}
+
 if (!function_exists('setting')) {
     /**
      * Get a setting value by key
@@ -18,7 +49,7 @@ if (!function_exists('setting')) {
     {
         try {
             // Check if settings table exists
-            if (!Schema::hasTable('settings')) {
+            if (!settings_table_available()) {
                 return $default;
             }
 
@@ -149,7 +180,7 @@ if (!function_exists('public_settings')) {
     function public_settings()
     {
         try {
-            if (!Schema::hasTable('settings')) {
+            if (!settings_table_available()) {
                 return [];
             }
 
@@ -206,7 +237,7 @@ if (!function_exists('update_setting')) {
     function update_setting($key, $value, $group = 'general', $type = 'text')
     {
         try {
-            if (!Schema::hasTable('settings')) {
+            if (!settings_table_available()) {
                 return false;
             }
 
@@ -250,6 +281,12 @@ if (!function_exists('clear_settings_cache')) {
     function clear_settings_cache()
     {
         try {
+            if (!settings_table_available()) {
+                Cache::forget('all_settings');
+                Cache::forget('public_settings');
+                return;
+            }
+
             // Clear individual setting caches
             $settings = Setting::pluck('key');
             foreach ($settings as $key) {
@@ -402,7 +439,7 @@ if (!function_exists('seed_default_settings')) {
      */
     function seed_default_settings()
     {
-        if (!Schema::hasTable('settings')) {
+        if (!settings_table_available()) {
             return 0;
         }
 
@@ -530,7 +567,7 @@ if (!function_exists('export_settings')) {
     function export_settings($group = null)
     {
         try {
-            if (!Schema::hasTable('settings')) {
+            if (!settings_table_available()) {
                 return [];
             }
 
@@ -570,7 +607,7 @@ if (!function_exists('import_settings')) {
     function import_settings(array $settings, $overwrite = false)
     {
         try {
-            if (!Schema::hasTable('settings')) {
+            if (!settings_table_available()) {
                 return 0;
             }
 

@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Models\User;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Schema;
 use Laravel\Telescope\IncomingEntry;
 use Laravel\Telescope\Telescope;
 use Laravel\Telescope\TelescopeApplicationServiceProvider;
@@ -15,6 +16,17 @@ class TelescopeServiceProvider extends TelescopeApplicationServiceProvider
      */
     public function register(): void
     {
+        if (!config('telescope.enabled', false)) {
+            Telescope::stopRecording();
+            return;
+        }
+
+        if (!$this->shouldRecordTelescope()) {
+            config(['telescope.enabled' => false]);
+            Telescope::stopRecording();
+            return;
+        }
+
         // Telescope::night();
 
         $this->hideSensitiveRequestDetails();
@@ -29,6 +41,20 @@ class TelescopeServiceProvider extends TelescopeApplicationServiceProvider
                    $entry->isScheduledTask() ||
                    $entry->hasMonitoredTag();
         });
+    }
+
+    /**
+     * Determine if Telescope can safely record entries.
+     */
+    protected function shouldRecordTelescope(): bool
+    {
+        try {
+            return Schema::hasTable('telescope_entries')
+                && Schema::hasTable('telescope_entries_tags')
+                && Schema::hasTable('telescope_monitoring');
+        } catch (\Throwable $e) {
+            return false;
+        }
     }
 
     /**

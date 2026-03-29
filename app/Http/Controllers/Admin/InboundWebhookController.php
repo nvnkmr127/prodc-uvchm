@@ -8,6 +8,7 @@ use App\Models\Enquiry;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class InboundWebhookController extends Controller
 {
@@ -39,7 +40,13 @@ class InboundWebhookController extends Controller
         $validated['secret_token'] = Str::random(32);
         $validated['created_by'] = Auth::id();
 
-        InboundWebhook::create($validated);
+        $webhook = InboundWebhook::create($validated);
+
+        Log::channel('inbound-webhooks')->info('Inbound webhook created from admin panel', [
+            'webhook_id' => $webhook->id,
+            'slug' => $webhook->slug,
+            'created_by' => Auth::id(),
+        ]);
 
         return redirect()->route('admin.inbound-webhooks.index')->with('success', 'Inbound Webhook created successfully.');
     }
@@ -65,8 +72,17 @@ class InboundWebhookController extends Controller
 
     public function updateMapping(Request $request, InboundWebhook $inboundWebhook)
     {
+        $mapping = $request->input('mapping', []);
+
         $inboundWebhook->update([
-            'mapping_rules' => $request->input('mapping', [])
+            'mapping_rules' => $mapping
+        ]);
+
+        Log::channel('inbound-webhooks')->info('Inbound webhook mapping updated', [
+            'webhook_id' => $inboundWebhook->id,
+            'slug' => $inboundWebhook->slug,
+            'updated_by' => Auth::id(),
+            'mapping_keys' => array_keys($mapping),
         ]);
 
         return back()->with('success', 'Mapping updated successfully.');
@@ -75,18 +91,35 @@ class InboundWebhookController extends Controller
     public function toggle(InboundWebhook $inboundWebhook)
     {
         $inboundWebhook->update(['is_active' => !$inboundWebhook->is_active]);
+
+        Log::channel('inbound-webhooks')->info('Inbound webhook status toggled', [
+            'webhook_id' => $inboundWebhook->id,
+            'slug' => $inboundWebhook->slug,
+            'is_active' => (bool) $inboundWebhook->fresh()->is_active,
+            'updated_by' => Auth::id(),
+        ]);
+
         return back()->with('success', 'Status updated.');
     }
 
     public function destroy(InboundWebhook $inboundWebhook)
     {
+        $webhookContext = [
+            'webhook_id' => $inboundWebhook->id,
+            'slug' => $inboundWebhook->slug,
+            'deleted_by' => Auth::id(),
+        ];
+
         $inboundWebhook->delete();
+
+        Log::channel('inbound-webhooks')->warning('Inbound webhook deleted from admin panel', $webhookContext);
+
         return redirect()->route('admin.inbound-webhooks.index')->with('success', 'Webhook deleted.');
     }
 
     public function bulkAction(Request $request)
     {
-        $ids = explode(',', $request->input('webhook_ids', ''));
+        $ids = array_values(array_filter(array_map('trim', explode(',', $request->input('webhook_ids', '')))));
         $action = $request->input('action');
 
         if (empty($ids) || empty($action)) {
@@ -94,23 +127,31 @@ class InboundWebhookController extends Controller
         }
 
         $webhooks = InboundWebhook::whereIn('id', $ids);
+        $affectedCount = 0;
 
         switch ($action) {
             case 'activate':
-                $webhooks->update(['is_active' => true]);
+                $affectedCount = $webhooks->update(['is_active' => true]);
                 $msg = 'Selected webhooks activated.';
                 break;
             case 'deactivate':
-                $webhooks->update(['is_active' => false]);
+                $affectedCount = $webhooks->update(['is_active' => false]);
                 $msg = 'Selected webhooks deactivated.';
                 break;
             case 'delete':
-                $webhooks->delete();
+                $affectedCount = $webhooks->delete();
                 $msg = 'Selected webhooks deleted.';
                 break;
             default:
                 return back()->with('error', 'Invalid action.');
         }
+
+        Log::channel('inbound-webhooks')->info('Inbound webhook bulk action executed', [
+            'action' => $action,
+            'selected_ids' => $ids,
+            'affected_count' => $affectedCount,
+            'updated_by' => Auth::id(),
+        ]);
 
         return back()->with('success', $msg);
     }

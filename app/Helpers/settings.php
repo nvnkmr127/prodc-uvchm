@@ -4,6 +4,28 @@ use App\Models\Setting;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 
+if (!function_exists('settings_table_available')) {
+    /**
+     * Check if settings table can be queried safely.
+     */
+    function settings_table_available(): bool
+    {
+        static $isAvailable = null;
+
+        if ($isAvailable !== null) {
+            return $isAvailable;
+        }
+
+        try {
+            $isAvailable = Schema::hasTable('settings');
+        } catch (\Throwable $e) {
+            $isAvailable = false;
+        }
+
+        return $isAvailable;
+    }
+}
+
 if (!function_exists('setting')) {
     /**
      * Get a setting value by key
@@ -16,7 +38,7 @@ if (!function_exists('setting')) {
     {
         try {
             // Check if settings table exists
-            if (!Schema::hasTable('settings')) {
+            if (!settings_table_available()) {
                 return $default;
             }
 
@@ -73,7 +95,7 @@ if (!function_exists('update_setting')) {
     function update_setting($key, $value, $group = 'general', $type = 'text')
     {
         try {
-            if (!Schema::hasTable('settings')) {
+            if (!settings_table_available()) {
                 return false;
             }
 
@@ -122,7 +144,7 @@ if (!function_exists('clear_settings_cache')) {
             Cache::forget('public_settings');
 
             // Clear individual setting caches if we can get them
-            if (Schema::hasTable('settings')) {
+            if (settings_table_available()) {
                 $settings = Setting::pluck('key');
                 foreach ($settings as $key) {
                     Cache::forget("setting_{$key}");
@@ -157,7 +179,7 @@ if (!function_exists('public_settings')) {
     function public_settings()
     {
         try {
-            if (!Schema::hasTable('settings')) {
+            if (!settings_table_available()) {
                 return [];
             }
 
@@ -184,7 +206,7 @@ if (!function_exists('get_settings_by_group')) {
     function get_settings_by_group($group)
     {
         try {
-            if (!Schema::hasTable('settings')) {
+            if (!settings_table_available()) {
                 return [];
             }
 
@@ -211,7 +233,7 @@ if (!function_exists('setting_exists')) {
     function setting_exists($key)
     {
         try {
-            if (!Schema::hasTable('settings')) {
+            if (!settings_table_available()) {
                 return false;
             }
 
