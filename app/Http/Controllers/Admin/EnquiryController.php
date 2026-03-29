@@ -290,7 +290,7 @@ class EnquiryController extends Controller
     public function quickUpdate(Request $request, Enquiry $enquiry)
     {
         $validated = $request->validate([
-            'field' => 'required|in:assigned_to_user_id,next_follow_up_date,status,source',
+            'field' => 'required|in:assigned_to_user_id,next_follow_up_date,status,source,course_id',
             'value' => 'nullable',
             'filter_assigned_to' => 'nullable|exists:users,id' // Helper for stats
         ]);
@@ -312,7 +312,12 @@ class EnquiryController extends Controller
         // Get updated stats for frontend with filter
         $counts = $this->getStats(['assigned_to_user_id' => $request->filter_assigned_to]);
 
-        return response()->json(['success' => true, 'message' => 'Updated successfully', 'stats' => $counts]);
+        return response()->json([
+            'success' => true, 
+            'message' => 'Updated successfully', 
+            'stats' => $counts,
+            'new_status' => ($field === 'next_follow_up_date' && $enquiry->status !== $validated['value']) ? $enquiry->status : null
+        ]);
     }
 
     public function edit(Enquiry $enquiry)
