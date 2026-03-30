@@ -299,7 +299,29 @@
         .source-walk-in      { background: #fce4ec; color: #880e4f; }
         .source-bulk-import  { background: #e0f2f1; color: #004d40; }
         .source-other        { background: #f5f5f5; color: #424242; }
+
+        /* Bulk Action Bar Styling */
+        #bulkActionBar {
+            background: #fdf2f2;
+            padding: 5px 10px;
+            border-radius: 8px;
+            border: 1px dashed #e74a3b;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .table-responsive {
+            max-height: 70vh; /* Optional: Vertical scroll */
+            overflow-y: auto;
+            overflow-x: auto;
+            scrollbar-width: thin;
+        }
     </style>
+
 @endpush
 
 @section('content')
@@ -427,21 +449,27 @@
                         <!-- ACTIONS ROW (Inline) -->
                         <div class="col-lg-2 text-lg-right d-flex align-items-center justify-content-end">
                             <!-- Bulk Actions (Hidden by default) -->
-                            <div id="bulkActionBar" style="display:none; gap:5px; margin-right:5px;">
-                                <button type="button" class="btn btn-danger btn-sm" onclick="bulkDelete()"
+                            <div id="bulkActionBar" style="display:none; align-items:center; gap:8px;">
+                                <span class="small font-weight-bold text-danger mr-1">Bulk:</span>
+                                <button type="button" class="btn btn-outline-danger btn-sm" onclick="bulkDelete()"
                                     title="Delete Selected">
                                     <i class="fas fa-trash"></i>
                                 </button>
-                                <select class="custom-select custom-select-sm" id="bulkAssignUser" style="width: 100px;">
-                                    <option value="">Assign...</option>
-                                    @foreach($counselors as $c)
-                                        <option value="{{ $c->id }}">{{ $c->name }}</option>
-                                    @endforeach
-                                </select>
-                                <button type="button" class="btn btn-success btn-sm" onclick="bulkAssign()">
-                                    <i class="fas fa-check"></i>
-                                </button>
+                                <div class="input-group input-group-sm" style="width: 160px;">
+                                    <select class="custom-select" id="bulkAssignUser">
+                                        <option value="">Assign To...</option>
+                                        @foreach($counselors as $c)
+                                            <option value="{{ $c->id }}">{{ $c->name }}</option>
+                                        @endforeach
+                                    </select>
+                                    <div class="input-group-append">
+                                        <button type="button" class="btn btn-success" onclick="bulkAssign()">
+                                            <i class="fas fa-check"></i>
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
+
 
                             <!-- Permanent Actions -->
                             <div class="btn-group">
@@ -479,7 +507,9 @@
                             </select>
                         </div>
                     </div>
+                    <input type="hidden" name="per_page" id="perPageField" value="{{ $enquiries->perPage() }}">
                 </form>
+
             </div>
         </div>
 
@@ -541,9 +571,22 @@
                     </table>
                 </div>
                 <!-- Pagination Container -->
-                <div class="px-4 py-3 border-top" id="paginationContainer">
-                    {{ $enquiries->links() }}
+                <div class="px-4 py-3 border-top d-flex align-items-center justify-content-between" id="paginationWrapper">
+                    <div class="d-flex align-items-center">
+                        <span class="small text-muted mr-2">Show</span>
+                        <select class="custom-select custom-select-sm" id="perPageSelect" style="width: 70px;" onchange="updatePerPage(this.value)">
+                            <option value="10" {{ $enquiries->perPage() == 10 ? 'selected' : '' }}>10</option>
+                            <option value="25" {{ $enquiries->perPage() == 25 ? 'selected' : '' }}>25</option>
+                            <option value="50" {{ $enquiries->perPage() == 50 ? 'selected' : '' }}>50</option>
+                            <option value="100" {{ $enquiries->perPage() == 100 ? 'selected' : '' }}>100</option>
+                        </select>
+                        <span class="small text-muted ml-2">entries</span>
+                    </div>
+                    <div id="paginationContainer">
+                        {{ $enquiries->links() }}
+                    </div>
                 </div>
+
             </div>
         </div>
     </div>
@@ -804,10 +847,22 @@
             });
         }
 
+        // --- Update Per Page ---
+        function updatePerPage(value) {
+            $('#perPageField').val(value);
+            fetchEnquiries(1);
+        }
+
+
         function toggleBulkActions() {
             const count = $('.enquiry-checkbox:checked').length;
-            $('#bulkActionBar').toggle(count > 0);
+            if (count > 0) {
+                $('#bulkActionBar').css('display', 'flex');
+            } else {
+                $('#bulkActionBar').hide();
+            }
         }
+
 
         function bulkDelete() {
             const ids = $('.enquiry-checkbox:checked').map((_, el) => $(el).val()).get();

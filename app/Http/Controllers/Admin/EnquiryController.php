@@ -157,12 +157,18 @@ class EnquiryController extends Controller
             $query->orderBy('enquiries.' . $sortField, $sortDirection);
         }
 
-        $enquiries = $query->paginate(25)->withQueryString();
-        $courses = Course::orderBy('name')->pluck('name', 'id');
+        $perPage = $request->get('per_page', 25);
+        $enquiries = $query->paginate($perPage)->withQueryString();
+        $courses = Cache::remember('courses_list', now()->addMinutes(10), function () {
+            return Course::orderBy('name')->pluck('name', 'id');
+        });
 
-        $counselors = User::whereHas('roles', function ($q) {
-            $q->whereIn('name', ['admin', 'super-admin', 'college-admin', 'counselor']);
-        })->where('status', 'active')->orderBy('name')->get();
+        $counselors = Cache::remember('active_counselors', now()->addMinutes(10), function () {
+            return User::whereHas('roles', function ($q) {
+                $q->whereIn('name', ['admin', 'super-admin', 'college-admin', 'counselor']);
+            })->where('status', 'active')->orderBy('name')->get(['id', 'name']);
+        });
+
 
         // AJAX Response
         if ($request->ajax()) {
@@ -185,9 +191,12 @@ class EnquiryController extends Controller
 
         // 3. Prepare View Data
         // Combine static sources from model with any custom sources found in database
-        $staticSources = \App\Models\Enquiry::SOURCES;
-        $dbSources = Enquiry::select('source')->distinct()->pluck('source', 'source')->toArray();
-        $sources = array_merge($staticSources, $dbSources);
+        $sources = Cache::remember('enquiry_sources', now()->addMinutes(10), function () {
+            $staticSources = \App\Models\Enquiry::SOURCES;
+            $dbSources = Enquiry::select('source')->whereNotNull('source')->distinct()->pluck('source', 'source')->toArray();
+            return array_merge($staticSources, $dbSources);
+        });
+
 
         $isFacebookView = session('is_facebook_view', false) || $request->input('source') === 'Social Media';
 
