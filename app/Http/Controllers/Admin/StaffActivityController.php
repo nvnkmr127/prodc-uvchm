@@ -281,7 +281,6 @@ class StaffActivityController extends Controller
             ->paginate(25)
             ->withQueryString();
             
-        // For the filter dropdowns
         $availableEvents = Activity::where('causer_id', $user->id)
             ->distinct()
             ->pluck('event');
@@ -292,6 +291,36 @@ class StaffActivityController extends Controller
             ->map(fn($type) => class_basename($type))
             ->unique();
 
-        return view('admin.staff_activity.show', compact('user', 'activities', 'startDate', 'endDate', 'availableEvents', 'availableModules'));
+        // --- NEW: Comparative Analytics & Distribution ---
+        $stats = [
+            'personal' => [
+                'calls' => FollowUp::where('user_id', $user->id)->whereBetween('created_at', [Carbon::parse($startDate)->startOfDay(), Carbon::parse($endDate)->endOfDay()])->count(),
+                'fees' => Payment::where('created_by', $user->id)->whereBetween('payment_date', [$startDate, $endDate])->sum('amount'),
+                'admissions' => Activity::where('causer_id', $user->id)->where('subject_type', Admission::class)->where('description', 'like', '%created%')->whereBetween('created_at', [Carbon::parse($startDate)->startOfDay(), Carbon::parse($endDate)->endOfDay()])->count(),
+            ],
+            'team_avg' => [
+                'calls' => FollowUp::whereBetween('created_at', [Carbon::parse($startDate)->startOfDay(), Carbon::parse($endDate)->endOfDay()])->count() / max(1, User::role('college-admin')->count()),
+                'fees' => Payment::whereBetween('payment_date', [$startDate, $endDate])->sum('amount') / max(1, User::role('college-admin')->count()),
+                'admissions' => Activity::where('subject_type', Admission::class)->where('description', 'like', '%created%')->whereBetween('created_at', [Carbon::parse($startDate)->startOfDay(), Carbon::parse($endDate)->endOfDay()])->count() / max(1, User::role('college-admin')->count()),
+            ]
+        ];
+
+        // Hourly Activity Map
+        $hourlyMap = Activity::where('causer_id', $user->id)
+            ->whereBetween('created_at', [Carbon::parse($startDate)->startOfDay(), Carbon::parse($endDate)->endOfDay()])
+            ->select(DB::raw('HOUR(created_at) as hour'), DB::raw('count(*) as count'))
+            ->groupBy('hour')
+            ->pluck('count', 'hour')
+            ->toArray();
+
+        $activityDistribution = Activity::where('causer_id', $user->id)
+            ->whereBetween('created_at', [Carbon::parse($startDate)->startOfDay(), Carbon::parse($endDate)->endOfDay()])
+            ->select('subject_type', DB::raw('count(*) as count'))
+            ->groupBy('subject_type')
+            ->get()
+            ->mapWithKeys(fn($item) => [class_basename($item->subject_type) => $item->count])
+            ->toArray();
+
+        return view('admin.staff_activity.show', compact('user', 'activities', 'startDate', 'endDate', 'availableEvents', 'availableModules', 'stats', 'hourlyMap', 'activityDistribution'));
     }
 }
