@@ -25,65 +25,63 @@ class EnquiryController extends Controller
         $user = Auth::user();
         $isAdmin = $user->hasAnyRole(['admin', 'super-admin', 'Admin', 'Super-admin']);
 
-        // Optimization: Cache stats for 2 minutes to prevent heavy DB hits on every refresh
-        // Cache key is unique to the user and the specific filters applied
-        $cacheKey = 'enquiry_stats_' . md5(serialize($filters) . $user->id);
+        // We disable caching temporarily to resolve "not changing" issues with complex filters
+        // $cacheKey = 'enquiry_stats_' . md5(serialize($filters) . $user->id);
+        
+        $statsQuery = Enquiry::selectRaw('status, count(*) as count');
 
-        return Cache::remember($cacheKey, now()->addMinutes(2), function () use ($filters, $isAdmin, $user) {
-            $statsQuery = Enquiry::selectRaw('status, count(*) as count');
+        // 1. Apply Visibility (Match index exactly)
+        if (!$isAdmin) {
+            $statsQuery->where('assigned_to_user_id', $user->id);
+        } elseif (!empty($filters['assigned_to_user_id'])) {
+            $assignedTo = (array)$filters['assigned_to_user_id'];
+            $statsQuery->whereIn('assigned_to_user_id', $assignedTo);
+        }
 
-            // Apply Visibility for Stats
-            if (!$isAdmin) {
-                $statsQuery->where('assigned_to_user_id', $user->id);
-            } elseif (isset($filters['assigned_to_user_id']) && $filters['assigned_to_user_id']) {
-                $assignedTo = (array)$filters['assigned_to_user_id'];
-                $statsQuery->whereIn('assigned_to_user_id', $assignedTo);
-            }
+        // 2. Apply Dynamic Filters (Match index exactly)
+        if (!empty($filters['course_id'])) {
+            $courseIds = (array)$filters['course_id'];
+            $statsQuery->whereIn('course_id', $courseIds);
+        }
 
-            // Apply Course Filter
-            if (isset($filters['course_id']) && $filters['course_id']) {
-                $courseIds = (array)$filters['course_id'];
-                $statsQuery->whereIn('course_id', $courseIds);
-            }
+        if (!empty($filters['source'])) {
+            $sources = (array)$filters['source'];
+            $statsQuery->whereIn('source', $sources);
+        }
 
-            // Apply Date Filters (Optimized for indexes: avoid whereDate if possible)
-            if (isset($filters['start_date']) && $filters['start_date']) {
-                $statsQuery->where('created_at', '>=', $filters['start_date'] . ' 00:00:00');
-            }
-            if (isset($filters['end_date']) && $filters['end_date']) {
-                $statsQuery->where('created_at', '<=', $filters['end_date'] . ' 23:59:59');
-            }
+        if (!empty($filters['start_date'])) {
+            $statsQuery->where('created_at', '>=', $filters['start_date'] . ' 00:00:00');
+        }
+        if (!empty($filters['end_date'])) {
+            $statsQuery->where('created_at', '<=', $filters['end_date'] . ' 23:59:59');
+        }
 
-            // Apply Source Filter
-            if (isset($filters['source']) && $filters['source']) {
-                $sources = (array)$filters['source'];
-                $statsQuery->whereIn('source', $sources);
-            }
+        if (!empty($filters['search'])) {
+            $term = $filters['search'];
+            $statsQuery->where(function ($q) use ($term) {
+                $q->where('student_name', 'LIKE', '%' . $term . '%')
+                    ->orWhere('phone_number', 'LIKE', '%' . $term . '%');
+            });
+        }
 
-            // Apply Search Filter
-            if (isset($filters['search']) && $filters['search']) {
-                $term = $filters['search'];
-                $statsQuery->where(function ($q) use ($term) {
-                    $q->where('student_name', 'LIKE', '%' . $term . '%')
-                        ->orWhere('phone_number', 'LIKE', '%' . $term . '%');
-                });
-            }
+        // 3. Execution & Aggregation
+        $stats = $statsQuery->groupBy('status')
+            ->pluck('count', 'status')
+            ->toArray();
 
-            $stats = $statsQuery->groupBy('status')
-                ->pluck('count', 'status')
-                ->toArray();
+        // Calculate Total from the resulting distribution counts
+        $total = array_sum($stats);
 
-            return [
-                'New' => $stats['New'] ?? 0,
-                'Contacted' => $stats['Contacted'] ?? 0,
-                'Interested' => $stats['Interested'] ?? 0,
-                'Next Year' => $stats['Interested Next Year'] ?? 0,
-                'Not Interested' => $stats['Not Interested'] ?? 0,
-                'Admitted' => $stats['Admitted'] ?? 0,
-                'Follow-up' => $stats['Follow-up'] ?? 0,
-                'Total' => array_sum($stats)
-            ];
-        });
+        return [
+            'New' => $stats['New'] ?? 0,
+            'Contacted' => $stats['Contacted'] ?? 0,
+            'Interested' => $stats['Interested'] ?? 0,
+            'Next Year' => $stats['Interested Next Year'] ?? 0,
+            'Not Interested' => $stats['Not Interested'] ?? 0,
+            'Admitted' => $stats['Admitted'] ?? 0,
+            'Follow-up' => $stats['Follow-up'] ?? 0,
+            'Total' => $total
+        ];
     }
 
     public function index(Request $request)

@@ -12,71 +12,59 @@
         /* --- Stats Grid System --- */
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(6, 1fr);
-            gap: 1rem;
-            margin-bottom: 1.5rem;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 1.25rem;
+            margin-bottom: 2rem;
         }
 
         .stat-card-mini {
-            background: white;
-            padding: 1rem;
-            border-radius: 0.75rem;
-            box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.1);
-            border-left: 0.25rem solid #e3e6f0;
-            transition: transform 0.2s;
+            background: rgba(255, 255, 255, 0.85); /* Semi-transparent for glass effect */
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            padding: 1.25rem;
+            border-radius: 1rem;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.05); /* Softer, deeper shadow */
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-left: 0.35rem solid #e3e6f0;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             height: 100%;
             display: flex;
             flex-direction: column;
-            justify-content: center;
+            position: relative;
+            overflow: hidden;
         }
 
         .stat-card-mini:hover {
-            transform: translateY(-3px);
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
+            background: rgba(255, 255, 255, 0.95);
         }
 
         .stat-label {
-            font-size: 0.7rem;
-            font-weight: 800;
+            font-size: 0.75rem;
+            font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-bottom: 0.25rem;
+            letter-spacing: 1px;
+            margin-bottom: 0.5rem;
+            opacity: 0.8;
         }
 
         .stat-value {
-            font-size: 1.5rem;
+            font-size: 1.75rem;
             font-weight: 800;
-            color: #5a5c69;
-            line-height: 1.2;
+            color: #1e293b;
+            line-height: 1;
         }
 
-        /* Status Colors */
-        .status-new-border {
-            border-left-color: #36b9cc !important;
-        }
-
-        .status-contacted-border {
-            border-left-color: #1cc88a !important;
-        }
-
-        .status-interested-border {
-            border-left-color: #f6c23e !important;
-        }
-
-        .status-followup-border {
-            border-left-color: #fd7e14 !important;
-        }
-
-        .status-admitted-border {
-            border-left-color: #0f6848 !important;
-        }
-
-        .status-Next-Year-border {
-            border-left-color: #6f42c1 !important;
-        }
-
-        .status-dropped-border {
-            border-left-color: #e74a3b !important;
-        }
+        /* Status Colors - Glass Accents */
+        .status-new-border { border-left-color: #0ea5e9 !important; background: rgba(14, 165, 233, 0.03); }
+        .status-contacted-border { border-left-color: #10b981 !important; background: rgba(16, 185, 129, 0.03); }
+        .status-interested-border { border-left-color: #f59e0b !important; background: rgba(245, 158, 11, 0.03); }
+        .status-followup-border { border-left-color: #f97316 !important; background: rgba(249, 115, 22, 0.03); }
+        .status-admitted-border { border-left-color: #059669 !important; background: rgba(5, 150, 105, 0.03); }
+        .status-Next-Year-border { border-left-color: #8b5cf6 !important; background: rgba(139, 92, 246, 0.03); }
+        .status-dropped-border { border-left-color: #ef4444 !important; background: rgba(239, 68, 68, 0.03); }
+        .border-left-primary { border-left-color: #4f46e5 !important; background: rgba(79, 70, 229, 0.03); }
 
         /* --- Live Search Dropdown --- */
         .search-box-container {
@@ -178,8 +166,16 @@
             border-bottom: 2px solid #e3e6f0;
         }
 
+        .table-custom tbody tr {
+            transition: background-color 0.2s ease;
+        }
+
+        .table-custom tbody tr:hover {
+            background-color: rgba(79, 70, 229, 0.03);
+        }
+
         .table-custom tbody td {
-            padding: 1rem;
+            padding: 1.25rem 1rem;
             vertical-align: middle;
             border-top: 1px solid #f0f2f5;
         }
@@ -414,7 +410,6 @@
                 <div class="stat-value" id="count-Total">{{ $counts['Total'] ?? 0 }}</div>
             </div>
         </div>
-        </div>
 
 
 
@@ -509,17 +504,29 @@
                                 </div>
                             </div>
 
-                            <div class="mb-4">
-                                <label class="small text-muted font-weight-bold d-block">Created Date Range</label>
-                                <div class="d-flex">
-                                    <input type="date"
-                                        class="form-control border-0 bg-light small font-weight-bold mr-1 filter-input"
-                                        name="start_date" placeholder="Start Date" title="Start Date"
-                                        value="{{ request('start_date') }}">
-                                    <input type="date"
-                                        class="form-control border-0 bg-light small font-weight-bold ml-1 filter-input"
-                                        name="end_date" placeholder="End Date" title="End Date"
-                                        value="{{ request('end_date') }}">
+                            <div class="row">
+                                <div class="col-8">
+                                    <label class="small text-muted font-weight-bold d-block">Created Date Range</label>
+                                    <div class="d-flex">
+                                        <input type="date"
+                                            class="form-control border-0 bg-light small font-weight-bold mr-1 filter-input"
+                                            name="start_date" placeholder="Start Date" title="Start Date"
+                                            value="{{ request('start_date') }}">
+                                        <input type="date"
+                                            class="form-control border-0 bg-light small font-weight-bold ml-1 filter-input"
+                                            name="end_date" placeholder="End Date" title="End Date"
+                                            value="{{ request('end_date') }}">
+                                    </div>
+                                </div>
+                                <div class="col-4">
+                                    <label class="small text-muted font-weight-bold">Records</label>
+                                    <select class="form-control bg-light border-0 small filter-input" id="perPageSelect" 
+                                        onchange="$('#perPageField').val(this.value); applyFilters();">
+                                        <option value="10" {{ $enquiries->perPage() == 10 ? 'selected' : '' }}>10</option>
+                                        <option value="25" {{ $enquiries->perPage() == 25 ? 'selected' : '' }}>25</option>
+                                        <option value="50" {{ $enquiries->perPage() == 50 ? 'selected' : '' }}>50</option>
+                                        <option value="100" {{ $enquiries->perPage() == 100 ? 'selected' : '' }}>100</option>
+                                    </select>
                                 </div>
                             </div>
 
@@ -769,6 +776,7 @@
         </div>
     </div>
 
+    </div> <!-- container-fluid end -->
 @endsection
 
 @push('scripts')
