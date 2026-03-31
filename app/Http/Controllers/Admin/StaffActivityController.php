@@ -321,6 +321,13 @@ class StaffActivityController extends Controller
             ->mapWithKeys(fn($item) => [class_basename($item->subject_type) => $item->count])
             ->toArray();
 
+        if ($request->ajax()) {
+            return response()->json([
+                'html' => view('admin.staff_activity._activity_item', compact('activities'))->render(),
+                'hasMore' => $activities->hasMorePages()
+            ]);
+        }
+        
         return view('admin.staff_activity.show', compact('user', 'activities', 'startDate', 'endDate', 'availableEvents', 'availableModules', 'stats', 'hourlyMap', 'activityDistribution'));
     }
 }
