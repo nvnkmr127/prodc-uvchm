@@ -69,6 +69,15 @@
                 </li>
             @endcan
 
+            @if(auth()->user()?->hasRole('college-admin') || auth()->user()?->hasRole('super-admin'))
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ route('admin.dashboard.college-admin') }}">
+                        <i class="fas fa-fw fa-user-shield"></i>
+                        <span>College Admin Dash</span>
+                    </a>
+                </li>
+            @endif
+
             <!-- Quick Actions Section -->
             <hr class="sidebar-divider">
             <div class="sidebar-heading">Quick Actions</div>
@@ -81,6 +90,15 @@
                     </a>
                 </li>
             @endcan
+
+            @if(auth()->user()?->hasRole('college-admin') || auth()->user()?->hasRole('super-admin'))
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ route('admin.staff-activity.index') }}">
+                        <i class="fas fa-fw fa-user-clock text-info"></i>
+                        <span>Staff Performance</span>
+                    </a>
+                </li>
+            @endif
 
             @can('view attendance')
                 <li class="nav-item">

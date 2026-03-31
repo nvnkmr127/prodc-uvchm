@@ -21,7 +21,7 @@ class StaffActivityController extends Controller
         $date = $request->input('date', Carbon::today()->toDateString());
         $dateObj = Carbon::parse($date);
         
-        $users = User::role(['admin', 'staff'])->where('status', 'active')->get();
+        $users = User::role(['admin', 'college-admin', 'counselor', 'staff'])->where('status', 'active')->get();
         
         $activitiesByStaff = [];
         
