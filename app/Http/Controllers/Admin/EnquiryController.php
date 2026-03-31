@@ -36,12 +36,14 @@ class EnquiryController extends Controller
             if (!$isAdmin) {
                 $statsQuery->where('assigned_to_user_id', $user->id);
             } elseif (isset($filters['assigned_to_user_id']) && $filters['assigned_to_user_id']) {
-                $statsQuery->where('assigned_to_user_id', $filters['assigned_to_user_id']);
+                $assignedTo = (array)$filters['assigned_to_user_id'];
+                $statsQuery->whereIn('assigned_to_user_id', $assignedTo);
             }
 
             // Apply Course Filter
             if (isset($filters['course_id']) && $filters['course_id']) {
-                $statsQuery->where('course_id', $filters['course_id']);
+                $courseIds = (array)$filters['course_id'];
+                $statsQuery->whereIn('course_id', $courseIds);
             }
 
             // Apply Date Filters (Optimized for indexes: avoid whereDate if possible)
@@ -54,7 +56,8 @@ class EnquiryController extends Controller
 
             // Apply Source Filter
             if (isset($filters['source']) && $filters['source']) {
-                $statsQuery->where('source', $filters['source']);
+                $sources = (array)$filters['source'];
+                $statsQuery->whereIn('source', $sources);
             }
 
             // Apply Search Filter
@@ -114,7 +117,8 @@ class EnquiryController extends Controller
 
         // Status Filter
         if ($request->filled('status')) {
-            $query->where('enquiries.status', $request->status);
+            $status = (array)$request->status;
+            $query->whereIn('enquiries.status', $status);
         } else {
             // Default: Hide 'Not Interested' unless searching
             if (!$request->filled('search')) {
@@ -124,13 +128,16 @@ class EnquiryController extends Controller
 
         // Other Filters
         if ($request->filled('course_id')) {
-            $query->where('enquiries.course_id', $request->course_id);
+            $courseIds = (array)$request->course_id;
+            $query->whereIn('enquiries.course_id', $courseIds);
         }
         if ($request->filled('assigned_to_user_id')) {
-            $query->where('enquiries.assigned_to_user_id', $request->assigned_to_user_id);
+            $assignedTo = (array)$request->assigned_to_user_id;
+            $query->whereIn('enquiries.assigned_to_user_id', $assignedTo);
         }
         if ($request->filled('source')) {
-            $query->where('enquiries.source', $request->source);
+            $sources = (array)$request->source;
+            $query->whereIn('enquiries.source', $sources);
         }
 
         // Date Filters (Optimized for indexes)

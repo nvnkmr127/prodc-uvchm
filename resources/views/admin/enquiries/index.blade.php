@@ -320,7 +320,31 @@
             overflow-x: auto;
             scrollbar-width: thin;
         }
+
+        /* Select2 Custom Styling to match theme */
+        .select2-container--default .select2-selection--multiple {
+            background-color: #f8f9fc !important;
+            border: none !important;
+            border-radius: 0.35rem !important;
+            min-height: 38px;
+        }
+        .select2-container--default .select2-selection--multiple .select2-selection__choice {
+            background-color: #4e73df !important;
+            border: none !important;
+            color: white !important;
+            border-radius: 4px !important;
+            padding: 2px 8px !important;
+            margin-top: 6px !important;
+        }
+        .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+            color: white !important;
+            margin-right: 5px !important;
+        }
+        .select2-container {
+            width: 100% !important;
+        }
     </style>
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 
 @endpush
 
@@ -385,6 +409,11 @@
                     <div class="stat-value" id="count-Not-Interested">{{ $counts['Not Interested'] ?? 0 }}</div>
                 </a>
             </div>
+            <div class="stat-card-mini border-left-primary">
+                <div class="stat-label text-primary">Total Enquiries</div>
+                <div class="stat-value" id="count-Total">{{ $counts['Total'] ?? 0 }}</div>
+            </div>
+        </div>
         </div>
 
 
@@ -394,15 +423,17 @@
                 <form id="filterForm">
                     <input type="hidden" name="sort" id="sortField" value="{{ request('sort', 'next_follow_up_date') }}">
                     <input type="hidden" name="direction" id="sortDirection" value="{{ request('direction', 'asc') }}">
-                    <div class="row align-items-center">
-
-                        <!-- SEARCH -->
-                        <div class="col-lg-3 col-md-6 mb-2 mb-lg-0">
-                            <div class="search-box-container">
+                    <div class="row">
+                        <!-- Column 1: Discovery -->
+                        <div class="col-lg-4 col-md-12 border-right">
+                            <h6 class="font-weight-bold text-primary mb-3 small text-uppercase">
+                                <i class="fas fa-search mr-2"></i> Discovery
+                            </h6>
+                            <div class="search-box-container mb-3">
+                                <label class="small text-muted font-weight-bold">Search Students</label>
                                 <div class="input-group">
                                     <div class="input-group-prepend">
-                                        <span class="input-group-text bg-light border-0 pl-3"><i
-                                                class="fas fa-search text-gray-400"></i></span>
+                                        <span class="input-group-text bg-light border-0"><i class="fas fa-search text-gray-400"></i></span>
                                     </div>
                                     <input type="text" class="form-control bg-light border-0 small filter-input"
                                         name="search" id="liveSearchInput" value="{{ request('search') }}"
@@ -410,52 +441,97 @@
                                 </div>
                                 <div id="liveSearchResults"></div>
                             </div>
+                            <div>
+                                <label class="small text-muted font-weight-bold">Counselor Assignment</label>
+                                <select class="form-control select2-multiple filter-input"
+                                    name="assigned_to_user_id[]" multiple data-placeholder="All Counselors">
+                                    @foreach($counselors as $counselor)
+                                        <option value="{{ $counselor->id }}" {{ in_array($counselor->id, (array)request('assigned_to_user_id')) ? 'selected' : '' }}>
+                                            {{ $counselor->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
                         </div>
 
-                        <!-- DATE FILTERS -->
-                        <div class="col-lg-3 col-md-6 mb-2 mb-lg-0 d-flex">
-                            <input type="date"
-                                class="form-control border-0 bg-light small font-weight-bold mr-1 filter-input"
-                                name="start_date" placeholder="Start Date" title="Start Date"
-                                value="{{ request('start_date') }}">
-                            <input type="date"
-                                class="form-control border-0 bg-light small font-weight-bold ml-1 filter-input"
-                                name="end_date" placeholder="End Date" title="End Date"
-                                value="{{ request('end_date') }}">
+                        <!-- Column 2: Qualification -->
+                        <div class="col-lg-4 col-md-12 border-right">
+                            <h6 class="font-weight-bold text-info mb-3 small text-uppercase">
+                                <i class="fas fa-filter mr-2"></i> Qualification
+                            </h6>
+                            <div class="row">
+                                <div class="col-6 mb-3">
+                                    <label class="small text-muted font-weight-bold">Status</label>
+                                    <select class="form-control select2-multiple filter-input"
+                                        name="status[]" multiple data-placeholder="All Statuses">
+                                        @foreach(['New', 'Contacted', 'Interested', 'Follow-up', 'Admitted', 'Interested Next Year', 'Not Interested'] as $s)
+                                            <option value="{{ $s }}" {{ in_array($s, (array)request('status')) ? 'selected' : '' }}>{{ $s }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-6 mb-3">
+                                    <label class="small text-muted font-weight-bold">Source</label>
+                                    <select class="form-control select2-multiple filter-input" name="source[]" multiple data-placeholder="All Sources">
+                                        @foreach($sources as $value => $label)
+                                            <option value="{{ $value }}" {{ in_array($value, (array)request('source')) ? 'selected' : '' }}>{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="small text-muted font-weight-bold">Course Interest</label>
+                                <select class="form-control select2-multiple filter-input" name="course_id[]" multiple data-placeholder="All Courses">
+                                    @foreach($courses as $id => $name)
+                                        <option value="{{ $id }}" {{ in_array($id, (array)request('course_id')) ? 'selected' : '' }}>{{ $name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
                         </div>
 
-                        <!-- FILTERS -->
-                        <div class="col-lg-2 col-md-4 mb-2 mb-lg-0">
-                            <select class="form-control border-0 bg-light small font-weight-bold filter-input"
-                                name="status">
-                                <option value="">All Statuses</option>
-                                @foreach(['New', 'Contacted', 'Interested', 'Follow-up', 'Admitted', 'Interested Next Year', 'Not Interested'] as $s)
-                                    <option value="{{ $s }}" {{ request('status') == $s ? 'selected' : '' }}>{{ $s }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-lg-2 col-md-4 mb-2 mb-lg-0">
-                            <select class="form-control border-0 bg-light small font-weight-bold filter-input"
-                                name="assigned_to_user_id">
-                                <option value="">All Counselors</option>
-                                @foreach($counselors as $counselor)
-                                    <option value="{{ $counselor->id }}" {{ request('assigned_to_user_id') == $counselor->id ? 'selected' : '' }}>
-                                        {{ $counselor->name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
+                        <!-- Column 3: Timeline & Tools -->
+                        <div class="col-lg-4 col-md-12">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="font-weight-bold text-success mb-0 small text-uppercase">
+                                    <i class="fas fa-calendar-alt mr-2"></i> Timeline
+                                </h6>
+                                <div class="btn-group">
+                                    @hasanyrole('super-admin|Super-Admin')
+                                    <button type="button" class="btn btn-sm btn-outline-primary shadow-sm font-weight-bold"
+                                        data-toggle="modal" data-target="#importEnquiryModal" title="Import CSV">
+                                        <i class="fas fa-file-import"></i>
+                                    </button>
+                                    @endhasanyrole
+                                    <button type="button" onclick="resetFilters()"
+                                        class="btn btn-sm btn-outline-secondary shadow-sm font-weight-bold"
+                                        title="Reset Filters">
+                                        <i class="fas fa-sync-alt"></i>
+                                    </button>
+                                </div>
+                            </div>
 
-                        <!-- ACTIONS ROW (Inline) -->
-                        <div class="col-lg-2 text-lg-right d-flex align-items-center justify-content-end">
-                            <!-- Bulk Actions (Hidden by default) -->
-                            <div id="bulkActionBar" style="display:none; align-items:center; gap:8px;">
-                                <span class="small font-weight-bold text-danger mr-1">Bulk:</span>
-                                <button type="button" class="btn btn-outline-danger btn-sm" onclick="bulkDelete()"
-                                    title="Delete Selected">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                                <div class="input-group input-group-sm" style="width: 160px;">
+                            <div class="mb-4">
+                                <label class="small text-muted font-weight-bold d-block">Created Date Range</label>
+                                <div class="d-flex">
+                                    <input type="date"
+                                        class="form-control border-0 bg-light small font-weight-bold mr-1 filter-input"
+                                        name="start_date" placeholder="Start Date" title="Start Date"
+                                        value="{{ request('start_date') }}">
+                                    <input type="date"
+                                        class="form-control border-0 bg-light small font-weight-bold ml-1 filter-input"
+                                        name="end_date" placeholder="End Date" title="End Date"
+                                        value="{{ request('end_date') }}">
+                                </div>
+                            </div>
+
+                            <!-- Bulk Actions Overlay (Specific context) -->
+                            <div id="bulkActionBar" style="display:none; flex-direction: column; gap:10px; padding: 12px; background: #fff5f5; border-radius: 8px; border: 1px dashed #e74a3b;">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="small font-weight-bold text-danger"><i class="fas fa-layer-group mr-1"></i> Bulk Actions</span>
+                                    <button type="button" class="btn btn-danger btn-sm rounded-circle" onclick="bulkDelete()" title="Delete Selected">
+                                        <i class="fas fa-trash fa-xs"></i>
+                                    </button>
+                                </div>
+                                <div class="input-group input-group-sm">
                                     <select class="custom-select" id="bulkAssignUser">
                                         <option value="">Assign To...</option>
                                         @foreach($counselors as $c)
@@ -469,42 +545,6 @@
                                     </div>
                                 </div>
                             </div>
-
-
-                            <!-- Permanent Actions -->
-                            <div class="btn-group">
-                                @hasanyrole('super-admin|Super-Admin')
-                                <button type="button" class="btn btn-sm btn-light text-primary shadow-sm font-weight-bold"
-                                    data-toggle="modal" data-target="#importEnquiryModal" title="Import CSV">
-                                    <i class="fas fa-file-import mr-1"></i> Import
-                                </button>
-                                @endhasanyrole
-                                <button type="button" onclick="resetFilters()"
-                                    class="btn btn-sm btn-light text-secondary shadow-sm font-weight-bold"
-                                    title="Reset Filters">
-                                    <i class="fas fa-sync-alt mr-1"></i> Reset
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    {{-- Row 2: Course + Source filters --}}
-                    <div class="row mt-2">
-                        <div class="col-lg-3 col-md-6 mb-2 mb-lg-0">
-                            <select class="form-control border-0 bg-light small font-weight-bold filter-input" name="course_id">
-                                <option value="">All Courses</option>
-                                @foreach($courses as $id => $name)
-                                    <option value="{{ $id }}" {{ request('course_id') == $id ? 'selected' : '' }}>{{ $name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div class="col-lg-3 col-md-6 mb-2 mb-lg-0">
-                            <select class="form-control border-0 bg-light small font-weight-bold filter-input" name="source">
-                                <option value="">All Sources</option>
-                                @foreach($sources as $value => $label)
-                                    <option value="{{ $value }}" {{ request('source') == $value ? 'selected' : '' }}>{{ $label }}</option>
-                                @endforeach
-                            </select>
                         </div>
                     </div>
                     <input type="hidden" name="per_page" id="perPageField" value="{{ $enquiries->perPage() }}">
@@ -732,8 +772,16 @@
 @endsection
 
 @push('scripts')
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script>
         $(document).ready(function () {
+            // Initialize Select2
+            $('.select2-multiple').select2({
+                theme: 'default',
+                allowClear: true,
+                closeOnSelect: false
+            });
+
             // --- Filter Logic (Main AJAX) ---
             let debounceTimer;
             $('.filter-input').on('change keyup', function (e) {
@@ -798,8 +846,9 @@
         function resetFilters() {
             // Reset all form fields
             $('#filterForm')[0].reset();
-            // Manually reset values in state
-            $('#filterForm input, #filterForm select').val('');
+            
+            // Explicitly clear select2 and trigger change
+            $('.select2-multiple').val(null).trigger('change');
             
             // Reset Sort to default
             $('#sortField').val('next_follow_up_date');
@@ -814,12 +863,10 @@
         // --- Main AJAX Fetch ---
         function fetchEnquiries(page = 1) {
             // Collect all filters
-            let data = $('#filterForm').serializeArray().reduce(function (obj, item) {
-                obj[item.name] = item.value;
-                return obj;
-            }, {});
+            let data = $('#filterForm').serialize();
 
-            data.page = page;
+            // Append page manually as serialize() doesn't include it unless it's in a hidden field
+            data += '&page=' + page;
 
             // Show Loading Indicator (Optional: Add a spinner or opacity)
             $('#dataTable').css('opacity', '0.5');
@@ -837,8 +884,7 @@
                     $('#dataTable').css('opacity', '1');
 
                     // Update URL (Push State)
-                    const params = new URLSearchParams(data);
-                    window.history.replaceState(null, null, "?" + params.toString());
+                    window.history.replaceState(null, null, "?" + data);
                 },
                 error: function () {
                     alert("Failed to load data");
@@ -868,8 +914,11 @@
             const ids = $('.enquiry-checkbox:checked').map((_, el) => $(el).val()).get();
             if (ids.length === 0 || !confirm(`Delete ${ids.length} items?`)) return;
 
+            const filters = $('#filterForm').serialize();
+            const payload = filters + '&_token={{ csrf_token() }}&' + $.param({ids: ids});
+
             $.post('{{ route("admin.enquiries.bulk-delete") }}',
-                { _token: '{{ csrf_token() }}', ids: ids },
+                payload,
                 () => fetchEnquiries() // Refresh AJAX
             );
         }
@@ -878,21 +927,12 @@
             const ids = $('.enquiry-checkbox:checked').map((_, el) => $(el).val()).get();
             const user = $('#bulkAssignUser').val();
             // Get current filter to ensure consistent stats return
-            const filters = $('#filterForm').serializeArray().reduce(function (obj, item) {
-                obj[item.name] = item.value;
-                return obj;
-            }, {});
+            const filters = $('#filterForm').serialize();
 
             if (ids.length === 0 || !user) return alert('Select items and user');
 
-            // Merge filters into payload
-            const payload = {
-                _token: '{{ csrf_token() }}',
-                ids: ids,
-                ...filters, // Spread filters first so they don't overwrite specific keys
-                assigned_to_user_id: user, // The target for assignment
-                filter_assigned_to: filters.assigned_to_user_id // Pass the filter state for stats calculation
-            };
+            // Construct payload: Merge filters + IDs + assignment
+            const payload = filters + '&_token={{ csrf_token() }}&assigned_to_user_id=' + user + '&' + $.param({ids: ids});
 
             $.post('{{ route("admin.enquiries.bulk-assign") }}',
                 payload,
@@ -918,20 +958,13 @@
             document.body.style.cursor = 'wait';
 
             // Get all current filters
-            const filters = $('#filterForm').serializeArray().reduce(function (obj, item) {
-                obj[item.name] = item.value;
-                return obj;
-            }, {});
+            let filters = $('#filterForm').serialize();
 
             $.ajax({
                 url: "{{ url('admin/enquiries') }}/" + id + "/quick-update",
                 type: 'POST',
                 headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
-                data: {
-                    field: field,
-                    value: value,
-                    ...filters // Send all active filters so stats come back correct
-                },
+                data: filters + '&field=' + field + '&value=' + value,
                 success: function (res) {
                     document.body.style.cursor = 'default';
                     if (res.stats) updateStats(res.stats);
@@ -958,7 +991,8 @@
                 'Follow-up': 'count-Follow-up',
                 'Interested': 'count-Interested',
                 'Admitted': 'count-Admitted',
-                'Not Interested': 'count-Not-Interested'
+                'Not Interested': 'count-Not-Interested',
+                'Total': 'count-Total'
             };
 
             for (const [key, id] of Object.entries(map)) {
