@@ -37,57 +37,87 @@
     </div>
 
     <div class="row">
+        <!-- Filters Dashboard -->
+        <div class="col-12 mb-4">
+            <div class="card shadow-sm border-0" style="border-radius: 1rem;">
+                <div class="card-body p-3">
+                    <form action="{{ route('admin.staff-activity.show', $user->id) }}" method="GET" class="row align-items-end g-3">
+                        <div class="col-md-3">
+                            <label class="small font-weight-bold text-muted mb-1">Date</label>
+                            <input type="date" name="date" class="form-control form-control-sm border-light rounded-pill px-3" value="{{ $date }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="small font-weight-bold text-muted mb-1">Action Type</label>
+                            <select name="event" class="form-control form-control-sm border-light rounded-pill px-3">
+                                <option value="">All Actions</option>
+                                @foreach($availableEvents as $e)
+                                    <option value="{{ $e }}" {{ request('event') == $e ? 'selected' : '' }}>{{ ucfirst($e) }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="small font-weight-bold text-muted mb-1">Module</label>
+                            <select name="subject_type" class="form-control form-control-sm border-light rounded-pill px-3">
+                                <option value="">All Modules</option>
+                                @foreach($availableModules as $m)
+                                    <option value="{{ $m }}" {{ request('subject_type') == $m ? 'selected' : '' }}>{{ $m }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <button type="submit" class="btn btn-primary btn-sm rounded-pill btn-block shadow-sm">
+                                <i class="fas fa-filter mr-1"></i> Apply Filters
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
         <div class="col-lg-8">
             <div class="card shadow-sm border-0 mb-4" style="border-radius: 1rem;">
-                <div class="card-header bg-white border-0 pt-4 px-4 pb-0">
-                    <h5 class="font-weight-bold text-gray-800">Detailed Action Log</h5>
+                <div class="card-header bg-white border-0 pt-4 px-4 pb-0 d-flex justify-content-between align-items-center">
+                    <h5 class="font-weight-bold text-gray-800">Action History</h5>
+                    <div class="small text-muted">Showing {{ $activities->firstItem() ?? 0 }}-{{ $activities->lastItem() ?? 0 }} of {{ $activities->total() }} events</div>
                 </div>
                 <div class="card-body p-4">
-                    @forelse($activities as $activity)
-                        <div class="timeline-item">
-                            <div class="timeline-marker"></div>
-                            <div class="d-flex align-items-center mb-1">
-                                <span class="badge badge-primary mr-2">{{ $activity->created_at->format('h:i:s A') }}</span>
-                                <span class="font-weight-bold text-gray-800">{{ $activity->description }}</span>
+                    <div class="timeline-scroll-container" style="max-height: 70vh; overflow-y: auto; scrollbar-width: thin; padding-right: 1rem;">
+                        @forelse($activities as $activity)
+                            <div class="timeline-item">
+                                <div class="timeline-marker"></div>
+                                <div class="d-flex align-items-center mb-1">
+                                    <span class="badge badge-primary mr-2">{{ $activity->created_at->format('M d, h:i A') }}</span>
+                                    <span class="font-weight-bold text-gray-800">{{ $activity->description }}</span>
+                                </div>
+                                <div class="bg-light p-3 rounded-lg border-0 small mt-2">
+                                    <div class="mb-1"><strong>Action:</strong> {{ ucfirst($activity->event) }}</div>
+                                    <div class="mb-1"><strong>Module:</strong> {{ class_basename($activity->subject_type) }} #{{ $activity->subject_id }}</div>
+                                    
+                                    @if(isset($activity->properties['attributes']))
+                                        <div class="mt-2 border-top pt-2">
+                                            <div class="small text-muted mb-1 font-weight-bold">Status:</div>
+                                            @foreach($activity->properties['attributes'] as $key => $value)
+                                                @if(!is_array($value))
+                                                    <div class="d-flex justify-content-between mb-1">
+                                                        <span class="text-muted">{{ ucfirst(str_replace('_', ' ', $key)) }}:</span>
+                                                        <span class="font-weight-bold text-gray-700">{{ $value ?: 'N/A' }}</span>
+                                                    </div>
+                                                @endif
+                                            @endforeach
+                                        </div>
+                                    @endif
+                                </div>
                             </div>
-                            <div class="bg-light p-3 rounded-lg border-0 small mt-2">
-                                <div class="mb-1"><strong>Action:</strong> {{ ucfirst($activity->event) }}</div>
-                                <div class="mb-1"><strong>Module:</strong> {{ class_basename($activity->subject_type) }} #{{ $activity->subject_id }}</div>
-                                @if(isset($activity->properties['attributes']))
-                                    <div class="mt-2 border-top pt-2">
-                                        <div class="small text-muted mb-1 font-weight-bold">Changes:</div>
-                                        @foreach($activity->properties['attributes'] as $key => $value)
-                                            @if(!is_array($value))
-                                                <div class="d-flex justify-content-between mb-1">
-                                                    <span class="text-muted">{{ ucfirst(str_replace('_', ' ', $key)) }}:</span>
-                                                    <span class="font-weight-bold text-gray-700">{{ $value ?: 'N/A' }}</span>
-                                                </div>
-                                            @endif
-                                        @endforeach
-                                    </div>
-                                @endif
-                                
-                                @if(isset($activity->properties['old']))
-                                    <div class="mt-2 border-top pt-2">
-                                        <div class="small text-danger mb-1 font-weight-bold">Previous Values:</div>
-                                        @foreach($activity->properties['old'] as $key => $value)
-                                            @if(!is_array($value))
-                                                <div class="d-flex justify-content-between mb-1">
-                                                    <span class="text-muted small">{{ ucfirst(str_replace('_', ' ', $key)) }}:</span>
-                                                    <span class="text-gray-600 small">{{ $value ?: 'N/A' }}</span>
-                                                </div>
-                                            @endif
-                                        @endforeach
-                                    </div>
-                                @endif
+                        @empty
+                            <div class="text-center py-5">
+                                <i class="fas fa-clipboard-list fa-3x text-gray-200 mb-3"></i>
+                                <p class="text-muted">No specific activities logged for this day or with these filters.</p>
                             </div>
-                        </div>
-                    @empty
-                        <div class="text-center py-5">
-                            <i class="fas fa-clipboard-list fa-3x text-gray-200 mb-3"></i>
-                            <p class="text-muted">No specific activities logged for this day.</p>
-                        </div>
-                    @endforelse
+                        @endforelse
+                    </div>
+                </div>
+                <div class="card-footer bg-white border-0 pb-4 px-4 overflow-auto">
+                    {{ $activities->links() }}
                 </div>
             </div>
         </div>

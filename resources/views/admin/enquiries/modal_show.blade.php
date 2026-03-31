@@ -221,15 +221,30 @@
                     @csrf
                     <textarea name="notes" id="followUpNotes" class="form-control form-control-sm mb-2" rows="2" placeholder="Enter call notes, discussion points..." required></textarea>
                     
-                    <div class="d-flex align-items-center justify-content-between">
-                        <div class="d-flex align-items-center">
-                            <i class="fas fa-calendar-alt text-gray-500 mr-2"></i>
+                    <div class="d-flex align-items-center mb-2" style="gap: 10px;">
+                        <div class="flex-grow-1">
+                            <label class="form-label-small">Call Outcome / Tag</label>
+                            <select name="outcome" class="form-control form-control-sm border-primary">
+                                <option value="">Select Outcome...</option>
+                                <option value="Positive">Positive / Interested</option>
+                                <option value="Call Back">Wants Call Back</option>
+                                <option value="Not Picked">Not Picked / Switch Off</option>
+                                <option value="Wrong Number">Wrong / Invalid Number</option>
+                                <option value="Not Interested">Not Interested / Drop</option>
+                                <option value="Admitted">Ready for Admission</option>
+                            </select>
+                        </div>
+                        <div style="width: 150px;">
+                            <label class="form-label-small">Next Follow-up</label>
                             <input type="date" name="next_follow_up_date" id="modalNextDate" 
-                                   class="form-control form-control-sm mr-2" 
-                                   style="width: 130px;" 
+                                   class="form-control form-control-sm" 
                                    min="{{ date('Y-m-d') }}"
                                    value="{{ $enquiry->next_follow_up_date ? \Carbon\Carbon::parse($enquiry->next_follow_up_date)->format('Y-m-d') : '' }}">
-                            
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center">
                             <div class="btn-group">
                                 <button type="button" class="quick-sched-btn" onclick="modalSetDays(1)">+1</button>
                                 <button type="button" class="quick-sched-btn" onclick="modalSetDays(3)">+3</button>
@@ -262,6 +277,11 @@
                                         </span>
                                         @if($isNote)
                                             <span class="badge badge-primary" style="font-size: 0.6rem;">Note</span>
+                                            @if(!empty($item->outcome))
+                                                <span class="badge badge-outline-primary ml-1" style="font-size: 0.6rem; border: 1px solid #4e73df; color: #4e73df;">
+                                                    <i class="fas fa-tag mr-1"></i> {{ $item->outcome }}
+                                                </span>
+                                            @endif
                                         @else
                                             <span class="badge badge-secondary" style="font-size: 0.6rem;">Log</span>
                                         @endif
@@ -361,6 +381,10 @@
                                 <div class="d-flex align-items-center">
                                     <span class="font-weight-bold text-dark small mr-2">${response.data.user_name}</span>
                                     <span class="badge badge-primary" style="font-size: 0.6rem;">Note</span>
+                                    ${response.data.outcome ? `
+                                        <span class="badge badge-outline-primary ml-1" style="font-size: 0.6rem; border: 1px solid #4e73df; color: #4e73df;">
+                                            <i class="fas fa-tag mr-1"></i> ${response.data.outcome}
+                                        </span>` : ''}
                                 </div>
                                 <small class="text-muted" style="font-size: 0.7rem;">${response.data.created_at}</small>
                             </div>

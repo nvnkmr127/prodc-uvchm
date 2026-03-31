@@ -183,6 +183,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
 
     // --- Staff Activity Tracking ---
     Route::get('/staff-activity', [StaffActivityController::class, 'index'])->name('staff-activity.index');
+    Route::get('/staff-activity/export', [StaffActivityController::class, 'export'])->name('staff-activity.export');
     Route::get('/staff-activity/{user}', [StaffActivityController::class, 'show'])->name('staff-activity.show');
     // --- Admissions & Enquiries ---
     Route::middleware(['permission:manage admissions'])->group(function () {

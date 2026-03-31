@@ -434,12 +434,14 @@ class EnquiryController extends Controller
     {
         $request->validate([
             'notes' => 'required|string',
+            'outcome' => 'nullable|string|max:255',
             'next_follow_up_date' => 'nullable|date|after_or_equal:today',
         ]);
 
         // Create the note
         $followUp = $enquiry->followUps()->create([
             'notes' => $request->notes,
+            'outcome' => $request->outcome,
             'user_id' => Auth::id(),
         ]);
 
@@ -463,6 +465,7 @@ class EnquiryController extends Controller
                     'user_name' => Auth::user()->name,
                     'created_at' => $followUp->created_at->format('d M, h:i A'),
                     'notes' => nl2br(e($followUp->notes)),
+                    'outcome' => $followUp->outcome,
                     'date_formatted' => $request->filled('next_follow_up_date') ? Carbon::parse($request->next_follow_up_date)->format('d M Y') : null
                 ]
             ]);
