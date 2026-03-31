@@ -45,10 +45,10 @@ class CollegeAdminDashboardController extends Controller
             'attendance_stats' => $this->getAttendanceStats(),
             'payment_trends' => $this->getPaymentTrends(),
             'attendance_chart' => $this->getAttendanceChart(),
-           'payment_modes' => $this->getPaymentModesData(),
-            'pending_collections' => $this->getPendingCollections()
+            'payment_modes' => $this->getPaymentModesData(),
+            'pending_collections' => $this->getPendingCollections(),
+            'birthdays' => $this->getBirthdayData()
         ];
-         return view('dashboard.academic', compact('dashboard_data'));
     }
 
     /**
@@ -450,6 +450,55 @@ private function getPaymentModesData()
                     'due_date' => $unpaidFees->min('due_date') ? Carbon::parse($unpaidFees->min('due_date'))->format('M d') : 'N/A'
                 ];
             })->toArray();
+    }
+
+    private function getBirthdayData()
+    {
+        $today = now();
+
+        return [
+            'today' => $this->getStudentsWithBirthdayOn($today),
+            'tomorrow' => $this->getStudentsWithBirthdayOn(now()->addDay()),
+            'upcoming_3_days' => $this->getStudentsWithBirthdayInRange(now()->addDays(2), now()->addDays(4)),
+            'last_3_days' => $this->getStudentsWithBirthdayInRange(now()->subDays(3), now()->subDay()),
+        ];
+    }
+
+    private function getStudentsWithBirthdayOn($date)
+    {
+        return Student::where('status', 'active')
+            ->whereMonth('dob', $date->month)
+            ->whereDay('dob', $date->day)
+            ->with(['batch.course'])
+            ->get();
+    }
+
+    private function getStudentsWithBirthdayInRange($start, $end)
+    {
+        $query = Student::where('status', 'active')
+            ->with(['batch.course']);
+
+        $startMonth = $start->month;
+        $startDay = $start->day;
+        $endMonth = $end->month;
+        $endDay = $end->day;
+
+        if ($startMonth == $endMonth) {
+            $query->whereMonth('dob', $startMonth)
+                ->whereBetween(DB::raw('DAY(dob)'), [$startDay, $endDay]);
+        } else {
+            $query->where(function ($q) use ($startMonth, $startDay, $endMonth, $endDay) {
+                $q->where(function ($sub) use ($startMonth, $startDay) {
+                    $sub->whereMonth('dob', $startMonth)
+                        ->where(DB::raw('DAY(dob)'), '>=', $startDay);
+                })->orWhere(function ($sub) use ($endMonth, $endDay) {
+                    $sub->whereMonth('dob', $endMonth)
+                        ->where(DB::raw('DAY(dob)'), '<=', $endDay);
+                });
+            });
+        }
+
+        return $query->get();
     }
 
     // ==============================================
