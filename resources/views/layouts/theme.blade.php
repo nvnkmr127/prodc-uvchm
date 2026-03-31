@@ -724,6 +724,9 @@
                                 <a class="collapse-item" href="{{ route('admin.reports.assets.index') }}">Asset Reports</a>
                                 <a class="collapse-item" href="{{ route('admin.reports.admissions.index') }}">Admissions
                                     Funnel</a>
+                                <a class="collapse-item" href="{{ route('admin.staff-activity.index') }}">
+                                    <i class="fas fa-user-clock text-primary"></i> Staff Activity
+                                </a>
                                 <a class="collapse-item" href="{{ route('admin.reports.referrals.index') }}">Referral
                                     Tracking</a>
                                 <a class="collapse-item" href="{{ route('admin.reports.referrals.index') }}">Referral
@@ -740,6 +743,9 @@
                                     <a class="collapse-item" href="{{ route('admin.reports.assets.index') }}">Asset Reports</a>
                                     <a class="collapse-item" href="{{ route('admin.reports.admissions.index') }}">Admissions
                                         Funnel</a>
+                                    <a class="collapse-item" href="{{ route('admin.staff-activity.index') }}">
+                                        <i class="fas fa-user-clock text-primary"></i> Staff Activity
+                                    </a>
                                     <a class="collapse-item" href="{{ route('admin.reports.referrals.index') }}">Referral
                                         Tracking</a>
                                     <a class="collapse-item" href="{{ route('admin.reports.referrals.index') }}">Referral

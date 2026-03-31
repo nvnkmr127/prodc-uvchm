@@ -95,6 +95,7 @@ use App\Http\Controllers\Admin\DropoutController;
 use App\Http\Controllers\Admin\GlobalSearchController;
 use App\Http\Controllers\Admin\ReferralReportController;
 use App\Http\Controllers\Admin\AgeReportController;
+use App\Http\Controllers\Admin\StaffActivityController;
 
 // Faculty & Student Controllers
 use App\Http\Controllers\Faculty\AttendanceController as FacultyAttendanceController;
@@ -179,6 +180,10 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
         Route::get('/dashboard', [App\Http\Controllers\Admin\NotificationController::class, 'dashboard'])->name('user-dashboard');
         Route::get('/settings', [App\Http\Controllers\Admin\NotificationController::class, 'settings'])->name('settings');
     });
+
+    // --- Staff Activity Tracking ---
+    Route::get('/staff-activity', [StaffActivityController::class, 'index'])->name('staff-activity.index');
+    Route::get('/staff-activity/{user}', [StaffActivityController::class, 'show'])->name('staff-activity.show');
     // --- Admissions & Enquiries ---
     Route::middleware(['permission:manage admissions'])->group(function () {
         Route::get('enquiries/check-mobile', [EnquiryController::class, 'checkMobile'])

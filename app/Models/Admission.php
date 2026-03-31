@@ -9,12 +9,22 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use App\Traits\WebhookEnabled;
 use App\Traits\HasAcademicYear;
+use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Activitylog\LogOptions;
 
 class Admission extends Model
 {
     use WebhookEnabled;
-    use HasFactory;
+    use HasFactory, LogsActivity;
     use HasAcademicYear;
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['status', 'course_id', 'full_name'])
+            ->logOnlyDirty()
+            ->setDescriptionForEvent(fn(string $eventName) => "Admission for '{$this->full_name}' was {$eventName}");
+    }
 
     protected $fillable = [
         'course_id',
