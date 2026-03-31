@@ -441,7 +441,7 @@
                                 <select class="form-control select2-multiple filter-input"
                                     name="assigned_to_user_id[]" multiple data-placeholder="All Counselors">
                                     @foreach($counselors as $counselor)
-                                        <option value="{{ $counselor->id }}" {{ in_array($counselor->id, (array)request('assigned_to_user_id')) ? 'selected' : '' }}>
+                                        <option value="{{ $counselor->id }}" {{ in_array($counselor->id, (array) request('assigned_to_user_id')) ? 'selected' : '' }}>
                                             {{ $counselor->name }}
                                         </option>
                                     @endforeach
@@ -460,7 +460,7 @@
                                     <select class="form-control select2-multiple filter-input"
                                         name="status[]" multiple data-placeholder="All Statuses">
                                         @foreach(['New', 'Contacted', 'Interested', 'Follow-up', 'Admitted', 'Interested Next Year', 'Not Interested'] as $s)
-                                            <option value="{{ $s }}" {{ in_array($s, (array)request('status')) ? 'selected' : '' }}>{{ $s }}</option>
+                                            <option value="{{ $s }}" {{ in_array($s, (array) request('status')) ? 'selected' : '' }}>{{ $s }}</option>
                                         @endforeach
                                     </select>
                                 </div>
@@ -468,7 +468,7 @@
                                     <label class="small text-muted font-weight-bold">Source</label>
                                     <select class="form-control select2-multiple filter-input" name="source[]" multiple data-placeholder="All Sources">
                                         @foreach($sources as $value => $label)
-                                            <option value="{{ $value }}" {{ in_array($value, (array)request('source')) ? 'selected' : '' }}>{{ $label }}</option>
+                                            <option value="{{ $value }}" {{ in_array($value, (array) request('source')) ? 'selected' : '' }}>{{ $label }}</option>
                                         @endforeach
                                     </select>
                                 </div>
@@ -477,7 +477,7 @@
                                 <label class="small text-muted font-weight-bold">Course Interest</label>
                                 <select class="form-control select2-multiple filter-input" name="course_id[]" multiple data-placeholder="All Courses">
                                     @foreach($courses as $id => $name)
-                                        <option value="{{ $id }}" {{ in_array($id, (array)request('course_id')) ? 'selected' : '' }}>{{ $name }}</option>
+                                        <option value="{{ $id }}" {{ in_array($id, (array) request('course_id')) ? 'selected' : '' }}>{{ $name }}</option>
                                     @endforeach
                                 </select>
                             </div>
@@ -776,7 +776,6 @@
         </div>
     </div>
 
-    </div> <!-- container-fluid end -->
 @endsection
 
 @push('scripts')
