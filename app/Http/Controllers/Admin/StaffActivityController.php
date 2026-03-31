@@ -13,24 +13,25 @@ use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Spatie\Activitylog\Models\Activity;
+use App\Models\Setting;
 
 class StaffActivityController extends Controller
 {
     public function index(Request $request)
     {
-        $date = $request->input('date', Carbon::today()->toDateString());
+        $startDate = $request->input('start_date', Carbon::today()->toDateString());
+        $endDate = $request->input('end_date', Carbon::today()->toDateString());
         $search = $request->input('search');
         $role = $request->input('role');
-        
-        $dateObj = Carbon::parse($date);
+
+        $start = Carbon::parse($startDate)->startOfDay();
+        $end = Carbon::parse($endDate)->endOfDay();
+        $daysCount = max(1, $start->diffInDays($end) + 1);
         
         $usersQuery = User::where('status', 'active');
         
-        if ($role) {
-            $usersQuery->role($role);
-        } else {
-            $usersQuery->role(['admin', 'college-admin', 'counselor', 'staff']);
-        }
+        // Exclusively filter for college-admin role
+        $usersQuery->role('college-admin');
             
         if ($search) {
             $usersQuery->where('name', 'like', "%{$search}%");
@@ -39,46 +40,63 @@ class StaffActivityController extends Controller
         $users = $usersQuery->get();
         
         $activitiesByStaff = [];
-        // Hardcoded Targets for illustration (in real app, move to settings/model)
+        // Dynamic Targets from Settings (with fallbacks)
+        $baseTargets = [
+            'calls' => Setting::get('staff_target_calls', 50),
+            'fee' => Setting::get('staff_target_fee', 20000),
+            'admissions' => Setting::get('staff_target_admissions', 1)
+        ];
+
+        // Scale targets based on date range
         $targets = [
-            'calls' => 50,
-            'fee' => 20000,
-            'admissions' => 1
+            'calls' => $baseTargets['calls'] * $daysCount,
+            'fee' => $baseTargets['fee'] * $daysCount,
+            'admissions' => $baseTargets['admissions'] * $daysCount
         ];
 
         foreach ($users as $user) {
-            $callsCount = FollowUp::where('user_id', $user->id)->whereDate('created_at', $date)->count();
-            $feeCollected = Payment::where('created_by', $user->id)->whereDate('payment_date', $date)->sum('amount');
-            $paymentsCount = Payment::where('created_by', $user->id)->whereDate('payment_date', $date)->count();
+            $callsCount = FollowUp::where('user_id', $user->id)
+                ->whereBetween('created_at', [$start, $end])->count();
+
+            $feeCollected = Payment::where('created_by', $user->id)
+                ->whereBetween('payment_date', [$startDate, $endDate])->sum('amount');
+
+            $paymentsCount = Payment::where('created_by', $user->id)
+                ->whereBetween('payment_date', [$startDate, $endDate])->count();
             
             $admissionsCount = Activity::where('causer_id', $user->id)
                 ->where('subject_type', Admission::class)
                 ->where('description', 'like', '%created%')
-                ->whereDate('created_at', $date)
+                ->whereBetween('created_at', [$start, $end])
                 ->count();
                 
             $enquiriesCount = Activity::where('causer_id', $user->id)
                 ->where('subject_type', Enquiry::class)
                 ->where('description', 'like', '%created%')
-                ->whereDate('created_at', $date)
+                ->whereBetween('created_at', [$start, $end])
                 ->count();
                 
             $pendingFollowUps = Enquiry::where('assigned_to_user_id', $user->id)
                 ->where('status', '!=', 'converted')
-                ->whereDate('next_follow_up_date', '<=', $date)
+                ->whereDate('next_follow_up_date', '<=', $endDate)
                 ->count();
 
             // Attendance Proxy & Productivity Score
-            $firstAction = Activity::where('causer_id', $user->id)->whereDate('created_at', $date)->oldest()->first();
-            $lastAction = Activity::where('causer_id', $user->id)->whereDate('created_at', $date)->latest()->first();
-            
-            // Current Status
-            $isOnline = $lastAction && $lastAction->created_at->diffInMinutes(now()) < 10;
+            $firstAction = Activity::where('causer_id', $user->id)->whereBetween('created_at', [$start, $end])->oldest()->first();
+            $lastAction = Activity::where('causer_id', $user->id)->whereBetween('created_at', [$start, $end])->latest()->first();
+
+            // Current Status (Always based on NOW)
+            $lastEverAction = Activity::where('causer_id', $user->id)->latest()->first();
+            $isOnline = $lastEverAction && $lastEverAction->created_at->diffInMinutes(now()) < 15;
+            $lastSeen = $lastEverAction ? $lastEverAction->created_at->diffForHumans() : 'Never';
+
+            // Conversion Rate
+            $convRate = $enquiriesCount > 0 ? ($admissionsCount / $enquiriesCount) * 100 : 0;
             
             // Score Calculation (Weighted)
-            $callProgress = ($callsCount / $targets['calls']) * 30;
-            $feeProgress = ($feeCollected / $targets['fee']) * 40;
-            $admProgress = ($admissionsCount / $targets['admissions']) * 30;
+            $callProgress = ($callsCount / max(1, $targets['calls'])) * 30;
+            $feeProgress = ($feeCollected / max(1, $targets['fee'])) * 40;
+            $admProgress = ($admissionsCount / max(1, $targets['admissions'])) * 30;
             $productivityScore = min(100, $callProgress + $feeProgress + $admProgress);
 
             $activitiesByStaff[$user->id] = [
@@ -92,11 +110,13 @@ class StaffActivityController extends Controller
                 'first_action' => $firstAction ? $firstAction->created_at : null,
                 'last_action' => $lastAction ? $lastAction->created_at : null,
                 'is_online' => $isOnline,
+                'last_seen' => $lastSeen,
+                'conversion_rate' => round($convRate, 1),
                 'score' => round($productivityScore),
                 'progress' => [
-                    'calls' => min(100, ($callsCount / $targets['calls']) * 100),
-                    'fee' => min(100, ($feeCollected / $targets['fee']) * 100),
-                    'admissions' => min(100, ($admissionsCount / $targets['admissions']) * 100),
+                    'calls' => min(100, ($callsCount / max(1, $targets['calls'])) * 100),
+                    'fee' => min(100, ($feeCollected / max(1, $targets['fee'])) * 100),
+                    'admissions' => min(100, ($admissionsCount / max(1, $targets['admissions'])) * 100),
                 ]
             ];
         }
@@ -121,44 +141,67 @@ class StaffActivityController extends Controller
         ];
         
         $summary = [
-            'total_calls' => FollowUp::whereDate('created_at', $date)->count(),
+            'total_calls' => FollowUp::whereBetween('created_at', [$start, $end])->count(),
             'total_admissions' => Activity::where('subject_type', Admission::class)
                 ->where('description', 'like', '%created%')
-                ->whereDate('created_at', $date)
+                ->whereBetween('created_at', [$start, $end])
                 ->count(),
-            'total_fees' => Payment::whereDate('payment_date', $date)->sum('amount'),
+            'total_fees' => Payment::whereBetween('payment_date', [$startDate, $endDate])->sum('amount'),
             'online_staff' => collect($activitiesByStaff)->where('is_online', true)->count(),
             'peak_hour' => 'N/A'
         ];
 
-        // Peak Hour Calculation
-        $peakHourData = Activity::select(DB::raw('HOUR(created_at) as hour'), DB::raw('count(*) as count'))
-            ->whereDate('created_at', $date)
-            ->groupBy('hour')
-            ->orderBy('count', 'desc')
-            ->first();
-            
-        if ($peakHourData) {
-            $hour = $peakHourData->hour;
-            $summary['peak_hour'] = Carbon::createFromTime($hour, 0)->format('h A') . ' - ' . Carbon::createFromTime($hour + 1, 0)->format('h A');
+        // --- NEW: Heuristic AI Insights ---
+        $insights = [];
+        $avgConv = collect($activitiesByStaff)->avg('conversion_rate');
+        $topCaller = collect($activitiesByStaff)->sortByDesc('calls_count')->first();
+        $topCloser = collect($activitiesByStaff)->sortByDesc('admissions_count')->first();
+        
+        if ($topCaller && $topCaller['calls_count'] > 0) {
+            $insights[] = [
+                'type' => 'success', 'icon' => 'fa-phone-alt',
+                'text' => "<strong>{$topCaller['user']->name}</strong> is leading in outreach volume with {$topCaller['calls_count']} calls."
+            ];
+        }
+        
+        if ($topCloser && $topCloser['admissions_count'] > 0) {
+            $insights[] = [
+                'type' => 'warning', 'icon' => 'fa-graduation-cap',
+                'text' => "Peak Performance! <strong>{$topCloser['user']->name}</strong> secured {$topCloser['admissions_count']} admissions in this period."
+            ];
+        }
+
+        $lowConv = collect($activitiesByStaff)->where('conversion_rate', '<', $avgConv * 0.5)->where('calls_count', '>', 10)->first();
+        if ($lowConv) {
+            $insights[] = [
+                'type' => 'danger', 'icon' => 'fa-exclamation-triangle',
+                'text' => "<strong>{$lowConv['user']->name}</strong> has high volume but low conversion. Strategic review suggested."
+            ];
+        }
+        
+        if (count($insights) == 0) {
+            $insights[] = ['type' => 'info', 'icon' => 'fa-info-circle', 'text' => "Staff activity is steady across all metrics. No anomalies detected."];
         }
 
         $timeline = Activity::with('causer')
-            ->whereDate('created_at', $date)
+            ->whereBetween('created_at', [$start, $end])
             ->whereIn('causer_id', $users->pluck('id'))
             ->orderBy('created_at', 'desc')
             ->limit(100)
             ->get();
 
-        return view('admin.staff_activity.index', compact('activitiesByStaff', 'date', 'timeline', 'users', 'trends', 'leaderboard', 'targets', 'summary'));
+        $date = $startDate; // For backward compatibility in some views if any
+        return view('admin.staff_activity.index', compact('activitiesByStaff', 'startDate', 'endDate', 'date', 'timeline', 'users', 'trends', 'leaderboard', 'targets', 'summary', 'daysCount', 'insights'));
     }
+
 
     public function export(Request $request)
     {
         $date = $request->input('date', Carbon::today()->toDateString());
-        $users = User::role(['admin', 'college-admin', 'counselor', 'staff'])->where('status', 'active')->get();
+        // Filter only college-admin
+        $users = User::role('college-admin')->where('status', 'active')->get();
         
-        $filename = "staff_activity_{$date}.csv";
+        $filename = "college_admin_activity_{$date}.csv";
         $headers = [
             "Content-type"        => "text/csv",
             "Content-Disposition" => "attachment; filename=$filename",
@@ -203,15 +246,18 @@ class StaffActivityController extends Controller
     public function show($id, Request $request)
     {
         $user = User::findOrFail($id);
-        
-        $date = $request->input('date');
+
+        $startDate = $request->input('start_date', Carbon::today()->toDateString());
+        $endDate = $request->input('end_date', Carbon::today()->toDateString());
         $event = $request->input('event');
         $subjectType = $request->input('subject_type');
         
         $query = Activity::where('causer_id', $user->id);
-            
-        if ($date) {
-            $query->whereDate('created_at', $date);
+
+        if ($startDate && $endDate) {
+            $query->whereBetween('created_at', [Carbon::parse($startDate)->startOfDay(), Carbon::parse($endDate)->endOfDay()]);
+        } elseif ($startDate) {
+            $query->whereDate('created_at', $startDate);
         }
         
         if ($event) {
@@ -245,7 +291,7 @@ class StaffActivityController extends Controller
             ->pluck('subject_type')
             ->map(fn($type) => class_basename($type))
             ->unique();
-            
-        return view('admin.staff_activity.show', compact('user', 'activities', 'date', 'availableEvents', 'availableModules'));
+
+        return view('admin.staff_activity.show', compact('user', 'activities', 'startDate', 'endDate', 'availableEvents', 'availableModules'));
     }
 }

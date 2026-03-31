@@ -46,7 +46,7 @@
         <div>
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb bg-transparent p-0 mb-1">
-                    <li class="breadcrumb-item"><a href="{{ route('admin.staff-activity.index') }}">Staff Intelligence</a></li>
+                    <li class="breadcrumb-item"><a href="{{ route('admin.staff-activity.index') }}?start_date={{ $startDate }}&end_date={{ $endDate }}">Staff Intelligence</a></li>
                     <li class="breadcrumb-item active" aria-current="page">Staff Performance</li>
                 </ol>
             </nav>
@@ -54,7 +54,12 @@
         </div>
         <div class="text-right">
             <span class="badge badge-light px-3 py-2 text-primary font-weight-bold shadow-sm rounded-pill">
-                <i class="fas fa-calendar-alt mr-1"></i> {{ \Carbon\Carbon::parse($date)->format('D, d M Y') }}
+                <i class="fas fa-calendar-alt mr-1"></i> 
+                @if($startDate == $endDate)
+                    {{ \Carbon\Carbon::parse($startDate)->format('M d, Y') }}
+                @else
+                    {{ \Carbon\Carbon::parse($startDate)->format('M d') }} - {{ \Carbon\Carbon::parse($endDate)->format('M d, Y') }}
+                @endif
             </span>
         </div>
     </div>
@@ -77,17 +82,17 @@
                     <div class="d-flex gap-2 flex-wrap mb-4">
                         <div class="activity-pill">
                             <span class="small opacity-75 d-block">First Action</span>
-                            <span class="font-weight-bold">{{ $activities->last()?->created_at->format('h:i A') ?: '--:--' }}</span>
+                            <span class="font-weight-bold">{{ $activities->last()?->created_at->format('M d, H:i') ?: '--:--' }}</span>
                         </div>
                         <div class="activity-pill">
                             <span class="small opacity-75 d-block">Last Action</span>
-                            <span class="font-weight-bold">{{ $activities->first()?->created_at->format('h:i A') ?: '--:--' }}</span>
+                            <span class="font-weight-bold">{{ $activities->first()?->created_at->format('M d, H:i') ?: '--:--' }}</span>
                         </div>
                     </div>
 
                     <div class="p-3 rounded" style="background: rgba(255,255,255,0.1);">
                         <div class="d-flex justify-content-between mb-2">
-                            <span class="small font-weight-bold">Total Actions Today</span>
+                            <span class="small font-weight-bold">Total Actions in Period</span>
                             <span class="badge badge-pill badge-light text-primary">{{ $activities->total() }}</span>
                         </div>
                     </div>
@@ -99,9 +104,19 @@
                 <div class="card-header bg-white border-0 pt-4 px-4 pb-0"><h6 class="font-weight-bold text-gray-800">Advanced Filter</h6></div>
                 <div class="card-body">
                     <form action="{{ route('admin.staff-activity.show', $user->id) }}" method="GET">
-                        <div class="form-group mb-3">
-                            <label class="small font-weight-bold text-muted">Analysis Date</label>
-                            <input type="date" name="date" class="form-control form-control-sm border-light rounded-pill px-3" value="{{ $date }}">
+                        <div class="row">
+                            <div class="col-6 pr-1">
+                                <div class="form-group mb-3">
+                                    <label class="small font-weight-bold text-muted">From</label>
+                                    <input type="date" name="start_date" class="form-control form-control-sm border-light rounded px-2" value="{{ $startDate }}">
+                                </div>
+                            </div>
+                            <div class="col-6 pl-1">
+                                <div class="form-group mb-3">
+                                    <label class="small font-weight-bold text-muted">To</label>
+                                    <input type="date" name="end_date" class="form-control form-control-sm border-light rounded px-2" value="{{ $endDate }}">
+                                </div>
+                            </div>
                         </div>
                         <div class="form-group mb-3">
                             <label class="small font-weight-bold text-muted">Action Class</label>

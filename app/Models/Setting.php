@@ -662,10 +662,12 @@ class Setting extends Model
             'lockout_duration' => 15, // minutes
 
             // Enrollment Settings
-            'enrollment_prefix' => 'STU',
-            'enrollment_year_format' => 'Y',
-            'enrollment_starting_number' => 1001,
             'enrollment_last_number' => 1000,
+            
+            // Staff Activity Targets
+            'staff_target_calls' => 50,
+            'staff_target_fee' => 20000,
+            'staff_target_admissions' => 1,
         ];
     }
 
