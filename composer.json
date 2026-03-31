@@ -14,7 +14,6 @@
         "laravel/horizon": "^5.45",
         "laravel/pulse": "^1.7",
         "laravel/sanctum": "^4.1",
-        "laravel/telescope": "^5.18",
         "laravel/tinker": "^2.9",
         "maatwebsite/excel": "^3.1",
         "opcodesio/log-viewer": "^3.24",
