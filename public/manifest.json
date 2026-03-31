@@ -1,0 +1,21 @@
+{
+    "name": "UVCHM Management Portal",
+    "short_name": "UVCHM",
+    "description": "Premium College & Enquiry Management System",
+    "start_url": "/admin/dashboard",
+    "display": "standalone",
+    "background_color": "#1e293b",
+    "theme_color": "#4e73df",
+    "icons": [
+        {
+            "src": "/storage/settings/1753508439_UV Foundation (1).png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "/storage/settings/1753508439_UV Foundation (1).png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}

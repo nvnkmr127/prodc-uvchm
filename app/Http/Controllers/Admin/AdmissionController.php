@@ -27,12 +27,28 @@ class AdmissionController extends Controller
 
         $query = Admission::with(['course', 'enquiry']);
 
-        // Filter by academic year
+        // Stats calculation (unfiltered pool for cards, or filtered? Usually unfiltered by status but filtered by course/academic year)
+        $statsQuery = Admission::query();
+        if ($selectedAcademicYearId) {
+            $statsQuery->where('academic_year_id', $selectedAcademicYearId);
+        }
+        if ($request->filled('course_id')) {
+            $statsQuery->where('course_id', $request->course_id);
+        }
+
+        $counts = $statsQuery->selectRaw('status, count(*) as count')->groupBy('status')->pluck('count', 'status')->toArray();
+        $totalCounts = [
+            'pending' => $counts['pending'] ?? 0,
+            'approved' => $counts['approved'] ?? 0,
+            'rejected' => $counts['rejected'] ?? 0,
+            'total' => array_sum($counts)
+        ];
+
+        // Apply filters to list query
         if ($selectedAcademicYearId) {
             $query->where('academic_year_id', $selectedAcademicYearId);
         }
 
-        // Apply filters
         if ($request->filled('course_id')) {
             $query->where('course_id', $request->course_id);
         }
@@ -56,7 +72,7 @@ class AdmissionController extends Controller
         // Get courses for filter dropdown
         $courses = Course::orderBy('name')->get();
 
-        return view('admin.admissions.index', compact('admissions', 'courses'));
+        return view('admin.admissions.index', compact('admissions', 'courses', 'totalCounts'));
     }
 
     /**

@@ -25,6 +25,14 @@
     <link href="{{ asset('css/modern-theme.css') }}?v={{ time() }}" rel="stylesheet">
     <link href="{{ asset('css/mobile-overrides.css') }}?v={{ time() }}" rel="stylesheet">
 
+    <!-- PWA Integration -->
+    <link rel="manifest" href="{{ asset('manifest.json') }}">
+    <meta name="theme-color" content="#4e73df">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="UVCHM Portal">
+    <link rel="apple-touch-icon" href="{{ asset('storage/settings/1753508439_UV Foundation (1).png') }}">
+
     @stack('styles')
 </head>
 
@@ -756,8 +764,11 @@
         <div id="content-wrapper" class="d-flex flex-column">
             <div id="content">
                 <!-- Topbar -->
-                <nav class="navbar navbar-expand navbar-light topbar mb-4 static-top shadow-sm glass-panel mx-3 mt-3 rounded-lg"
-                    style="border-radius: 1.25rem;">
+                <nav class="navbar navbar-expand navbar-light topbar mb-4 static-top shadow-sm glass-panel mx-3 mt-3 rounded-lg" style="border-radius: 1.25rem;">
+                    <!-- Offline Indicator -->
+                    <div id="offlineIndicator" class="badge badge-danger py-2 px-3 ml-3 font-weight-bold shadow-sm" style="display:none; border-radius: 50px; animation: pulse 2s infinite;">
+                        <i class="fas fa-wifi-slash mr-1"></i> Offline Mode
+                    </div>
 
                     <!-- Sidebar Toggle (Topbar) -->
                     <button id="sidebarToggleTop" class="btn btn-link d-md-none rounded-circle mr-3 text-primary">
@@ -1804,7 +1815,35 @@
     </script>
 
     @stack('scripts')
+    <script>
+        if ("serviceWorker" in navigator) {
+            window.addEventListener("load", () => {
+                navigator.serviceWorker.register("/sw.js")
+                    .then(reg => console.log("SW Registered!", reg))
+                    .catch(err => console.log("SW Failed", err));
+            });
+        }
+    </script>
 
+    <script>
+        // Offline/Online Handlers
+        function updateOnlineStatus() {
+            const indicator = document.getElementById('offlineIndicator');
+            if (navigator.onLine) {
+                if(indicator) $(indicator).fadeOut();
+                toastr.success('Connection Restored', 'Back Online');
+            } else {
+                if(indicator) $(indicator).fadeIn();
+                toastr.warning('You are currently offline. Viewing cached data.', 'Offline Mode');
+            }
+        }
+
+        window.addEventListener('online', updateOnlineStatus);
+        window.addEventListener('offline', updateOnlineStatus);
+        
+        // Initial check
+        if (!navigator.onLine) document.getElementById('offlineIndicator').style.display = 'inline-block';
+    </script>
 </body>
 
 </html>
