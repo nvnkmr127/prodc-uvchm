@@ -120,6 +120,29 @@ class StaffActivityController extends Controller
             'admissions' => collect($activitiesByStaff)->sortByDesc('admissions_count')->take(3),
         ];
         
+        $summary = [
+            'total_calls' => FollowUp::whereDate('created_at', $date)->count(),
+            'total_admissions' => Activity::where('subject_type', Admission::class)
+                ->where('description', 'like', '%created%')
+                ->whereDate('created_at', $date)
+                ->count(),
+            'total_fees' => Payment::whereDate('payment_date', $date)->sum('amount'),
+            'online_staff' => collect($activitiesByStaff)->where('is_online', true)->count(),
+            'peak_hour' => 'N/A'
+        ];
+
+        // Peak Hour Calculation
+        $peakHourData = Activity::select(DB::raw('HOUR(created_at) as hour'), DB::raw('count(*) as count'))
+            ->whereDate('created_at', $date)
+            ->groupBy('hour')
+            ->orderBy('count', 'desc')
+            ->first();
+            
+        if ($peakHourData) {
+            $hour = $peakHourData->hour;
+            $summary['peak_hour'] = Carbon::createFromTime($hour, 0)->format('h A') . ' - ' . Carbon::createFromTime($hour + 1, 0)->format('h A');
+        }
+
         $timeline = Activity::with('causer')
             ->whereDate('created_at', $date)
             ->whereIn('causer_id', $users->pluck('id'))
@@ -127,7 +150,7 @@ class StaffActivityController extends Controller
             ->limit(100)
             ->get();
 
-        return view('admin.staff_activity.index', compact('activitiesByStaff', 'date', 'timeline', 'users', 'trends', 'leaderboard', 'targets'));
+        return view('admin.staff_activity.index', compact('activitiesByStaff', 'date', 'timeline', 'users', 'trends', 'leaderboard', 'targets', 'summary'));
     }
 
     public function export(Request $request)

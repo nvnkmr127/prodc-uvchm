@@ -51,7 +51,10 @@ self.addEventListener('fetch', (event) => {
         event.respondWith(
             caches.match(event.request).then((res) => {
                 const fetchPromise = fetch(event.request).then((networkRes) => {
-                    caches.open(CACHE_NAME).then((cache) => cache.put(event.request, networkRes.clone()));
+                    const networkResClone = networkRes.clone();
+                    caches.open(CACHE_NAME).then((cache) => {
+                        cache.put(event.request, networkResClone);
+                    });
                     return networkRes;
                 });
                 return res || fetchPromise;

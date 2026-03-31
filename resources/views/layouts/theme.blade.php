@@ -18,7 +18,6 @@
     <!-- Bootstrap & Theme -->
     <link href="{{ asset('admin_theme/css/sb-admin-2.min.css') }}" rel="stylesheet">
     <!-- External Libraries -->
-    <link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/main.min.css' rel='stylesheet' />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
     <link href="{{ asset('admin_theme/vendor/datatables/dataTables.bootstrap4.min.css') }}" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/gridstack@10.1.2/dist/gridstack.min.css" rel="stylesheet" />
@@ -91,7 +90,7 @@
                 </li>
             @endcan
 
-            @if(auth()->user()?->hasRole('college-admin') || auth()->user()?->hasRole('super-admin'))
+            @if(auth()->user()?->hasRole('super-admin'))
                 <li class="nav-item">
                     <a class="nav-link" href="{{ route('admin.staff-activity.index') }}">
                         <i class="fas fa-fw fa-user-clock text-info"></i>

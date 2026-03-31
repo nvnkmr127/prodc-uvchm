@@ -51,14 +51,6 @@ class Admission extends Model
         return $this->belongsTo(Enquiry::class);
     }
 
-    // --- TEMPORARY: The old relationship, renamed for the migration script ---
-    public function oldAdmissionFollowUps(): HasMany
-    {
-        // This points to your ORIGINAL AdmissionFollowUp model
-        return $this->hasMany(\App\Models\AdmissionFollowUp::class)->latest();
-    }
-
-    // --- NEW: The new polymorphic relationship ---
     public function followUps(): MorphMany
     {
         return $this->morphMany(\App\Models\FollowUp::class, 'followable');
