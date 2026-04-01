@@ -309,13 +309,13 @@ class DashboardController extends Controller
 
             case 'accountant':
                 $pendingAmount = (float) \App\Models\StudentFee::whereIn('status', ['unpaid', 'partial'])
-                    ->selectRaw('COALESCE(SUM(amount - concession_amount - paid_amount), 0) as due')
+                    ->selectRaw('COALESCE(SUM(GREATEST(0, amount - COALESCE(concession_amount, 0) - COALESCE(paid_amount, 0))), 0) as due')
                     ->value('due');
 
                 $overdueAmount = (float) \App\Models\StudentFee::whereIn('status', ['unpaid', 'partial'])
                     ->whereNotNull('due_date')
                     ->where('due_date', '<', now())
-                    ->selectRaw('COALESCE(SUM(amount - concession_amount - paid_amount), 0) as due')
+                    ->selectRaw('COALESCE(SUM(GREATEST(0, amount - COALESCE(concession_amount, 0) - COALESCE(paid_amount, 0))), 0) as due')
                     ->value('due');
 
                 return [
@@ -345,7 +345,7 @@ class DashboardController extends Controller
                 
                 $pendingFees = (float) \App\Models\StudentFee::where('student_id', $student->id)
                     ->whereIn('status', ['unpaid', 'partial'])
-                    ->selectRaw('COALESCE(SUM(amount - concession_amount - paid_amount), 0) as due')
+                    ->selectRaw('COALESCE(SUM(GREATEST(0, amount - COALESCE(concession_amount, 0) - COALESCE(paid_amount, 0))), 0) as due')
                     ->value('due');
 
                 return [
@@ -400,7 +400,7 @@ class DashboardController extends Controller
     {
         $collected = (float) \App\Models\Payment::where('status', 'completed')->sum('amount');
         $due = (float) \App\Models\StudentFee::whereIn('status', ['unpaid', 'partial'])
-            ->selectRaw('COALESCE(SUM(amount - concession_amount - paid_amount), 0) as due')
+            ->selectRaw('COALESCE(SUM(GREATEST(0, amount - COALESCE(concession_amount, 0) - COALESCE(paid_amount, 0))), 0) as due')
             ->value('due');
 
         $total = $collected + $due;

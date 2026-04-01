@@ -123,7 +123,7 @@ class Payment extends Model
             return $this->belongsTo('App\\Models\\Invoice', 'invoice_id');
         }
 
-        return $this->belongsTo(self::class, 'invoice_id')->whereRaw('1 = 0');
+        return $this->belongsTo(static::class, 'invoice_id')->whereRaw('1 = 0');
     }
 
     /**
