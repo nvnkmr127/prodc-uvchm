@@ -22,6 +22,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/api/dashboard/attendance-data', [CollegeAdminDashboardController::class, 'getAttendanceData']);
     Route::get('/admin/reports/my-payments/export', [App\Http\Controllers\Admin\ComponentPaymentController::class, 'exportMyPayments']);
 
+    Route::get('/dashboard/my-payment-data', [CollegeAdminDashboardController::class, 'getMyPaymentData']);
+    Route::get('/dashboard/my-activities', [CollegeAdminDashboardController::class, 'getMyActivitiesApi']);
+    Route::get('/dashboard/attendance-data', [CollegeAdminDashboardController::class, 'getAttendanceData']);
 });
 
 // Health check endpoints
@@ -185,6 +188,13 @@ Route::middleware(['auth:sanctum'])->prefix('notifications')->name('api.notifica
 
 // Fallback API routes with session authentication for web interface
 Route::middleware(['auth', 'web'])->prefix('api/notifications')->name('api.notifications.web.')->group(function () {
+    Route::get('/unread-count', [NotificationController::class, 'getUnreadCount'])->name('unread-count');
+    Route::get('/', [NotificationController::class, 'index'])->name('index');
+    Route::post('/{notification}/read', [NotificationController::class, 'markAsRead'])->name('mark-read');
+    Route::post('/mark-all-read', [NotificationController::class, 'markAllAsRead'])->name('mark-all-read');
+});
+
+Route::middleware(['auth', 'web'])->prefix('notifications')->name('api.notifications.web2.')->group(function () {
     Route::get('/unread-count', [NotificationController::class, 'getUnreadCount'])->name('unread-count');
     Route::get('/', [NotificationController::class, 'index'])->name('index');
     Route::post('/{notification}/read', [NotificationController::class, 'markAsRead'])->name('mark-read');

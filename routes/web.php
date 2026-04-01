@@ -1263,6 +1263,9 @@ Route::prefix('api')->name('api.')->group(function () {
 
     // Dashboard API
     Route::get('/dashboard/stats', [ApiDashboardController::class, 'stats'])->name('dashboard.stats');
+    Route::post('/dashboard/metrics', [ApiDashboardController::class, 'storeMetrics'])
+        ->name('dashboard.metrics')
+        ->middleware(['auth']);
 
     // Admin Panel AJAX API
     Route::prefix('admin')->name('admin.')->middleware(['auth'])->group(function () {

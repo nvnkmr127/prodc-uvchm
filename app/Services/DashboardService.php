@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Models\{Dashboard, Widget, DashboardWidget, User};
+use App\Models\{Dashboard, User};
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Collection;
 
@@ -23,6 +23,10 @@ class DashboardService
      */
     public function getDashboardForUser(User $user): ?Dashboard
     {
+        if (!class_exists('App\\Models\\DashboardWidget') || !class_exists('App\\Models\\Widget')) {
+            return null;
+        }
+
         $dashboard = $user->getDefaultDashboard();
         
         if (!$dashboard) {
@@ -34,12 +38,6 @@ class DashboardService
         
         // Get the widgets collection from the loaded relationship
         $widgets = $dashboard->widgets;
-        
-        // Filter widgets based on user permissions (if permission service available)
-        if (method_exists($this, 'permissionService') && $this->permissionService) {
-            $filteredWidgets = $this->permissionService->filterWidgetsByPermissions($widgets, $user);
-            $dashboard->setRelation('widgets', $filteredWidgets);
-        }
 
         return $dashboard;
     }
@@ -49,6 +47,10 @@ class DashboardService
      */
     public function getDashboardData(User $user): array
     {
+        if (!class_exists('App\\Models\\DashboardWidget') || !class_exists('App\\Models\\Widget')) {
+            return [];
+        }
+
         return Cache::remember("dashboard_data_user_{$user->id}", 300, function () use ($user) {
             $dashboard = $this->getDashboardForUser($user);
             
@@ -86,7 +88,7 @@ class DashboardService
     /**
      * Get widget data (with fallback if services not available)
      */
-    protected function getWidgetData(User $user, Widget $widget, array $config = []): array
+    protected function getWidgetData(User $user, $widget, array $config = []): array
     {
         if ($this->widgetService && method_exists($this->widgetService, 'getWidgetData')) {
             return $this->widgetService->getWidgetData($user, $widget, $config);
@@ -94,8 +96,8 @@ class DashboardService
 
         // Fallback implementation
         return [
-            'widget_id' => $widget->id,
-            'widget_name' => $widget->name,
+            'widget_id' => is_object($widget) && isset($widget->id) ? $widget->id : null,
+            'widget_name' => is_object($widget) && isset($widget->name) ? $widget->name : null,
             'data' => [],
             'last_updated' => now()->toISOString()
         ];
@@ -163,9 +165,15 @@ class DashboardService
     public function updateUserDashboardLayout(User $user, Dashboard $dashboard, array $layout): bool
     {
         try {
+            if (!class_exists('App\\Models\\DashboardWidget')) {
+                return false;
+            }
+
+            $dashboardWidgetClass = 'App\\Models\\DashboardWidget';
+
             // Update dashboard widget positions
             foreach ($layout as $widgetLayout) {
-                DashboardWidget::where('dashboard_id', $dashboard->id)
+                $dashboardWidgetClass::where('dashboard_id', $dashboard->id)
                     ->where('instance_id', $widgetLayout['instance_id'])
                     ->update([
                         'grid_x' => $widgetLayout['x'],

@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Student;
 use App\Http\Controllers\Controller;
 use App\Models\Student;
 use App\Models\Payment;
-use Illuminate.Http.Request;
+use Illuminate\Http\Request;
 use App\Services\ComponentPaymentService; // ✅ IMPORTED: The new service for component-based finances.
 
 class PaymentController extends Controller

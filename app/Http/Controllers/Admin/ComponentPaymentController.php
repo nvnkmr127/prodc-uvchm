@@ -2053,13 +2053,17 @@ public function showPublicReceipt($receiptNumber)
 {
     try {
         // Find payment by receipt number
-        $payment = Payment::where('receipt_number', $receiptNumber)
-                         ->with([
-                             'student.batch.course',
-                             'createdBy',
-                             'componentItems.studentFee.feeCategory'
-                         ])
-                         ->first();
+        $payment = Payment::withoutAcademicYearFilter()
+            ->where('receipt_number', $receiptNumber)
+            ->with([
+                'student' => function ($q) {
+                    $q->withoutGlobalScope('academic_year')
+                        ->with('batch.course');
+                },
+                'createdBy',
+                'componentItems.studentFee.feeCategory'
+            ])
+            ->first();
 
         if (!$payment) {
             abort(404, 'Receipt not found');
@@ -2088,13 +2092,17 @@ public function downloadPublicReceipt($receiptNumber)
 {
     try {
         // Find payment by receipt number
-        $payment = Payment::where('receipt_number', $receiptNumber)
-                         ->with([
-                             'student.batch.course',
-                             'createdBy',
-                             'componentItems.studentFee.feeCategory'
-                         ])
-                         ->first();
+        $payment = Payment::withoutAcademicYearFilter()
+            ->where('receipt_number', $receiptNumber)
+            ->with([
+                'student' => function ($q) {
+                    $q->withoutGlobalScope('academic_year')
+                        ->with('batch.course');
+                },
+                'createdBy',
+                'componentItems.studentFee.feeCategory'
+            ])
+            ->first();
 
         if (!$payment) {
             abort(404, 'Receipt not found');

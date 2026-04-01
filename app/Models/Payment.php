@@ -119,7 +119,11 @@ class Payment extends Model
      */
     public function invoice(): BelongsTo
     {
-        return $this->belongsTo(Invoice::class);
+        if (class_exists('App\\Models\\Invoice')) {
+            return $this->belongsTo('App\\Models\\Invoice', 'invoice_id');
+        }
+
+        return $this->belongsTo(self::class, 'invoice_id')->whereRaw('1 = 0');
     }
 
     /**

@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\View;
 use Illuminate\Pagination\Paginator;
@@ -400,7 +401,9 @@ class AppServiceProvider extends ServiceProvider
         View::composer('admin.payment*', function ($view) {
             try {
                 if (class_exists('\App\Models\FeeCategory')) {
-                    $feeCategories = \App\Models\FeeCategory::all();
+                    $feeCategories = Cache::remember('fee_categories_all', 300, function () {
+                        return \App\Models\FeeCategory::orderBy('name')->get();
+                    });
                     $view->with('feeCategories', $feeCategories);
                 }
             } catch (\Exception $e) {

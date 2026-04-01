@@ -119,13 +119,21 @@ class RealtimeDashboardService
      */
     protected function updateFinancialMetrics(array $paymentData)
     {
-        $totalRevenue = \App\Models\Invoice::where('status', 'paid')->sum('amount');
-        $pendingAmount = \App\Models\Invoice::where('status', 'pending')->sum('amount');
-        $overdueAmount = \App\Models\Invoice::where('status', 'pending')
-            ->where('due_date', '<', now())->sum('amount');
-        
-        $collectionRate = $totalRevenue > 0 ? 
-            (($totalRevenue / ($totalRevenue + $pendingAmount)) * 100) : 0;
+        $totalRevenue = (float) \App\Models\Payment::where('status', 'completed')->sum('amount');
+
+        $pendingAmount = (float) \App\Models\StudentFee::whereIn('status', ['unpaid', 'partial'])
+            ->selectRaw('COALESCE(SUM(amount - concession_amount - paid_amount), 0) as due')
+            ->value('due');
+
+        $overdueAmount = (float) \App\Models\StudentFee::whereIn('status', ['unpaid', 'partial'])
+            ->whereNotNull('due_date')
+            ->where('due_date', '<', now())
+            ->selectRaw('COALESCE(SUM(amount - concession_amount - paid_amount), 0) as due')
+            ->value('due');
+
+        $collectionRate = ($totalRevenue + $pendingAmount) > 0
+            ? (($totalRevenue / ($totalRevenue + $pendingAmount)) * 100)
+            : 0;
 
         $data = [
             'collected_amount' => $totalRevenue,
@@ -217,9 +225,9 @@ class RealtimeDashboardService
     protected function getRevenueChartData(): array
     {
         $months = collect(range(1, 12))->map(function($month) {
-            $monthlyRevenue = \App\Models\Invoice::where('status', 'paid')
-                ->whereMonth('created_at', $month)
-                ->whereYear('created_at', now()->year)
+            $monthlyRevenue = (float) \App\Models\Payment::where('status', 'completed')
+                ->whereMonth('payment_date', $month)
+                ->whereYear('payment_date', now()->year)
                 ->sum('amount');
             
             return [

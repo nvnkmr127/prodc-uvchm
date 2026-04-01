@@ -1,4 +1,3 @@
-// app/Http/Controllers/Admin/ConcessionController.php
 <?php
 
 namespace App\Http\Controllers\Admin;

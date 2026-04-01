@@ -47,12 +47,20 @@ class Dashboard extends Model
 
     public function widgets()
     {
-        return $this->hasMany(DashboardWidget::class)->orderBy('order');
+        if (!class_exists('App\\Models\\DashboardWidget')) {
+            return $this->hasMany(UserDashboardPreference::class)->whereRaw('1 = 0');
+        }
+
+        return $this->hasMany('App\\Models\\DashboardWidget')->orderBy('order');
     }
 
     public function activeWidgets()
     {
-        return $this->hasMany(DashboardWidget::class)->where('is_visible', true)->orderBy('order');
+        if (!class_exists('App\\Models\\DashboardWidget')) {
+            return $this->hasMany(UserDashboardPreference::class)->whereRaw('1 = 0');
+        }
+
+        return $this->hasMany('App\\Models\\DashboardWidget')->where('is_visible', true)->orderBy('order');
     }
 
     public function userPreferences()

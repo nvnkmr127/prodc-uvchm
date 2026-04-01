@@ -17,6 +17,11 @@ class MigrateToComponentSystem extends Command
 
     public function handle()
     {
+        if (!class_exists('App\\Models\\Invoice')) {
+            $this->error('Invoice model is not available. This project is running on the component-based payment system.');
+            return self::FAILURE;
+        }
+
         $isDryRun = $this->option('dry-run');
         $batchSize = $this->option('batch-size');
 

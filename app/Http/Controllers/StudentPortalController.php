@@ -8,6 +8,7 @@ use App\Models\Admission;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon;
 use App\Models\Payment;
@@ -214,7 +215,7 @@ class StudentPortalController extends Controller
             return response()->json(['message' => 'Request submitted for approval.']);
 
         } catch (\Exception $e) {
-            \Log::error("Student Profile Update Request Error: " . $e->getMessage());
+            Log::error("Student Profile Update Request Error: " . $e->getMessage());
             return response()->json(['error' => 'An unexpected error occurred. Please try again later.'], 500);
         }
     }
@@ -277,24 +278,24 @@ class StudentPortalController extends Controller
             ->orderBy('payment_date', 'desc')
             ->get();
 
-        Log::error("DEBUG PAYMENTS: Student ID: " . $student->id);
-        Log::error("DEBUG PAYMENTS: Found " . $allPayments->count() . " payments.");
-
         $pending = [];
         $history = [];
 
         // Get payment history from actual payments
         foreach ($allPayments as $index => $payment) {
-            Log::error("Processing Payment #{$index} (ID: {$payment->id})");
-            // Log raw component items
-            if ($payment->componentItems->isEmpty()) {
-                Log::error("Payment {$payment->id} has NO component items.");
+            if (app()->environment('local')) {
+                Log::debug("Processing Payment #{$index} (ID: {$payment->id})");
+                if ($payment->componentItems->isEmpty()) {
+                    Log::debug("Payment {$payment->id} has no component items.");
+                }
             }
 
             foreach ($payment->componentItems as $item) {
                 $catName = $item->studentFee->feeCategory->name ?? 'Unknown Category';
                 if (!$item->studentFee) {
-                    Log::error("Payment Item ID {$item->id} has no StudentFee linked!");
+                    if (app()->environment('local')) {
+                        Log::debug("Payment Item ID {$item->id} has no StudentFee linked!");
+                    }
                 }
 
                 $history[] = [
@@ -308,16 +309,12 @@ class StudentPortalController extends Controller
             }
         }
 
-        Log::error("DEBUG HISTORY: Generated " . count($history) . " history records.");
-
         // Get pending fees
         $fees = $student->studentFees()
             ->withoutGlobalScope('academic_year')
             ->with('feeCategory')
             ->where('status', '!=', 'paid')
             ->get();
-
-        Log::error("DEBUG FEES: Found " . $fees->count() . " pending fees.");
 
         foreach ($fees as $fee) {
             $pending[] = [
@@ -385,20 +382,25 @@ class StudentPortalController extends Controller
         // Working Days = Total Days - Holidays - Weekends
         $workingDays = $totalDaysInMonth - $holidaysCount - $weekendsCount;
 
-        // Normalize statuses for counting (case-insensitive)
-        $normalizedRecords = $attendanceRecords->map(function ($record) {
-            $record->status = strtolower($record->status);
-            return $record;
-        });
+        $recordsByDate = $attendanceRecords
+            ->keyBy(function ($record) {
+                return Carbon::parse($record->attendance_date)->format('Y-m-d');
+            });
 
         // 1. Calculate Daily Punch Counts for "Low Attendance" logic (Institution-wide)
         // We count distinct students per day to check if attendance is < 10
-        $dailyCounts = DB::table('attendances')
-            ->whereBetween('attendance_date', [$startOfMonth->format('Y-m-d'), $endOfMonth->format('Y-m-d')])
-            ->selectRaw('DATE(attendance_date) as date, count(distinct student_id) as count')
-            ->groupBy('date')
-            ->pluck('count', 'date')
-            ->toArray();
+        $dailyCounts = Cache::remember(
+            'attendance_daily_counts_' . $startOfMonth->format('Y-m'),
+            300,
+            function () use ($startOfMonth, $endOfMonth) {
+                return DB::table('attendances')
+                    ->whereBetween('attendance_date', [$startOfMonth->format('Y-m-d'), $endOfMonth->format('Y-m-d')])
+                    ->selectRaw('DATE(attendance_date) as date, count(distinct student_id) as count')
+                    ->groupBy('date')
+                    ->pluck('count', 'date')
+                    ->toArray();
+            }
+        );
 
         // 2. Determine Effective Start Dates & Settings
         $today = now()->startOfDay();
@@ -458,12 +460,10 @@ class StudentPortalController extends Controller
             $status = 'none';
 
             // Check for explicit attendance record first
-            $record = $normalizedRecords->first(function ($item) use ($dateStr) {
-                return Carbon::parse($item->attendance_date)->format('Y-m-d') === $dateStr;
-            });
+            $record = $recordsByDate->get($dateStr);
 
             if ($record) {
-                $status = strtolower($record->status);
+                $status = strtolower($record->status ?? '');
             } else {
                 // No Record Logic
                 if ($shouldIgnoreForAbsent) {

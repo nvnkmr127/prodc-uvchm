@@ -20,6 +20,11 @@ class NotificationService
         $this->notificationService = $notificationService;
     }
 
+    public function send(array $data)
+    {
+        return $this->notificationService->send($data);
+    }
+
     /**
      * Send attendance notification
      */

@@ -4,7 +4,7 @@ namespace App\Jobs\Attendance;
 
 use App\Services\Attendance\ReportingService;
 use App\Models\User;
-use App\Jobs\ProcessNotificationJob; // Added missing import for ProcessNotificationJob
+use App\Jobs\Attendance\ProcessNotificationJob;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;

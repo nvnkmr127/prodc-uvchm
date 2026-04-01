@@ -49,7 +49,7 @@ class FinancialReportExport implements FromCollection, WithHeadings, WithMapping
             return [
                 $row->payment_date,
                 $row->receipt_number,
-                $row->invoice->student->name,
+                $row->student->name ?? 'N/A',
                 $row->amount,
                 $row->payment_method,
             ];

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Services\{DashboardService, DashboardDataService, DashboardPermissionService};
 use App\Models\{Widget, Dashboard, DashboardWidget};
+use Illuminate\Support\Facades\Log;
 
 class DashboardController extends Controller
 {
@@ -24,6 +25,81 @@ class DashboardController extends Controller
         $this->dashboardService = $dashboardService;
         $this->dataService = $dataService;
         $this->permissionService = $permissionService;
+    }
+
+    public function stats(Request $request)
+    {
+        return $this->getQuickStats($request);
+    }
+
+    public function getWidgetDataForWidget(Request $request, $widgetId)
+    {
+        $user = auth()->user();
+
+        if (!class_exists('App\\Models\\Widget')) {
+            return response()->json([
+                'error' => 'Widget system not available'
+            ], 501);
+        }
+
+        $widgetClass = 'App\\Models\\Widget';
+        $widget = $widgetClass::findOrFail($widgetId);
+
+        if (!$this->permissionService->canViewWidget($user, $widget)) {
+            return response()->json(['error' => 'Insufficient permissions'], 403);
+        }
+
+        $config = [];
+        $data = $this->dataService->getWidgetData($user, $widget, $config);
+
+        return response()->json([
+            'widget_id' => $widget->id,
+            'widget_name' => $widget->name,
+            'data' => $data,
+            'last_updated' => now()->toISOString(),
+            'cache_duration' => $widget->cache_duration
+        ]);
+    }
+
+    public function storeMetrics(Request $request)
+    {
+        $validated = $request->validate([
+            'metrics' => 'required|array',
+            'session' => 'nullable|string|max:100'
+        ]);
+
+        $metrics = $validated['metrics'];
+        $widgetRender = $metrics['widget-render'] ?? [];
+
+        $maxWidgetRenderMs = null;
+        if (is_array($widgetRender)) {
+            foreach ($widgetRender as $entry) {
+                $duration = is_array($entry) ? ($entry['duration'] ?? null) : null;
+                if (is_numeric($duration)) {
+                    $duration = (float) $duration;
+                    $maxWidgetRenderMs = $maxWidgetRenderMs === null ? $duration : max($maxWidgetRenderMs, $duration);
+                }
+            }
+        }
+
+        $nav = $metrics['navigation'][0] ?? null;
+        $navSummary = null;
+        if (is_array($nav)) {
+            $navSummary = [
+                'loadTime' => $nav['loadTime'] ?? null,
+                'domComplete' => $nav['domComplete'] ?? null,
+                'firstPaint' => $nav['firstPaint'] ?? null,
+            ];
+        }
+
+        Log::channel('dashboard')->info('Client performance metrics', [
+            'user_id' => auth()->id(),
+            'session' => $validated['session'] ?? null,
+            'nav' => $navSummary,
+            'max_widget_render_ms' => $maxWidgetRenderMs,
+        ]);
+
+        return response()->json(['status' => 'ok']);
     }
 
     /**
@@ -217,8 +293,9 @@ class DashboardController extends Controller
                 return [
                     'total_users' => \App\Models\User::count(),
                     'total_students' => \App\Models\Student::count(),
-                    'monthly_revenue' => \App\Models\Invoice::whereMonth('created_at', now()->month)
-                        ->where('status', 'paid')->sum('amount'),
+                    'monthly_revenue' => \App\Models\Payment::where('status', 'completed')
+                        ->whereMonth('payment_date', now()->month)
+                        ->sum('amount'),
                     'system_health' => 'good'
                 ];
 
@@ -231,12 +308,22 @@ class DashboardController extends Controller
                 ];
 
             case 'accountant':
+                $pendingAmount = (float) \App\Models\StudentFee::whereIn('status', ['unpaid', 'partial'])
+                    ->selectRaw('COALESCE(SUM(amount - concession_amount - paid_amount), 0) as due')
+                    ->value('due');
+
+                $overdueAmount = (float) \App\Models\StudentFee::whereIn('status', ['unpaid', 'partial'])
+                    ->whereNotNull('due_date')
+                    ->where('due_date', '<', now())
+                    ->selectRaw('COALESCE(SUM(amount - concession_amount - paid_amount), 0) as due')
+                    ->value('due');
+
                 return [
-                    'monthly_revenue' => \App\Models\Invoice::whereMonth('created_at', now()->month)
-                        ->where('status', 'paid')->sum('amount'),
-                    'pending_amount' => \App\Models\Invoice::where('status', 'pending')->sum('amount'),
-                    'overdue_amount' => \App\Models\Invoice::where('status', 'pending')
-                        ->where('due_date', '<', now())->sum('amount'),
+                    'monthly_revenue' => \App\Models\Payment::where('status', 'completed')
+                        ->whereMonth('payment_date', now()->month)
+                        ->sum('amount'),
+                    'pending_amount' => $pendingAmount,
+                    'overdue_amount' => $overdueAmount,
                     'collection_rate' => $this->calculateCollectionRate()
                 ];
 
@@ -256,10 +343,14 @@ class DashboardController extends Controller
                 $student = auth()->user()->student;
                 if (!$student) return [];
                 
+                $pendingFees = (float) \App\Models\StudentFee::where('student_id', $student->id)
+                    ->whereIn('status', ['unpaid', 'partial'])
+                    ->selectRaw('COALESCE(SUM(amount - concession_amount - paid_amount), 0) as due')
+                    ->value('due');
+
                 return [
                     'attendance_percentage' => $this->getStudentAttendancePercentage($student),
-                    'pending_fees' => \App\Models\Invoice::where('student_id', $student->id)
-                        ->where('status', 'pending')->sum('amount'),
+                    'pending_fees' => $pendingFees,
                     'today_classes' => $this->getStudentTodayClassesCount($student),
                     'upcoming_exams' => 2 // Sample count
                 ];
@@ -307,8 +398,13 @@ class DashboardController extends Controller
 
     private function calculateCollectionRate(): float
     {
-        $total = \App\Models\Invoice::sum('amount');
-        $collected = \App\Models\Invoice::where('status', 'paid')->sum('amount');
+        $collected = (float) \App\Models\Payment::where('status', 'completed')->sum('amount');
+        $due = (float) \App\Models\StudentFee::whereIn('status', ['unpaid', 'partial'])
+            ->selectRaw('COALESCE(SUM(amount - concession_amount - paid_amount), 0) as due')
+            ->value('due');
+
+        $total = $collected + $due;
+
         return $total > 0 ? round(($collected / $total) * 100, 1) : 0;
     }
 
