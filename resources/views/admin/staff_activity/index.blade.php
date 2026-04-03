@@ -247,79 +247,101 @@
                 </div>
             </div>
 
-            <!-- Staff Performance Table -->
-            <div class="card border-0 shadow-sm" style="border-radius: 1.5rem; overflow: hidden;">
-                <div class="card-header bg-white border-0 pt-4 px-4 d-flex justify-content-between align-items-center">
-                    <h5 class="font-weight-bold text-gray-800 mb-0">Staff Performance List</h5>
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0" style="min-width: 900px;">
-                            <thead class="bg-light text-muted small font-weight-bold text-uppercase">
-                                <tr>
-                                    <th class="px-4 py-3 border-0">Staff Profile</th>
-                                    <th class="py-3 border-0">Score</th>
-                                    <th class="py-3 border-0">Conv. Rate</th>
-                                    <th class="py-3 border-0" width="200">Outreach Flow</th>
-                                    <th class="py-3 border-0">Collections</th>
-                                    <th class="py-3 border-0 text-center">Status</th>
-                                    <th class="px-4 py-3 border-0 text-right">Deep Dive</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach($activitiesByStaff as $userId => $data)
-                                    <tr>
-                                        <td class="px-4 py-3">
-                                            <div class="d-flex align-items-center">
-                                                <div class="position-relative mr-3">
-                                                    <div class="user-avatar text-uppercase" style="width: 42px; height: 42px; font-size: 0.9rem;">
-                                                        {{ substr($data['user']->name, 0, 1) }}{{ str_contains($data['user']->name, ' ') ? substr(explode(' ', $data['user']->name)[1], 0, 1) : '' }}
-                                                    </div>
-                                                    @if($data['is_online'])
-                                                        <span class="position-absolute pulse-online" style="bottom: 0; right: 0; height: 12px; width: 12px; background: #1cc88a; border-radius: 50%; border: 2px solid white;"></span>
-                                                    @endif
-                                                </div>
-                                                <div>
-                                                    <div class="font-weight-bold text-gray-900 small">{{ $data['user']->name }}</div>
-                                                    <div class="text-xs text-muted font-weight-bold">{{ $data['user']->roles->first()->name ?? 'Counselor' }}</div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td class="py-3">
-                                            <span class="badge badge-{{ $data['score'] >= 80 ? 'success' : ($data['score'] >= 50 ? 'warning' : 'danger') }}-soft px-3 py-1 font-weight-bold">
-                                                {{ $data['score'] }}%
-                                            </span>
-                                        </td>
-                                        <td class="py-3">
-                                            <span class="text-info font-weight-bold small">{{ $data['conversion_rate'] }}%</span>
-                                        </td>
-                                        <td class="py-3">
-                                            <div class="d-flex justify-content-between mb-1">
-                                                <span class="text-xs font-weight-bold text-muted">{{ $data['calls_count'] }} <small>/ {{ $targets['calls'] }}</small></span>
-                                                <span class="text-xs font-weight-bold text-primary">{{ round($data['progress']['calls']) }}%</span>
-                                            </div>
-                                            <div class="progress progress-slim" style="height: 4px;"><div class="progress-bar bg-primary" role="progressbar" style="width: {{ $data['progress']['calls'] }}%"></div></div>
-                                        </td>
-                                        <td class="py-3">
-                                            <div class="font-weight-bold text-gray-800 small">₹{{ number_format($data['fee_collected']) }}</div>
-                                            <div class="text-xs text-success font-weight-bold">{{ $data['admissions_count'] }} Admitted</div>
-                                        </td>
-                                        <td class="py-3 text-center">
-                                            <span class="text-xs {{ $data['is_online'] ? 'text-success' : 'text-muted' }} font-weight-bold">
-                                                {{ $data['is_online'] ? 'ONLINE' : $data['last_seen'] }}
-                                            </span>
-                                        </td>
-                                        <td class="px-4 py-3 text-right">
-                                            <a href="{{ route('admin.staff-activity.show', $userId) }}?start_date={{ $startDate }}&end_date={{ $endDate }}" class="btn btn-primary-soft btn-sm rounded-circle shadow-sm border">
-                                                <i class="fas fa-arrow-right"></i>
-                                            </a>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
+            <!-- Staff Members Grid -->
+            <div class="row">
+                @foreach($activitiesByStaff as $userId => $data)
+                    <div class="col-xl-4 col-lg-6 mb-4">
+                        <div class="activity-card p-4">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="position-relative mr-3" title="Last seen: {{ $data['last_seen'] }}">
+                                    <div class="user-avatar text-uppercase shadow-lg">
+                                        {{ substr($data['user']->name, 0, 1) }}{{ str_contains($data['user']->name, ' ') ? substr(explode(' ', $data['user']->name)[1], 0, 1) : '' }}
+                                    </div>
+                                    @if($data['is_online'])
+                                        <span class="position-absolute pulse-online" style="bottom: 2px; right: 2px; height: 14px; width: 14px; background: #1cc88a; border-radius: 50%; border: 3px solid white; z-index: 2;"></span>
+                                    @endif
+                                    
+                                    {{-- NEW: Top Performer Badge --}}
+                                    @if($leaderboard['admissions']->first()['user']->id == $userId)
+                                        <div class="position-absolute" style="top: -10px; right: -10px; z-index: 3;" title="Top Admission Closer">
+                                            <span class="badge badge-warning rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 22px; height: 22px; border: 2px solid white;">🏆</span>
+                                        </div>
+                                    @elseif($leaderboard['calls']->first()['user']->id == $userId)
+                                        <div class="position-absolute" style="top: -10px; right: -10px; z-index: 3;" title="Most Active Caller">
+                                            <span class="badge badge-info rounded-circle d-flex align-items-center justify-content-center shadow-sm" style="width: 22px; height: 22px; border: 2px solid white;">📞</span>
+                                        </div>
+                                    @endif
+                                </div>
+                                <div style="flex: 1; min-width: 0;">
+                                    <h6 class="font-weight-bold text-gray-900 mb-0 text-truncate">{{ $data['user']->name }}</h6>
+                                    <p class="text-xs text-muted mb-0 font-weight-bold text-uppercase">{{ $data['user']->roles->first()->name ?? 'Counselor' }}</p>
+                                </div>
+                                <div class="ml-auto d-flex flex-column align-items-end">
+                                    <span class="text-xs {{ $data['is_online'] ? 'text-success' : 'text-muted' }} font-weight-bold mb-1">
+                                        {{ $data['is_online'] ? 'ONLINE' : 'Seen ' . $data['last_seen'] }}
+                                    </span>
+                                    <a href="{{ route('admin.staff-activity.show', $userId) }}?start_date={{ $startDate }}&end_date={{ $endDate }}" class="btn btn-primary btn-circle btn-sm shadow-sm">
+                                        <i class="fas fa-chart-line"></i>
+                                    </a>
+                                </div>
+                            </div>
+
+                            <!-- Performance Row -->
+                            <div class="row mb-3 align-items-center">
+                                <div class="col-6">
+                                    <div class="p-2 rounded bg-light border-left-{{ $data['score'] >= 80 ? 'success' : ($data['score'] >= 50 ? 'warning' : 'danger') }}" style="border-width: 3px;">
+                                        <div class="small font-weight-bold text-gray-600 mb-0">Score</div>
+                                        <div class="h5 mb-0 font-weight-bold {{ $data['score'] >= 80 ? 'text-success' : ($data['score'] >= 50 ? 'text-warning' : 'text-danger') }}">{{ $data['score'] }}%</div>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="p-2 rounded bg-light border-left-info" style="border-width: 3px;">
+                                        <div class="small font-weight-bold text-gray-600 mb-0">Conv. Rate</div>
+                                        <div class="h5 mb-0 font-weight-bold text-info">{{ $data['conversion_rate'] }}%</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Detailed Metrics -->
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span class="text-xs font-weight-bold text-muted">Calls in Period</span>
+                                    <span class="text-xs font-weight-bold text-primary">{{ $data['calls_count'] }} / {{ $targets['calls'] }}</span>
+                                </div>
+                                <div class="progress progress-slim"><div class="progress-bar bg-primary" role="progressbar" style="width: {{ $data['progress']['calls'] }}%"></div></div>
+                            </div>
+
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span class="text-xs font-weight-bold text-muted">Fee Collection</span>
+                                    <span class="text-xs font-weight-bold text-success">₹{{ number_format($data['fee_collected']) }}</span>
+                                </div>
+                                <div class="progress progress-slim"><div class="progress-bar bg-success" role="progressbar" style="width: {{ $data['progress']['fee'] }}%"></div></div>
+                            </div>
+
+                            <div class="row g-2 mt-4">
+                                <div class="col-6">
+                                    <div class="stat-mini-pill bg-warning-soft">
+                                        <i class="fas fa-user-plus text-warning"></i> <span><strong>{{ $data['admissions_count'] }}</strong> Adm.</span>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="stat-mini-pill bg-info-soft">
+                                        <i class="fas fa-clock text-info"></i> <span><strong>{{ $data['pending_tasks'] }}</strong> Pend.</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            @if($data['first_action'])
+                                <div class="mt-4 text-center">
+                                    <div class="work-session-tag" title="First and last action in selected period">
+                                        <i class="far fa-calendar-alt mr-1"></i> {{ $data['first_action']->format('M d, H:i') }} — {{ $data['last_action']->format('M d, H:i') }}
+                                    </div>
+                                </div>
+                            @endif
+                        </div>
                     </div>
-                </div>
+                @endforeach
             </div>
         </div>
 

@@ -223,9 +223,9 @@ class BackupSystemDiagnostic extends Command
         $this->info('============');
 
         $logFiles = [
-            'database-backups.log' => 'Database Backups',
-            'cron-jobs.log' => 'Cron Jobs',
-            'backup-cleanup.log' => 'Backup Cleanup'
+            'scheduler.log' => 'Scheduler Activity',
+            'full-backups.log' => 'Full Backups',
+            'backup-health.log' => 'Backup Health Check'
         ];
 
         foreach ($logFiles as $filename => $description) {
@@ -237,7 +237,7 @@ class BackupSystemDiagnostic extends Command
                 $this->line("✅ {$description}: {$this->formatBytes($size)} (modified {$modified->diffForHumans()})");
                 
                 // Check for recent activity
-                if ($filename === 'database-backups.log' && $modified->isAfter(now()->subDay())) {
+                if ($filename === 'scheduler.log' && $modified->isAfter(now()->subDay())) {
                     $content = file_get_contents($path);
                     if (str_contains($content, 'failed') || str_contains($content, 'error')) {
                         $this->error("   ❌ Recent errors found in {$description}");

@@ -363,44 +363,43 @@
 
         <div class="stats-grid">
             <div class="stat-card-mini status-new-border">
-                <a href="{{ route('admin.enquiries.index', ['status' => 'New']) }}" class="text-decoration-none">
+                <a href="javascript:void(0)" class="text-decoration-none stat-card-link" data-status="New">
                     <div class="stat-label text-info">New Leads</div>
                     <div class="stat-value" id="count-New">{{ $counts['New'] ?? 0 }}</div>
                 </a>
             </div>
             <div class="stat-card-mini status-Next-Year-border">
-                <a href="{{ route('admin.enquiries.index', ['status' => 'Interested Next Year']) }}"
-                    class="text-decoration-none">
+                <a href="javascript:void(0)" class="text-decoration-none stat-card-link" data-status="Interested Next Year">
                     <div class="stat-label text-info">Next Year</div>
                     <div class="stat-value" id="count-Next-Year">{{ $counts['Next Year'] }}</div>
                 </a>
             </div>
             <div class="stat-card-mini status-contacted-border">
-                <a href="{{ route('admin.enquiries.index', ['status' => 'Contacted']) }}" class="text-decoration-none">
+                <a href="javascript:void(0)" class="text-decoration-none stat-card-link" data-status="Contacted">
                     <div class="stat-label text-success">Contacted</div>
                     <div class="stat-value" id="count-Contacted">{{ $counts['Contacted'] ?? 0 }}</div>
                 </a>
             </div>
             <div class="stat-card-mini status-followup-border">
-                <a href="{{ route('admin.enquiries.index', ['status' => 'Follow-up']) }}" class="text-decoration-none">
+                <a href="javascript:void(0)" class="text-decoration-none stat-card-link" data-status="Follow-up">
                     <div class="stat-label text-warning">Follow-Up</div>
                     <div class="stat-value" id="count-Follow-up">{{ $counts['Follow-up'] ?? 0 }}</div>
                 </a>
             </div>
             <div class="stat-card-mini status-interested-border">
-                <a href="{{ route('admin.enquiries.index', ['status' => 'Interested']) }}" class="text-decoration-none">
+                <a href="javascript:void(0)" class="text-decoration-none stat-card-link" data-status="Interested">
                     <div class="stat-label text-warning">Interested</div>
                     <div class="stat-value" id="count-Interested">{{ $counts['Interested'] ?? 0 }}</div>
                 </a>
             </div>
             <div class="stat-card-mini status-admitted-border">
-                <a href="{{ route('admin.enquiries.index', ['status' => 'Admitted']) }}" class="text-decoration-none">
+                <a href="javascript:void(0)" class="text-decoration-none stat-card-link" data-status="Admitted">
                     <div class="stat-label text-success">Admitted</div>
                     <div class="stat-value" id="count-Admitted">{{ $counts['Admitted'] ?? 0 }}</div>
                 </a>
             </div>
             <div class="stat-card-mini status-dropped-border">
-                <a href="{{ route('admin.enquiries.index', ['status' => 'Not Interested']) }}" class="text-decoration-none">
+                <a href="javascript:void(0)" class="text-decoration-none stat-card-link" data-status="Not Interested">
                     <div class="stat-label text-danger">Dropped</div>
                     <div class="stat-value" id="count-Not-Interested">{{ $counts['Not Interested'] ?? 0 }}</div>
                 </a>
@@ -825,6 +824,20 @@
                 toggleBulkActions();
             });
             $(document).on('change', '.enquiry-checkbox', toggleBulkActions);
+
+            // --- Stat Card Link Clicks (AJAX) ---
+            $(document).on('click', '.stat-card-link', function (e) {
+                e.preventDefault();
+                const status = $(this).data('status');
+                
+                // Set the status filter in the form
+                const statusSelect = $('select[name="status[]"]');
+                statusSelect.val([status]).trigger('change');
+                
+                // fetchEnquiries will be called by the change trigger above
+                // but to ensure it happens correctly:
+                fetchEnquiries(1);
+            });
         });
 
         // --- Sorting logic ---
@@ -891,7 +904,7 @@
                     $('#dataTable').css('opacity', '1');
 
                     // Update URL (Push State)
-                    window.history.replaceState(null, null, "?" + data);
+                    // window.history.replaceState(null, null, "?" + data); // Removed as per request
                 },
                 error: function () {
                     alert("Failed to load data");

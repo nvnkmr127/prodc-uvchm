@@ -193,37 +193,25 @@
                 </div>
             </div>
 
-            <!-- Operational Timeline Table -->
+            <!-- Timeline Feed -->
             <div class="card border-0 shadow-sm mt-4" style="border-radius: 1.5rem; overflow: hidden;">
                 <div class="card-header bg-white border-0 pt-4 px-4 d-flex justify-content-between align-items-center">
-                    <h5 class="font-weight-bold text-gray-800 mb-0">Operational Activity Log</h5>
-                    <div class="small text-muted font-weight-bold">Deep Audit: {{ $activities->total() }} entries</div>
+                    <h5 class="font-weight-bold text-gray-800 mb-0">Operational Timeline</h5>
+                    <div class="small text-muted font-weight-bold">Total entries: {{ $activities->total() }}</div>
                 </div>
                 <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0" id="activityLogTable">
-                            <thead class="bg-light text-muted small font-weight-bold text-uppercase">
-                                <tr>
-                                    <th class="px-4 py-3 border-0">Action Type</th>
-                                    <th class="py-3 border-0">System/Module</th>
-                                    <th class="py-3 border-0" width="350">Description & Context</th>
-                                    <th class="py-3 border-0">Property Changes</th>
-                                    <th class="px-4 py-3 border-0 text-right">Timestamp</th>
-                                </tr>
-                            </thead>
-                            <tbody id="ajaxTimelineTarget">
-                                @include('admin.staff_activity._activity_item', ['activities' => $activities])
-                            </tbody>
-                        </table>
+                    <div class="timeline-scroll px-4 pt-4" style="max-height: 800px;">
+                        <ul class="timeline-advanced" id="ajaxTimelineTarget">
+                            @include('admin.staff_activity._activity_item', ['activities' => $activities])
+                        </ul>
+                        @if($activities->hasMorePages())
+                            <div class="text-center pb-4">
+                                <button id="loadMoreActivities" class="btn btn-primary-soft btn-sm rounded-pill px-4 font-weight-bold shadow-sm transition-all border">
+                                    <i class="fas fa-plus-circle mr-1"></i> Load Older History
+                                </button>
+                            </div>
+                        @endif
                     </div>
-
-                    @if($activities->hasMorePages())
-                        <div class="text-center py-4 bg-light border-top">
-                            <button id="loadMoreActivities" class="btn btn-primary-soft btn-sm rounded-pill px-4 font-weight-bold shadow-sm border">
-                                <i class="fas fa-plus-circle mr-1"></i> Retrieve Older Activity
-                            </button>
-                        </div>
-                    @endif
                 </div>
                 <div class="card-footer bg-white border-0 py-3">{{ $activities->links() }}</div>
             </div>

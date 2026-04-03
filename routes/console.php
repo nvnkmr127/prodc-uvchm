@@ -229,134 +229,6 @@ Schedule::command('webhook:daily-summary')
 // Defaulter analysis
 
 
-/*
-|--------------------------------------------------------------------------
-| FIXED BACKUP SYSTEM - PROPERLY IMPLEMENTED
-|--------------------------------------------------------------------------
-*/
-
-// Settings backup - Every 14 days (FIXED)
-Schedule::call(function () {
-    logSchedulerActivity('backup:settings', 'Settings Backup (14-day schedule)', 'STARTING');
-
-    try {
-        // Check if it's time for settings backup (every 14 days)
-        $lastBackupSetting = null;
-        $shouldRunBackup = false;
-
-        try {
-            if (class_exists('App\Models\Setting')) {
-                $lastBackupSetting = \App\Models\Setting::where('key', 'last_settings_backup_date')->first();
-            } else {
-                $lastBackupSetting = DB::table('settings')->where('key', 'last_settings_backup_date')->first();
-            }
-
-            if (!$lastBackupSetting || !$lastBackupSetting->value) {
-                $shouldRunBackup = true; // No previous backup
-            } else {
-                $lastBackupDate = Carbon::parse($lastBackupSetting->value);
-                $daysSinceLastBackup = $lastBackupDate->diffInDays(Carbon::now());
-                $shouldRunBackup = $daysSinceLastBackup >= 14;
-            }
-        } catch (Exception $e) {
-            $shouldRunBackup = true; // Run backup if we can't determine last backup date
-        }
-
-        if (!$shouldRunBackup) {
-            logSchedulerActivity('backup:settings', 'Settings backup not due yet (14-day interval)', 'SKIPPED');
-            return;
-        }
-
-        // Ensure backup directory exists
-        $backupDir = storage_path('app/backups');
-        if (!is_dir($backupDir)) {
-            mkdir($backupDir, 0755, true);
-        }
-
-        $timestamp = Carbon::now()->format('Y-m-d_H-i-s');
-        $filename = "settings-backup-{$timestamp}.json";
-        $backupPath = $backupDir . '/' . $filename;
-
-        // Get all settings from database
-        $settings = [];
-
-        try {
-            // Try to get settings from Settings model
-            if (class_exists('App\Models\Setting')) {
-                $settingsData = \App\Models\Setting::all();
-                foreach ($settingsData as $setting) {
-                    // Skip sensitive/encrypted settings
-                    if (!in_array($setting->key, ['google_drive_credentials', 'encryption_key', 'app_key'])) {
-                        $settings[$setting->key] = $setting->value;
-                    }
-                }
-            }
-        } catch (Exception $e) {
-            // If Settings model doesn't exist, try config table
-            try {
-                $configData = DB::table('settings')->get();
-                foreach ($configData as $config) {
-                    // Skip sensitive settings
-                    if (!in_array($config->key, ['google_drive_credentials', 'encryption_key', 'app_key'])) {
-                        $settings[$config->key] = $config->value;
-                    }
-                }
-            } catch (Exception $e2) {
-                throw new Exception('Unable to find settings in database');
-            }
-        }
-
-        if (!empty($settings)) {
-            $backupData = [
-                'backup_info' => [
-                    'created_at' => Carbon::now()->toDateTimeString(),
-                    'backup_type' => 'settings',
-                    'app_version' => config('app.version', '1.0'),
-                    'total_settings' => count($settings)
-                ],
-                'settings' => $settings
-            ];
-
-            if (file_put_contents($backupPath, json_encode($backupData, JSON_PRETTY_PRINT)) !== false) {
-                // Update last backup date
-                try {
-                    if (class_exists('App\Models\Setting')) {
-                        \App\Models\Setting::updateOrCreate(
-                            ['key' => 'last_settings_backup_date'],
-                            ['value' => Carbon::now()->toDateTimeString()]
-                        );
-                    } else {
-                        DB::table('settings')->updateOrInsert(
-                            ['key' => 'last_settings_backup_date'],
-                            ['value' => Carbon::now()->toDateTimeString()]
-                        );
-                    }
-                } catch (Exception $e) {
-                    // Continue even if we can't update the setting
-                    Log::warning('Could not update last_settings_backup_date setting', ['error' => $e->getMessage()]);
-                }
-
-                logSchedulerActivity('backup:settings', 'Settings Backup (14-day schedule)', 'COMPLETED', [
-                    'file' => $filename,
-                    'settings_count' => count($settings),
-                    'size_kb' => round(filesize($backupPath) / 1024, 2)
-                ]);
-            } else {
-                throw new Exception('Failed to write backup file');
-            }
-        } else {
-            throw new Exception('No settings found to backup');
-        }
-
-    } catch (Exception $e) {
-        logSchedulerActivity('backup:settings', 'Settings Backup (14-day schedule)', 'FAILED');
-        Log::error('Settings backup failed: ' . $e->getMessage());
-    }
-})
-    ->dailyAt('01:00') // Check daily but only backup every 14 days
-    ->name('settings-backup-biweekly')
-    ->withoutOverlapping()
-    ->description('Settings backup every 14 days');
 
 // Database backup (Daily - IMPROVED)
 Schedule::call(function () {
@@ -546,9 +418,10 @@ Schedule::call(function () {
         Log::error('Database backup failed: ' . $e->getMessage());
     }
 })
-    ->dailyAt('02:00')
+    ->dailyAt('11:00')
     ->name('database-backup-daily')
     ->withoutOverlapping(15)
+    ->appendOutputTo(storage_path('logs/database-backups.log'))
     ->description('Daily database backup with improved fallback');
 
 // Code backup (weekly on Sundays) - IMPROVED
@@ -755,132 +628,11 @@ Schedule::call(function () {
         Log::error('Database backup upload to Google Drive failed: ' . $e->getMessage());
     }
 })
-    ->dailyAt('02:30') // 30 minutes after database backup
+    ->dailyAt('11:30') // 30 minutes after database backup
     ->name('database-upload-gdrive')
     ->withoutOverlapping()
     ->description('Upload daily database backup to Google Drive');
 
-// Google Drive upload for settings backups (FIXED)
-Schedule::call(function () {
-    logSchedulerActivity('backup:upload-settings', 'Settings Upload to Google Drive', 'STARTING');
-
-    try {
-        // Check if Google Drive is enabled
-        $gdriveEnabled = '0';
-        try {
-            if (class_exists('App\Models\Setting')) {
-                $gdriveEnabled = \App\Models\Setting::where('key', 'backup_gdrive_enabled')->value('value') ?? '0';
-            } else {
-                $gdriveEnabled = DB::table('settings')->where('key', 'backup_gdrive_enabled')->value('value') ?? '0';
-            }
-        } catch (Exception $e) {
-            // Default to disabled if we can't check
-        }
-
-        if ($gdriveEnabled !== '1') {
-            logSchedulerActivity('backup:upload-settings', 'Google Drive upload disabled in settings', 'SKIPPED');
-            return;
-        }
-
-        $backupDir = storage_path('app/backups');
-
-        // Find recent settings backups (last 24 hours)
-        $settingsBackups = glob($backupDir . '/settings-backup-*.json');
-        $recentBackups = array_filter($settingsBackups, function ($file) {
-            return filemtime($file) > (time() - 24 * 3600); // Last 24 hours
-        });
-
-        if (empty($recentBackups)) {
-            logSchedulerActivity('backup:upload-settings', 'No recent settings backups found to upload', 'SKIPPED');
-            return;
-        }
-
-        // Get the most recent backup
-        usort($recentBackups, function ($a, $b) {
-            return filemtime($b) - filemtime($a);
-        });
-
-        $latestBackup = $recentBackups[0];
-        $filename = basename($latestBackup);
-        $fileSize = round(filesize($latestBackup) / 1024, 2); // Size in KB
-
-        // Try multiple service classes (same fix as database)
-        $serviceClasses = [
-            'App\Services\BackupService',
-            'App\Services\GoogleDriveService'
-        ];
-
-        $uploadSuccess = false;
-
-        foreach ($serviceClasses as $serviceClass) {
-            if (class_exists($serviceClass)) {
-                try {
-                    $service = app($serviceClass);
-
-                    // Different method names for different services
-                    if (method_exists($service, 'uploadToGoogleDrive')) {
-                        $result = $service->uploadToGoogleDrive($latestBackup, $filename);
-                    } elseif (method_exists($service, 'uploadFile')) {
-                        $result = $service->uploadFile($latestBackup, $filename, 'backups/settings');
-                    } else {
-                        continue;
-                    }
-
-                    if (is_array($result) && isset($result['success']) && $result['success']) {
-                        if (isset($result['skipped']) && $result['skipped']) {
-                            logSchedulerActivity('backup:upload-settings', 'Settings backup already exists in Google Drive', 'SKIPPED', [
-                                'file' => $filename,
-                                'size_kb' => $fileSize,
-                                'service' => $serviceClass
-                            ]);
-                        } else {
-                            logSchedulerActivity('backup:upload-settings', 'Settings Upload to Google Drive', 'COMPLETED', [
-                                'file' => $filename,
-                                'size_kb' => $fileSize,
-                                'upload_id' => $result['google_drive_id'] ?? null,
-                                'service' => $serviceClass
-                            ]);
-                        }
-                        $uploadSuccess = true;
-                        break;
-                    } elseif ($result && !is_array($result)) {
-                        // Legacy service returned just an ID
-                        logSchedulerActivity('backup:upload-settings', 'Settings Upload to Google Drive', 'COMPLETED', [
-                            'file' => $filename,
-                            'size_kb' => $fileSize,
-                            'upload_id' => $result,
-                            'service' => $serviceClass
-                        ]);
-                        $uploadSuccess = true;
-                        break;
-                    }
-
-                } catch (Exception $serviceError) {
-                    Log::warning("Google Drive service {$serviceClass} failed", [
-                        'error' => $serviceError->getMessage(),
-                        'file' => $filename
-                    ]);
-                    continue;
-                }
-            }
-        }
-
-        if (!$uploadSuccess) {
-            // Don't throw error for settings backup upload failure
-            logSchedulerActivity('backup:upload-settings', 'No working Google Drive service found', 'SKIPPED');
-        }
-
-    } catch (Exception $e) {
-        logSchedulerActivity('backup:upload-settings', 'Settings Upload to Google Drive', 'FAILED', [
-            'error' => $e->getMessage()
-        ]);
-        Log::error('Settings backup upload to Google Drive failed: ' . $e->getMessage());
-    }
-})
-    ->dailyAt('01:30') // 30 minutes after settings backup check
-    ->name('settings-upload-gdrive')
-    ->withoutOverlapping()
-    ->description('Upload recent settings backup to Google Drive');
 
 // Full backup weekly (combines DB and code)
 Schedule::command('backup:run')
@@ -940,9 +692,7 @@ Schedule::call(function () {
         ]);
     }
 })
-    ->everyThreeHours()
-    ->days([1, 2, 3, 4, 5, 6])
-    ->between('09:00', '18:00')
+    ->everyFifteenMinutes()
     ->name('scheduler-heartbeat')->description('Scheduler heartbeat');
 
 // Backup cleanup (weekly) - IMPROVED

@@ -1975,3 +1975,36 @@ Did you mean one of these?
 #12 {main}
 "} 
 [2026-04-01 19:20:34] local.ERROR: Public receipt error: Receipt not found  
+[2026-04-03 09:13:37] local.ERROR: There is no notification class that can handle event `Spatie\Backup\Events\BackupWasSuccessful`. {"exception":"[object] (Spatie\\Backup\\Exceptions\\NotificationCouldNotBeSent(code: 0): There is no notification class that can handle event `Spatie\\Backup\\Events\\BackupWasSuccessful`. at /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/spatie/laravel-backup/src/Exceptions/NotificationCouldNotBeSent.php:13)
+[stacktrace]
+#0 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/spatie/laravel-backup/src/Notifications/EventHandler.php(52): Spatie\\Backup\\Exceptions\\NotificationCouldNotBeSent::noNotificationClassForEvent(Object(Spatie\\Backup\\Events\\BackupWasSuccessful))
+#1 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/spatie/laravel-backup/src/Notifications/EventHandler.php(27): Spatie\\Backup\\Notifications\\EventHandler->determineNotification(Object(Spatie\\Backup\\Events\\BackupWasSuccessful))
+#2 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Events/Dispatcher.php(459): Spatie\\Backup\\Notifications\\EventHandler->{closure:Spatie\\Backup\\Notifications\\EventHandler::subscribe():24}(Object(Spatie\\Backup\\Events\\BackupWasSuccessful))
+#3 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Events/Dispatcher.php(287): Illuminate\\Events\\Dispatcher->{closure:Illuminate\\Events\\Dispatcher::makeListener():454}('Spatie\\\\Backup\\\\E...', Array)
+#4 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Events/Dispatcher.php(267): Illuminate\\Events\\Dispatcher->invokeListeners('Spatie\\\\Backup\\\\E...', Array, false)
+#5 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Foundation/helpers.php(473): Illuminate\\Events\\Dispatcher->dispatch('Spatie\\\\Backup\\\\E...')
+#6 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/spatie/laravel-backup/src/Tasks/Backup/BackupJob.php(334): event(Object(Spatie\\Backup\\Events\\BackupWasSuccessful))
+#7 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Foundation/helpers.php(781): Spatie\\Backup\\Tasks\\Backup\\BackupJob->{closure:Spatie\\Backup\\Tasks\\Backup\\BackupJob::sendNotification():334}()
+#8 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/spatie/laravel-backup/src/Tasks/Backup/BackupJob.php(333): rescue(Object(Closure), Object(Closure))
+#9 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/spatie/laravel-backup/src/Tasks/Backup/BackupJob.php(321): Spatie\\Backup\\Tasks\\Backup\\BackupJob->sendNotification(Object(Spatie\\Backup\\Events\\BackupWasSuccessful))
+#10 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Collections/Traits/EnumeratesValues.php(261): Spatie\\Backup\\Tasks\\Backup\\BackupJob->{closure:Spatie\\Backup\\Tasks\\Backup\\BackupJob::copyToBackupDestinations():309}(Object(Spatie\\Backup\\BackupDestination\\BackupDestination), 0)
+#11 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/spatie/laravel-backup/src/Tasks/Backup/BackupJob.php(309): Illuminate\\Support\\Collection->each(Object(Closure))
+#12 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/spatie/laravel-backup/src/Tasks/Backup/BackupJob.php(181): Spatie\\Backup\\Tasks\\Backup\\BackupJob->copyToBackupDestinations('/Users/naveenad...')
+#13 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/spatie/laravel-backup/src/Commands/BackupCommand.php(72): Spatie\\Backup\\Tasks\\Backup\\BackupJob->run()
+#14 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(36): Spatie\\Backup\\Commands\\BackupCommand->handle()
+#15 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Container/Util.php(43): Illuminate\\Container\\BoundMethod::{closure:Illuminate\\Container\\BoundMethod::call():35}()
+#16 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(95): Illuminate\\Container\\Util::unwrapIfClosure(Object(Closure))
+#17 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(35): Illuminate\\Container\\BoundMethod::callBoundMethod(Object(Illuminate\\Foundation\\Application), Array, Object(Closure))
+#18 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Container/Container.php(696): Illuminate\\Container\\BoundMethod::call(Object(Illuminate\\Foundation\\Application), Array, Array, NULL)
+#19 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Console/Command.php(213): Illuminate\\Container\\Container->call(Array)
+#20 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Command/Command.php(318): Illuminate\\Console\\Command->execute(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Illuminate\\Console\\OutputStyle))
+#21 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Console/Command.php(182): Symfony\\Component\\Console\\Command\\Command->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Illuminate\\Console\\OutputStyle))
+#22 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/spatie/laravel-backup/src/Commands/BaseCommand.php(29): Illuminate\\Console\\Command->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#23 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Application.php(1092): Spatie\\Backup\\Commands\\BaseCommand->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#24 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Application.php(341): Symfony\\Component\\Console\\Application->doRunCommand(Object(Spatie\\Backup\\Commands\\BackupCommand), Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#25 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Application.php(192): Symfony\\Component\\Console\\Application->doRun(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#26 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(198): Symfony\\Component\\Console\\Application->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#27 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1235): Illuminate\\Foundation\\Console\\Kernel->handle(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#28 /Users/naveenadicharla/Documents/test/prodc-uvchm/artisan(13): Illuminate\\Foundation\\Application->handleCommand(Object(Symfony\\Component\\Console\\Input\\ArgvInput))
+#29 {main}
+"} 

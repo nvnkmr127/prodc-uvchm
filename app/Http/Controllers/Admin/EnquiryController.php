@@ -92,12 +92,9 @@ class EnquiryController extends Controller
 
         // Date Filters (Default to today if not provided to satisfy user request)
         // Must be done BEFORE getStats to ensure counts match the filtered list
-        if (!$request->has('start_date')) {
-            $request->merge(['start_date' => Carbon::today()->format('Y-m-d')]);
-        }
-        if (!$request->has('end_date')) {
-            $request->merge(['end_date' => Carbon::today()->format('Y-m-d')]);
-        }
+        // Remove automatic date merging to allow showing all records by default
+        // as requested by the user.
+
 
         // --- 1. Calculate Stats (Universal Filter Application) ---
         // Pass all request inputs (including defaults) to get filtered stats
@@ -147,9 +144,13 @@ class EnquiryController extends Controller
             $query->whereIn('enquiries.source', $sources);
         }
 
-        // Apply Date Filters
-        $query->where('enquiries.created_at', '>=', $request->start_date . ' 00:00:00')
-              ->where('enquiries.created_at', '<=', $request->end_date . ' 23:59:59');
+        // Apply Date Filters conditionally
+        if ($request->filled('start_date')) {
+            $query->where('enquiries.created_at', '>=', $request->start_date . ' 00:00:00');
+        }
+        if ($request->filled('end_date')) {
+            $query->where('enquiries.created_at', '<=', $request->end_date . ' 23:59:59');
+        }
 
         // --- 3. Sorting Logic ---
         $sortField = $request->get('sort', 'next_follow_up_date');
