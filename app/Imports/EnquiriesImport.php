@@ -17,12 +17,14 @@ class EnquiriesImport implements ToModel, WithHeadingRow
     protected $defaultSource;
     public $importedCount = 0;
     public $skippedCount = 0;
+    public $duplicates = [];
 
     public function __construct($assignedTo = null, $leadDistribution = null, $defaultSource = null)
     {
         $this->assignedTo = $assignedTo;
         $this->leadDistribution = $leadDistribution;
         $this->defaultSource = is_string($defaultSource) ? trim($defaultSource) : null;
+        $this->duplicates = [];
     }
 
     public function model(array $row)
@@ -50,16 +52,27 @@ class EnquiriesImport implements ToModel, WithHeadingRow
         // 3. Smart Duplicate Check (Students)
         $duplicateStudent = Student::where('student_mobile', 'LIKE', "%{$searchSuffix}")
             ->orWhere('father_mobile', 'LIKE', "%{$searchSuffix}")
-            ->exists();
+            ->first();
 
         if ($duplicateStudent) {
             $this->skippedCount++;
+            $this->duplicates[] = [
+                'name' => $row['name'] ?? $row['student_name'] ?? 'N/A',
+                'phone' => $phone,
+                'reason' => 'Duplicate (Existing Student: ' . $duplicateStudent->name . ')'
+            ];
             return null;
         }
 
         // 4. Smart Duplicate Check (Enquiries)
-        if (Enquiry::where('phone_number', 'LIKE', "%{$searchSuffix}")->exists()) {
+        $existingEnquiry = Enquiry::where('phone_number', 'LIKE', "%{$searchSuffix}")->first();
+        if ($existingEnquiry) {
             $this->skippedCount++;
+            $this->duplicates[] = [
+                'name' => $row['name'] ?? $row['student_name'] ?? 'N/A',
+                'phone' => $phone,
+                'reason' => 'Duplicate (Existing Enquiry: ' . $existingEnquiry->student_name . ')'
+            ];
             return null;
         }
 

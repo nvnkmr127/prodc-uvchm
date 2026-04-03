@@ -346,6 +346,61 @@
 
 @section('content')
     <div class="container-fluid">
+        <!-- Duplicate Enquiries Modal (Pop up on import) -->
+        @if(session('import_duplicates'))
+            <div class="modal fade" id="duplicatesModal" tabindex="-1" role="dialog" aria-labelledby="duplicatesModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg shadow-lg" role="document">
+                    <div class="modal-content border-0">
+                        <div class="modal-header bg-warning text-white py-3">
+                            <h5 class="modal-title font-weight-bold" id="duplicatesModalLabel">
+                                <i class="fas fa-exclamation-triangle mr-2"></i> Duplicate Records Found
+                            </h5>
+                            <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+                        <div class="modal-body p-0">
+                            <div class="alert alert-info border-0 rounded-0 mb-0">
+                                <i class="fas fa-info-circle mr-2"></i> The following <strong>{{ count(session('import_duplicates')) }}</strong> records were skipped because they already exist in the system.
+                            </div>
+                            <div class="table-responsive" style="max-height: 400px;">
+                                <table class="table table-hover mb-0">
+                                    <thead class="bg-light">
+                                        <tr>
+                                            <th class="border-top-0">Name from CSV</th>
+                                            <th class="border-top-0">Phone Number</th>
+                                            <th class="border-top-0">System Match</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach(session('import_duplicates') as $dup)
+                                            <tr>
+                                                <td class="align-middle font-weight-bold">{{ $dup['name'] }}</td>
+                                                <td class="align-middle"><code>{{ $dup['phone'] }}</code></td>
+                                                <td class="align-middle small text-muted">{{ $dup['reason'] }}</td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="modal-footer bg-light">
+                            <button type="button" class="btn btn-secondary px-4" data-dismiss="modal">Close</button>
+                            <button type="button" class="btn btn-primary px-4" onclick="window.print()">
+                                <i class="fas fa-print mr-1"></i> Print List
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            @push('scripts')
+                <script>
+                    $(document).ready(function() {
+                        $('#duplicatesModal').modal('show');
+                    });
+                </script>
+            @endpush
+        @endif
 
         <div class="d-sm-flex align-items-center justify-content-between mb-4">
             <h1 class="h3 mb-0 text-gray-800 font-weight-bold">

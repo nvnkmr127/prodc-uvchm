@@ -657,7 +657,16 @@ class EnquiryController extends Controller
 
             // 3. Check results
             if ($import->importedCount === 0) {
+                // Flash duplicates even on fully failed imports if they exist
+                if (!empty($import->duplicates)) {
+                    session()->flash('import_duplicates', $import->duplicates);
+                }
                 return back()->with('error', "Import finished but 0 records were added. Skipped: {$import->skippedCount}. Check your CSV headers (must be: name OR student_name, and mobile_number).");
+            }
+
+            // Flash duplicates for the popup
+            if (!empty($import->duplicates)) {
+                session()->flash('import_duplicates', $import->duplicates);
             }
 
             return back()->with('success', "Success! Imported: {$import->importedCount}, Skipped: {$import->skippedCount} (Duplicates/Invalid).");
