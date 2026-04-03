@@ -3,6 +3,7 @@
 namespace App\Traits;
 
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 use App\Models\Student;
 
 trait StudentPhotoHelper
@@ -19,33 +20,49 @@ trait StudentPhotoHelper
     public static function getStudentPhotoUrl(Student $student, int $size = 100, string $background = '4e73df', string $color = 'fff'): string
     {
         if ($student->photo) {
-            // Try multiple methods to verify file existence
-            $photoPath = $student->photo;
+            $photoPath = ltrim($student->photo, '/'); // Remove leading slash if any
             
-            // Method 1: Try direct storage disk check
+            // Potential prefixes to check if the file is just a filename
+            $prefixes = ['student_photos/', 'students/', 'student-photos/'];
+            
+            // 1. Check direct path on public disk
             if (Storage::disk('public')->exists($photoPath)) {
                 return asset('storage/' . $photoPath);
             }
             
-            // Method 2: Check if it needs student_photos prefix
+            // 2. Check each prefix if path doesn't contain a slash
             if (!str_contains($photoPath, '/')) {
-                $prefixedPath = 'student_photos/' . $photoPath;
-                if (Storage::disk('public')->exists($prefixedPath)) {
-                    return asset('storage/' . $prefixedPath);
+                foreach ($prefixes as $prefix) {
+                    if (Storage::disk('public')->exists($prefix . $photoPath)) {
+                        return asset('storage/' . $prefix . $photoPath);
+                    }
                 }
             }
             
-            // Method 3: Direct filesystem check
+            // 3. Direct filesystem check (absolute path)
             $fullPath = storage_path('app/public/' . $photoPath);
             if (file_exists($fullPath)) {
                 return asset('storage/' . $photoPath);
             }
             
-            // Method 4: Check with student_photos prefix on filesystem
-            $fullPathWithPrefix = storage_path('app/public/student_photos/' . basename($photoPath));
-            if (file_exists($fullPathWithPrefix)) {
-                return asset('storage/student_photos/' . basename($photoPath));
+            // 4. Check prefixes on filesystem
+            $filename = basename($photoPath);
+            foreach ($prefixes as $prefix) {
+                $fullPathWithPrefix = storage_path('app/public/' . $prefix . $filename);
+                if (file_exists($fullPathWithPrefix)) {
+                    return asset('storage/' . $prefix . $filename);
+                }
             }
+
+            // [DEBUG] If we reached here, photo is in DB but not on disk or in common folders
+            Log::warning("Student Photo Missing on Disk", [
+                'student_id' => $student->id,
+                'student_name' => $student->name,
+                'photo_field' => $student->photo,
+                'resolved_photo_path' => $photoPath,
+                'attempted_full_path' => $fullPath,
+                'checked_prefixes' => $prefixes
+            ]);
         }
         
         // Generate dummy avatar using UI Avatars service
@@ -55,6 +72,7 @@ trait StudentPhotoHelper
     }
 
     /**
+
      * Get student's circular profile photo for listings
      *
      * @param Student $student
@@ -198,7 +216,19 @@ trait StudentPhotoHelper
      */
     public static function hasRealPhoto(Student $student): bool
     {
-        return $student->photo && Storage::disk('public')->exists($student->photo);
+        if (!$student->photo) return false;
+        
+        $photoPath = ltrim($student->photo, '/');
+        if (Storage::disk('public')->exists($photoPath)) return true;
+        
+        if (!str_contains($photoPath, '/')) {
+            $prefixes = ['student_photos/', 'students/', 'student-photos/'];
+            foreach ($prefixes as $prefix) {
+                if (Storage::disk('public')->exists($prefix . $photoPath)) return true;
+            }
+        }
+        
+        return false;
     }
 
     /**
