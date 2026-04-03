@@ -550,6 +550,11 @@
                                         <i class="fas fa-file-import"></i>
                                     </button>
                                     @endhasanyrole
+                                    <button type="button" onclick="exportFilteredResults()"
+                                        class="btn btn-sm btn-outline-success shadow-sm font-weight-bold"
+                                        title="Export CSV">
+                                        <i class="fas fa-file-export"></i>
+                                    </button>
                                     <button type="button" onclick="resetFilters()"
                                         class="btn btn-sm btn-outline-secondary shadow-sm font-weight-bold"
                                         title="Reset Filters">
@@ -894,6 +899,13 @@
                 fetchEnquiries(1);
             });
         });
+
+        // --- Export ---
+        function exportFilteredResults() {
+            const formData = $('#filterForm').serialize();
+            const url = "{{ route('admin.enquiries.export') }}?" + formData;
+            window.location.href = url;
+        }
 
         // --- Sorting logic ---
         function sortList(field) {

@@ -84,33 +84,17 @@ class EnquiryController extends Controller
         ];
     }
 
-    public function index(Request $request)
+    private function applyFilters($query, Request $request)
     {
-        // VISIBILITY FIX: Restrict Non-Admins to see only their assigned enquiries
         $user = Auth::user();
         $isAdmin = $user->hasAnyRole(['admin', 'super-admin', 'Admin', 'Super-admin']);
 
-        // Date Filters (Default to today if not provided to satisfy user request)
-        // Must be done BEFORE getStats to ensure counts match the filtered list
-        // Remove automatic date merging to allow showing all records by default
-        // as requested by the user.
-
-
-        // --- 1. Calculate Stats (Universal Filter Application) ---
-        // Pass all request inputs (including defaults) to get filtered stats
-        $counts = $this->getStats($request->all());
-
-        // --- 2. Build Query ---
-        // Select only enquiry columns to avoid overwriting data (like id) from joined tables
-        $query = Enquiry::with('course', 'assignedTo')
-            ->select('enquiries.*');
-
-        // Apply Visibility for List
+        // 1. Apply Visibility for List
         if (!$isAdmin) {
             $query->where('assigned_to_user_id', $user->id);
         }
 
-        // Search Logic
+        // 2. Search Logic
         if ($request->filled('search')) {
             $searchTerm = $request->search;
             $query->where(function ($q) use ($searchTerm) {
@@ -119,18 +103,19 @@ class EnquiryController extends Controller
             });
         }
 
-        // Status Filter
+        // 3. Status Filter
         if ($request->filled('status')) {
             $status = (array)$request->status;
             $query->whereIn('enquiries.status', $status);
         } else {
-            // Default: Hide 'Not Interested' unless searching
-            if (!$request->filled('search')) {
+            // Default: Hide 'Not Interested' unless searching, only if it's the index list
+            // We'll skip this default if specifically requested or for export
+            if (!$request->filled('search') && !$request->is('*/export')) {
                 $query->where('enquiries.status', '!=', 'Not Interested');
             }
         }
 
-        // Other Filters
+        // 4. Other Filters
         if ($request->filled('course_id')) {
             $courseIds = (array)$request->course_id;
             $query->whereIn('enquiries.course_id', $courseIds);
@@ -144,13 +129,34 @@ class EnquiryController extends Controller
             $query->whereIn('enquiries.source', $sources);
         }
 
-        // Apply Date Filters conditionally
+        // 5. Apply Date Filters conditionally
         if ($request->filled('start_date')) {
             $query->where('enquiries.created_at', '>=', $request->start_date . ' 00:00:00');
         }
         if ($request->filled('end_date')) {
             $query->where('enquiries.created_at', '<=', $request->end_date . ' 23:59:59');
         }
+
+        return $query;
+    }
+
+    public function index(Request $request)
+    {
+        // VISIBILITY FIX: Restrict Non-Admins to see only their assigned enquiries
+        $user = Auth::user();
+        $isAdmin = $user->hasAnyRole(['admin', 'super-admin', 'Admin', 'Super-admin']);
+
+        // --- 1. Calculate Stats (Universal Filter Application) ---
+        // Pass all request inputs (including defaults) to get filtered stats
+        $counts = $this->getStats($request->all());
+
+        // --- 2. Build Query ---
+        // Select only enquiry columns to avoid overwriting data (like id) from joined tables
+        $query = Enquiry::with('course', 'assignedTo')
+            ->select('enquiries.*');
+
+        // Apply filters
+        $query = $this->applyFilters($query, $request);
 
         // --- 3. Sorting Logic ---
         $sortField = $request->get('sort', 'next_follow_up_date');
@@ -160,11 +166,9 @@ class EnquiryController extends Controller
             $query->leftJoin('courses', 'enquiries.course_id', '=', 'courses.id')
                 ->orderBy('courses.name', $sortDirection);
         } elseif ($sortField === 'counselor_name') {
-            // This JOIN caused the ambiguity error
             $query->leftJoin('users', 'enquiries.assigned_to_user_id', '=', 'users.id')
                 ->orderBy('users.name', $sortDirection);
         } else {
-            // Ensure standard sort uses table alias if needed (optional but safe)
             $query->orderBy('enquiries.' . $sortField, $sortDirection);
         }
 
@@ -183,13 +187,6 @@ class EnquiryController extends Controller
 
         // AJAX Response
         if ($request->ajax()) {
-            // Use specific partial views if available, or just render sections
-            // But since we are doing full page reload replacement for now, we'll return fragments
-            // We need to create a partial for the table body to keep this clean, or just render inline
-
-            // Let's assume we will move the table body to a partial or render it here.
-            // For now, let's return HTML of the table loop directly using loop
-
             $tableHtml = view('admin.enquiries._table_body', compact('enquiries', 'counselors'))->render();
             $paginationHtml = $enquiries->links()->toHtml();
 
@@ -219,6 +216,23 @@ class EnquiryController extends Controller
             'sources',
             'isFacebookView'
         ));
+    }
+
+    public function export(Request $request)
+    {
+        $query = Enquiry::with('course', 'assignedTo')
+            ->select('enquiries.*');
+
+        $query = $this->applyFilters($query, $request);
+
+        // Limit results for export to avoid memory issues (optional, but good practice if dataset is huge)
+        $enquiries = $query->get();
+
+        if ($enquiries->isEmpty()) {
+            return redirect()->back()->with('error', 'No results found to export.');
+        }
+
+        return Excel::download(new \App\Exports\EnquiriesExport($enquiries), 'enquiries_' . now()->format('Y-m-d_His') . '.csv');
     }
 
     public function facebookLeads(Request $request)

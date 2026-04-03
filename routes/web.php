@@ -193,6 +193,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
             ->name('enquiries.check-mobile');
         Route::get('enquiries/facebook-leads', [EnquiryController::class, 'facebookLeads'])->name('enquiries.facebook-leads');
         Route::get('enquiries/ajax-search', [EnquiryController::class, 'ajaxSearch'])->name('enquiries.ajax-search');
+        Route::get('enquiries/export', [EnquiryController::class, 'export'])->name('enquiries.export');
         Route::resource('enquiries', EnquiryController::class);
         Route::get('/enquiries/{enquiry}/convert', [EnquiryController::class, 'convertToAdmission'])->name('enquiries.convertToAdmission');
 
