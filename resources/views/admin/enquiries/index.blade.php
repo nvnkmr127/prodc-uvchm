@@ -63,6 +63,7 @@
         .status-followup-border { border-left-color: #f97316 !important; background: rgba(249, 115, 22, 0.03); }
         .status-admitted-border { border-left-color: #059669 !important; background: rgba(5, 150, 105, 0.03); }
         .status-Next-Year-border { border-left-color: #8b5cf6 !important; background: rgba(139, 92, 246, 0.03); }
+        .status-next-entrance-exam-border { border-left-color: #f43f5e !important; background: rgba(244, 63, 94, 0.03); }
         .status-dropped-border { border-left-color: #ef4444 !important; background: rgba(239, 68, 68, 0.03); }
         .border-left-primary { border-left-color: #4f46e5 !important; background: rgba(79, 70, 229, 0.03); }
 
@@ -252,6 +253,11 @@
             color: #0f6848;
         }
 
+        .status-next-entrance-exam {
+            background-color: #fff1f2;
+            color: #e11d48;
+        }
+
         .status-not-interested {
             background-color: #f8d7da;
             color: #e74a3b;
@@ -429,6 +435,12 @@
                     <div class="stat-value" id="count-Next-Year">{{ $counts['Next Year'] }}</div>
                 </a>
             </div>
+            <div class="stat-card-mini status-next-entrance-exam-border">
+                <a href="javascript:void(0)" class="text-decoration-none stat-card-link" data-status="Next Entrance Exam">
+                    <div class="stat-label text-danger">Entrance Exam</div>
+                    <div class="stat-value" id="count-Entrance-Exam">{{ $counts['Next Entrance Exam'] ?? 0 }}</div>
+                </a>
+            </div>
             <div class="stat-card-mini status-contacted-border">
                 <a href="javascript:void(0)" class="text-decoration-none stat-card-link" data-status="Contacted">
                     <div class="stat-label text-success">Contacted</div>
@@ -513,7 +525,7 @@
                                     <label class="small text-muted font-weight-bold">Status</label>
                                     <select class="form-control select2-multiple filter-input"
                                         name="status[]" multiple data-placeholder="All Statuses">
-                                        @foreach(['New', 'Contacted', 'Interested', 'Follow-up', 'Admitted', 'Interested Next Year', 'Not Interested'] as $s)
+                                        @foreach(['New', 'Contacted', 'Interested', 'Follow-up', 'Admitted', 'Interested Next Year', 'Next Entrance Exam', 'Not Interested'] as $s)
                                             <option value="{{ $s }}" {{ in_array($s, (array) request('status')) ? 'selected' : '' }}>{{ $s }}</option>
                                         @endforeach
                                     </select>
@@ -1078,6 +1090,7 @@
                 'Follow-up': 'count-Follow-up',
                 'Interested': 'count-Interested',
                 'Admitted': 'count-Admitted',
+                'Next Entrance Exam': 'count-Entrance-Exam',
                 'Not Interested': 'count-Not-Interested',
                 'Total': 'count-Total'
             };

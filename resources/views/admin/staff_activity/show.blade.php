@@ -34,6 +34,15 @@
         .metric-benchmark .progress { height: 6px; border-radius: 10px; }
         .benchmark-label { font-size: 0.7rem; font-weight: 800; color: #858796; }
         .benchmark-val { font-size: 1.1rem; font-weight: 800; color: #4e73df; }
+
+        .timeline-scroll {
+            scrollbar-width: thin;
+            scrollbar-color: #d1d3e2 transparent;
+        }
+        .timeline-scroll::-webkit-scrollbar { width: 5px; }
+        .timeline-scroll::-webkit-scrollbar-track { background: transparent; }
+        .timeline-scroll::-webkit-scrollbar-thumb { background: #d1d3e2; border-radius: 10px; }
+        .timeline-scroll::-webkit-scrollbar-thumb:hover { background: #b7b9cc; }
     </style>
 @endpush
 
@@ -200,7 +209,7 @@
                     <div class="small text-muted font-weight-bold">Total entries: {{ $activities->total() }}</div>
                 </div>
                 <div class="card-body p-0">
-                    <div class="timeline-scroll px-4 pt-4" style="max-height: 800px;">
+                    <div class="timeline-scroll px-4 pt-4" style="max-height: 800px; overflow-y: auto;">
                         <ul class="timeline-advanced" id="ajaxTimelineTarget">
                             @include('admin.staff_activity._activity_item', ['activities' => $activities])
                         </ul>

@@ -80,6 +80,7 @@ class EnquiryController extends Controller
             'Not Interested' => $stats['Not Interested'] ?? 0,
             'Admitted' => $stats['Admitted'] ?? 0,
             'Follow-up' => $stats['Follow-up'] ?? 0,
+            'Next Entrance Exam' => $stats['Next Entrance Exam'] ?? 0,
             'Total' => $total
         ];
     }
@@ -399,7 +400,7 @@ class EnquiryController extends Controller
             'source' => 'nullable|string|max:255',
             'referral_name' => 'nullable|string|max:255',
             'notes' => 'nullable|string',
-            'status' => 'required|in:New,Contacted,Interested,Not Interested,Follow-up,Admitted,Interested Next Year',
+            'status' => 'required|in:New,Contacted,Interested,Not Interested,Follow-up,Admitted,Interested Next Year,Next Entrance Exam',
             'next_follow_up_date' => 'nullable|date',
             'assigned_to_user_id' => 'nullable|exists:users,id',
             'gender' => 'nullable|in:Male,Female,Other',

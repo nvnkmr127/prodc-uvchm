@@ -120,7 +120,7 @@
                         <div class="form-group mb-2">
                             <label class="form-label-small">Status</label>
                             <select name="status" class="form-control form-control-sm-custom font-weight-bold">
-                                @foreach(['New', 'Contacted', 'Interested', 'Follow-up', 'Interested Next Year', 'Not Interested', 'Admitted'] as $status)
+                                @foreach(['New', 'Contacted', 'Interested', 'Follow-up', 'Interested Next Year', 'Next Entrance Exam', 'Not Interested', 'Admitted'] as $status)
                                     <option value="{{ $status }}" {{ $enquiry->status == $status ? 'selected' : '' }}>{{ $status }}</option>
                                 @endforeach
                             </select>
