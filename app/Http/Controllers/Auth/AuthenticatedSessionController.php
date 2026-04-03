@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 use App\Models\Setting; // <-- Import the Setting model
@@ -15,7 +16,7 @@ class AuthenticatedSessionController extends Controller
     /**
      * Display the login view.
      */
-    public function create(): View
+    public function create(): View|Response
     {
         try {
             // Fetch all settings and key them by their name for easy access
@@ -25,8 +26,13 @@ class AuthenticatedSessionController extends Controller
             $settings = collect();
         }
 
-        // Pass the settings to the login view
-        return view('auth.login', compact('settings'));
+        // Pass the settings to the login view with cache disabling headers to fix 419 errors
+        return response()
+            ->view('auth.login', compact('settings'))
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0')
+            ->header('Pragma', 'no-cache')
+            ->header('Expires', 'Sat, 01 Jan 2000 00:00:00 GMT')
+            ->header('X-LiteSpeed-Cache-Control', 'no-cache');
     }
 
     /**

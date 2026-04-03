@@ -2264,13 +2264,16 @@ public function createFeeComponentsForStudent(Student $student, $academicYear = 
             $query->where('payment_method', $request->payment_method);
         }
 
-        // 3. Date Filters
-        if ($request->filled('date_from')) {
-            $query->whereDate('payment_date', '>=', $request->date_from);
+        // 3. Date Filters (Default to today if not provided to satisfy user request)
+        if (!$request->has('date_from')) {
+            $request->merge(['date_from' => Carbon::today()->format('Y-m-d')]);
         }
-        if ($request->filled('date_to')) {
-            $query->whereDate('payment_date', '<=', $request->date_to);
+        if (!$request->has('date_to')) {
+            $request->merge(['date_to' => Carbon::today()->format('Y-m-d')]);
         }
+
+        $query->whereDate('payment_date', '>=', $request->date_from);
+        $query->whereDate('payment_date', '<=', $request->date_to);
 
         // 4. [NEW] Fee Component Filter
         if ($request->filled('fee_category_id')) {

@@ -42,15 +42,11 @@ class AttendanceReportController extends Controller
                 // Let's at least allow all batches to show up if sorted by date.
             })->get();
 
-        // Initial Load without filters
+        // Initial Load without filters (Default to today to satisfy user request)
         if (!$request->ajax() && !$request->has('start_date')) {
-            $startDate = $currentYear ? $currentYear->start_date : Carbon::now()->startOfMonth()->format('Y-m-d');
-            $endDate = $currentYear ? $currentYear->end_date : Carbon::now()->format('Y-m-d');
-
-            // If current year end date is far in future, cap it to today for report
-            if ($endDate > Carbon::now()->format('Y-m-d')) {
-                $endDate = Carbon::now()->format('Y-m-d');
-            }
+            $todayStr = Carbon::now()->format('Y-m-d');
+            $startDate = $todayStr;
+            $endDate = $todayStr;
 
             return view('admin.reports.attendance.index', compact('courses', 'batches', 'startDate', 'endDate'));
         }

@@ -31,13 +31,16 @@ class StudentPortalLogsController extends Controller
             $query->where('is_suspicious', true);
         }
 
-        // Filter by date range
-        if ($request->filled('date_from')) {
-            $query->whereDate('created_at', '>=', $request->date_from);
+        // Filter by date range (Default to today if not provided to satisfy user request)
+        if (!$request->has('date_from')) {
+            $request->merge(['date_from' => Carbon::today()->format('Y-m-d')]);
         }
-        if ($request->filled('date_to')) {
-            $query->whereDate('created_at', '<=', $request->date_to);
+        if (!$request->has('date_to')) {
+            $request->merge(['date_to' => Carbon::today()->format('Y-m-d')]);
         }
+
+        $query->whereDate('created_at', '>=', $request->date_from);
+        $query->whereDate('created_at', '<=', $request->date_to);
 
         $logs = $query->paginate(50);
 

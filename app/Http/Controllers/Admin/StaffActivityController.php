@@ -26,7 +26,9 @@ class StaffActivityController extends Controller
 
         $start = Carbon::parse($startDate)->startOfDay();
         $end = Carbon::parse($endDate)->endOfDay();
-        $daysCount = max(1, $start->diffInDays($end) + 1);
+        
+        // Use start of both dates for accurate integer day counting
+        $daysCount = (int) $start->diffInDays(Carbon::parse($endDate)->startOfDay()) + 1;
         
         $usersQuery = User::where('status', 'active');
         
@@ -148,8 +150,18 @@ class StaffActivityController extends Controller
                 ->count(),
             'total_fees' => Payment::whereBetween('payment_date', [$startDate, $endDate])->sum('amount'),
             'online_staff' => collect($activitiesByStaff)->where('is_online', true)->count(),
-            'peak_hour' => 'N/A'
+            'peak_hour' => Activity::whereBetween('created_at', [$start, $end])
+                ->select(DB::raw('HOUR(created_at) as hour'))
+                ->groupBy('hour')
+                ->orderByRaw('count(*) DESC')
+                ->first()?->hour ?? 'N/A'
         ];
+        
+        // Format Peak Hour if found
+        if ($summary['peak_hour'] !== 'N/A') {
+            $hour = (int) $summary['peak_hour'];
+            $summary['peak_hour'] = Carbon::createFromTime($hour)->format('h A') . ' - ' . Carbon::createFromTime($hour + 1)->format('h A');
+        }
 
         // --- NEW: Heuristic AI Insights ---
         $insights = [];
@@ -291,12 +303,19 @@ class StaffActivityController extends Controller
             ->map(fn($type) => class_basename($type))
             ->unique();
 
-        // --- NEW: Comparative Analytics & Distribution ---
+        $personalStatsQuery = Activity::where('causer_id', $user->id)
+            ->whereBetween('created_at', [Carbon::parse($startDate)->startOfDay(), Carbon::parse($endDate)->endOfDay()]);
+
+        $firstAction = (clone $personalStatsQuery)->oldest()->first();
+        $lastAction = (clone $personalStatsQuery)->latest()->first();
+        
         $stats = [
             'personal' => [
                 'calls' => FollowUp::where('user_id', $user->id)->whereBetween('created_at', [Carbon::parse($startDate)->startOfDay(), Carbon::parse($endDate)->endOfDay()])->count(),
                 'fees' => Payment::where('created_by', $user->id)->whereBetween('payment_date', [$startDate, $endDate])->sum('amount'),
                 'admissions' => Activity::where('causer_id', $user->id)->where('subject_type', Admission::class)->where('description', 'like', '%created%')->whereBetween('created_at', [Carbon::parse($startDate)->startOfDay(), Carbon::parse($endDate)->endOfDay()])->count(),
+                'first_action' => $firstAction ? $firstAction->created_at : null,
+                'last_action' => $lastAction ? $lastAction->created_at : null,
             ],
             'team_avg' => [
                 'calls' => FollowUp::whereBetween('created_at', [Carbon::parse($startDate)->startOfDay(), Carbon::parse($endDate)->endOfDay()])->count() / max(1, User::role('college-admin')->count()),
@@ -318,7 +337,9 @@ class StaffActivityController extends Controller
             ->select('subject_type', DB::raw('count(*) as count'))
             ->groupBy('subject_type')
             ->get()
-            ->mapWithKeys(fn($item) => [class_basename($item->subject_type) => $item->count])
+            ->mapWithKeys(function($item) {
+                return [class_basename($item->subject_type) => $item->count];
+            })
             ->toArray();
 
         if ($request->ajax()) {

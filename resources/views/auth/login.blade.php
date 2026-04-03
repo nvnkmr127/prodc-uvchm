@@ -311,6 +311,23 @@
         // Init Tilt if needed explicitly, though data-tilt does it auto
         // Input Logic to handle manual checks for floating labels if needed (CSS :placeholder-shown handles most)
     </script>
+    <script>
+        // Refresh CSRF Token on load to bypass stale cached tokens
+        window.addEventListener('DOMContentLoaded', async () => {
+            try {
+                // Using the student portal's refresh endpoint if it exists, or common practice
+                const response = await fetch("{{ route('student.refresh-csrf') }}");
+                const data = await response.json();
+                if (data.token) {
+                    const tokenInputs = document.querySelectorAll('input[name="_token"]');
+                    tokenInputs.forEach(input => input.value = data.token);
+                    console.log('Admin CSRF token refreshed');
+                }
+            } catch (error) {
+                console.error('Failed to refresh CSRF token:', error);
+            }
+        });
+    </script>
 </body>
 
 </html>
