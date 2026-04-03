@@ -75,9 +75,12 @@
                 onchange="quickUpdate({{ $enquiry->id }}, 'next_follow_up_date', this.value)">
         </td>
         <td class="text-center">
-            <span class="badge badge-pill-custom status-{{ Str::slug($enquiry->status) }}">
-                {{ $enquiry->status }}
-            </span>
+            <select class="inline-edit badge-pill-custom status-{{ Str::slug($enquiry->status) }} border-0 font-weight-bold"
+                onchange="quickUpdate({{ $enquiry->id }}, 'status', this.value)" style="appearance: none; -webkit-appearance: none; cursor:pointer;">
+                @foreach(['New', 'Contacted', 'Interested', 'Follow-up', 'Admitted', 'Interested Next Year', 'Next Entrance Exam', 'Not Interested'] as $s)
+                    <option value="{{ $s }}" {{ $enquiry->status == $s ? 'selected' : '' }}>{{ $s }}</option>
+                @endforeach
+            </select>
         </td>
         <td class="text-center">
             <div class="btn-group">
