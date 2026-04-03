@@ -469,7 +469,7 @@ class EnquiryController extends Controller
         // Update the next follow-up date if provided
         if ($request->filled('next_follow_up_date')) {
             // Only advance to 'Contacted' if status is still 'New' — do not degrade more advanced statuses
-            $advancedStatuses = ['Interested', 'Follow-up', 'Interested Next Year', 'Admitted'];
+            $advancedStatuses = ['Interested', 'Follow-up', 'Interested Next Year', 'Admitted', 'Next Entrance Exam'];
             $newStatus = in_array($enquiry->status, $advancedStatuses) ? $enquiry->status : 'Contacted';
             $enquiry->update([
                 'next_follow_up_date' => $request->next_follow_up_date,
