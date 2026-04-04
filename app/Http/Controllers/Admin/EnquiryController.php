@@ -64,24 +64,55 @@ class EnquiryController extends Controller
             });
         }
 
-        // 3. Execution & Aggregation
-        $stats = $statsQuery->groupBy('status')
+        if (isset($filters['test_attended']) && $filters['test_attended'] !== '') {
+            $statsQuery->where('test_attended', $filters['test_attended']);
+        }
+
+        // 3. Execution & Aggregation for Status Counts
+        $statusStats = (clone $statsQuery)->groupBy('status')
             ->pluck('count', 'status')
             ->toArray();
 
-        // Calculate Total from the resulting distribution counts
-        $total = array_sum($stats);
+        // 4. Execution & Aggregation for Test Metrics
+        // We use a clone to avoid the select('status, count(*)') constraint
+        $metrics = Enquiry::query()
+            ->selectRaw('COUNT(*) as total, SUM(CASE WHEN test_attended = 1 THEN 1 ELSE 0 END) as attended_count, SUM(discount_offered) as total_discount, AVG(CASE WHEN test_attended = 1 THEN test_marks ELSE NULL END) as avg_marks');
+
+        // Apply SAME visibility and filters to metrics
+        if (!$isAdmin) {
+            $metrics->where('assigned_to_user_id', $user->id);
+        } elseif (!empty($filters['assigned_to_user_id'])) {
+            $metrics->whereIn('assigned_to_user_id', (array)$filters['assigned_to_user_id']);
+        }
+        if (!empty($filters['course_id'])) $metrics->whereIn('course_id', (array)$filters['course_id']);
+        if (!empty($filters['source'])) $metrics->whereIn('source', (array)$filters['source']);
+        if (!empty($filters['start_date'])) $metrics->where('created_at', '>=', $filters['start_date'] . ' 00:00:00');
+        if (!empty($filters['end_date'])) $metrics->where('created_at', '<=', $filters['end_date'] . ' 23:59:59');
+        if (!empty($filters['search'])) {
+            $term = $filters['search'];
+            $metrics->where(function ($q) use ($term) {
+                $q->where('student_name', 'LIKE', '%' . $term . '%')->orWhere('phone_number', 'LIKE', '%' . $term . '%');
+            });
+        }
+        if (isset($filters['test_attended']) && $filters['test_attended'] !== '') {
+            $metrics->where('test_attended', $filters['test_attended']);
+        }
+
+        $metricsData = $metrics->first();
 
         return [
-            'New' => $stats['New'] ?? 0,
-            'Contacted' => $stats['Contacted'] ?? 0,
-            'Interested' => $stats['Interested'] ?? 0,
-            'Next Year' => $stats['Interested Next Year'] ?? 0,
-            'Not Interested' => $stats['Not Interested'] ?? 0,
-            'Admitted' => $stats['Admitted'] ?? 0,
-            'Follow-up' => $stats['Follow-up'] ?? 0,
-            'Next Entrance Exam' => $stats['Next Entrance Exam'] ?? 0,
-            'Total' => $total
+            'New' => $statusStats['New'] ?? 0,
+            'Contacted' => $statusStats['Contacted'] ?? 0,
+            'Interested' => $statusStats['Interested'] ?? 0,
+            'Next Year' => $statusStats['Interested Next Year'] ?? 0,
+            'Not Interested' => $statusStats['Not Interested'] ?? 0,
+            'Admitted' => $statusStats['Admitted'] ?? 0,
+            'Follow-up' => $statusStats['Follow-up'] ?? 0,
+            'Next Entrance Exam' => $statusStats['Next Entrance Exam'] ?? 0,
+            'Total' => $metricsData->total ?? 0,
+            'Test Attended' => $metricsData->attended_count ?? 0,
+            'Total Discount' => $metricsData->total_discount ?? 0,
+            'Avg Marks' => round($metricsData->avg_marks ?? 0, 1),
         ];
     }
 
@@ -136,6 +167,11 @@ class EnquiryController extends Controller
         }
         if ($request->filled('end_date')) {
             $query->where('enquiries.created_at', '<=', $request->end_date . ' 23:59:59');
+        }
+
+        // 6. Test Attendance Filter
+        if ($request->has('test_attended') && $request->test_attended !== '') {
+            $query->where('enquiries.test_attended', $request->test_attended);
         }
 
         return $query;
@@ -271,6 +307,9 @@ class EnquiryController extends Controller
             'referral_name' => 'nullable|string|max:255',
             'notes' => 'nullable|string',
             'assigned_to_user_id' => 'nullable|exists:users,id',
+            'test_attended' => 'nullable|boolean',
+            'test_marks' => 'nullable|integer',
+            'discount_offered' => 'nullable|numeric',
         ]);
 
         // Smart Duplicate Check before create
@@ -325,7 +364,7 @@ class EnquiryController extends Controller
     public function quickUpdate(Request $request, Enquiry $enquiry)
     {
         $validated = $request->validate([
-            'field' => 'required|in:assigned_to_user_id,next_follow_up_date,status,source',
+            'field' => 'required|in:assigned_to_user_id,next_follow_up_date,status,source,test_attended,test_marks,discount_offered',
             'value' => 'nullable',
             'filter_assigned_to' => 'nullable|exists:users,id' // Helper for stats
         ]);
@@ -406,6 +445,9 @@ class EnquiryController extends Controller
             'gender' => 'nullable|in:Male,Female,Other',
             'date_of_birth' => 'nullable|date',
             'education_qualification' => 'nullable|string|max:255',
+            'test_attended' => 'nullable|boolean',
+            'test_marks' => 'nullable|integer',
+            'discount_offered' => 'nullable|numeric',
         ]);
 
         $enquiry->update($validated);

@@ -269,6 +269,34 @@
                             </select>
                         </div>
                         
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="form-label-group">
+                                    <label>Entrance Test Attended</label>
+                                    <div class="custom-control custom-switch mt-1">
+                                        <input type="checkbox" name="test_attended" value="1" class="custom-control-input" id="testAttendedSwitch" {{ $enquiry->test_attended ? 'checked' : '' }}>
+                                        <label class="custom-control-label font-weight-bold" for="testAttendedSwitch">Yes, Attended</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="form-label-group">
+                                    <label>Test Marks</label>
+                                    <input type="number" name="test_marks" class="form-control" value="{{ $enquiry->test_marks }}" placeholder="e.g. 85">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-label-group">
+                            <label>Discount Offered (₹)</label>
+                            <div class="input-group">
+                                <div class="input-group-prepend">
+                                    <span class="input-group-text bg-light border-right-0"><i class="fas fa-tag"></i></span>
+                                </div>
+                                <input type="number" name="discount_offered" class="form-control border-left-0" value="{{ $enquiry->discount_offered }}" placeholder="Amount in Rupees">
+                            </div>
+                        </div>
+
                         <div class="form-label-group">
                             <label>Address</label>
                             <textarea name="address" class="form-control" rows="2">{{ $enquiry->address }}</textarea>

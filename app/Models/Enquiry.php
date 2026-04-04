@@ -41,6 +41,9 @@ class Enquiry extends Model
         'status',
         'assigned_to_user_id',
         'email',
+        'test_attended',
+        'test_marks',
+        'discount_offered',
     ];
 
     /**

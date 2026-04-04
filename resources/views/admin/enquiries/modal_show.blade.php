@@ -167,6 +167,29 @@
                         @endforeach
                     </select>
                 </div>
+                <div class="row">
+                    <div class="col-6 pr-1">
+                        <div class="form-group mb-2">
+                            <label class="form-label-small">Test Attended</label>
+                            <select name="test_attended" class="form-control form-control-sm-custom">
+                                <option value="0" {{ !$enquiry->test_attended ? 'selected' : '' }}>No</option>
+                                <option value="1" {{ $enquiry->test_attended ? 'selected' : '' }}>Yes</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-6 pl-1">
+                        <div class="form-group mb-2">
+                            <label class="form-label-small">Marks</label>
+                            <input type="number" name="test_marks" class="form-control form-control-sm-custom" value="{{ $enquiry->test_marks }}" placeholder="Marks">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group mb-2">
+                    <label class="form-label-small">Discount Offered (₹)</label>
+                    <input type="number" name="discount_offered" class="form-control form-control-sm-custom" value="{{ $enquiry->discount_offered }}" placeholder="Discount Amount">
+                </div>
+
                 <div class="form-group mb-3">
                     <label class="form-label-small">Address</label>
                     <textarea name="address" class="form-control form-control-sm-custom" rows="2">{{ $enquiry->address }}</textarea>

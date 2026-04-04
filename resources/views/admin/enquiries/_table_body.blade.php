@@ -82,6 +82,27 @@
                 @endforeach
             </select>
         </td>
+        <td>
+            <div class="d-flex align-items-center">
+                <input type="checkbox" class="mr-2" {{ $enquiry->test_attended ? 'checked' : '' }} 
+                    onchange="quickUpdate({{ $enquiry->id }}, 'test_attended', this.checked ? 1 : 0)" title="Attended Test">
+                
+                @if($enquiry->test_attended)
+                    <div class="small">
+                        <div class="text-primary font-weight-bold" title="Marks">
+                            <i class="fas fa-poll mr-1"></i>{{ $enquiry->test_marks ?? '0' }}
+                        </div>
+                        @if($enquiry->discount_offered > 0)
+                            <div class="text-success font-weight-bold" title="Discount">
+                                <i class="fas fa-tags mr-1"></i>₹{{ number_format($enquiry->discount_offered, 0) }}
+                            </div>
+                        @endif
+                    </div>
+                @else
+                    <span class="text-muted small">Pending</span>
+                @endif
+            </div>
+        </td>
         <td class="text-center">
             <div class="btn-group">
                 <button type="button" class="btn btn-light btn-sm btn-circle" onclick="openEnquiryModal({{ $enquiry->id }})"

@@ -475,6 +475,18 @@
                 <div class="stat-label text-primary">Total Enquiries</div>
                 <div class="stat-value" id="count-Total">{{ $counts['Total'] ?? 0 }}</div>
             </div>
+            <div class="stat-card-mini status-contacted-border">
+                <div class="stat-label text-primary">Test Attended</div>
+                <div class="stat-value" id="count-TestAttended">{{ $counts['Test Attended'] ?? 0 }}</div>
+            </div>
+            <div class="stat-card-mini status-interested-border">
+                <div class="stat-label text-success">Total Discount</div>
+                <div class="stat-value" id="count-TotalDiscount">₹{{ number_format($counts['Total Discount'] ?? 0, 0) }}</div>
+            </div>
+            <div class="stat-card-mini border-left-primary">
+                <div class="stat-label text-info">Avg Marks</div>
+                <div class="stat-value" id="count-AvgMarks">{{ number_format($counts['Avg Marks'] ?? 0, 1) }}</div>
+            </div>
         </div>
 
 
@@ -545,6 +557,14 @@
                                     @foreach($courses as $id => $name)
                                         <option value="{{ $id }}" {{ in_array($id, (array) request('course_id')) ? 'selected' : '' }}>{{ $name }}</option>
                                     @endforeach
+                                </select>
+                            </div>
+                            <div class="mt-3">
+                                <label class="small text-muted font-weight-bold">Entrance Test</label>
+                                <select class="form-control filter-input" name="test_attended">
+                                    <option value="">All</option>
+                                    <option value="1" {{ request('test_attended') === '1' ? 'selected' : '' }}>Attended</option>
+                                    <option value="0" {{ request('test_attended') === '0' ? 'selected' : '' }}>Not Attended</option>
                                 </select>
                             </div>
                         </div>
@@ -680,6 +700,7 @@
                                         <i class="fas fa-sort{{ request('sort') == 'status' ? (request('direction') == 'asc' ? '-up' : '-down') : '' }} ml-1"></i>
                                     </a>
                                 </th>
+                                <th width="12%">Entrance Test</th>
                                 <th width="14%" class="text-center">Actions</th>
                             </tr>
                         </thead>
@@ -783,6 +804,23 @@
                                 <input type="text" class="form-control bg-light border-0" id="address" name="address"
                                     value="{{ old('address') }}" placeholder="Enter address or village">
                             </div>
+
+                            <!-- Entrance Test Fields -->
+                            <div class="col-md-4 mb-3">
+                                <div class="custom-control custom-checkbox mt-4">
+                                    <input type="checkbox" name="test_attended" value="1" class="custom-control-input" id="createTestAttended">
+                                    <label class="custom-control-label font-weight-bold" for="createTestAttended">Attended Test</label>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="small font-weight-bold text-gray-600">Marks</label>
+                                <input type="number" name="test_marks" class="form-control bg-light border-0" placeholder="Marks">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="small font-weight-bold text-gray-600">Discount Offered</label>
+                                <input type="number" name="discount_offered" class="form-control bg-light border-0" placeholder="Amount">
+                            </div>
+
                             <div class="col-12 mb-3">
                                 <label class="small font-weight-bold text-gray-600">Notes</label>
                                 <textarea class="form-control bg-light border-0" name="notes" rows="2"></textarea>
@@ -1092,17 +1130,26 @@
                 'Admitted': 'count-Admitted',
                 'Next Entrance Exam': 'count-Entrance-Exam',
                 'Not Interested': 'count-Not-Interested',
-                'Total': 'count-Total'
+                'Total': 'count-Total',
+                'Test Attended': 'count-TestAttended',
+                'Total Discount': 'count-TotalDiscount',
+                'Avg Marks': 'count-AvgMarks'
             };
 
             for (const [key, id] of Object.entries(map)) {
                 if (stats[key] !== undefined) {
                     const el = document.getElementById(id);
                     if (el) {
-                        const current = parseInt(el.innerText);
-                        const next = stats[key];
-                        if (current !== next) {
-                            el.innerText = next;
+                        let next = stats[key];
+                        let formattedNext = next;
+                        
+                        // Handle formatting
+                        if (key === 'Total Discount') {
+                            formattedNext = '₹' + parseInt(next).toLocaleString();
+                        }
+
+                        if (el.innerText != formattedNext) {
+                            el.innerText = formattedNext;
                             el.style.color = '#4e73df';
                             setTimeout(() => el.style.color = '', 500);
                         }
