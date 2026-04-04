@@ -121,6 +121,35 @@ use App\Http\Controllers\Api\TestController;
 
 // --- 1. Public Routes ---
 Route::get('/', fn() => view('welcome'))->name('home');
+
+// ============================================================
+// TEMPORARY DEBUG ROUTE — REMOVE AFTER ROOT CAUSE IS FOUND
+// Visit: https://portal.uvchm.com/csrf-debug in your browser
+// ============================================================
+Route::get('/csrf-debug', function (\Illuminate\Http\Request $request) {
+    $cookieName   = config('session.cookie');
+    $sessionToken = $request->session()->token();
+
+    return response()->json([
+        'status'            => 'debug_active',
+        'timestamp'         => now()->toDateTimeString(),
+        'session_id'        => $request->session()->getId(),
+        'session_driver'    => config('session.driver'),
+        'session_domain'    => config('session.domain') ?? '(not set)',
+        'session_secure'    => config('session.secure') ? 'true' : 'false',
+        'csrf_token_preview'=> $sessionToken ? substr($sessionToken, 0, 10) . '...' : 'MISSING ❌',
+        'session_cookie_name'      => $cookieName,
+        'session_cookie_received'  => $request->hasCookie($cookieName) ? 'YES ✅' : 'NO ❌',
+        'all_cookies_received'     => array_keys($request->cookies->all()),
+        'x_forwarded_for'   => $request->header('X-Forwarded-For') ?? 'not set',
+        'x_forwarded_proto' => $request->header('X-Forwarded-Proto') ?? 'not set',
+        'app_env'           => config('app.env'),
+        'app_debug'         => config('app.debug') ? 'true' : 'false',
+        'hint'              => 'If session_cookie_received is NO ❌, check SESSION_DOMAIN in .env',
+    ]);
+})->name('csrf.debug');
+// ============================================================
+
 Route::get('/enquire', [PublicEnquiryController::class, 'create'])->name('enquiry.public.create');
 Route::post('/enquire', [PublicEnquiryController::class, 'store'])->name('enquiry.public.store');
 Route::get('/enquiry-success', fn() => view('public.enquiry_success'))->name('enquiry.success');
