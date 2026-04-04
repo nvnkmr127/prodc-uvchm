@@ -9,6 +9,13 @@
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
+    # --- FIX: Inject X-Forwarded-Proto so Laravel knows HTTPS is active ---
+    # LiteSpeed terminates SSL and forwards to PHP over HTTP internally.
+    # Without this, Laravel doesn't know the user is on HTTPS, causing session
+    # cookie issues and intermittent 419 CSRF errors.
+    RewriteCond %{HTTPS} on
+    RewriteRule ^ - [E=HTTPS:on]
+
     # Redirect Trailing Slashes If Not A Folder...
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_URI} (.+)/$
@@ -20,16 +27,25 @@
     RewriteRule ^ index.php [L]
 </IfModule>
 
-# --- LiteSpeed / Reverse Proxy: Prevent Login Page Caching ---
-# This prevents 419 CSRF errors caused by a cached login page with a stale token.
+<IfModule mod_headers.c>
+    # Inject X-Forwarded-Proto for PHP/Laravel to detect HTTPS correctly
+    # This is needed when LiteSpeed is doing SSL termination
+    Header set X-Forwarded-Proto "https" env=HTTPS
+
+    # --- Prevent LiteSpeed/Proxy from caching the login page ---
+    # A cached login page contains a stale CSRF token → triggers 419 on submit.
+    <If "%{REQUEST_URI} =~ m#^/login#">
+        Header always set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+        Header always set Pragma "no-cache"
+        Header always set Expires "Sat, 01 Jan 2000 00:00:00 GMT"
+        Header always set X-LiteSpeed-Cache-Control "no-cache"
+        Header always set Vary "*"
+    </If>
+</IfModule>
+
+# LiteSpeed-specific no-cache for login route
 <IfModule LiteSpeed>
     RewriteEngine On
     RewriteRule ^login$ - [E=cache-control:no-cache]
-</IfModule>
-
-<IfModule mod_headers.c>
-    # Force no-cache on the login page specifically
-    <FilesMatch "^index\.php$">
-        Header always set X-LiteSpeed-Cache-Control "no-cache"
-    </FilesMatch>
+    RewriteRule ^login$ - [E=no-gzip:1]
 </IfModule>
