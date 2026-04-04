@@ -100,22 +100,6 @@
         </div>
     </div>
 
-    <script>
-        // Refresh CSRF Token on load to bypass stale cached tokens
-        window.addEventListener('DOMContentLoaded', async () => {
-            try {
-                const response = await fetch("{{ route('student.refresh-csrf') }}");
-                const data = await response.json();
-                if (data.token) {
-                    const tokenInputs = document.querySelectorAll('input[name="_token"]');
-                    tokenInputs.forEach(input => input.value = data.token);
-                    console.log('CSRF token refreshed');
-                }
-            } catch (error) {
-                console.error('Failed to refresh CSRF token:', error);
-            }
-        });
-    </script>
 </body>
 
 </html>

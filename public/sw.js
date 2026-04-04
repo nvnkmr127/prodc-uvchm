@@ -32,16 +32,30 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (event) => {
     const url = new URL(event.request.url);
 
+    // Filter which requests to attempt to cache
+    // Skip non-GET, non-http, and common browser extension schemes
+    const isCacheableRequest = (request) => {
+        const url = new URL(request.url);
+        return request.method === 'GET' && url.protocol.startsWith('http');
+    };
+
+    // Filter which responses are safe to put in the Cache API
+    const isCacheableResponse = (response) => {
+        return response && response.status === 200 && response.type !== 'opaque';
+    };
+
     // Network First Strategy for Enquiries & Dashboard (Dynamic)
     if (DYNAMIC_DATA_URLS.some(path => url.pathname.startsWith(path))) {
         event.respondWith(
             fetch(event.request)
                 .then((response) => {
-                    // Update cache with fresh data
-                    const resClone = response.clone();
-                    caches.open(CACHE_NAME).then((cache) => {
-                        cache.put(event.request, resClone);
-                    });
+                    // Update cache with fresh data only if appropriate
+                    if (isCacheableRequest(event.request) && isCacheableResponse(response)) {
+                        const resClone = response.clone();
+                        caches.open(CACHE_NAME).then((cache) => {
+                            cache.put(event.request, resClone);
+                        });
+                    }
                     return response;
                 })
                 .catch(() => caches.match(event.request)) // Fallback to cache if offline
@@ -51,10 +65,12 @@ self.addEventListener('fetch', (event) => {
         event.respondWith(
             caches.match(event.request).then((res) => {
                 const fetchPromise = fetch(event.request).then((networkRes) => {
-                    const networkResClone = networkRes.clone();
-                    caches.open(CACHE_NAME).then((cache) => {
-                        cache.put(event.request, networkResClone);
-                    });
+                    if (isCacheableRequest(event.request) && isCacheableResponse(networkRes)) {
+                        const networkResClone = networkRes.clone();
+                        caches.open(CACHE_NAME).then((cache) => {
+                            cache.put(event.request, networkResClone);
+                        });
+                    }
                     return networkRes;
                 });
                 return res || fetchPromise;
