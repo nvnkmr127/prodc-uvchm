@@ -32,7 +32,8 @@ class AuthenticatedSessionController extends Controller
             ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0, post-check=0, pre-check=0')
             ->header('Pragma', 'no-cache')
             ->header('Expires', 'Sat, 01 Jan 2000 00:00:00 GMT')
-            ->header('X-LiteSpeed-Cache-Control', 'no-cache');
+            ->header('X-LiteSpeed-Cache-Control', 'no-cache')
+            ->header('Vary', '*'); // Prevent any reverse proxy/CDN from caching this page
     }
 
     /**

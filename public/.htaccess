@@ -19,3 +19,17 @@
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^ index.php [L]
 </IfModule>
+
+# --- LiteSpeed / Reverse Proxy: Prevent Login Page Caching ---
+# This prevents 419 CSRF errors caused by a cached login page with a stale token.
+<IfModule LiteSpeed>
+    RewriteEngine On
+    RewriteRule ^login$ - [E=cache-control:no-cache]
+</IfModule>
+
+<IfModule mod_headers.c>
+    # Force no-cache on the login page specifically
+    <FilesMatch "^index\.php$">
+        Header always set X-LiteSpeed-Cache-Control "no-cache"
+    </FilesMatch>
+</IfModule>
