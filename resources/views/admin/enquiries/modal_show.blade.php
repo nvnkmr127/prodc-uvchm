@@ -63,6 +63,9 @@
         background-color: #d1d3e2;
         border-radius: 10px;
     }
+    .shadow-xs {
+        box-shadow: 0 .125rem .25rem 0 rgba(58,59,69,.05)!important;
+    }
 </style>
 
 <div class="container-fluid px-10">
@@ -90,145 +93,151 @@
                 @csrf
                 @method('PUT')
 
-                <div class="form-group mb-2">
-                    <label class="form-label-small">Student Name</label>
-                    <input type="text" name="student_name" class="form-control form-control-sm-custom" value="{{ $enquiry->student_name }}" required>
-                </div>
+                <!-- 1. BASIC INFORMATION -->
+                <div class="mb-3 p-3 bg-white rounded border shadow-xs">
+                    <h6 class="font-weight-bold text-gray-800 mb-3 small text-uppercase">
+                        <i class="fas fa-user-circle text-primary mr-2"></i>Basic Information
+                    </h6>
+                    <div class="form-group mb-3">
+                        <label class="form-label-small">Full Student Name</label>
+                        <input type="text" name="student_name" class="form-control form-control-sm-custom border-0 bg-light" value="{{ $enquiry->student_name }}" required>
+                    </div>
 
-                <div class="row">
-                    <div class="col-6 pr-1">
-                        <div class="form-group mb-2">
-                            <label class="form-label-small">Phone</label>
-                            <input type="tel" name="phone_number" class="form-control form-control-sm-custom" value="{{ $enquiry->phone_number }}" required>
+                    <div class="row">
+                        <div class="col-6 pr-1">
+                            <div class="form-group mb-2">
+                                <label class="form-label-small">Primary Phone</label>
+                                <input type="tel" name="phone_number" class="form-control form-control-sm-custom border-0 bg-light font-weight-bold" value="{{ $enquiry->phone_number }}" required>
+                            </div>
                         </div>
-                    </div>
-                    <div class="col-6 pl-1">
-                        <div class="form-group mb-2">
-                            <label class="form-label-small">Gender</label>
-                            <select name="gender" class="form-control form-control-sm-custom">
-                                <option value="">Select...</option>
-                                @foreach(['Male', 'Female', 'Other'] as $g)
-                                    <option value="{{ $g }}" {{ $enquiry->gender == $g ? 'selected' : '' }}>{{ $g }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="row">
-                    <div class="col-6 pr-1">
-                        <div class="form-group mb-2">
-                            <label class="form-label-small">Status</label>
-                            <select name="status" class="form-control form-control-sm-custom font-weight-bold">
-                                @foreach(['New', 'Contacted', 'Interested', 'Follow-up', 'Interested Next Year', 'Next Entrance Exam', 'Not Interested', 'Admitted'] as $status)
-                                    <option value="{{ $status }}" {{ $enquiry->status == $status ? 'selected' : '' }}>{{ $status }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                    </div>
-                    <div class="col-6 pl-1">
-                        <div class="form-group mb-2">
-                            <label class="form-label-small">Counselor</label>
-                            <select name="assigned_to_user_id" class="form-control form-control-sm-custom">
-                                 <option value="">Unassigned</option>
-                                @foreach($counselors as $counselor)
-                                    <option value="{{ $counselor->id }}" {{ $enquiry->assigned_to_user_id == $counselor->id ? 'selected' : '' }}>
-                                        {{ $counselor->name }}
-                                    </option>
-                                @endforeach
-                            </select>
+                        <div class="col-6 pl-1">
+                            <div class="form-group mb-2">
+                                <label class="form-label-small">Gender</label>
+                                <select name="gender" class="form-control form-control-sm-custom border-0 bg-light">
+                                    <option value="">Select...</option>
+                                    @foreach(['Male', 'Female', 'Other'] as $g)
+                                        <option value="{{ $g }}" {{ $enquiry->gender == $g ? 'selected' : '' }}>{{ $g }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="form-group mb-2">
-                    <label class="form-label-small">Source</label>
-                    <select name="source" class="form-control form-control-sm-custom" id="modalSourceSelect">
-                        <option value="">Select Source</option>
-                        @foreach(\App\Models\Enquiry::SOURCES as $value => $label)
-                            <option value="{{ $value }}" {{ $enquiry->source == $value ? 'selected' : '' }}>{{ $label }}</option>
-                        @endforeach
-                        @if($enquiry->source && !array_key_exists($enquiry->source, \App\Models\Enquiry::SOURCES))
-                            <option value="{{ $enquiry->source }}" selected>{{ $enquiry->source }}</option>
-                        @endif
-                    </select>
-                </div>
+                <!-- 2. STATUS & ASSIGNMENT -->
+                <div class="mb-3 p-3 bg-white rounded border shadow-xs">
+                    <h6 class="font-weight-bold text-gray-800 mb-3 small text-uppercase">
+                        <i class="fas fa-stream text-warning mr-2"></i>Status & Source
+                    </h6>
+                    <div class="row">
+                        <div class="col-6 pr-1">
+                            <div class="form-group mb-3">
+                                <label class="form-label-small">Current Status</label>
+                                <select name="status" class="form-control form-control-sm-custom font-weight-bold {{ $enquiry->status == 'Admitted' ? 'text-success' : 'text-primary' }} border-0 bg-light">
+                                    @foreach(['New', 'Contacted', 'Interested', 'Follow-up', 'Interested Next Year', 'Next Entrance Exam', 'Not Interested', 'Admitted'] as $status)
+                                        <option value="{{ $status }}" {{ $enquiry->status == $status ? 'selected' : '' }}>{{ $status }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-6 pl-1">
+                            <div class="form-group mb-3">
+                                <label class="form-label-small">Assigned Counselor</label>
+                                <select name="assigned_to_user_id" class="form-control form-control-sm-custom border-0 bg-light">
+                                     <option value="">Unassigned</option>
+                                    @foreach($counselors as $counselor)
+                                        <option value="{{ $counselor->id }}" {{ $enquiry->assigned_to_user_id == $counselor->id ? 'selected' : '' }}>
+                                            {{ $counselor->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                    </div>
 
-                <div class="form-group mb-2" id="modalReferralWrapper" style="display: none;">
-                    <label class="form-label-small" id="modalReferralLabel">Referral Name</label>
-                    <input type="text" name="referral_name" id="modalReferralInput" class="form-control form-control-sm-custom" value="{{ $enquiry->referral_name }}">
-                </div>
-                <div class="form-group form-group-sm">
-                    <label>Interested Course</label>
-                    <select name="course_id" class="form-control form-control-sm-custom">
-                        <option value="">General / Not Decided</option>
-                        @foreach($courses ?? [] as $course)
-                            <option value="{{ $course->id }}" {{ $enquiry->course_id == $course->id ? 'selected' : '' }}>{{ $course->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="row">
-                    <div class="col-6 pr-1">
-                        <div class="form-group mb-2">
-                            <label class="form-label-small">Test Attended</label>
-                            <select name="test_attended" class="form-control form-control-sm-custom">
-                                <option value="0" {{ !$enquiry->test_attended ? 'selected' : '' }}>No</option>
-                                <option value="1" {{ $enquiry->test_attended ? 'selected' : '' }}>Yes</option>
-                            </select>
-                        </div>
+                    <div class="form-group mb-3">
+                        <label class="form-label-small">Lead Source</label>
+                        <select name="source" class="form-control form-control-sm-custom border-0 bg-light" id="modalSourceSelect">
+                            <option value="">Select Source</option>
+                            @foreach(\App\Models\Enquiry::SOURCES as $value => $label)
+                                <option value="{{ $value }}" {{ $enquiry->source == $value ? 'selected' : '' }}>{{ $label }}</option>
+                            @endforeach
+                        </select>
                     </div>
-                    <div class="col-6 pl-1">
-                        <div class="form-group mb-2">
-                            <label class="form-label-small">Marks</label>
-                            <input type="number" name="test_marks" class="form-control form-control-sm-custom" value="{{ $enquiry->test_marks }}" placeholder="Marks">
-                        </div>
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col-12">
-                        <div class="form-group mb-2">
-                            <label class="form-label-small text-primary font-weight-bold">Total Fee Offered (₹)</label>
-                            <input type="number" name="agreed_fee" class="form-control form-control-sm-custom border-primary" value="{{ $enquiry->agreed_fee }}" placeholder="Total Final Fee">
-                        </div>
+
+                    <div class="form-group mb-0" id="modalReferralWrapper" style="display: none;">
+                        <label class="form-label-small" id="modalReferralLabel">Referral Name</label>
+                        <input type="text" name="referral_name" id="modalReferralInput" class="form-control form-control-sm-custom border-0 bg-light" value="{{ $enquiry->referral_name }}">
                     </div>
                 </div>
 
-                <div class="row">
-                    <div class="col-12">
-                        <div class="form-group mb-2">
-                            <label class="form-label-small">Discount Offered (₹)</label>
-                            <input type="number" name="discount_offered" class="form-control form-control-sm-custom" value="{{ $enquiry->discount_offered }}" placeholder="Discount">
+                <!-- 3. TEST & KIT SECTION (Conditional) -->
+                <div class="mb-3 p-3 bg-white rounded border shadow-xs" style="border-left: 4px solid #4e73df !important;">
+                    <h6 class="font-weight-bold text-primary mb-3 small text-uppercase">
+                        <i class="fas fa-clipboard-check mr-2"></i>Entrance & Package
+                    </h6>
+                    
+                    <div class="form-group mb-3">
+                        <label class="form-label-small">Test Attended?</label>
+                        <select name="test_attended" id="modalTestAttended" class="form-control form-control-sm-custom border-0 bg-light font-weight-bold">
+                            <option value="0" {{ !$enquiry->test_attended ? 'selected' : '' }}>No</option>
+                            <option value="1" {{ $enquiry->test_attended ? 'selected' : '' }}>Yes</option>
+                        </select>
+                    </div>
+
+                    <div id="testConditionalFields" style="{{ $enquiry->test_attended ? 'display:block' : 'display:none' }}">
+                        <div class="row mb-3">
+                            <div class="col-6 pr-1">
+                                <div class="form-group mb-0">
+                                    <label class="form-label-small">Test Marks</label>
+                                    <input type="number" name="test_marks" class="form-control form-control-sm-custom border-0 bg-light" value="{{ $enquiry->test_marks }}" placeholder="0">
+                                </div>
+                            </div>
+                            <div class="col-6 pl-1">
+                                <div class="form-group mb-0">
+                                    <label class="form-label-small">Discount Offered (₹)</label>
+                                    <input type="number" name="discount_offered" class="form-control form-control-sm-custom border-0 bg-light font-weight-bold text-success" value="{{ $enquiry->discount_offered }}" placeholder="0">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label class="form-label-small text-primary">Final Agreed Fee (₹)</label>
+                            <input type="number" name="agreed_fee" class="form-control form-control-sm-custom border-0 bg-primary text-white font-weight-bold" value="{{ $enquiry->agreed_fee }}" placeholder="Total Package Fee">
+                        </div>
+
+                        <div class="row bg-light rounded p-2 mx-0 mb-3">
+                            <div class="col-12">
+                                <label class="form-label-small mb-2 d-inline-block">Kit Assignments:</label>
+                            </div>
+                            <div class="col-6">
+                                <div class="custom-control custom-checkbox">
+                                    <input type="checkbox" name="include_uniform" value="1" class="custom-control-input" id="modalUniformCheck" {{ $enquiry->include_uniform ? 'checked' : '' }}>
+                                    <label class="custom-control-label font-weight-bold small" for="modalUniformCheck">Uniform Marked</label>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="custom-control custom-checkbox">
+                                     <input type="checkbox" name="include_books" value="1" class="custom-control-input" id="modalBooksCheck" {{ $enquiry->include_books ? 'checked' : '' }}>
+                                     <label class="custom-control-label font-weight-bold small" for="modalBooksCheck">Books Marked</label>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="row">
-                    <div class="col-6 pr-1">
-                        <div class="form-check custom-control custom-checkbox mb-2">
-                            <input type="checkbox" name="include_uniform" value="1" class="custom-control-input" id="modalUniformCheck" {{ $enquiry->include_uniform ? 'checked' : '' }}>
-                            <label class="custom-control-label font-weight-bold small" for="modalUniformCheck">Uniform Marked</label>
-                        </div>
-                    </div>
-                    <div class="col-6 pl-1">
-                        <div class="form-check custom-control custom-checkbox mb-2">
-                             <input type="checkbox" name="include_books" value="1" class="custom-control-input" id="modalBooksCheck" {{ $enquiry->include_books ? 'checked' : '' }}>
-                             <label class="custom-control-label font-weight-bold small" for="modalBooksCheck">Books Marked</label>
-                        </div>
-                    </div>
+                <div class="mb-4">
+                    <label class="form-label-small ml-1">Current Residential Address</label>
+                    <textarea name="address" class="form-control form-control-sm-custom border-0 bg-light" rows="2" placeholder="Address information...">{{ $enquiry->address }}</textarea>
                 </div>
 
-                <div class="form-group mb-3">
-                    <label class="form-label-small">Address</label>
-                    <textarea name="address" class="form-control form-control-sm-custom" rows="2">{{ $enquiry->address }}</textarea>
-                </div>
-
-                <button type="submit" class="btn btn-primary btn-sm btn-block">
-                    <i class="fas fa-save mr-1"></i> Update Profile
+                <button type="submit" class="btn btn-primary btn-block shadow-sm font-weight-bold py-2 mb-2">
+                    <i class="fas fa-check-circle mr-2"></i> Update Lead Profile
                 </button>
                 
                 @if($enquiry->status !== 'Admitted')
-                <a href="{{ route('admin.enquiries.convertToAdmission', $enquiry->id) }}" class="btn btn-outline-success btn-sm btn-block mt-2">
-                    <i class="fas fa-graduation-cap mr-1"></i> Convert to Admission
+                <a href="{{ route('admin.enquiries.convertToAdmission', $enquiry->id) }}" class="btn btn-light btn-block btn-sm text-success border font-weight-bold">
+                    <i class="fas fa-graduation-cap mr-2"></i> Finalize Admission
                 </a>
                 @endif
             </form>
@@ -586,5 +595,14 @@
                 submitBtn.prop('disabled', false).html(originalContent);
             }
         });
+    });
+
+    // [NEW] Toggle Test Fields logic
+    $('#modalTestAttended').on('change', function() {
+        if ($(this).val() == '1') {
+            $('#testConditionalFields').slideDown();
+        } else {
+            $('#testConditionalFields').slideUp();
+        }
     });
 </script>
