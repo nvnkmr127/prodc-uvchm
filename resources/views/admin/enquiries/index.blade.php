@@ -479,22 +479,7 @@
                 <div class="stat-label text-primary">Test Attended</div>
                 <div class="stat-value" id="count-TestAttended">{{ $counts['Test Attended'] ?? 0 }}</div>
             </div>
-            <div class="stat-card-mini status-interested-border">
-                <div class="stat-label text-success">Total Discount</div>
-                <div class="stat-value" id="count-TotalDiscount">₹{{ number_format($counts['Total Discount'] ?? 0, 0) }}</div>
-            </div>
-            <div class="stat-card-mini border-left-primary">
-                <div class="stat-label text-info">Avg Marks</div>
-                <div class="stat-value" id="count-AvgMarks">{{ number_format($counts['Avg Marks'] ?? 0, 1) }}</div>
-            </div>
-            <div class="stat-card-mini border-left-success">
-                <div class="stat-label text-success">Uniforms</div>
-                <div class="stat-value" id="count-Uniform">{{ $counts['Uniform'] ?? 0 }}</div>
-            </div>
-            <div class="stat-card-mini border-left-info">
-                <div class="stat-label text-info">Books</div>
-                <div class="stat-value" id="count-Books">{{ $counts['Books'] ?? 0 }}</div>
-            </div>
+
         </div>
 
 
