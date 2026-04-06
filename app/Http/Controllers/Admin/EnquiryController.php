@@ -20,90 +20,72 @@ use Illuminate\Support\Facades\Log;
 
 class EnquiryController extends Controller
 {
-    private function getStats(array $filters = [])
+    private function getStats(Request $request)
     {
         $user = Auth::user();
         $isAdmin = $user->hasAnyRole(['admin', 'super-admin', 'Admin', 'Super-admin']);
 
-        // We disable caching temporarily to resolve "not changing" issues with complex filters
-        // $cacheKey = 'enquiry_stats_' . md5(serialize($filters) . $user->id);
-        
-        $statsQuery = Enquiry::selectRaw('status, count(*) as count');
+        // 1. Base Query for Status Counts
+        // We want counts for each status, but they must respect OTHER filters (course, counselor, date, etc.)
+        $statsBaseQuery = Enquiry::query();
 
-        // 1. Apply Visibility (Match index exactly)
+        // Apply visibility
         if (!$isAdmin) {
-            $statsQuery->where('assigned_to_user_id', $user->id);
-        } elseif (!empty($filters['assigned_to_user_id'])) {
-            $assignedTo = (array)$filters['assigned_to_user_id'];
-            $statsQuery->whereIn('assigned_to_user_id', $assignedTo);
+            $statsBaseQuery->where('assigned_to_user_id', $user->id);
         }
 
-        // 2. Apply Dynamic Filters (Match index exactly)
-        if (!empty($filters['course_id'])) {
-            $courseIds = (array)$filters['course_id'];
-            $statsQuery->whereIn('course_id', $courseIds);
+        // Apply shared filters (except status itself)
+        if ($request->filled('assigned_to_user_id')) {
+            $statsBaseQuery->whereIn('assigned_to_user_id', (array)$request->assigned_to_user_id);
         }
-
-        if (!empty($filters['source'])) {
-            $sources = (array)$filters['source'];
-            $statsQuery->whereIn('source', $sources);
+        if ($request->filled('course_id')) {
+            $statsBaseQuery->whereIn('course_id', (array)$request->course_id);
         }
-
-        if (!empty($filters['start_date'])) {
-            $statsQuery->where('created_at', '>=', $filters['start_date'] . ' 00:00:00');
+        if ($request->filled('source')) {
+            $statsBaseQuery->whereIn('source', (array)$request->source);
         }
-        if (!empty($filters['end_date'])) {
-            $statsQuery->where('created_at', '<=', $filters['end_date'] . ' 23:59:59');
+        if ($request->filled('start_date')) {
+            $statsBaseQuery->where('created_at', '>=', $request->start_date . ' 00:00:00');
         }
-
-        if (!empty($filters['search'])) {
-            $term = $filters['search'];
-            $statsQuery->where(function ($q) use ($term) {
+        if ($request->filled('end_date')) {
+            $statsBaseQuery->where('created_at', '<=', $request->end_date . ' 23:59:59');
+        }
+        if ($request->filled('search')) {
+            $term = $request->search;
+            $statsBaseQuery->where(function ($q) use ($term) {
                 $q->where('student_name', 'LIKE', '%' . $term . '%')
                     ->orWhere('phone_number', 'LIKE', '%' . $term . '%');
             });
         }
-
-        if (isset($filters['test_attended']) && $filters['test_attended'] !== '') {
-            $statsQuery->where('test_attended', $filters['test_attended']);
+        if ($request->has('test_attended') && $request->test_attended !== '') {
+            $statsBaseQuery->where('test_attended', $request->test_attended);
         }
 
-        // 3. Execution & Aggregation for Status Counts
-        $statusStats = (clone $statsQuery)->groupBy('status')
+        // Apply default status filter (Hide Not Interested) unless specifically requested OR searching
+        if (!$request->filled('status') && !$request->filled('search') && !$request->is('*/export')) {
+            $statsBaseQuery->where('status', '!=', 'Not Interested');
+        }
+
+        // Get Status Stats
+        $statusStats = (clone $statsBaseQuery)->selectRaw('status, count(*) as count')
+            ->groupBy('status')
             ->pluck('count', 'status')
             ->toArray();
 
-        // 4. Execution & Aggregation for Test Metrics
-        // We use a clone to avoid the select('status, count(*)') constraint
-        $metrics = Enquiry::query()
-            ->selectRaw('COUNT(*) as total, 
+        // 2. Metrics Query
+        // Now we apply the status filter too for metrics if specified
+        $metricsQuery = (clone $statsBaseQuery);
+        if ($request->filled('status')) {
+            $metricsQuery->whereIn('status', (array)$request->status);
+        }
+
+        $metricsData = $metricsQuery->selectRaw('COUNT(*) as total, 
                 SUM(CASE WHEN test_attended = 1 THEN 1 ELSE 0 END) as attended_count, 
                 SUM(discount_offered) as total_discount, 
                 AVG(CASE WHEN test_attended = 1 THEN test_marks ELSE NULL END) as avg_marks,
                 SUM(CASE WHEN include_uniform = 1 THEN 1 ELSE 0 END) as uniform_count,
-                SUM(CASE WHEN include_books = 1 THEN 1 ELSE 0 END) as books_count');
-
-        // Apply SAME visibility and filters to metrics
-        if (!$isAdmin) {
-            $metrics->where('assigned_to_user_id', $user->id);
-        } elseif (!empty($filters['assigned_to_user_id'])) {
-            $metrics->whereIn('assigned_to_user_id', (array)$filters['assigned_to_user_id']);
-        }
-        if (!empty($filters['course_id'])) $metrics->whereIn('course_id', (array)$filters['course_id']);
-        if (!empty($filters['source'])) $metrics->whereIn('source', (array)$filters['source']);
-        if (!empty($filters['start_date'])) $metrics->where('created_at', '>=', $filters['start_date'] . ' 00:00:00');
-        if (!empty($filters['end_date'])) $metrics->where('created_at', '<=', $filters['end_date'] . ' 23:59:59');
-        if (!empty($filters['search'])) {
-            $term = $filters['search'];
-            $metrics->where(function ($q) use ($term) {
-                $q->where('student_name', 'LIKE', '%' . $term . '%')->orWhere('phone_number', 'LIKE', '%' . $term . '%');
-            });
-        }
-        if (isset($filters['test_attended']) && $filters['test_attended'] !== '') {
-            $metrics->where('test_attended', $filters['test_attended']);
-        }
-
-        $metricsData = $metrics->first();
+                SUM(CASE WHEN include_books = 1 THEN 1 ELSE 0 END) as books_count')
+            ->first();
 
         return [
             'New' => $statusStats['New'] ?? 0,
@@ -142,13 +124,12 @@ class EnquiryController extends Controller
             });
         }
 
-        // 3. Status Filter
+        // 3. Status Filter (Applied AFTER search to match getStats)
         if ($request->filled('status')) {
             $status = (array)$request->status;
             $query->whereIn('enquiries.status', $status);
         } else {
             // Default: Hide 'Not Interested' unless searching, only if it's the index list
-            // We'll skip this default if specifically requested or for export
             if (!$request->filled('search') && !$request->is('*/export')) {
                 $query->where('enquiries.status', '!=', 'Not Interested');
             }
@@ -192,7 +173,7 @@ class EnquiryController extends Controller
 
         // --- 1. Calculate Stats (Universal Filter Application) ---
         // Pass all request inputs (including defaults) to get filtered stats
-        $counts = $this->getStats($request->all());
+        $counts = $this->getStats($request);
 
         // --- 2. Build Query ---
         // Select only enquiry columns to avoid overwriting data (like id) from joined tables
@@ -398,7 +379,7 @@ class EnquiryController extends Controller
         $enquiry->save();
 
         // Get updated stats for frontend with filter
-        $counts = $this->getStats(['assigned_to_user_id' => $request->filter_assigned_to]);
+        $counts = $this->getStats($request);
 
         return response()->json(['success' => true, 'message' => 'Updated successfully', 'stats' => $counts]);
     }
@@ -687,17 +668,17 @@ class EnquiryController extends Controller
         $request->validate([
             'ids' => 'required|array',
             'ids.*' => 'exists:enquiries,id',
-            'assigned_to_user_id' => 'required|exists:users,id',
+            'target_user_id' => 'required|exists:users,id',
             'filter_assigned_to' => 'nullable|exists:users,id' // Helper for stats
         ]);
 
         Enquiry::whereIn('id', $request->ids)->update([
-            'assigned_to_user_id' => $request->assigned_to_user_id,
+            'assigned_to_user_id' => $request->target_user_id,
             'updated_at' => now() // Update timestamp
         ]);
 
         // Get updated stats for frontend
-        $counts = $this->getStats(['assigned_to_user_id' => $request->filter_assigned_to]);
+        $counts = $this->getStats($request);
 
         return response()->json(['success' => true, 'message' => 'Counselor assigned successfully.', 'stats' => $counts]);
     }

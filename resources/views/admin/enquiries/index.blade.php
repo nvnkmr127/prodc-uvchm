@@ -619,8 +619,8 @@
                                 </div>
                                 <div class="col-4">
                                     <label class="small text-muted font-weight-bold">Records</label>
-                                    <select class="form-control bg-light border-0 small filter-input" id="perPageSelect" 
-                                        onchange="$('#perPageField').val(this.value); applyFilters();">
+                                    <select class="form-control bg-light border-0 small filter-input" id="perPageSelectTop" 
+                                        onchange="updatePerPage(this.value)">
                                         <option value="10" {{ $enquiries->perPage() == 10 ? 'selected' : '' }}>10</option>
                                         <option value="25" {{ $enquiries->perPage() == 25 ? 'selected' : '' }}>25</option>
                                         <option value="50" {{ $enquiries->perPage() == 50 ? 'selected' : '' }}>50</option>
@@ -722,7 +722,7 @@
                 <div class="px-4 py-3 border-top d-flex align-items-center justify-content-between" id="paginationWrapper">
                     <div class="d-flex align-items-center">
                         <span class="small text-muted mr-2">Show</span>
-                        <select class="custom-select custom-select-sm" id="perPageSelect" style="width: 70px;" onchange="updatePerPage(this.value)">
+                        <select class="custom-select custom-select-sm" id="perPageSelectBottom" style="width: 70px;" onchange="updatePerPage(this.value)">
                             <option value="10" {{ $enquiries->perPage() == 10 ? 'selected' : '' }}>10</option>
                             <option value="25" {{ $enquiries->perPage() == 25 ? 'selected' : '' }}>25</option>
                             <option value="50" {{ $enquiries->perPage() == 50 ? 'selected' : '' }}>50</option>
@@ -931,18 +931,7 @@
                 closeOnSelect: false
             });
 
-            // --- Filter Logic (Main AJAX) ---
-            let debounceTimer;
-            $('.filter-input').on('change keyup', function (e) {
-                // For text inputs (search), debounce
-                if (this.type === 'text') {
-                    clearTimeout(debounceTimer);
-                    debounceTimer = setTimeout(() => fetchEnquiries(), 500);
-                } else {
-                    // Selects/Dates trigger immediately
-                    fetchEnquiries();
-                }
-            });
+            // --- Filter Logic handled by filterInputHandler ---
 
             // Pagination Interception
             $(document).on('click', '#paginationContainer a', function (e) {
@@ -1014,11 +1003,17 @@
 
         // --- AJAX Reset ---
         function resetFilters() {
+            // Unbind temporarily to prevent multiple AJAX calls
+            $('.filter-input').off('change keyup');
+            
             // Reset all form fields
             $('#filterForm')[0].reset();
             
-            // Explicitly clear select2 and trigger change
-            $('.select2-multiple').val(null).trigger('change');
+            // Clear select2 and trigger UI update but WITHOUT change event propagation
+            $('.select2-multiple').val(null).trigger('change.select2');
+            
+            // Re-bind filter listeners
+            $('.filter-input').on('change keyup', filterInputHandler);
             
             // Reset Sort to default
             $('#sortField').val('next_follow_up_date');
@@ -1026,9 +1021,22 @@
             $('.sort-link').removeClass('active').find('i').attr('class', 'fas fa-sort ml-1');
             $(`a[onclick="sortList('next_follow_up_date')"]`).addClass('active').find('i').attr('class', 'fas fa-sort-up ml-1');
 
-            // Fetch clean list
+            // Fetch clean list once
             fetchEnquiries(1);
         }
+
+        function filterInputHandler(e) {
+            // For text inputs (search), debounce
+            if (this.type === 'text') {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => fetchEnquiries(), 500);
+            } else {
+                // Selects/Dates trigger immediately
+                fetchEnquiries();
+            }
+        }
+        let debounceTimer;
+        $('.filter-input').on('change keyup', filterInputHandler);
 
         // --- Main AJAX Fetch ---
         function fetchEnquiries(page = 1) {
@@ -1066,6 +1074,8 @@
         // --- Update Per Page ---
         function updatePerPage(value) {
             $('#perPageField').val(value);
+            // Sync all per-page dropdowns
+            $('#perPageSelectTop, #perPageSelectBottom').val(value);
             fetchEnquiries(1);
         }
 
@@ -1102,7 +1112,7 @@
             if (ids.length === 0 || !user) return alert('Select items and user');
 
             // Construct payload: Merge filters + IDs + assignment
-            const payload = filters + '&_token={{ csrf_token() }}&assigned_to_user_id=' + user + '&' + $.param({ids: ids});
+            const payload = filters + '&_token={{ csrf_token() }}&target_user_id=' + user + '&' + $.param({ids: ids});
 
             $.post('{{ route("admin.enquiries.bulk-assign") }}',
                 payload,
