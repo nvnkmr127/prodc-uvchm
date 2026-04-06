@@ -321,6 +321,7 @@ class UserController extends Controller
             DB::beginTransaction();
 
             foreach ($users as $user) {
+                /** @var \App\Models\User $user */
                 // Skip current user for certain actions
                 if ($user->id === $currentUserId) {
                     if (in_array($request->action, ['deactivate', 'delete'])) {

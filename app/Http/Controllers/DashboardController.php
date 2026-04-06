@@ -546,7 +546,7 @@ private function getNonPayingStudents()
 {
     // Get active students who have never made a component payment
     $nonPayingStudents = Student::where('students.status', 'active')
-        ->with(['batch.course'])
+        ->with(['batch.course', 'studentFees'])
         ->whereDoesntHave('payments', function($query) {
             $query->where('payment_type', 'component');
         })
@@ -568,9 +568,11 @@ private function getNonPayingStudents()
         ->get();
     
     // Calculate total outstanding for non-paying students
-    $totalOutstandingNonPaying = $nonPayingStudents->sum(function($student) {
-        return $student->studentFees->sum(function($fee) {
-            return max(0, ($fee->amount ?? 0) - ($fee->paid_amount ?? 0) - ($fee->concession_amount ?? 0));
+    $totalOutstandingNonPaying = $nonPayingStudents->sum(function ($student) {
+        $fees = collect($student->studentFees);
+        
+        return $fees->sum(function ($fee) {
+            return max(0, (float)($fee->amount ?? 0) - (float)($fee->paid_amount ?? 0) - (float)($fee->concession_amount ?? 0));
         });
     });
     
@@ -879,7 +881,7 @@ private function getFeeCollectionMetrics()
  */
 private function getDefaultersAnalysis()
 {
-    $defaulters = Student::whereHas('studentFees', function($query) {
+    $defaulters = Student::with('studentFees')->whereHas('studentFees', function($query) {
         $query->where('due_date', '<', now())
               ->whereIn('status', ['unpaid', 'partial'])
               ->whereRaw('amount - paid_amount - concession_amount > 0');
@@ -892,12 +894,11 @@ private function getDefaultersAnalysis()
     $totalOverdueAmount = 0;
 
     foreach ($defaulters as $student) {
-        $studentOverdue = $student->studentFees()
-            ->where('due_date', '<', now())
+        $studentOverdue = $student->studentFees
+            ->where('due_date', '<', now()->toDateString())
             ->whereIn('status', ['unpaid', 'partial'])
-            ->get()
             ->sum(function($fee) {
-                return max(0, ($fee->amount ?? 0) - ($fee->paid_amount ?? 0) - ($fee->concession_amount ?? 0));
+                return max(0, (float)($fee->amount ?? 0) - (float)($fee->paid_amount ?? 0) - (float)($fee->concession_amount ?? 0));
             });
 
         $totalOverdueAmount += $studentOverdue;

@@ -1026,11 +1026,11 @@
                                 @foreach(array_slice($dashboard_data['pending_collections'], 0, 5) as $pay)
                                     <div class="list-group-item d-flex justify-content-between align-items-center">
                                         <div>
-                                            <div class="fw-bold small">{{ $pay->student->name }}</div>
-                                            <div class="text-xs text-muted">{{ $pay->payment_date->format('d M, Y') }}</div>
+                                            <div class="fw-bold small">{{ $pay->student->name ?? 'Unknown' }}</div>
+                                            <div class="text-xs text-muted">{{ ($pay->payment_date ?? $pay->due_date)?->format('d M, Y') ?? 'N/A' }}</div>
                                         </div>
                                         <div class="text-end">
-                                            <div class="fw-bold text-danger">₹{{ number_format($pay->amount) }}</div>
+                                            <div class="fw-bold text-danger">₹{{ number_format(method_exists($pay, 'getRemainingAmount') ? $pay->getRemainingAmount() : ($pay->amount ?? 0)) }}</div>
                                             <span class="badge badge-warning text-xs">Pending</span>
                                         </div>
                                     </div>

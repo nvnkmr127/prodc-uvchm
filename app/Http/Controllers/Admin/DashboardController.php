@@ -376,6 +376,7 @@ class DashboardController extends Controller
             // Activity & Alerts
             'recent_activities' => $this->getRecentActivities(),
             'system_alerts' => $this->getSystemAlerts(),
+            'pending_collections' => $this->getPendingCollectionsModels(),
 
             // New Module Stats
             'inventory_stats' => [
@@ -626,7 +627,7 @@ class DashboardController extends Controller
     {
         // Get active students who have never made a component payment
         $nonPayingStudents = Student::where('students.status', 'active')
-            ->with(['batch.course'])
+            ->with(['batch.course', 'studentFees'])
             ->whereDoesntHave('payments', function ($query) {
                 $query->where('payment_type', 'component');
             })
@@ -649,11 +650,7 @@ class DashboardController extends Controller
 
         // Calculate total outstanding for non-paying students
         $totalOutstandingNonPaying = $nonPayingStudents->sum(function ($student) {
-            $fees = $student->studentFees()
-                ->where('status', '!=', 'paid')
-                ->get();
-
-            return $fees->sum(function ($fee) {
+            return collect($student->studentFees)->sum(function ($fee) {
                 return max(0, (float)($fee->amount ?? 0) - (float)($fee->paid_amount ?? 0) - (float)($fee->concession_amount ?? 0));
             });
         });
@@ -931,7 +928,7 @@ class DashboardController extends Controller
      */
     private function getDefaultersAnalysis()
     {
-        $defaulters = Student::whereHas('studentFees', function ($query) {
+        $defaulters = Student::with('studentFees')->whereHas('studentFees', function ($query) {
             $query->where('due_date', '<', now())
                 ->whereIn('status', ['unpaid', 'partial'])
                 ->whereRaw('amount - paid_amount - concession_amount > 0');
@@ -944,14 +941,8 @@ class DashboardController extends Controller
         $totalOverdueAmount = 0;
 
         foreach ($defaulters as $student) {
-            // Use the loaded relationship if available or get it
-            $fees = $student->studentFees;
-            if ($fees instanceof \Illuminate\Database\Eloquent\Relations\HasMany) {
-                $fees = $fees->get();
-            }
-
-            $studentOverdue = $fees
-                ->where('due_date', '<', now())
+            $studentOverdue = collect($student->studentFees)
+                ->where('due_date', '<', now()->toDateString())
                 ->whereIn('status', ['unpaid', 'partial'])
                 ->sum(function ($fee) {
                     return max(0, (float)($fee->amount ?? 0) - (float)($fee->paid_amount ?? 0) - (float)($fee->concession_amount ?? 0));
@@ -1015,6 +1006,26 @@ class DashboardController extends Controller
             ->join('fee_categories', 'student_fees.fee_category_id', '=', 'fee_categories.id')
             ->groupBy('fee_categories.id', 'fee_categories.name')
             ->havingRaw('SUM(student_fees.amount - student_fees.paid_amount - student_fees.concession_amount) > 0')
+            ->get();
+    }
+    /**
+     * Helper methods for calculations
+     */
+    private function calculateTotalOutstanding()
+    {
+        return StudentFee::whereIn('status', ['unpaid', 'partial'])
+            ->get()
+            ->sum(function($fee) {
+                return max(0, ($fee->amount ?? 0) - ($fee->paid_amount ?? 0) - ($fee->concession_amount ?? 0));
+            });
+    }
+
+    private function getPendingCollectionsModels()
+    {
+        return StudentFee::with(['student.batch.course'])
+            ->whereIn('status', ['unpaid', 'partial'])
+            ->latest('due_date')
+            ->take(10)
             ->get();
     }
 

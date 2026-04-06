@@ -450,25 +450,11 @@ private function getPaymentModesData()
      */
     private function getPendingCollections()
     {
-        return Student::with(['studentFees.feeCategory', 'batch.course'])
-            ->whereHas('studentFees', function($query) {
-                $query->whereIn('status', ['unpaid', 'partial']);
-            })
+        return \App\Models\StudentFee::with(['student.batch.course'])
+            ->whereIn('status', ['unpaid', 'partial'])
+            ->latest('due_date')
             ->take(10)
-            ->get()
-            ->map(function($student) {
-                $unpaidFees = $student->studentFees->whereIn('status', ['unpaid', 'partial']);
-                $totalDue = $unpaidFees->sum(function($fee) {
-                    return ($fee->amount ?? 0) - ($fee->paid_amount ?? 0) - ($fee->concession_amount ?? 0);
-                });
-                
-                return [
-                    'student_name' => $student->name,
-                    'course' => $student->batch->course->name ?? 'N/A',
-                    'amount' => $totalDue ?: 0,
-                    'due_date' => $unpaidFees->min('due_date') ? Carbon::parse($unpaidFees->min('due_date'))->format('M d') : 'N/A'
-                ];
-            })->toArray();
+            ->get();
     }
 
     private function getBirthdayData()
