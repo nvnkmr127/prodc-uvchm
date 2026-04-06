@@ -942,7 +942,11 @@
                 url: url,
                 type: 'GET',
                 data: data,
-                headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                },
                 success: function (res) {
                     console.log("[Enquiry-Debug] Search Success! Rows returned:", $(res.html).filter('tr').length);
                     $container.html(res.html).css('opacity', '1');

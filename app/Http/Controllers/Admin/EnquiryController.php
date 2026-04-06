@@ -22,9 +22,11 @@ class EnquiryController extends Controller
     private function isUserAdmin($user = null)
     {
         $user = $user ?: Auth::user();
-        // Use a single canonical lowercase list; Spatie's hasAnyRole is case-insensitive
+        // Restore all casing variants — Spatie's in-memory Collection::contains
+        // uses PHP string comparison which IS case-sensitive.
         return $user->hasAnyRole([
             'admin', 'super-admin', 'college-admin', 'superadmin',
+            'Admin', 'Super-admin', 'College-admin', 'Super Admin',
         ]);
     }
 
@@ -239,8 +241,8 @@ class EnquiryController extends Controller
         // (debug log removed)
 
 
-        // AJAX Response
-        if ($request->ajax()) {
+        // AJAX Response — detect via either X-Requested-With OR Accept: application/json
+        if ($request->ajax() || $request->wantsJson()) {
             $tableHtml = view('admin.enquiries._table_body', compact('enquiries', 'counselors'))->render();
             $paginationHtml = $enquiries->links()->toHtml();
 
