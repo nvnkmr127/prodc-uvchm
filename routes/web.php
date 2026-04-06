@@ -162,7 +162,7 @@ Route::get('receipts/{receipt_number}/pdf', [ComponentPaymentController::class, 
 // --- 2. Authenticated User Routes (Generic) ---
 Route::middleware(['auth'])->group(function () {
     // Laravel's default logout route
-    Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
+    Route::match(['get', 'post'], 'logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
 
     // Standard verified user routes
     Route::middleware(['verified'])->group(function () {
@@ -1470,7 +1470,7 @@ Route::prefix('student')->name('student.')->group(function () {
     Route::post('/authenticate', [App\Http\Controllers\StudentPortalController::class, 'authenticate'])->name('authenticate');
 
     // Auth Required
-    Route::post('/logout', [App\Http\Controllers\StudentPortalController::class, 'logout'])->name('logout');
+    Route::match(['get', 'post'], '/logout', [App\Http\Controllers\StudentPortalController::class, 'logout'])->name('logout');
     Route::get('/dashboard', [App\Http\Controllers\StudentPortalController::class, 'dashboard'])->name('dashboard');
     Route::post('/request-update', [App\Http\Controllers\StudentPortalController::class, 'requestUpdate'])->name('request.update');
 
