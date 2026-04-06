@@ -449,48 +449,42 @@
             </div>
             <div class="stat-card-mini status-followup-border">
                 <a href="javascript:void(0)" class="text-decoration-none stat-card-link" data-status="Follow-up">
-                    <div class="stat-label text-warning">Follow-Up</div>
-                    <div class="stat-value" id="count-Follow-up">{{ $counts['Follow-up'] ?? 0 }}</div>
+            @php 
+                // Helper to preserve current filters except status when clicking cards
+                $currentFilters = request()->except(['status', 'page']); 
+            @endphp
+            <div class="stat-card {{ !request('status') ? 'active' : '' }}">
+                <a href="{{ route('admin.enquiries.index', $currentFilters) }}" class="text-decoration-none">
+                    <div class="stat-label text-primary">Total Enquiries</div>
+                    <div class="stat-value" id="count-Total">{{ $counts['Total'] ?? 0 }}</div>
                 </a>
             </div>
-            <div class="stat-card-mini status-interested-border">
-                <a href="javascript:void(0)" class="text-decoration-none stat-card-link" data-status="Interested">
-                    <div class="stat-label text-warning">Interested</div>
-                    <div class="stat-value" id="count-Interested">{{ $counts['Interested'] ?? 0 }}</div>
-                </a>
-            </div>
-            <div class="stat-card-mini status-admitted-border">
-                <a href="javascript:void(0)" class="text-decoration-none stat-card-link" data-status="Admitted">
-                    <div class="stat-label text-success">Admitted</div>
-                    <div class="stat-value" id="count-Admitted">{{ $counts['Admitted'] ?? 0 }}</div>
-                </a>
-            </div>
-            <div class="stat-card-mini status-dropped-border">
-                <a href="javascript:void(0)" class="text-decoration-none stat-card-link" data-status="Not Interested">
-                    <div class="stat-label text-danger">Dropped</div>
-                    <div class="stat-value" id="count-Not-Interested">{{ $counts['Not Interested'] ?? 0 }}</div>
-                </a>
-            </div>
-            <div class="stat-card-mini border-left-primary">
-                <div class="stat-label text-primary">Total Enquiries</div>
-                <div class="stat-value" id="count-Total">{{ $counts['Total'] ?? 0 }}</div>
-            </div>
-            <div class="stat-card-mini status-contacted-border">
-                <a href="javascript:void(0)" class="text-decoration-none stat-card-link" data-test="1">
+            @foreach(['New', 'Contacted', 'Interested', 'Follow-up', 'Interested Next Year', 'Admitted', 'Next Entrance Exam', 'Not Interested'] as $status)
+                @php 
+                    $statKey = $status == 'Interested Next Year' ? 'Next Year' : $status;
+                    $isActive = request('status') == $status;
+                @endphp
+                <div class="stat-card {{ $isActive ? 'active' : '' }}">
+                    <a href="{{ route('admin.enquiries.index', array_merge($currentFilters, ['status' => $status])) }}" class="text-decoration-none">
+                        <div class="stat-label text-gray-700">{{ $status }}</div>
+                        <div class="stat-value" id="count-{{ str_replace(' ', '-', $statKey) }}">{{ $counts[$statKey] ?? 0 }}</div>
+                    </a>
+                </div>
+            @endforeach
+            <div class="stat-card-mini status-contacted-border {{ request('test_attended') === '1' ? 'active' : '' }}">
+                <a href="{{ route('admin.enquiries.index', array_merge($currentFilters, ['test_attended' => 1])) }}" class="text-decoration-none">
                     <div class="stat-label text-primary">Test Attended</div>
                     <div class="stat-value" id="count-TestAttended">{{ $counts['Test Attended'] ?? 0 }}</div>
                 </a>
             </div>
-
         </div>
-
-
 
         <div class="card shadow mb-4 border-0" style="border-radius: 1rem;">
             <div class="card-body py-3">
-                <form id="filterForm">
+                <form id="filterForm" method="GET" action="{{ route('admin.enquiries.index') }}">
                     <input type="hidden" name="sort" id="sortField" value="{{ request('sort', 'next_follow_up_date') }}">
                     <input type="hidden" name="direction" id="sortDirection" value="{{ request('direction', 'asc') }}">
+                    <input type="hidden" name="per_page" id="perPageField" value="{{ request('per_page', 10) }}">
                     <div class="row">
                         <!-- Column 1: Discovery -->
                         <div class="col-lg-4 col-md-12 border-right">
@@ -507,7 +501,6 @@
                                         name="search" id="liveSearchInput" value="{{ request('search') }}"
                                         placeholder="Name, Phone..." autocomplete="off">
                                 </div>
-                                <div id="liveSearchResults"></div>
                             </div>
                             <div>
                                 <label class="small text-muted font-weight-bold">Counselor Assignment</label>
@@ -582,11 +575,11 @@
                                         title="Export CSV">
                                         <i class="fas fa-file-export"></i>
                                     </button>
-                                    <button type="button" onclick="resetFilters()"
+                                    <a href="{{ route('admin.enquiries.index') }}"
                                         class="btn btn-sm btn-outline-secondary shadow-sm font-weight-bold"
                                         title="Reset Filters">
                                         <i class="fas fa-sync-alt"></i>
-                                    </button>
+                                    </a>
                                 </div>
                             </div>
 
@@ -616,8 +609,14 @@
                                 </div>
                             </div>
 
-                            <!-- Bulk Actions Overlay (Specific context) -->
-                            <div id="bulkActionBar" style="display:none; flex-direction: column; gap:10px; padding: 12px; background: #fff5f5; border-radius: 8px; border: 1px dashed #e74a3b;">
+                            <div class="mt-3">
+                                <button type="submit" class="btn btn-primary btn-block shadow-sm font-weight-bold">
+                                    <i class="fas fa-search mr-2"></i> Apply Filters
+                                </button>
+                            </div>
+
+                            <!-- Bulk Actions Overlay -->
+                            <div id="bulkActionBar" style="display:none; flex-direction: column; gap:10px; padding: 12px; background: #fff5f5; border-radius: 8px; border: 1px dashed #e74a3b; margin-top: 10px;">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <span class="small font-weight-bold text-danger"><i class="fas fa-layer-group mr-1"></i> Bulk Actions</span>
                                     <button type="button" class="btn btn-danger btn-sm rounded-circle" onclick="bulkDelete()" title="Delete Selected">
@@ -640,9 +639,7 @@
                             </div>
                         </div>
                     </div>
-                    <input type="hidden" name="per_page" id="perPageField" value="{{ $enquiries->perPage() }}">
                 </form>
-
             </div>
         </div>
 
@@ -920,57 +917,12 @@
 
             // --- Filter Logic handled by filterInputHandler ---
 
-            // Pagination Interception
-            $(document).on('click', '#paginationContainer a', function (e) {
-                e.preventDefault();
-                let url = $(this).attr('href');
-                let page = url.split('page=')[1] || 1;
-                fetchEnquiries(page);
-            });
-
-            // --- Source/Referral Toggle (New Enquiry modal) ---
-            $('#sourceSelect').on('change', function () {
-                const val = $(this).val();
-                const show = ['Agent', 'Referrals', 'Student Refer', 'Walk-in', 'Other'].includes(val);
-                $('#referralWrapper').toggle(show);
-                const labels = { 'Agent': 'Agent Name', 'Other': 'Specify Source', 'Walk-in': 'Referred By' };
-                $('#referralLabel').text(labels[val] || 'Referral Name');
-            });
-
-            // --- Checkbox Logic ---
-            $('#selectAll').on('change', function () {
-                $('.enquiry-checkbox').prop('checked', this.checked);
-                toggleBulkActions();
-            });
-            $(document).on('change', '.enquiry-checkbox', toggleBulkActions);
-
-            // --- Stat Card Link Clicks (AJAX) ---
-            $(document).on('click', '.stat-card-link', function (e) {
-                e.preventDefault();
-                const status = $(this).data('status');
-                const testVal = $(this).data('test'); // Optional test filter
-                
-                if (status) {
-                    const statusSelect = $('select[name="status[]"]');
-                    statusSelect.val([status]).trigger('change');
-                } else if (testVal !== undefined) {
-                    const testSelect = $('select[name="test_attended"]');
-                    testSelect.val(testVal).trigger('change');
-                }
-                
-                // Note: The 'trigger(change)' above will fire filterInputHandler which calls fetchEnquiries(1).
-                // No need for a manual fetch here anymore to avoid redundant requests.
-            });
+        // --- Pagination Logic (Standard GET) ---
+        $(document).ready(function () {
+            // Note: Pagination links are now standard <a> tags from Laravel.
         });
 
-        // --- Export ---
-        function exportFilteredResults() {
-            const formData = $('#filterForm').serialize();
-            const url = "{{ route('admin.enquiries.export') }}?" + formData;
-            window.location.href = url;
-        }
-
-        // --- Sorting logic ---
+        // --- Sorting logic (Standard GET) ---
         function sortList(field) {
             let currentField = $('#sortField').val();
             let currentDirection = $('#sortDirection').val();
@@ -982,105 +934,18 @@
 
             $('#sortField').val(field);
             $('#sortDirection').val(newDirection);
-
-            // Update UI icons immediately (optional but smoother)
-            $('.sort-link').removeClass('active').find('i').attr('class', 'fas fa-sort ml-1');
-            let $activeLink = $(`a[onclick="sortList('${field}')"]`);
-            $activeLink.addClass('active');
-            $activeLink.find('i').attr('class', `fas fa-sort-${newDirection === 'asc' ? 'up' : 'down'} ml-1`);
-
-            fetchEnquiries(1);
+            $('#filterForm').submit();
         }
 
-        // --- AJAX Reset ---
-        function resetFilters() {
-            // Unbind temporarily to prevent multiple AJAX calls
-            $('.filter-input').off('change keyup');
-            
-            // Explicitly clear all field types to empty
-            $('#filterForm').find('input[type="text"], input[type="date"], select').each(function() {
-                $(this).val(''); 
-            });
-
-            // Clear multiple select2 specifically
-            $('.select2-multiple').val(null).trigger('change.select2');
-            
-            // Reset Sort to default values
-            $('#sortField').val('next_follow_up_date');
-            $('#sortDirection').val('asc');
-            $('.sort-link').removeClass('active').find('i').attr('class', 'fas fa-sort ml-1');
-            $(`a[onclick="sortList('next_follow_up_date')"]`).addClass('active').find('i').attr('class', 'fas fa-sort-up ml-1');
-
-            // Reset Records per page to 10
-            $('#perPageField').val('10');
-            $('#perPageSelectTop, #perPageSelectBottom').val('10');
-
-            // Re-bind filter listeners AFTER clearing
-            $('.filter-input').on('change keyup', filterInputHandler);
-            
-            // Fetch clean list once
-            fetchEnquiries(1);
-        }
-
-        function filterInputHandler(e) {
-            // For text inputs (search), debounce
-            if (this.type === 'text') {
-                clearTimeout(debounceTimer);
-                debounceTimer = setTimeout(() => fetchEnquiries(), 500);
-            } else {
-                // Selects/Dates trigger immediately
-                fetchEnquiries();
-            }
-        }
-        let debounceTimer;
-        $('.filter-input').on('change keyup', filterInputHandler);
-
-        let currentRequest = null;
-        // --- Main AJAX Fetch ---
-        function fetchEnquiries(page = 1) {
-            // Abort previous request to prevent race conditions
-            if (currentRequest) {
-                currentRequest.abort();
-            }
-
-            // Collect all filters
-            let data = $('#filterForm').serialize();
-            data += '&page=' + page;
-
-            // Show Loading Indicator
-            $('#dataTable').css('opacity', '0.5');
-
-            currentRequest = $.ajax({
-                url: "{{ route('admin.enquiries.index') }}",
-                type: "GET",
-                data: data,
-                success: function (response) {
-                    $('#enquiryTableBody').html(response.html);
-                    $('#paginationContainer').html(response.pagination);
-                    if (response.stats) {
-                        updateStats(response.stats);
-                    }
-                    $('#dataTable').css('opacity', '1');
-                },
-                error: function (xhr) {
-                    // Don't alert if it was a manual abort
-                    if (xhr.statusText !== 'abort') {
-                        alert("Failed to load data");
-                        $('#dataTable').css('opacity', '1');
-                    }
-                },
-                complete: function() {
-                    currentRequest = null;
-                }
-            });
-        }
-
-        // --- Update Per Page ---
+        // --- Update Per Page (Standard GET) ---
         function updatePerPage(value) {
             $('#perPageField').val(value);
-            // Sync all per-page dropdowns
-            $('#perPageSelectTop, #perPageSelectBottom').val(value);
-            fetchEnquiries(1);
+            $('#filterForm').submit();
+        }
+
+        // --- Removal of AJAX fetchers ---
+        function fetchEnquiries(page = 1) {
+            window.location.reload(); // Fallback for components still calling this
         }
 
 
