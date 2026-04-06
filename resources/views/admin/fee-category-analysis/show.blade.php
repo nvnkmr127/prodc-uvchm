@@ -98,28 +98,54 @@
     <div class="card mb-4 shadow border-0">
         <div class="card-body bg-light rounded">
             <form id="filterForm" class="row g-3">
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label class="form-label small font-weight-bold">Search</label>
-                    <input type="text" id="searchInput" name="search" class="form-control" placeholder="Name / ID...">
+                    <input type="text" id="searchInput" name="search" class="form-control shadow-sm" placeholder="Name / ID / Enrollment...">
                 </div>
-                
-            
 
-                <div class="col-md-4">
-                    <label class="form-label small font-weight-bold">Batch</label>
-                    <select id="batchFilter" name="batch_id" class="form-control">
-                        <option value="">All Batches</option>
-                        @foreach($batches as $batch)
-                            <option value="{{ $batch->id }}" {{ request('batch_id') == $batch->id ? 'selected' : '' }}>
-                                {{ $batch->name }} ({{ $batch->course->name }})
+                <div class="col-md-2">
+                    <label class="form-label small font-weight-bold">Academic Year</label>
+                    <select name="academic_year_filter" class="form-control shadow-sm">
+                        <option value="">All Years</option>
+                        @php
+                            $academicYears = \App\Models\AcademicYear::orderBy('name', 'desc')->get();
+                            $selectedYearId = request('academic_year_filter', session('selected_academic_year_id'));
+                        @endphp
+                        @foreach($academicYears as $year)
+                            <option value="{{ $year->id }}" {{ $selectedYearId == $year->id ? 'selected' : '' }}>
+                                {{ $year->name }}
                             </option>
                         @endforeach
                     </select>
                 </div>
 
-                <div class="col-md-4">
+                <div class="col-md-2">
+                    <label class="form-label small font-weight-bold">Course</label>
+                    <select id="courseFilter" name="course_id" class="form-control shadow-sm">
+                        <option value="">All Courses</option>
+                        @foreach($courses as $course)
+                            <option value="{{ $course->id }}" {{ request('course_id') == $course->id ? 'selected' : '' }}>
+                                {{ $course->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label small font-weight-bold">Batch</label>
+                    <select id="batchFilter" name="batch_id" class="form-control shadow-sm">
+                        <option value="">All Batches</option>
+                        @foreach($batches as $batch)
+                            <option value="{{ $batch->id }}" {{ request('batch_id') == $batch->id ? 'selected' : '' }} data-course="{{ $batch->course_id }}">
+                                {{ $batch->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="col-md-3">
                     <label class="form-label small font-weight-bold">Payment Status</label>
-                    <select id="statusFilter" name="status" class="form-control">
+                    <select id="statusFilter" name="status" class="form-control shadow-sm">
                         <option value="">All Statuses</option>
                         <option value="paid">Fully Paid</option>
                         <option value="partial">Partially Paid</option>
@@ -147,42 +173,7 @@
                         </tr>
                     </thead>
                     <tbody id="studentTableBody">
-                        @forelse($studentFees as $fee)
-                            @php
-                                $due = $fee->amount - $fee->concession_amount - $fee->paid_amount;
-                                $status = $due <= 0 ? 'Paid' : ($fee->paid_amount > 0 ? 'Partial' : 'Unpaid');
-                                $badge = match($status) { 'Paid'=>'success', 'Partial'=>'warning', 'Unpaid'=>'danger' };
-                            @endphp
-                            <tr>
-                                <td>
-                                    <span class="font-weight-bold text-dark">{{ $fee->student->name ?? 'N/A' }}</span>
-                                    <br><small class="text-muted">{{ $fee->student->enrollment_number ?? '' }}</small>
-                                </td>
-                                <td>
-                                    {{ $fee->student->batch->course->name ?? 'N/A' }}
-                                    <br><small class="text-muted">{{ $fee->student->batch->name ?? '' }}</small>
-                                </td>
-                                <td class="text-right">₹{{ number_format($fee->amount, 2) }}</td>
-                                <td class="text-right text-info">₹{{ number_format($fee->concession_amount, 2) }}</td>
-                                <td class="text-right text-success">₹{{ number_format($fee->paid_amount, 2) }}</td>
-                                <td class="text-right text-danger font-weight-bold">₹{{ number_format($due, 2) }}</td>
-                                <td class="text-center">
-                                    <span class="badge badge-{{ $badge }}">{{ ucfirst($status) }}</span>
-                                </td>
-                                <td class="text-center">
-                                    <a href="{{ route('admin.payments.component-dashboard', $fee->student_id) }}" class="btn btn-sm btn-outline-primary">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="8" class="text-center py-5 text-muted">
-                                    <i class="fas fa-filter fa-2x mb-3 text-gray-300"></i>
-                                    <p>No records found.</p>
-                                </td>
-                            </tr>
-                        @endforelse
+                        @include('admin.fee-category-analysis._student_table_rows')
                     </tbody>
                 </table>
             </div>
@@ -265,27 +256,50 @@ function generateReport() {
 // --- DOCUMENT READY LOGIC (Runs when page loads) ---
 $(document).ready(function() {
     
-    // 1. AJAX Search & Filter Logic
+    // 1. Batch Filtering by Course
+    $('#courseFilter').on('change', function() {
+        const courseId = $(this).val();
+        if(!courseId) {
+            $('#batchFilter option').show();
+        } else {
+            $('#batchFilter option').each(function() {
+                const optCourseId = $(this).data('course');
+                if(!optCourseId || optCourseId == courseId) {
+                    $(this).show();
+                } else {
+                    $(this).hide();
+                }
+            });
+            // Reset batch selection if now hidden
+            if($('#batchFilter option:selected').css('display') === 'none') {
+                $('#batchFilter').val('');
+            }
+        }
+    });
+
+    // 2. AJAX Search & Filter Logic
     let timer;
 
     // Listen for changes on inputs and selects
     $('#filterForm input, #filterForm select').on('change keyup', function() {
         clearTimeout(timer);
-        timer = setTimeout(fetchResults, 400); // Debounce to prevent too many requests
+        timer = setTimeout(() => fetchResults(), 400); // Reset to page 1 on filter change
     });
 
     // Handle Pagination clicks via AJAX
     $(document).on('click', '.pagination a', function(e) {
         e.preventDefault();
-        fetchResults($(this).attr('href'));
+        const url = new URL($(this).attr('href'));
+        const page = url.searchParams.get('page');
+        fetchResults(page);
     });
 
-    function fetchResults(url = null) {
+    function fetchResults(page = 1) {
         // Show visual feedback (fade out table)
         $('#studentTableBody').css('opacity', '0.5');
         
-        const targetUrl = url || "{{ route('admin.fee-category-analysis.show', $feeCategory->id) }}";
-        const formData = $('#filterForm').serialize();
+        const targetUrl = "{{ route('admin.fee-category-analysis.show', $feeCategory->id) }}";
+        const formData = $('#filterForm').serialize() + '&page=' + page;
 
         $.ajax({
             url: targetUrl,
@@ -297,18 +311,23 @@ $(document).ready(function() {
 
                 // B. Update Summary Cards
                 if(response.stats) {
-                    $('#statTotal').text('₹' + Number(response.stats.total).toLocaleString('en-IN', {minimumFractionDigits: 2}));
-                    $('#statPaid').text('₹' + Number(response.stats.paid).toLocaleString('en-IN', {minimumFractionDigits: 2}));
-                    $('#statPending').text('₹' + Number(response.stats.pending).toLocaleString('en-IN', {minimumFractionDigits: 2}));
-                    $('#statConcession').text('₹' + Number(response.stats.concession).toLocaleString('en-IN', {minimumFractionDigits: 2}));
-                    $('#statCount').text(response.stats.count);
+                    $('#statTotal').text('₹' + Number(response.stats.total || 0).toLocaleString('en-IN', {minimumFractionDigits: 2}));
+                    $('#statPaid').text('₹' + Number(response.stats.paid || 0).toLocaleString('en-IN', {minimumFractionDigits: 2}));
+                    $('#statPending').text('₹' + Number(response.stats.pending || 0).toLocaleString('en-IN', {minimumFractionDigits: 2}));
+                    $('#statConcession').text('₹' + Number(response.stats.concession || 0).toLocaleString('en-IN', {minimumFractionDigits: 2}));
+                    $('#statCount').text(response.stats.count || 0);
+
+                    // Update percentages
+                    const total = response.stats.total > 0 ? response.stats.total : 1;
+                    $('#statPaidPercent').text(((response.stats.paid / total) * 100).toFixed(1));
+                    $('#statPendingPercent').text(((response.stats.pending / total) * 100).toFixed(1));
+                    $('#statConcessionPercent').text(((response.stats.concession / total) * 100).toFixed(1));
                 }
             },
-            error: function() {
-                // Use a toast or simple alert for error
-                // toastr.error('Failed to load data'); 
-                console.error('AJAX Filter Error');
+            error: function(xhr) {
+                console.error('AJAX Filter Error', xhr);
                 $('#studentTableBody').css('opacity', '1');
+                // Optional: show error message to user
             }
         });
     }

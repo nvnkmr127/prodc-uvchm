@@ -74,25 +74,34 @@ class FeeCategoryAnalysisController extends Controller
             $search = $request->search;
             $query->whereHas('student', function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('enrollment_number', 'like', "%{$search}%");
+                    ->orWhere('enrollment_number', 'like', "%{$search}%")
+                    ->orWhere('id', 'like', "%{$search}%");
             });
         }
 
-        // 2. Filter by Course
+        // 2. Filter by Academic Year (CRITICAL)
+        $selectedYearId = $request->get('academic_year_filter', session('selected_academic_year_id'));
+        if ($selectedYearId) {
+            $query->whereHas('student.batch', function ($q) use ($selectedYearId) {
+                $q->where('academic_year_id', $selectedYearId);
+            });
+        }
+
+        // 3. Filter by Course
         if ($request->filled('course_id')) {
             $query->whereHas('student.batch', function ($q) use ($request) {
                 $q->where('course_id', $request->course_id);
             });
         }
 
-        // 3. Filter by Batch
+        // 4. Filter by Batch
         if ($request->filled('batch_id')) {
             $query->whereHas('student', function ($q) use ($request) {
                 $q->where('batch_id', $request->batch_id);
             });
         }
 
-        // 4. Filter by Status
+        // 5. Filter by Status
         if ($request->filled('status')) {
             if ($request->status === 'paid') {
                 $query->whereRaw('(amount - concession_amount - paid_amount) <= 0');
@@ -119,30 +128,9 @@ class FeeCategoryAnalysisController extends Controller
 
         // --- AJAX RESPONSE (JSON DATA) ---
         if ($request->ajax()) {
-            // Transform data for JS rendering
-            $rows = $studentFees->map(function ($fee) {
-                $due = $fee->amount - $fee->concession_amount - $fee->paid_amount;
-                $status = $due <= 0 ? 'Paid' : ($fee->paid_amount > 0 ? 'Partial' : 'Unpaid');
-                $badge = match ($status) { 'Paid' => 'success', 'Partial' => 'warning', 'Unpaid' => 'danger'};
-
-                return [
-                    'name' => $fee->student->name ?? 'N/A',
-                    'enrollment' => $fee->student->enrollment_number ?? '',
-                    'course' => $fee->student->batch->course->name ?? 'N/A',
-                    'batch' => $fee->student->batch->name ?? '',
-                    'amount' => number_format($fee->amount, 2),
-                    'concession' => number_format($fee->concession_amount, 2),
-                    'paid' => number_format($fee->paid_amount, 2),
-                    'due' => number_format($due, 2),
-                    'status' => $status,
-                    'badge' => $badge,
-                    'link' => route('admin.payments.component-dashboard', $fee->student_id)
-                ];
-            });
-
             return response()->json([
                 'stats' => $stats,
-                'students' => $rows, // Send raw data
+                'html' => view('admin.fee-category-analysis._student_table_rows', compact('studentFees'))->render(),
                 'pagination' => (string) $studentFees->links()
             ]);
         }
@@ -236,25 +224,34 @@ class FeeCategoryAnalysisController extends Controller
                 $search = $request->search;
                 $query->whereHas('student', function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
-                        ->orWhere('enrollment_number', 'like', "%{$search}%");
+                        ->orWhere('enrollment_number', 'like', "%{$search}%")
+                        ->orWhere('id', 'like', "%{$search}%");
                 });
             }
 
-            // 2. Course
+            // 2. Academic Year
+            $selectedYearId = $request->get('academic_year_filter', session('selected_academic_year_id'));
+            if ($selectedYearId) {
+                $query->whereHas('student.batch', function ($q) use ($selectedYearId) {
+                    $q->where('academic_year_id', $selectedYearId);
+                });
+            }
+
+            // 3. Course
             if ($request->filled('course_id')) {
                 $query->whereHas('student.batch', function ($q) use ($request) {
                     $q->where('course_id', $request->course_id);
                 });
             }
 
-            // 3. Batch
+            // 4. Batch
             if ($request->filled('batch_id')) {
                 $query->whereHas('student', function ($q) use ($request) {
                     $q->where('batch_id', $request->batch_id);
                 });
             }
 
-            // 4. Status
+            // 5. Status
             if ($request->filled('status')) {
                 if ($request->status === 'paid') {
                     $query->whereRaw('(student_fees.amount - student_fees.concession_amount - student_fees.paid_amount) <= 0');

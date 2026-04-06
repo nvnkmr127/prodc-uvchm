@@ -402,7 +402,7 @@
                 $currentFilters = request()->except(['status', 'page', 'test_attended']); 
             @endphp
             <div class="stat-card-mini status-Total-border {{ !request('status') && !request('test_attended') ? 'active' : '' }}">
-                <a href="{{ route('admin.enquiries.index', $currentFilters) }}" class="text-decoration-none h-100 d-block">
+                <a href="{{ route('admin.enquiries.index', $currentFilters) }}" class="text-decoration-none h-100 d-block stat-filter-link" data-status="" data-test="">
                     <div class="stat-label text-primary">Total Enquiries</div>
                     <div class="stat-value" id="count-Total">{{ $counts['Total'] ?? 0 }}</div>
                 </a>
@@ -414,23 +414,25 @@
                     $isActive = request('status') == $status;
                 @endphp
                 <div class="stat-card-mini status-{{ $cssKey }}-border {{ $isActive ? 'active' : '' }}">
-                    <a href="{{ route('admin.enquiries.index', array_merge($currentFilters, ['status' => $status])) }}" class="text-decoration-none h-100 d-block">
+                    <a href="{{ route('admin.enquiries.index', array_merge($currentFilters, ['status' => $status])) }}" 
+                       class="text-decoration-none h-100 d-block stat-filter-link" data-status="{{ $status }}">
                         <div class="stat-label text-gray-700">{{ $status == 'Next Entrance Exam' ? 'Entrance Exam' : ($status == 'Interested Next Year' ? 'Next Year' : $status) }}</div>
-                        <div class="stat-value">{{ $counts[$statKey == 'Entrance Exam' ? 'Next Entrance Exam' : $statKey] ?? 0 }}</div>
+                        <div class="stat-value" id="count-{{ $cssKey }}">{{ $counts[$statKey == 'Entrance Exam' ? 'Next Entrance Exam' : $statKey] ?? 0 }}</div>
                     </a>
                 </div>
             @endforeach
             <div class="stat-card-mini status-Contacted-border {{ request('test_attended') === '1' ? 'active' : '' }}">
-                <a href="{{ route('admin.enquiries.index', array_merge($currentFilters, ['test_attended' => 1])) }}" class="text-decoration-none h-100 d-block">
+                <a href="{{ route('admin.enquiries.index', array_merge($currentFilters, ['test_attended' => 1])) }}" 
+                   class="text-decoration-none h-100 d-block stat-filter-link" data-test="1">
                     <div class="stat-label text-primary">Test Attended</div>
-                    <div class="stat-value">{{ $counts['Test Attended'] ?? 0 }}</div>
+                    <div class="stat-value" id="count-TestAttended">{{ $counts['Test Attended'] ?? 0 }}</div>
                 </a>
             </div>
         </div>
 
         <div class="card shadow mb-4 border-0" style="border-radius: 1rem;">
             <div class="card-body py-3">
-                <form id="filterForm" method="GET" action="{{ route('admin.enquiries.index') }}">
+                <form id="filterForm" onsubmit="event.preventDefault(); fetchEnquiries(1);">
                     <input type="hidden" name="sort" id="sortField" value="{{ request('sort', 'next_follow_up_date') }}">
                     <input type="hidden" name="direction" id="sortDirection" value="{{ request('direction', 'asc') }}">
                     <input type="hidden" name="per_page" id="perPageField" value="{{ request('per_page', 10) }}">
@@ -872,7 +874,92 @@
             $(document).on('change', '.enquiry-checkbox', toggleBulkActions);
         });
 
-        // --- Sorting logic (Standard GET) ---
+        // --- AJAX Fetcher Implementation ---
+        let fetchTimer;
+        function fetchEnquiries(page = 1) {
+            const form = $('#filterForm');
+            const data = form.serialize() + '&page=' + page;
+            const container = $('#enquiryTableBody');
+            const paginationContainer = $('#paginationLinks');
+            const url = "{{ route('admin.enquiries.index') }}";
+
+            // Show loading state
+            container.css('opacity', '0.5');
+            document.body.style.cursor = 'wait';
+
+            $.ajax({
+                url: url,
+                type: 'GET',
+                data: data,
+                success: function (res) {
+                    container.html(res.html).css('opacity', '1');
+                    paginationContainer.html(res.pagination);
+                    if (res.stats) updateStats(res.stats);
+                    document.body.style.cursor = 'default';
+                    
+                    // Update URL without reload to preserve state
+                    const newUrl = url + '?' + data;
+                    window.history.pushState({ path: newUrl }, '', newUrl);
+                },
+                error: function () {
+                    container.css('opacity', '1');
+                    document.body.style.cursor = 'default';
+                    alert('Failed to load enquiries.');
+                }
+            });
+        }
+
+        // Live search with debounce
+        $('#liveSearchInput').on('keyup', function() {
+            clearTimeout(fetchTimer);
+            fetchTimer = setTimeout(() => {
+                fetchEnquiries(1);
+            }, 500);
+        });
+
+        // Filter triggers
+        $(document).on('change', '.filter-input', function() {
+            fetchEnquiries(1);
+        });
+
+        // Handle pagination clicks
+        $(document).on('click', '.pagination a', function(e) {
+            e.preventDefault();
+            const page = $(this).attr('href').split('page=')[1];
+            fetchEnquiries(page);
+        });
+
+        // Handle stats card clicks
+        $(document).on('click', '.stat-filter-link', function(e) {
+            e.preventDefault();
+            const status = $(this).data('status');
+            const test = $(this).data('test');
+
+            // Reset other filters or preserve? Let's preserve current form but override these two
+            // For simplicity, let's just clear specific select multiples and set the status if it exists
+            if (status !== undefined) {
+                // Handle multiple select logic for AJAX fetch
+                // Clear existing and set new if it's a single status click
+                $('select[name="status[]"]').val(status ? [status] : []).trigger('change.select2');
+            }
+            if (test !== undefined) {
+                $('select[name="test_attended"]').val(test).trigger('change');
+            }
+            
+            // Set active class visually
+            $('.stat-card-mini').removeClass('active');
+            $(this).parent().addClass('active');
+
+            fetchEnquiries(1);
+        });
+
+        // Handle browser back/forward
+        window.onpopstate = function(event) {
+            if (event.state && event.state.path) {
+                window.location.reload(); // Simple reload on back to keep integrity
+            }
+        };
+
         function sortList(field) {
             let currentField = $('#sortField').val();
             let currentDirection = $('#sortDirection').val();
@@ -884,18 +971,12 @@
 
             $('#sortField').val(field);
             $('#sortDirection').val(newDirection);
-            $('#filterForm').submit();
+            fetchEnquiries(1);
         }
 
-        // --- Update Per Page (Standard GET) ---
         function updatePerPage(value) {
             $('#perPageField').val(value);
-            $('#filterForm').submit();
-        }
-
-        // --- Removal of AJAX fetchers ---
-        function fetchEnquiries(page = 1) {
-            window.location.reload(); // Fallback for components still calling this
+            fetchEnquiries(1);
         }
 
 
