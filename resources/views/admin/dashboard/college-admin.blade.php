@@ -766,8 +766,11 @@
                     <i class="fas fa-clock mr-1"></i>
                     Last {{ $dashboard_data['last_activity_time'] ?? 'unknown' }}
                 </div>
+                </div>
             </div>
-        <!-- Enquiry Metrics -->
+        </div>
+        
+        <!-- Enquiry & Funnel Metrics -->
         <div class="row mb-4">
             <div class="col-12">
                 <div class="widget-card">

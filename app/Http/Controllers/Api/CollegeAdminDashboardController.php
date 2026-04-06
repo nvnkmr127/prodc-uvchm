@@ -28,8 +28,10 @@ class CollegeAdminDashboardController extends Controller
         $user = auth()->user();
         $today = now();
         
+        $academicYear = \App\Models\AcademicYear::where('is_current', true)->first()?->name ?? '2024-25';
+        
         return [
-            'academic_year' => '2024-25',
+            'academic_year' => $academicYear,
             'current_time' => $today->format('H:i:s'),
             'current_date' => $today->format('d M Y'),
             'user_name' => $user->name,
