@@ -185,9 +185,19 @@
                     </div>
                 </div>
 
-                <div class="form-group mb-2">
-                    <label class="form-label-small">Discount Offered (₹)</label>
-                    <input type="number" name="discount_offered" class="form-control form-control-sm-custom" value="{{ $enquiry->discount_offered }}" placeholder="Discount Amount">
+                <div class="row">
+                    <div class="col-6 pr-1">
+                        <div class="form-check custom-control custom-checkbox mb-2">
+                            <input type="checkbox" name="include_uniform" value="1" class="custom-control-input" id="modalUniformCheck" {{ $enquiry->include_uniform ? 'checked' : '' }}>
+                            <label class="custom-control-label font-weight-bold small" for="modalUniformCheck">Uniform Marked</label>
+                        </div>
+                    </div>
+                    <div class="col-6 pl-1">
+                        <div class="form-check custom-control custom-checkbox mb-2">
+                             <input type="checkbox" name="include_books" value="1" class="custom-control-input" id="modalBooksCheck" {{ $enquiry->include_books ? 'checked' : '' }}>
+                             <label class="custom-control-label font-weight-bold small" for="modalBooksCheck">Books Marked</label>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="form-group mb-3">
@@ -528,4 +538,36 @@
             modalToggleReferralField(); 
         }
     })();
+
+    // [NEW] AJAX Profile Update Submission
+    $('#modalEditForm').on('submit', function(e) {
+        e.preventDefault();
+        let form = $(this);
+        let submitBtn = form.find('button[type="submit"]');
+        let originalContent = submitBtn.html();
+
+        submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Saving...');
+
+        $.ajax({
+            url: form.attr('action'),
+            type: 'POST',
+            data: form.serialize(),
+            success: function(res) {
+                // Success feedback
+                submitBtn.removeClass('btn-primary').addClass('btn-success').html('<i class="fas fa-check mr-1"></i> Saved');
+                setTimeout(() => {
+                    submitBtn.removeClass('btn-success').addClass('btn-primary').html(originalContent);
+                }, 2000);
+                
+                // Refresh the table behind the modal if fetchEnquiries exists
+                if (typeof fetchEnquiries === 'function') {
+                    fetchEnquiries();
+                }
+            },
+            error: function() {
+                alert('Failed to update profile.');
+                submitBtn.prop('disabled', false).html(originalContent);
+            }
+        });
+    });
 </script>

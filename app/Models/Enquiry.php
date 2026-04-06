@@ -44,6 +44,10 @@ class Enquiry extends Model
         'test_attended',
         'test_marks',
         'discount_offered',
+        'include_uniform',
+        'uniform_price',
+        'include_books',
+        'books_price',
     ];
 
     /**
@@ -51,7 +55,11 @@ class Enquiry extends Model
      */
     protected $casts = [
         'date_of_birth' => 'date',
-        'next_follow_up_date' => 'date', // <--- Added this line to fix the error
+        'next_follow_up_date' => 'date',
+        'include_uniform' => 'boolean',
+        'uniform_price' => 'decimal:2',
+        'include_books' => 'boolean',
+        'books_price' => 'decimal:2',
     ];
 
     public function getActivitylogOptions(): LogOptions

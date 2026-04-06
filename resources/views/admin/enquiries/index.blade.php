@@ -487,6 +487,14 @@
                 <div class="stat-label text-info">Avg Marks</div>
                 <div class="stat-value" id="count-AvgMarks">{{ number_format($counts['Avg Marks'] ?? 0, 1) }}</div>
             </div>
+            <div class="stat-card-mini border-left-success">
+                <div class="stat-label text-success">Uniforms</div>
+                <div class="stat-value" id="count-Uniform">{{ $counts['Uniform'] ?? 0 }}</div>
+            </div>
+            <div class="stat-card-mini border-left-info">
+                <div class="stat-label text-info">Books</div>
+                <div class="stat-value" id="count-Books">{{ $counts['Books'] ?? 0 }}</div>
+            </div>
         </div>
 
 
@@ -700,6 +708,7 @@
                                         <i class="fas fa-sort{{ request('sort') == 'status' ? (request('direction') == 'asc' ? '-up' : '-down') : '' }} ml-1"></i>
                                     </a>
                                 </th>
+                                <th width="8%" class="text-center">Kit (U/B)</th>
                                 <th width="12%">Entrance Test</th>
                                 <th width="14%" class="text-center">Actions</th>
                             </tr>
@@ -819,6 +828,20 @@
                             <div class="col-md-4 mb-3">
                                 <label class="small font-weight-bold text-gray-600">Discount Offered</label>
                                 <input type="number" name="discount_offered" class="form-control bg-light border-0" placeholder="Amount">
+                            </div>
+
+                            <!-- Uniform & Books -->
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check custom-control custom-checkbox ml-2">
+                                    <input type="checkbox" name="include_uniform" value="1" class="custom-control-input" id="createUniformCheck">
+                                    <label class="custom-control-label font-weight-bold" for="createUniformCheck">Uniform Included</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check custom-control custom-checkbox ml-2">
+                                    <input type="checkbox" name="include_books" value="1" class="custom-control-input" id="createBooksCheck">
+                                    <label class="custom-control-label font-weight-bold" for="createBooksCheck">Books Included</label>
+                                </div>
                             </div>
 
                             <div class="col-12 mb-3">
@@ -1133,7 +1156,9 @@
                 'Total': 'count-Total',
                 'Test Attended': 'count-TestAttended',
                 'Total Discount': 'count-TotalDiscount',
-                'Avg Marks': 'count-AvgMarks'
+                'Avg Marks': 'count-AvgMarks',
+                'Uniform': 'count-Uniform',
+                'Books': 'count-Books'
             };
 
             for (const [key, id] of Object.entries(map)) {

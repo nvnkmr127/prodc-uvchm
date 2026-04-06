@@ -76,7 +76,12 @@ class EnquiryController extends Controller
         // 4. Execution & Aggregation for Test Metrics
         // We use a clone to avoid the select('status, count(*)') constraint
         $metrics = Enquiry::query()
-            ->selectRaw('COUNT(*) as total, SUM(CASE WHEN test_attended = 1 THEN 1 ELSE 0 END) as attended_count, SUM(discount_offered) as total_discount, AVG(CASE WHEN test_attended = 1 THEN test_marks ELSE NULL END) as avg_marks');
+            ->selectRaw('COUNT(*) as total, 
+                SUM(CASE WHEN test_attended = 1 THEN 1 ELSE 0 END) as attended_count, 
+                SUM(discount_offered) as total_discount, 
+                AVG(CASE WHEN test_attended = 1 THEN test_marks ELSE NULL END) as avg_marks,
+                SUM(CASE WHEN include_uniform = 1 THEN 1 ELSE 0 END) as uniform_count,
+                SUM(CASE WHEN include_books = 1 THEN 1 ELSE 0 END) as books_count');
 
         // Apply SAME visibility and filters to metrics
         if (!$isAdmin) {
@@ -113,6 +118,8 @@ class EnquiryController extends Controller
             'Test Attended' => $metricsData->attended_count ?? 0,
             'Total Discount' => $metricsData->total_discount ?? 0,
             'Avg Marks' => round($metricsData->avg_marks ?? 0, 1),
+            'Uniform' => $metricsData->uniform_count ?? 0,
+            'Books' => $metricsData->books_count ?? 0,
         ];
     }
 
@@ -310,6 +317,10 @@ class EnquiryController extends Controller
             'test_attended' => 'nullable|boolean',
             'test_marks' => 'nullable|integer',
             'discount_offered' => 'nullable|numeric',
+            'include_uniform' => 'nullable|boolean',
+            'uniform_price' => 'nullable|numeric|min:0',
+            'include_books' => 'nullable|boolean',
+            'books_price' => 'nullable|numeric|min:0',
         ]);
 
         // Smart Duplicate Check before create
@@ -344,7 +355,9 @@ class EnquiryController extends Controller
 
         $enquiry = Enquiry::create($validated + [
             'assigned_to_user_id' => $assignedTo,
-            'status' => 'New'
+            'status' => 'New',
+            'include_uniform' => $request->has('include_uniform'),
+            'include_books' => $request->has('include_books'),
         ]);
 
 
@@ -364,7 +377,7 @@ class EnquiryController extends Controller
     public function quickUpdate(Request $request, Enquiry $enquiry)
     {
         $validated = $request->validate([
-            'field' => 'required|in:assigned_to_user_id,next_follow_up_date,status,source,test_attended,test_marks,discount_offered',
+            'field' => 'required|in:assigned_to_user_id,next_follow_up_date,status,source,test_attended,test_marks,discount_offered,include_uniform,include_books',
             'value' => 'nullable',
             'filter_assigned_to' => 'nullable|exists:users,id' // Helper for stats
         ]);
@@ -448,7 +461,14 @@ class EnquiryController extends Controller
             'test_attended' => 'nullable|boolean',
             'test_marks' => 'nullable|integer',
             'discount_offered' => 'nullable|numeric',
+            'include_uniform' => 'nullable|boolean',
+            'uniform_price' => 'nullable|numeric|min:0',
+            'include_books' => 'nullable|boolean',
+            'books_price' => 'nullable|numeric|min:0',
         ]);
+
+        $validated['include_uniform'] = $request->has('include_uniform');
+        $validated['include_books'] = $request->has('include_books');
 
         $enquiry->update($validated);
         return redirect()->back()->with('success', 'Enquiry updated successfully.');

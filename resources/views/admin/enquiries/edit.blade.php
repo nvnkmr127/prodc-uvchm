@@ -297,6 +297,27 @@
                             </div>
                         </div>
 
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="form-check mb-3">
+                                    <input type="checkbox" name="include_uniform" value="1" class="form-check-input" id="includeUniformCheck" {{ $enquiry->include_uniform ? 'checked' : '' }}>
+                                    <label class="form-check-label font-weight-bold" for="includeUniformCheck">Uniform Marked</label>
+                                    @if($enquiry->uniform_price > 0)
+                                        <div class="small text-muted">Price: ₹{{ number_format($enquiry->uniform_price, 0) }}</div>
+                                    @endif
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="form-check mb-3">
+                                    <input type="checkbox" name="include_books" value="1" class="form-check-input" id="includeBooksCheck" {{ $enquiry->include_books ? 'checked' : '' }}>
+                                    <label class="form-check-label font-weight-bold" for="includeBooksCheck">Books Marked</label>
+                                    @if($enquiry->books_price > 0)
+                                        <div class="small text-muted">Price: ₹{{ number_format($enquiry->books_price, 0) }}</div>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="form-label-group">
                             <label>Address</label>
                             <textarea name="address" class="form-control" rows="2">{{ $enquiry->address }}</textarea>

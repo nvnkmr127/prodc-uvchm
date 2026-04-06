@@ -82,6 +82,22 @@
                 @endforeach
             </select>
         </td>
+        <td class="text-center">
+            <div class="d-flex flex-column align-items-center">
+                <div class="custom-control custom-checkbox mb-1" title="Uniform Provided">
+                    <input type="checkbox" class="custom-control-input" id="uni_{{ $enquiry->id }}" 
+                        {{ $enquiry->include_uniform ? 'checked' : '' }} 
+                        onchange="quickUpdate({{ $enquiry->id }}, 'include_uniform', this.checked ? 1 : 0)">
+                    <label class="custom-control-label" for="uni_{{ $enquiry->id }}">U</label>
+                </div>
+                <div class="custom-control custom-checkbox" title="Books Provided">
+                    <input type="checkbox" class="custom-control-input" id="book_{{ $enquiry->id }}" 
+                        {{ $enquiry->include_books ? 'checked' : '' }} 
+                        onchange="quickUpdate({{ $enquiry->id }}, 'include_books', this.checked ? 1 : 0)">
+                    <label class="custom-control-label" for="book_{{ $enquiry->id }}">B</label>
+                </div>
+            </div>
+        </td>
         <td>
             <div class="d-flex align-items-center">
                 <input type="checkbox" class="mr-2" {{ $enquiry->test_attended ? 'checked' : '' }} 
