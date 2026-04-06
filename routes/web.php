@@ -218,22 +218,29 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
     });
     // --- Admissions & Enquiries ---
     Route::middleware(['permission:manage admissions'])->group(function () {
+        // IMPORTANT: All non-parameterised specific routes MUST appear before Route::resource()
+        // to prevent the resource's {enquiry} wildcard from swallowing them.
+
+        // --- Specific GET routes (no {enquiry} segment) ---
         Route::get('enquiries/check-mobile', [EnquiryController::class, 'checkMobile'])
             ->name('enquiries.check-mobile');
         Route::get('enquiries/facebook-leads', [EnquiryController::class, 'facebookLeads'])->name('enquiries.facebook-leads');
         Route::get('enquiries/ajax-search', [EnquiryController::class, 'ajaxSearch'])->name('enquiries.ajax-search');
         Route::get('enquiries/export', [EnquiryController::class, 'export'])->name('enquiries.export');
-        Route::resource('enquiries', EnquiryController::class);
-        Route::get('/enquiries/{enquiry}/convert', [EnquiryController::class, 'convertToAdmission'])->name('enquiries.convertToAdmission');
+        Route::get('enquiries/import/sample', [EnquiryController::class, 'downloadSample'])->name('enquiries.import.sample');
 
-
-        Route::post('enquiries/{enquiry}/quick-update', [EnquiryController::class, 'quickUpdate'])->name('enquiries.quick-update');
+        // --- Specific POST routes (no {enquiry} segment) ---
         Route::post('enquiries/bulk-assign', [EnquiryController::class, 'bulkAssign'])->name('enquiries.bulk-assign');
         Route::post('enquiries/bulk-delete', [EnquiryController::class, 'bulkDelete'])->name('enquiries.bulk-delete');
-
-        Route::post('/enquiries/{enquiry}/follow-ups', [EnquiryController::class, 'addFollowUp'])->name('enquiries.follow-ups.store');
         Route::post('enquiries/import', [EnquiryController::class, 'import'])->name('enquiries.import');
-        Route::get('enquiries/import/sample', [EnquiryController::class, 'downloadSample'])->name('enquiries.import.sample');
+
+        // --- Resource route (registers {enquiry} wildcard — must come AFTER specific routes) ---
+        Route::resource('enquiries', EnquiryController::class);
+
+        // --- Parameterised routes (must come AFTER resource) ---
+        Route::get('/enquiries/{enquiry}/convert', [EnquiryController::class, 'convertToAdmission'])->name('enquiries.convertToAdmission');
+        Route::post('enquiries/{enquiry}/quick-update', [EnquiryController::class, 'quickUpdate'])->name('enquiries.quick-update');
+        Route::post('/enquiries/{enquiry}/follow-ups', [EnquiryController::class, 'addFollowUp'])->name('enquiries.follow-ups.store');
 
         Route::resource('visitors', VisitorController::class);
         Route::get('admissions', [AdminAdmissionController::class, 'index'])->name('admissions.index');

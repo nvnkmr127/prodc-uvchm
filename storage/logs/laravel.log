@@ -2193,3 +2193,19 @@ Did you mean one of these?
 #26 /Users/naveenadicharla/Documents/test/prodc-uvchm/artisan(13): Illuminate\\Foundation\\Application->handleCommand(Object(Symfony\\Component\\Console\\Input\\ArgvInput))
 #27 {main}
 "} 
+[2026-04-06 13:41:21] local.ERROR: The "--columns" option does not exist. {"exception":"[object] (Symfony\\Component\\Console\\Exception\\RuntimeException(code: 0): The \"--columns\" option does not exist. at /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Input/ArgvInput.php:226)
+[stacktrace]
+#0 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Input/ArgvInput.php(153): Symfony\\Component\\Console\\Input\\ArgvInput->addLongOption('columns', 'method,uri,name')
+#1 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Input/ArgvInput.php(88): Symfony\\Component\\Console\\Input\\ArgvInput->parseLongOption('--columns=metho...')
+#2 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Input/ArgvInput.php(77): Symfony\\Component\\Console\\Input\\ArgvInput->parseToken('--columns=metho...', true)
+#3 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Input/Input.php(53): Symfony\\Component\\Console\\Input\\ArgvInput->parse()
+#4 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Command/Command.php(276): Symfony\\Component\\Console\\Input\\Input->bind(Object(Symfony\\Component\\Console\\Input\\InputDefinition))
+#5 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Console/Command.php(182): Symfony\\Component\\Console\\Command\\Command->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Illuminate\\Console\\OutputStyle))
+#6 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Application.php(1092): Illuminate\\Console\\Command->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#7 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Application.php(341): Symfony\\Component\\Console\\Application->doRunCommand(Object(Illuminate\\Foundation\\Console\\RouteListCommand), Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#8 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/symfony/console/Application.php(192): Symfony\\Component\\Console\\Application->doRun(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#9 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(198): Symfony\\Component\\Console\\Application->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#10 /Users/naveenadicharla/Documents/test/prodc-uvchm/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1235): Illuminate\\Foundation\\Console\\Kernel->handle(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#11 /Users/naveenadicharla/Documents/test/prodc-uvchm/artisan(13): Illuminate\\Foundation\\Application->handleCommand(Object(Symfony\\Component\\Console\\Input\\ArgvInput))
+#12 {main}
+"} 

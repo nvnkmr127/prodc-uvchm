@@ -435,7 +435,7 @@
                 <form id="filterForm" onsubmit="event.preventDefault(); fetchEnquiries(1);">
                     <input type="hidden" name="sort" id="sortField" value="{{ request('sort', 'next_follow_up_date') }}">
                     <input type="hidden" name="direction" id="sortDirection" value="{{ request('direction', 'asc') }}">
-                    <input type="hidden" name="per_page" id="perPageField" value="{{ request('per_page', 10) }}">
+                    <input type="hidden" name="per_page" id="perPageField" value="{{ request('per_page', 25) }}">
                     <div class="row">
                         <!-- Column 1: Discovery -->
                         <div class="col-lg-4 col-md-12 border-right">
@@ -801,8 +801,10 @@
                 </div>
                 <div class="modal-footer border-0 pt-0">
                     <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-                    <button type="button" class="btn btn-primary shadow-sm"
-                        onclick="document.getElementById('addEnquiryForm').submit()">Save</button>
+                    <button type="button" class="btn btn-primary shadow-sm" id="saveEnquiryBtn">
+                        <span id="saveEnquirySpinner" class="spinner-border spinner-border-sm mr-1" role="status" style="display:none;"></span>
+                        Save
+                    </button>
                 </div>
             </div>
         </div>
@@ -875,6 +877,49 @@
                 toggleBulkActions();
             });
             $(document).on('change', '.enquiry-checkbox', toggleBulkActions);
+
+            // --- Add Enquiry Modal: AJAX submit (so duplicate-check 422 response surfaces) ---
+            $('#saveEnquiryBtn').on('click', function () {
+                const $form   = $('#addEnquiryForm');
+                const $btn    = $(this);
+                const $spin   = $('#saveEnquirySpinner');
+
+                $btn.prop('disabled', true);
+                $spin.show();
+
+                $.ajax({
+                    url: $form.attr('action'),
+                    type: 'POST',
+                    data: $form.serialize(),
+                    headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+                    success: function (res) {
+                        if (res.success && res.redirect) {
+                            window.location.href = res.redirect;
+                        } else {
+                            // Shouldn't happen for a 200, but handle gracefully
+                            $('#addEnquiryModal').modal('hide');
+                            fetchEnquiries(1);
+                        }
+                    },
+                    error: function (xhr) {
+                        $btn.prop('disabled', false);
+                        $spin.hide();
+                        const data = xhr.responseJSON;
+                        if (xhr.status === 422 && data && data.message) {
+                            // Duplicate or validation error — show inline
+                            const $feedback = $('#createPhoneFeedback');
+                            $feedback.text(data.message).removeClass('text-success text-info').addClass('text-danger').show();
+                            $('#createPhoneInput').addClass('is-invalid');
+                        } else if (xhr.status === 422 && data && data.errors) {
+                            // Laravel validation errors
+                            const firstError = Object.values(data.errors)[0][0];
+                            alert('Validation Error: ' + firstError);
+                        } else {
+                            alert('Unexpected error. Please try again.');
+                        }
+                    }
+                });
+            });
         });
 
         // --- AJAX Fetcher Implementation ---
@@ -952,8 +997,16 @@
         // Handle pagination clicks
         $(document).on('click', '.pagination a', function(e) {
             e.preventDefault();
-            const page = $(this).attr('href').split('page=')[1];
-            fetchEnquiries(page);
+            // Use URLSearchParams to safely extract the page number from the href
+            try {
+                const pageUrl = new URL($(this).attr('href'), window.location.origin);
+                const page = pageUrl.searchParams.get('page') || 1;
+                fetchEnquiries(page);
+            } catch (err) {
+                // Fallback for relative URLs without origin
+                const match = $(this).attr('href').match(/[?&]page=(\d+)/);
+                fetchEnquiries(match ? match[1] : 1);
+            }
         });
 
         // Handle stats card clicks
@@ -1024,30 +1077,38 @@
             const filters = $('#filterForm').serialize();
             const payload = filters + '&_token={{ csrf_token() }}&' + $.param({ids: ids});
 
-            $.post('{{ route("admin.enquiries.bulk-delete") }}',
-                payload,
-                () => fetchEnquiries() // Refresh AJAX
-            );
+            $.post('{{ route("admin.enquiries.bulk-delete") }}', payload)
+                .done(function(res) {
+                    if (!res.success) {
+                        alert('Error: ' + (res.message || 'Delete failed.'));
+                    }
+                    fetchEnquiries();
+                })
+                .fail(function(xhr) {
+                    const msg = xhr.responseJSON?.message || 'Delete failed. Check your permissions.';
+                    alert('Error: ' + msg);
+                    fetchEnquiries();
+                });
         }
 
         function bulkAssign() {
             const ids = $('.enquiry-checkbox:checked').map((_, el) => $(el).val()).get();
             const user = $('#bulkAssignUser').val();
-            // Get current filter to ensure consistent stats return
             const filters = $('#filterForm').serialize();
 
             if (ids.length === 0 || !user) return alert('Select items and user');
 
-            // Construct payload: Merge filters + IDs + assignment
             const payload = filters + '&_token={{ csrf_token() }}&target_user_id=' + user + '&' + $.param({ids: ids});
 
-            $.post('{{ route("admin.enquiries.bulk-assign") }}',
-                payload,
-                function (res) {
+            $.post('{{ route("admin.enquiries.bulk-assign") }}', payload)
+                .done(function(res) {
                     if (res.stats) updateStats(res.stats);
-                    fetchEnquiries(); // Refresh List
-                }
-            );
+                    fetchEnquiries();
+                })
+                .fail(function(xhr) {
+                    const msg = xhr.responseJSON?.message || 'Assign failed. Check your permissions.';
+                    alert('Error: ' + msg);
+                });
         }
 
         function openEnquiryModal(id) {
@@ -1134,7 +1195,7 @@
         function checkMobileCreate(phone) {
             clearTimeout(checkTimer);
             const feedback = $('#createPhoneFeedback');
-            const input = $('#createPhoneInput');
+            const input    = $('#createPhoneInput');
 
             if (phone.length < 10) {
                 feedback.hide();
@@ -1143,7 +1204,47 @@
             }
 
             feedback.show().text('Checking...').removeClass('text-danger text-success').addClass('text-info');
-            checkTimer = setTimeout(() => { $.get(`{{ route('admin.enquiries.check-mobile') }}?phone=${phone}`, function (data) { if (data.status === 'error') { feedback.text(data.message).removeClass('text-info').addClass('text-danger'); input.addClass('is-invalid'); } else { feedback.text('Available').removeClass('text-info').addClass('text-success'); input.removeClass('is-invalid').addClass('is-valid'); setTimeout(() => feedback.fadeOut(), 2000); } }); }, 500);
+
+            checkTimer = setTimeout(function () {
+                $.get('{{ route("admin.enquiries.check-mobile") }}?phone=' + encodeURIComponent(phone), function (data) {
+                    if (data.status === 'error') {
+                        feedback.text(data.message).removeClass('text-info').addClass('text-danger');
+                        input.addClass('is-invalid');
+                    } else {
+                        feedback.text('✓ Available').removeClass('text-info text-danger').addClass('text-success');
+                        input.removeClass('is-invalid').addClass('is-valid');
+                        setTimeout(() => feedback.fadeOut(), 2000);
+                    }
+                });
+            }, 500);
+        }
+
+        /**
+         * AJAX row-level delete — replaces the old full-page <form> POST,
+         * keeping the AJAX table intact after deletion.
+         */
+        function deleteEnquiry(id, btn) {
+            if (!confirm('Delete this enquiry? This cannot be undone.')) return;
+
+            const $btn = $(btn);
+            $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
+
+            $.ajax({
+                url: '{{ url("admin/enquiries") }}/' + id,
+                type: 'POST',
+                data: {
+                    _method: 'DELETE',
+                    _token: '{{ csrf_token() }}'
+                },
+                success: function () {
+                    fetchEnquiries();
+                },
+                error: function (xhr) {
+                    $btn.prop('disabled', false).html('<i class="fas fa-trash"></i>');
+                    const msg = xhr.responseJSON?.message || 'Delete failed. Check your permissions.';
+                    alert('Error: ' + msg);
+                }
+            });
         }
     </script>
 @endpush

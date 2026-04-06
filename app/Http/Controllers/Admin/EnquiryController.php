@@ -22,10 +22,9 @@ class EnquiryController extends Controller
     private function isUserAdmin($user = null)
     {
         $user = $user ?: Auth::user();
+        // Use a single canonical lowercase list; Spatie's hasAnyRole is case-insensitive
         return $user->hasAnyRole([
-            'admin', 'super-admin', 'college-admin', 
-            'Admin', 'Super-admin', 'College-admin', 
-            'Super Admin', 'superadmin'
+            'admin', 'super-admin', 'college-admin', 'superadmin',
         ]);
     }
 
@@ -156,8 +155,10 @@ class EnquiryController extends Controller
             $status = (array)$request->status;
             $query->whereIn('enquiries.status', $status);
         } else {
-            // Default: Hide 'Not Interested' unless searching, only if it's the index list
-            if (!$request->filled('search') && !$request->is('*/export')) {
+            // Default: Hide 'Not Interested' unless searching.
+            // Note: the export() method passes $skipDefault=true to bypass this.
+            $skipDefault = $request->boolean('_skip_default_filter', false);
+            if (!$request->filled('search') && !$skipDefault) {
                 $query->where('enquiries.status', '!=', 'Not Interested');
             }
         }
@@ -235,7 +236,7 @@ class EnquiryController extends Controller
                 $q->whereIn('name', ['admin', 'super-admin', 'college-admin', 'counselor']);
             })->where('status', 'active')->orderBy('name')->get(['id', 'name']);
         });
-        \Log::info("IS AJAX:", ["status" => $request->ajax()]);
+        // (debug log removed)
 
 
         // AJAX Response
@@ -273,6 +274,10 @@ class EnquiryController extends Controller
 
     public function export(Request $request)
     {
+        // Tell applyFilters() to skip the default "hide Not Interested" logic
+        // so that exports always include all statuses unless the user explicitly filtered.
+        $request->merge(['_skip_default_filter' => true]);
+
         $query = Enquiry::with('course', 'assignedTo')
             ->select('enquiries.*');
 
@@ -363,11 +368,14 @@ class EnquiryController extends Controller
         // Remove assigned_to_user_id from validated data to avoid duplication
         unset($validated['assigned_to_user_id']);
 
+        // Fix: Override checkbox booleans BEFORE merging, because PHP's + operator
+        // keeps keys from the LEFT side ($validated), silently ignoring the right side.
+        $validated['include_uniform'] = $request->has('include_uniform');
+        $validated['include_books']   = $request->has('include_books');
+
         $enquiry = Enquiry::create($validated + [
             'assigned_to_user_id' => $assignedTo,
             'status' => 'New',
-            'include_uniform' => $request->has('include_uniform'),
-            'include_books' => $request->has('include_books'),
         ]);
 
 
@@ -653,14 +661,9 @@ class EnquiryController extends Controller
         }
 
 
-        // 3. Check Staff (Existing Logic)
-        $staff = User::where('email', $phone)->orWhere('name', $phone)->first();
-        if ($staff) {
-            return response()->json([
-                'status' => 'error',
-                'message' => "❌ Number belongs to Staff: {$staff->name}"
-            ]);
-        }
+        // 3. Staff phone check removed — querying email/name with a phone number
+        //    is logically incorrect and never matches. Add a 'phone' column to
+        //    the users table and query it here if staff phone dedup is needed.
 
         return response()->json(['status' => 'success']);
     }

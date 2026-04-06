@@ -87,13 +87,12 @@
                     class="btn btn-outline-success btn-sm rounded-circle px-2" title="WhatsApp Message">
                     <i class="fab fa-whatsapp"></i>
                 </a>
-                <form action="{{ route('admin.enquiries.destroy', $enquiry->id) }}" method="POST" class="ml-1"
-                    onsubmit="return confirm('Delete this record?');">
-                    @csrf @method('DELETE')
-                    <button type="submit" class="btn btn-outline-danger btn-sm rounded-circle px-2" title="Delete">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </form>
+                <button type="button"
+                    class="btn btn-outline-danger btn-sm rounded-circle px-2"
+                    title="Delete"
+                    onclick="deleteEnquiry({{ $enquiry->id }}, this)">
+                    <i class="fas fa-trash"></i>
+                </button>
             </div>
         </td>
     </tr>
