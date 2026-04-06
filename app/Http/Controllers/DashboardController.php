@@ -56,10 +56,10 @@ class DashboardController extends Controller
     /**
      * Super Admin Dashboard - Full system overview with component payment metrics
      */
-   protected function superAdminDashboard(User $user)
+    protected function superAdminDashboard(User $user)
 {
-    // Get real data with enhanced payment metrics
-    $realDashboardData = $this->calculateRealDashboardData();
+    // Get real data for super admin (all data)
+    $realDashboardData = $this->calculateRealDashboardData($user, true);
     
     $data = [
         'user' => $user,
@@ -75,8 +75,8 @@ class DashboardController extends Controller
      */
     protected function collegeAdminDashboard(User $user)
     {
-        // Get real data with enhanced payment metrics
-    $realDashboardData = $this->calculateRealDashboardData();
+        // Get real data filtered for this user if they are not global admin
+    $realDashboardData = $this->calculateRealDashboardData($user, false);
     
     $data = [
         'user' => $user,
@@ -321,8 +321,16 @@ class DashboardController extends Controller
 /**
  * Calculate all real dashboard metrics with enhanced payment analysis
  */
-private function calculateRealDashboardData()
+private function calculateRealDashboardData(User $user = null, bool $isGlobalAdmin = false)
 {
+    // Enquiry Visibility Scoping
+    $enquiryQuery = Enquiry::query();
+    if (!$isGlobalAdmin && $user) {
+        $enquiryQuery->where('assigned_to_user_id', $user->id);
+    }
+
+    $activitiesQuery = collect(); // Placeholder for unified filtering later
+
     return [
         // Basic Stats
         'total_students' => Student::where('students.status', 'active')->count(),
@@ -336,8 +344,8 @@ private function calculateRealDashboardData()
         'outstanding_fees' => $this->calculateOutstandingFees(),
         'defaulters_count' => $this->getDefaultersCount(),
         'total_alumni' => Student::where('students.status', 'graduated')->count(),
-        'total_enquiries' => Enquiry::count(),
-        'pending_enquiries' => Enquiry::where('status', 'pending')->count(),
+        'total_enquiries' => (clone $enquiryQuery)->count(),
+        'pending_enquiries' => (clone $enquiryQuery)->where('status', 'pending')->count(),
         'avg_attendance' => $this->calculateAverageAttendance(),
         'collection_rate' => $this->calculateCollectionRate(),
         'new_admissions' => Student::whereMonth('created_at', now()->month)->count(),
@@ -365,7 +373,7 @@ private function calculateRealDashboardData()
         'revenue_chart' => $this->getRevenueChartData(),
         
         // Activity & Alerts
-        'recent_activities' => $this->getRecentActivities(),
+        'recent_activities' => $this->getRecentActivities($user, $isGlobalAdmin),
         'system_alerts' => $this->getSystemAlerts(),
         
         // System Health
@@ -662,11 +670,35 @@ private function getPaymentTrends()
 }
 
 // Update existing getRecentActivities method to include more payment activities
-private function getRecentActivities()
+private function getRecentActivities(User $user = null, bool $isGlobalAdmin = false)
 {
     $activities = collect();
     
+    // Filtered Enquiry query
+    $enquiryBase = Enquiry::query();
+    if (!$isGlobalAdmin && $user) {
+        $enquiryBase->where('assigned_to_user_id', $user->id);
+    }
+    
+    // Recent enquiries
+    $recentEnquiries = (clone $enquiryBase)->latest()
+        ->limit(5)
+        ->get()
+        ->map(function($enquiry) {
+            return [
+                'type' => 'enquiry',
+                'user' => $enquiry->student_name,
+                'action' => 'New enquiry received for ' . ($enquiry->course->name ?? 'N/A'),
+                'time' => $enquiry->created_at->diffForHumans(),
+                'icon' => 'fa-user-plus',
+                'color' => 'info',
+                'meta' => 'Status: ' . $enquiry->status
+            ];
+        });
+
     // Recent payments
+    // NOTE: If payments also need isolation, we can add it here. 
+    // Request only mentioned enquiries.
     $recentPayments = Payment::with('student')
         ->where('payment_type', 'component')
         ->latest()
@@ -719,6 +751,7 @@ private function getRecentActivities()
     
     // Merge all activities and sort by time
     return $activities->concat($recentPayments)
+                     ->concat($recentEnquiries)
                      ->concat($recentFees)
                      ->concat($recentStudents)
                      ->sortByDesc(function($item) {

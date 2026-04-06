@@ -766,14 +766,14 @@
                     <i class="fas fa-clock mr-1"></i>
                     Last {{ $dashboard_data['last_activity_time'] ?? 'unknown' }}
                 </div>
-                </div>
             </div>
         </div>
-        
-        <!-- Enquiry & Funnel Metrics -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="widget-card">
+          <!-- Dashboard Main Content Grid -->
+        <div class="row">
+            <!-- Left Column: Primary Analytics -->
+            <div class="col-xl-8 col-lg-7">
+                <!-- Enquiry & Funnel Metrics -->
+                <div class="widget-card animate-fade-in animate-delay-100">
                     <div class="widget-header">
                         <h6 class="widget-title">
                             <i class="fas fa-funnel-dollar"></i>Enquiry & Admission Funnel
@@ -808,67 +808,72 @@
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
 
-        <!-- Payment Collections Section -->
-        <div class="widget-card">
-            <div class="widget-header">
-                <h6 class="widget-title">
-                    <i class="fas fa-chart-bar"></i>My Payment Collections
-                </h6>
-                <div class="dropdown">
-                    <button class="btn btn-outline-primary btn-sm dropdown-toggle" type="button" data-toggle="dropdown">
-                        Export
-                    </button>
-                    <div class="dropdown-menu">
-                        <a class="dropdown-item" href="#" onclick="exportPaymentData('pdf')">PDF Report</a>
-                        <a class="dropdown-item" href="#" onclick="exportPaymentData('excel')">Excel Sheet</a>
+                <!-- Payment Collections Section -->
+                <div class="widget-card animate-fade-in animate-delay-200">
+                    <div class="widget-header">
+                        <h6 class="widget-title">
+                            <i class="fas fa-chart-bar"></i>My Payment Collections
+                        </h6>
+                        <div class="dropdown">
+                            <button class="btn btn-outline-primary btn-sm dropdown-toggle" type="button"
+                                data-toggle="dropdown">
+                                Export
+                            </button>
+                            <div class="dropdown-menu dropdown-menu-right">
+                                <a class="dropdown-item" href="#" onclick="exportPaymentData('pdf')">PDF Report</a>
+                                <a class="dropdown-item" href="#" onclick="exportPaymentData('excel')">Excel Sheet</a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="widget-body">
+                        <!-- Time Period Selector -->
+                        <div class="period-selector">
+                            <button class="period-btn active" data-period="today">Today</button>
+                            <button class="period-btn" data-period="yesterday">Yesterday</button>
+                            <button class="period-btn" data-period="this_week">This Week</button>
+                            <button class="period-btn" data-period="last_7_days">Last 7 Days</button>
+                            <button class="period-btn" data-period="this_month">This Month</button>
+                            <button class="period-btn" data-period="last_30_days">Last 30 Days</button>
+                        </div>
+
+                        <!-- Payment Stats Grid -->
+                        <div class="payment-stats" id="payment-stats">
+                            <div class="payment-stat">
+                                <div class="payment-stat-amount text-success" id="total-collected">
+                                    ₹{{ number_format($dashboard_data['my_collections']['today'] ?? 0) }}
+                                </div>
+                                <div class="payment-stat-label">Total Collected</div>
+                            </div>
+                            <div class="payment-stat">
+                                <div class="payment-stat-amount text-primary" id="transactions-count">
+                                    {{ $dashboard_data['my_collections']['transactions'] ?? 0 }}
+                                </div>
+                                <div class="payment-stat-label">Transactions</div>
+                            </div>
+                            <div class="payment-stat">
+                                <div class="payment-stat-amount text-info" id="avg-payment">
+                                    ₹{{ number_format($dashboard_data['my_collections']['avg_amount'] ?? 0) }}
+                                </div>
+                                <div class="payment-stat-label">Average Payment</div>
+                            </div>
+                            <div class="payment-stat">
+                                <div class="payment-stat-amount text-warning" id="online-percentage">
+                                    {{ $dashboard_data['my_collections']['online_percentage'] ?? 0 }}%
+                                </div>
+                                <div class="payment-stat-label">Online Payments</div>
+                            </div>
+                        </div>
+
+                        <!-- Payment Trends Chart -->
+                        <div class="chart-container">
+                            <canvas id="paymentTrendsChart"></canvas>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div class="widget-body">
-                <!-- Time Period Selector -->
-                <div class="period-selector">
-                    <button class="period-btn active" data-period="today">Today</button>
-                    <button class="period-btn" data-period="yesterday">Yesterday</button>
-                    <button class="period-btn" data-period="this_week">This Week</button>
-                    <button class="period-btn" data-period="last_7_days">Last 7 Days</button>
-                    <button class="period-btn" data-period="this_month">This Month</button>
-                    <button class="period-btn" data-period="last_30_days">Last 30 Days</button>
-                </div>
 
-                <!-- Payment Stats Grid -->
-                <div class="payment-stats" id="payment-stats">
-                    <div class="payment-stat">
-                        <div class="payment-stat-amount text-success" id="total-collected">
-                            ₹{{ number_format($dashboard_data['my_collections']['today'] ?? 0) }}
-                        </div>
-                        <div class="payment-stat-label">Total Collected</div>
-                    </div>
-                    <div class="payment-stat">
-                        <div class="payment-stat-amount text-primary" id="transactions-count">
-                            {{ $dashboard_data['my_collections']['transactions'] ?? 0 }}
-                        </div>
-                        <div class="payment-stat-label">Transactions</div>
-                    </div>
-                    <div class="payment-stat">
-                        <div class="payment-stat-amount text-info" id="avg-payment">
-                            ₹{{ number_format($dashboard_data['my_collections']['avg_amount'] ?? 0) }}
-                        </div>
-                        <div class="payment-stat-label">Average Payment</div>
-                    </div>
-                    <div class="payment-stat">
-                        <div class="payment-stat-amount text-warning" id="online-percentage">
-                            {{ $dashboard_data['my_collections']['online_percentage'] ?? 0 }}%
-                        </div>
-                        <div class="payment-stat-label">Online Payments</div>
-                    </div>
-                </div>
-
-                <!-- Payment Charts -->
-                <div class="chart-container">
-                    <canvas id="paymentTrendsChart"></canvas>
+                <!-- Attendance Analytics Widget -->
+                <div class="widget-card animate-fade-in animate-delay-300">
                     <div class="widget-header">
                         <h6 class="widget-title">
                             <i class="fas fa-chart-area"></i>Student Attendance Analytics
@@ -878,9 +883,8 @@
                                 data-toggle="dropdown">
                                 View
                             </button>
-                            <div class="dropdown-menu">
-                                <a class="dropdown-item" href="#" onclick="changeAttendanceView('daily')">Daily
-                                    View</a>
+                            <div class="dropdown-menu dropdown-menu-right">
+                                <a class="dropdown-item" href="#" onclick="changeAttendanceView('daily')">Daily View</a>
                                 <a class="dropdown-item" href="#" onclick="changeAttendanceView('weekly')">Weekly View</a>
                                 <a class="dropdown-item" href="#" onclick="changeAttendanceView('monthly')">Monthly View</a>
                             </div>
@@ -921,26 +925,12 @@
                         </div>
                     </div>
                 </div>
-
-                <!-- Payment Mode Distribution -->
-                <div class="widget-card">
-                    <div class="widget-header">
-                        <h6 class="widget-title">
-                            <i class="fas fa-credit-card"></i>Payment Mode Distribution
-                        </h6>
-                    </div>
-                    <div class="widget-body">
-                        <div class="chart-container" style="height: 250px;">
-                            <canvas id="paymentModeChart"></canvas>
-                        </div>
-                    </div>
-                </div>
             </div>
 
-            <!-- Right Column - Activity and Quick Info -->
-            <div class="sidebar-content">
+            <!-- Right Column: Activity and Quick Actions -->
+            <div class="col-xl-4 col-lg-5">
                 <!-- My Activity Log -->
-                <div class="widget-card">
+                <div class="widget-card animate-fade-in animate-delay-200">
                     <div class="widget-header">
                         <h6 class="widget-title">
                             <i class="fas fa-history"></i>My Activity Log
@@ -988,7 +978,7 @@
                 </div>
 
                 <!-- Quick Actions -->
-                <div class="widget-card">
+                <div class="widget-card animate-fade-in animate-delay-300">
                     <div class="widget-header">
                         <h6 class="widget-title">
                             <i class="fas fa-bolt"></i>Quick Actions
@@ -996,55 +986,67 @@
                     </div>
                     <div class="widget-body">
                         <div class="d-grid gap-2">
-                            <a href="{{ route('admin.component-payments.create') }}" class="btn btn-primary">
+                            <a href="{{ route('admin.component-payments.create') }}" class="btn btn-primary mb-2">
                                 <i class="fas fa-plus mr-2"></i>Collect Payment
                             </a>
-                            <a href="{{ route('admin.students.index') }}" class="btn btn-outline-primary">
-                                <i class="fas fa-users mr-2"></i>Manage Students
+                            <a href="{{ route('admin.students.create') }}" class="btn btn-outline-primary mb-2">
+                                <i class="fas fa-user-plus mr-2"></i>New Admission
                             </a>
-                            <a href="{{ route('admin.daily-attendance.create') }}" class="btn btn-outline-success">
-                                <i class="fas fa-user-check mr-2"></i>Mark Attendance
-                            </a>
-                            <a href="{{ route('admin.reports.attendance.index') }}" class="btn btn-outline-info">
-                                <i class="fas fa-chart-bar mr-2"></i>Attendance Reports
+                            <a href="{{ route('admin.enquiries.create') }}" class="btn btn-outline-info mb-2">
+                                <i class="fas fa-headset mr-2"></i>Record Enquiry
                             </a>
                         </div>
                     </div>
                 </div>
 
-                <!-- Today's Pending Collections -->
-                <div class="widget-card">
+                <!-- Payment Mode Distribution -->
+                <div class="widget-card animate-fade-in animate-delay-300">
                     <div class="widget-header">
                         <h6 class="widget-title">
-                            <i class="fas fa-exclamation-triangle"></i>Pending Collections
+                            <i class="fas fa-credit-card"></i>Payment Modes
                         </h6>
                     </div>
                     <div class="widget-body">
+                        <div class="chart-container" style="height: 250px;">
+                            <canvas id="paymentModeChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pending Collections -->
+                <div class="widget-card animate-fade-in animate-delay-300">
+                    <div class="widget-header">
+                        <h6 class="widget-title">
+                            <i class="fas fa-clock text-warning"></i>Recently Pending
+                        </h6>
+                    </div>
+                    <div class="widget-body p-0">
                         @if(isset($dashboard_data['pending_collections']) && count($dashboard_data['pending_collections']) > 0)
-                            @foreach(array_slice($dashboard_data['pending_collections'], 0, 5) as $pending)
-                                <div class="d-flex justify-content-between align-items-center mb-2 p-2 bg-light rounded">
-                                    <div>
-                                        <div class="font-weight-bold">{{ $pending['student_name'] }}</div>
-                                        <small class="text-muted">{{ $pending['course'] ?? 'N/A' }}</small>
+                            <div class="list-group list-group-flush">
+                                @foreach(array_slice($dashboard_data['pending_collections'], 0, 5) as $pay)
+                                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div class="fw-bold small">{{ $pay->student->name }}</div>
+                                            <div class="text-xs text-muted">{{ $pay->payment_date->format('d M, Y') }}</div>
+                                        </div>
+                                        <div class="text-end">
+                                            <div class="fw-bold text-danger">₹{{ number_format($pay->amount) }}</div>
+                                            <span class="badge badge-warning text-xs">Pending</span>
+                                        </div>
                                     </div>
-                                    <div class="text-right">
-                                        <div class="text-danger font-weight-bold">
-                                            ₹{{ number_format($pending['amount']) }}</div>
-                                        <small class="text-muted">{{ $pending['due_date'] ?? 'N/A' }}</small>
-                                    </div>
-                                </div>
-                            @endforeach
+                                @endforeach
+                            </div>
                             @if(count($dashboard_data['pending_collections']) > 5)
-                                <div class="text-center mt-2">
-                                    <a href="{{ route('admin.payment-defaulters.index') }}" class="btn btn-outline-primary btn-sm">
+                                <div class="p-2 text-center border-top">
+                                    <a href="{{ route('admin.component-payments.index', ['status' => 'pending']) }}" class="small">
                                         View All ({{ count($dashboard_data['pending_collections']) - 5 }} more)
                                     </a>
                                 </div>
                             @endif
                         @else
-                            <div class="text-center py-3">
+                            <div class="text-center py-4">
                                 <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
-                                <div class="text-muted">No pending collections!</div>
+                                <div class="small text-muted">No pending collections!</div>
                             </div>
                         @endif
                     </div>

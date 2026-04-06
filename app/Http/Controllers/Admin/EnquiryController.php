@@ -22,11 +22,10 @@ class EnquiryController extends Controller
     private function isUserAdmin($user = null)
     {
         $user = $user ?: Auth::user();
-        // Restore all casing variants — Spatie's in-memory Collection::contains
-        // uses PHP string comparison which IS case-sensitive.
+        // college-admin should only see their assigned enquiries, so they are not "Global Admins" here
         return $user->hasAnyRole([
-            'admin', 'super-admin', 'college-admin', 'superadmin',
-            'Admin', 'Super-admin', 'College-admin', 'Super Admin',
+            'admin', 'super-admin', 'superadmin',
+            'Admin', 'Super-admin', 'Super Admin',
         ]);
     }
 
