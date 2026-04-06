@@ -184,6 +184,23 @@
                         </div>
                     </div>
                 </div>
+                <div class="row">
+                    <div class="col-12">
+                        <div class="form-group mb-2">
+                            <label class="form-label-small text-primary font-weight-bold">Total Fee Offered (₹)</label>
+                            <input type="number" name="agreed_fee" class="form-control form-control-sm-custom border-primary" value="{{ $enquiry->agreed_fee }}" placeholder="Total Final Fee">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-12">
+                        <div class="form-group mb-2">
+                            <label class="form-label-small">Discount Offered (₹)</label>
+                            <input type="number" name="discount_offered" class="form-control form-control-sm-custom" value="{{ $enquiry->discount_offered }}" placeholder="Discount">
+                        </div>
+                    </div>
+                </div>
 
                 <div class="row">
                     <div class="col-6 pr-1">

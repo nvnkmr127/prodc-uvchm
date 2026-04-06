@@ -825,10 +825,20 @@
                                 <label class="small font-weight-bold text-gray-600">Marks</label>
                                 <input type="number" name="test_marks" class="form-control bg-light border-0" placeholder="Marks">
                             </div>
-                            <div class="col-md-4 mb-3">
-                                <label class="small font-weight-bold text-gray-600">Discount Offered</label>
-                                <input type="number" name="discount_offered" class="form-control bg-light border-0" placeholder="Amount">
+                            <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <div class="form-group">
+                                    <label class="font-weight-bold">Total Fee Offered (₹)</label>
+                                    <input type="number" name="agreed_fee" class="form-control border-primary" placeholder="Enter Total Fee">
+                                </div>
                             </div>
+                            <div class="col-md-6 mb-3">
+                                <div class="form-group">
+                                    <label class="font-weight-bold">Discount Offered (₹)</label>
+                                    <input type="number" name="discount_offered" class="form-control" placeholder="Discount if any">
+                                </div>
+                            </div>
+                        </div>
 
                             <!-- Uniform & Books -->
                             <div class="col-md-6 mb-3">

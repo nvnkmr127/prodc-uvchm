@@ -40,6 +40,7 @@ class Enquiry extends Model
         'next_follow_up_date',
         'status',
         'assigned_to_user_id',
+        'agreed_fee',
         'email',
         'test_attended',
         'test_marks',
@@ -60,6 +61,7 @@ class Enquiry extends Model
         'uniform_price' => 'decimal:2',
         'include_books' => 'boolean',
         'books_price' => 'decimal:2',
+        'agreed_fee' => 'decimal:2',
     ];
 
     public function getActivitylogOptions(): LogOptions

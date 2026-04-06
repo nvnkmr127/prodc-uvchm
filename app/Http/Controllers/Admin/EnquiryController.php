@@ -317,6 +317,7 @@ class EnquiryController extends Controller
             'test_attended' => 'nullable|boolean',
             'test_marks' => 'nullable|integer',
             'discount_offered' => 'nullable|numeric',
+            'agreed_fee' => 'nullable|numeric|min:0',
             'include_uniform' => 'nullable|boolean',
             'uniform_price' => 'nullable|numeric|min:0',
             'include_books' => 'nullable|boolean',
@@ -377,7 +378,7 @@ class EnquiryController extends Controller
     public function quickUpdate(Request $request, Enquiry $enquiry)
     {
         $validated = $request->validate([
-            'field' => 'required|in:assigned_to_user_id,next_follow_up_date,status,source,test_attended,test_marks,discount_offered,include_uniform,include_books',
+            'field' => 'required|in:assigned_to_user_id,next_follow_up_date,status,source,test_attended,test_marks,discount_offered,include_uniform,include_books,agreed_fee',
             'value' => 'nullable',
             'filter_assigned_to' => 'nullable|exists:users,id' // Helper for stats
         ]);
@@ -461,6 +462,7 @@ class EnquiryController extends Controller
             'test_attended' => 'nullable|boolean',
             'test_marks' => 'nullable|integer',
             'discount_offered' => 'nullable|numeric',
+            'agreed_fee' => 'nullable|numeric|min:0',
             'include_uniform' => 'nullable|boolean',
             'uniform_price' => 'nullable|numeric|min:0',
             'include_books' => 'nullable|boolean',
