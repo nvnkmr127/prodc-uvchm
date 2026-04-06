@@ -453,6 +453,14 @@ class EnquiryController extends Controller
         $validated['include_books'] = $request->has('include_books');
 
         $enquiry->update($validated);
+
+        if ($request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Enquiry updated successfully.'
+            ]);
+        }
+
         return redirect()->back()->with('success', 'Enquiry updated successfully.');
     }
 

@@ -480,9 +480,9 @@
                     // 3. Reset Form
                     form.find('textarea').val('');
                     
-                    // 4. Optional: Update Follow-up date display in the modal header if changed
-                    if(response.data.date_formatted) {
-                        // You can add logic here if you want to update the date displayed elsewhere in the modal
+                    // 4. Update the dashboard background if it exists
+                    if (typeof fetchEnquiries === 'function') {
+                        fetchEnquiries();
                     }
                 }
             },

@@ -997,21 +997,27 @@
             // Unbind temporarily to prevent multiple AJAX calls
             $('.filter-input').off('change keyup');
             
-            // Reset all form fields
-            $('#filterForm')[0].reset();
-            
-            // Clear select2 and trigger UI update but WITHOUT change event propagation
+            // Explicitly clear all field types to empty
+            $('#filterForm').find('input[type="text"], input[type="date"], select').each(function() {
+                $(this).val(''); 
+            });
+
+            // Clear multiple select2 specifically
             $('.select2-multiple').val(null).trigger('change.select2');
             
-            // Re-bind filter listeners
-            $('.filter-input').on('change keyup', filterInputHandler);
-            
-            // Reset Sort to default
+            // Reset Sort to default values
             $('#sortField').val('next_follow_up_date');
             $('#sortDirection').val('asc');
             $('.sort-link').removeClass('active').find('i').attr('class', 'fas fa-sort ml-1');
             $(`a[onclick="sortList('next_follow_up_date')"]`).addClass('active').find('i').attr('class', 'fas fa-sort-up ml-1');
 
+            // Reset Records per page to 10
+            $('#perPageField').val('10');
+            $('#perPageSelectTop, #perPageSelectBottom').val('10');
+
+            // Re-bind filter listeners AFTER clearing
+            $('.filter-input').on('change keyup', filterInputHandler);
+            
             // Fetch clean list once
             fetchEnquiries(1);
         }
