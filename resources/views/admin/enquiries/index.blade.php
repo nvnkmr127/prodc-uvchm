@@ -740,8 +740,8 @@
     </div>
 
     <div class="modal fade" id="enquiryDetailsModal" tabindex="-1" role="dialog" aria-hidden="true" data-backdrop="static"
-        data-keyboard="false">
-        <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+        data-keyboard="false" style="z-index: 1051;">
+        <div class="modal-dialog modal-xl modal-dialog-centered" role="document">
             <div class="modal-content border-0 shadow-lg" style="border-radius: 1rem; overflow: hidden;">
                 <div class="modal-header bg-white border-bottom-0 pt-4 px-4">
                     <h5 class="modal-title font-weight-bold text-gray-800"><i
@@ -761,7 +761,7 @@
     </div>
 
     <div class="modal fade" id="addEnquiryModal" tabindex="-1" role="dialog" aria-hidden="true" data-backdrop="static">
-        <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-dialog modal-xl" role="document">
             <div class="modal-content border-0 shadow-lg">
                 <div class="modal-header bg-primary text-white">
                     <h5 class="modal-title font-weight-bold"><i class="fas fa-plus-circle mr-2"></i>New Enquiry</h5>

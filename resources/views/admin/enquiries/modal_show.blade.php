@@ -62,15 +62,26 @@
     .timeline-container-modal::-webkit-scrollbar-thumb {
         background-color: #d1d3e2;
         border-radius: 10px;
-    }
     .shadow-xs {
         box-shadow: 0 .125rem .25rem 0 rgba(58,59,69,.05)!important;
+    }
+    .profile-scroll-container {
+        max-height: 580px;
+        overflow-y: auto;
+        padding-right: 8px;
+    }
+    .profile-scroll-container::-webkit-scrollbar {
+        width: 4px;
+    }
+    .profile-scroll-container::-webkit-scrollbar-thumb {
+        background-color: #eaecf4;
+        border-radius: 10px;
     }
 </style>
 
 <div class="container-fluid px-10">
     <div class="row">
-        <div class="col-md-5 border-right">
+        <div class="col-md-5 border-right profile-scroll-container">
             
             <div class="text-center mb-3">
                 <div class="modal-profile-avatar">
@@ -159,9 +170,13 @@
                         <label class="form-label-small">Lead Source</label>
                         <select name="source" class="form-control form-control-sm-custom border-0 bg-light" id="modalSourceSelect">
                             <option value="">Select Source</option>
-                            @foreach(\App\Models\Enquiry::SOURCES as $value => $label)
-                                <option value="{{ $value }}" {{ $enquiry->source == $value ? 'selected' : '' }}>{{ $label }}</option>
+                            @foreach(\App\Models\Enquiry::SOURCES as $sourceKey => $sourceVal)
+                                <option value="{{ $sourceKey }}" {{ $enquiry->source == $sourceKey ? 'selected' : '' }}>{{ $sourceVal }}</option>
                             @endforeach
+                            {{-- Important: Display current source if it's not in the standard list (e.g. from bulk import or old data) --}}
+                            @if($enquiry->source && !array_key_exists($enquiry->source, \App\Models\Enquiry::SOURCES))
+                                <option value="{{ $enquiry->source }}" selected>{{ $enquiry->source }} (Custom)</option>
+                            @endif
                         </select>
                     </div>
 
