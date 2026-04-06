@@ -47,18 +47,15 @@
         border-color: #4e73df;
     }
 
+    /* Timeline: removed max-height — the modal body scrolls */
     .timeline-container-modal {
-        max-height: 600px; 
-        overflow-y: auto; 
         padding-right: 5px;
         border-top: 1px solid #eaecf4;
         padding-top: 1rem;
     }
 
-    /* Scrollbar styling for the modal timeline */
-    .timeline-container-modal::-webkit-scrollbar {
-        width: 6px;
-    }
+    /* Scrollbar styling */
+    .timeline-container-modal::-webkit-scrollbar { width: 6px; }
     .timeline-container-modal::-webkit-scrollbar-thumb {
         background-color: #d1d3e2;
         border-radius: 10px;
@@ -66,23 +63,33 @@
     .shadow-xs {
         box-shadow: 0 .125rem .25rem 0 rgba(58,59,69,.05)!important;
     }
+
+    /* Left profile column — no fixed height, just flows */
     .profile-scroll-container {
-        max-height: 580px;
-        overflow-y: auto;
         padding-right: 8px;
     }
-    .profile-scroll-container::-webkit-scrollbar {
-        width: 4px;
-    }
+    .profile-scroll-container::-webkit-scrollbar { width: 4px; }
     .profile-scroll-container::-webkit-scrollbar-thumb {
         background-color: #eaecf4;
         border-radius: 10px;
     }
+
+    /* Two-column layout fills the modal body */
+    .enquiry-modal-row {
+        min-height: 100%;
+    }
+    .enquiry-modal-col-left {
+        border-right: 1px solid #e3e6f0;
+        padding: 1.5rem 1rem 2rem 1.5rem;
+    }
+    .enquiry-modal-col-right {
+        padding: 1.5rem 1.5rem 2rem 1rem;
+    }
 </style>
 
-<div class="container-fluid px-10">
-    <div class="row">
-        <div class="col-md-5 border-right profile-scroll-container">
+<div class="container-fluid px-0">
+    <div class="row no-gutters enquiry-modal-row">
+        <div class="col-md-5 enquiry-modal-col-left profile-scroll-container">
             
             <div class="text-center mb-3">
                 <div class="modal-profile-avatar">
@@ -133,6 +140,16 @@
                                 </select>
                             </div>
                         </div>
+                    </div>
+
+                    <div class="form-group mb-2">
+                        <label class="form-label-small">Course Interested In</label>
+                        <select name="course_id" class="form-control form-control-sm-custom border-0 bg-light">
+                            <option value="">Select Course...</option>
+                            @foreach($courses as $course)
+                                <option value="{{ $course->id }}" {{ $enquiry->course_id == $course->id ? 'selected' : '' }}>{{ $course->name }}</option>
+                            @endforeach
+                        </select>
                     </div>
                 </div>
 
@@ -270,10 +287,10 @@
                     </div>
                 </div>
             </form>
-            <div class="mb-5 py-3"></div> <!-- Extra breathing room at bottom -->
+            <div class="mb-4 py-2"></div> <!-- Extra breathing room at bottom -->
         </div>
 
-        <div class="col-md-7">
+        <div class="col-md-7 enquiry-modal-col-right">
             
             <div class="bg-light p-3 rounded mb-3 border">
                 <h6 class="font-weight-bold text-gray-800 mb-2 small text-uppercase">

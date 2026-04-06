@@ -84,12 +84,14 @@ class EnquiryController extends Controller
                     ->orWhere('address', 'LIKE', '%' . $term . '%');
             });
         }
-        if ($request->has('test_attended') && $request->test_attended !== '') {
+        // test_attended: '0' or '1' is meaningful, empty string means 'all'
+        if ($request->filled('test_attended') && $request->test_attended !== '') {
             $statsBaseQuery->where('test_attended', $request->test_attended);
         }
 
-        // Apply default status filter (Hide Not Interested) unless specifically requested OR searching
-        if (!$request->filled('status') && !$request->filled('search') && !$request->is('*/export')) {
+        // Apply default status filter — mirrors applyFilters() logic exactly
+        $skipDefault = $request->boolean('_skip_default_filter', false);
+        if (!$request->filled('status') && !$request->filled('search') && !$skipDefault) {
             $statsBaseQuery->where('status', '!=', 'Not Interested');
         }
 
@@ -187,8 +189,9 @@ class EnquiryController extends Controller
             $query->where('enquiries.created_at', '<=', $request->end_date . ' 23:59:59');
         }
 
-        // 6. Test Attendance Filter
-        if ($request->has('test_attended') && $request->test_attended !== '') {
+        // 6. Test Attendance Filter — use filled() not has(), since 'test_attended'
+        //    is always present in the serialised form as an empty string when 'All' is selected.
+        if ($request->filled('test_attended') && $request->test_attended !== '') {
             $query->where('enquiries.test_attended', $request->test_attended);
         }
 

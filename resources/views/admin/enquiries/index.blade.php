@@ -556,7 +556,7 @@
                                 </div>
                                 <div class="col-4">
                                     <label class="small text-muted font-weight-bold">Records</label>
-                                    <select class="form-control bg-light border-0 small filter-input" id="perPageSelectTop" 
+                                    <select class="form-control bg-light border-0 small" id="perPageSelectTop"
                                         onchange="updatePerPage(this.value)">
                                         <option value="10" {{ $enquiries->perPage() == 10 ? 'selected' : '' }}>10</option>
                                         <option value="25" {{ $enquiries->perPage() == 25 ? 'selected' : '' }}>25</option>
@@ -679,16 +679,18 @@
 
     <div class="modal fade" id="enquiryDetailsModal" tabindex="-1" role="dialog" aria-hidden="true" data-backdrop="static"
         data-keyboard="false" style="z-index: 1051;">
-        <div class="modal-dialog modal-xl modal-dialog-centered" role="document">
-            <div class="modal-content border-0 shadow-lg" style="border-radius: 1rem; overflow: hidden;">
-                <div class="modal-header bg-white border-bottom-0 pt-4 px-4">
-                    <h5 class="modal-title font-weight-bold text-gray-800"><i
-                            class="fas fa-user-circle mr-2 text-primary"></i>Enquiry Overview</h5>
+        <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable" role="document"
+             style="max-width: 1200px; max-height: 95vh; margin: auto;">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 1rem; overflow: hidden; height: 95vh;">
+                <div class="modal-header bg-white border-bottom py-3 px-4" style="flex-shrink: 0;">
+                    <h5 class="modal-title font-weight-bold text-gray-800">
+                        <i class="fas fa-user-circle mr-2 text-primary"></i>Enquiry Overview
+                    </h5>
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                         <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
-                <div class="modal-body p-0" id="enquiryModalBody">
+                <div class="modal-body p-0" id="enquiryModalBody" style="overflow-y: auto; flex: 1;">
                     <div class="text-center py-5">
                         <div class="spinner-border text-primary" role="status"></div>
                         <p class="mt-2 text-muted small">Loading...</p>
@@ -972,15 +974,21 @@
         // resetAllFilters AJAX
         function resetAllFilters() {
             console.log("[Enquiry-Debug] Resetting all filters...");
-            const form = $('#filterForm');
-            form[0].reset();
-            
-            // Special handling for Select2
+            const $form = $('#filterForm');
+            $form[0].reset();
+
+            // Reset all Select2 multi-selects explicitly
             $('.select2-multiple').val(null).trigger('change.select2');
-            
-            // Clear search field manually if needed
+
+            // Reset the test_attended plain select too
+            $('select[name="test_attended"]').val('').trigger('change');
+
+            // Clear search field
             $('#liveSearchInput').val('');
-            
+
+            // Reset per_page hidden field to default
+            $('#perPageField').val(25);
+
             // Fetch clean list
             fetchEnquiries(1);
         }
@@ -1016,20 +1024,24 @@
         // Handle stats card clicks
         $(document).on('click', '.stat-filter-link', function(e) {
             e.preventDefault();
-            const status = $(this).data('status');
-            const test = $(this).data('test');
+            const status = $(this).data('status'); // '' means 'All'
+            const test   = $(this).data('test');   // '1' or undefined
 
-            // Reset other filters or preserve? Let's preserve current form but override these two
-            // For simplicity, let's just clear specific select multiples and set the status if it exists
+            // Always reset test_attended first, then set if this is a test-card
+            $('select[name="test_attended"]').val('').trigger('change');
+
+            // Set/clear status filter
             if (status !== undefined) {
-                // Handle multiple select logic for AJAX fetch
-                // Clear existing and set new if it's a single status click
                 $('select[name="status[]"]').val(status ? [status] : []).trigger('change.select2');
             }
-            if (test !== undefined) {
+
+            // Override test_attended if this stat card carries a test value
+            if (test !== undefined && test !== '') {
                 $('select[name="test_attended"]').val(test).trigger('change');
+                // Clear status when switching to test-attended view
+                $('select[name="status[]"]').val([]).trigger('change.select2');
             }
-            
+
             // Set active class visually
             $('.stat-card-mini').removeClass('active');
             $(this).parent().addClass('active');
