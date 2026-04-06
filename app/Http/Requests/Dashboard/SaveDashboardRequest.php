@@ -1,6 +1,8 @@
 <?php
 // app/Http/Requests/Dashboard/SaveDashboardRequest.php
+namespace App\Http\Requests\Dashboard;
 
+use Illuminate\Foundation\Http\FormRequest;
 class SaveDashboardRequest extends FormRequest
 {
     public function authorize(): bool

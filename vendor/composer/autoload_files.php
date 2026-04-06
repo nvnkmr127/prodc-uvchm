@@ -50,6 +50,6 @@ return array(
     '377b22b161c09ed6e5152de788ca020a' => $vendorDir . '/spatie/laravel-permission/src/helpers.php',
     'd21d43db5f6e840ee7b10744ec7fdf66' => $baseDir . '/app/Helpers/helpers.php',
     'ec020eae7f42c24af9776d89f8a687b4' => $baseDir . '/app/Helpers/settings.php',
-    '6af74318454e1ab83855e448041776e6' => $baseDir . '/app/Helpers/PermissionHelpers.php',
+    '00620ec3787303b77ee72cb3469bb395' => $baseDir . '/app/Helpers/PermissionHelper.php',
     '281d61020cdd07e929bf24a7a17bcf00' => $baseDir . '/app/Helpers/view_helpers.php',
 );

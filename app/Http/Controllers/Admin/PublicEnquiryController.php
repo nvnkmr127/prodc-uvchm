@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Controller;
 use App\Models\Enquiry;
 use App\Models\Course;
 use App\Services\NotificationService; // ADD THIS IMPORT
@@ -25,17 +26,7 @@ class PublicEnquiryController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate([
-            'student_name' => 'required|string|max:255',
-            'email' => 'nullable|email|max:255',
-            'mobile' => 'required|string|max:20',
-            'course_id' => 'required|exists:courses,id',
-            'message' => 'nullable|string',
-            'referral_name' => 'nullable|string|max:255',
-            'source' => 'required|string|max:255',
-        ]);
-
-        $enquiry = $validated = $request->validate([
+        $validated = $request->validate([
             'student_name' => 'required|string|max:255',
             'phone_number' => 'nullable|string|max:255',
             'email' => 'required|email|max:255',
@@ -51,7 +42,8 @@ class PublicEnquiryController extends Controller
             'status' => 'nullable|string|max:255',
             'assigned_to_user_id' => 'required|exists:assigned_to_users,id',
         ]);
-        Enquiry::create($validated);
+
+        $enquiry = Enquiry::create($validated);
         $course = Course::find($request->course_id);
 
         // 🔔 NOTIFY ADMINS OF NEW ENQUIRY
