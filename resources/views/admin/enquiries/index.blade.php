@@ -1075,6 +1075,12 @@
             fetchEnquiries(1);
         }
 
+        function exportFilteredResults() {
+            const filters = $('#filterForm').serialize();
+            const exportUrl = "{{ route('admin.enquiries.export') }}";
+            window.location.href = exportUrl + '?' + filters;
+        }
+
 
         function toggleBulkActions() {
             const count = $('.enquiry-checkbox:checked').length;
