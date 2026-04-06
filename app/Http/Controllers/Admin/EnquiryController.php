@@ -51,7 +51,7 @@ class EnquiryController extends Controller
             $statsBaseQuery->where('created_at', '<=', $request->end_date . ' 23:59:59');
         }
         if ($request->filled('search')) {
-            $term = $request->search;
+            $term = trim($request->search);
             $statsBaseQuery->where(function ($q) use ($term) {
                 $q->where('student_name', 'LIKE', '%' . $term . '%')
                     ->orWhere('phone_number', 'LIKE', '%' . $term . '%')
@@ -118,7 +118,7 @@ class EnquiryController extends Controller
 
         // 2. Search Logic
         if ($request->filled('search')) {
-            $searchTerm = $request->search;
+            $searchTerm = trim($request->search);
             $query->where(function ($q) use ($searchTerm) {
                 $q->where('enquiries.student_name', 'LIKE', '%' . $searchTerm . '%')
                     ->orWhere('enquiries.phone_number', 'LIKE', '%' . $searchTerm . '%')
@@ -167,6 +167,7 @@ class EnquiryController extends Controller
         return $query;
     }
 
+
     public function index(Request $request)
     {
         // VISIBILITY FIX: Restrict Non-Admins to see only their assigned enquiries
@@ -210,6 +211,7 @@ class EnquiryController extends Controller
                 $q->whereIn('name', ['admin', 'super-admin', 'college-admin', 'counselor']);
             })->where('status', 'active')->orderBy('name')->get(['id', 'name']);
         });
+        \Log::info("IS AJAX:", ["status" => $request->ajax()]);
 
 
         // AJAX Response
@@ -426,6 +428,13 @@ class EnquiryController extends Controller
 
     public function update(Request $request, Enquiry $enquiry)
     {
+        // VISIBILITY FIX
+        $user = Auth::user();
+        $isAdmin = $user->hasAnyRole(['admin', 'super-admin', 'college-admin', 'Admin', 'Super-admin', 'College-admin']);
+        if (!$isAdmin && $enquiry->assigned_to_user_id != $user->id) {
+            abort(403, 'Unauthorized access to this enquiry.');
+        }
+
         $validated = $request->validate([
             'student_name' => 'required|string|max:255',
             'phone_number' => 'required|string|max:20', // Changed from strict regex to string
@@ -507,6 +516,14 @@ class EnquiryController extends Controller
 
     public function addFollowUp(Request $request, Enquiry $enquiry)
     {
+        // VISIBILITY FIX
+        $user = Auth::user();
+        $isAdmin = $user->hasAnyRole(['admin', 'super-admin', 'college-admin', 'Admin', 'Super-admin', 'College-admin']);
+        if (!$isAdmin && $enquiry->assigned_to_user_id != $user->id) {
+            if ($request->ajax()) return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+            abort(403, 'Unauthorized access to this enquiry.');
+        }
+
         $request->validate([
             'notes' => 'required|string',
             'outcome' => 'nullable|string|max:255',
@@ -551,6 +568,13 @@ class EnquiryController extends Controller
 
     public function convertToAdmission(Enquiry $enquiry)
     {
+        // VISIBILITY FIX
+        $user = Auth::user();
+        $isAdmin = $user->hasAnyRole(['admin', 'super-admin', 'college-admin', 'Admin', 'Super-admin', 'College-admin']);
+        if (!$isAdmin && $enquiry->assigned_to_user_id != $user->id) {
+            abort(403, 'Unauthorized access to this enquiry.');
+        }
+
         if ($enquiry->status === 'Admitted') {
             return redirect()->back()->with('error', 'This enquiry has already been converted to an admission.');
         }

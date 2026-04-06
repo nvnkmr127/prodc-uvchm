@@ -443,8 +443,8 @@
                                 <h6 class="font-weight-bold text-primary mb-0 small text-uppercase">
                                     <i class="fas fa-search mr-2"></i> Discovery
                                 </h6>
-                                @if(request()->anyFilled(['search', 'assigned_to_user_id', 'course_id', 'status', 'from_date', 'to_date', 'test_attended']))
-                                    <a href="{{ route('admin.enquiries.index') }}" class="small text-danger font-weight-bold">
+                                @if(request()->anyFilled(['search', 'assigned_to_user_id', 'course_id', 'status', 'start_date', 'end_date', 'test_attended']))
+                                    <a href="javascript:void(0)" onclick="resetAllFilters()" class="small text-danger font-weight-bold">
                                         <i class="fas fa-times-circle mr-1"></i>Clear all
                                     </a>
                                 @endif
@@ -880,16 +880,16 @@
         // --- AJAX Fetcher Implementation ---
         let fetchTimer;
         function fetchEnquiries(page = 1) {
-            const form = $('#filterForm');
-            const data = form.serialize() + '&page=' + page;
-            const container = $('#enquiryTableBody');
-            const paginationContainer = $('#paginationContainer'); // Fixed: matched correctly with HTML ID
+            const $form = $('#filterForm');
+            const data = $form.serialize() + '&page=' + page;
+            const $container = $('#enquiryTableBody');
+            const $pagination = $('#paginationContainer');
             const url = "{{ route('admin.enquiries.index') }}";
-
-            console.log("Fetching Enquiries with data:", data); // Debug log
+            
+            console.log("[Enquiry-Debug] Starting Fetch...", { page, data: $form.serializeArray() });
 
             // Show loading state
-            container.css('opacity', '0.5');
+            $container.css('opacity', '0.5');
             $('#searchSpinner').show();
             document.body.style.cursor = 'wait';
 
@@ -897,9 +897,11 @@
                 url: url,
                 type: 'GET',
                 data: data,
+                headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
                 success: function (res) {
-                    container.html(res.html).css('opacity', '1');
-                    paginationContainer.html(res.pagination);
+                    console.log("[Enquiry-Debug] Search Success! Rows returned:", $(res.html).filter('tr').length);
+                    $container.html(res.html).css('opacity', '1');
+                    $pagination.html(res.pagination);
                     if (res.stats) updateStats(res.stats);
                     document.body.style.cursor = 'default';
                     $('#searchSpinner').hide();
@@ -908,13 +910,30 @@
                     const newUrl = url + '?' + data;
                     window.history.pushState({ path: newUrl }, '', newUrl);
                 },
-                error: function () {
-                    container.css('opacity', '1');
+                error: function (xhr, status, error) {
+                    console.error("[Enquiry-Debug] Search Failed:", { status, error, response: xhr.responseText });
+                    $container.css('opacity', '1');
                     $('#searchSpinner').hide();
                     document.body.style.cursor = 'default';
-                    alert('Search failed or server timed out.');
+                    alert('Search failed. Check browser console for details.');
                 }
             });
+        }
+
+        // resetAllFilters AJAX
+        function resetAllFilters() {
+            console.log("[Enquiry-Debug] Resetting all filters...");
+            const form = $('#filterForm');
+            form[0].reset();
+            
+            // Special handling for Select2
+            $('.select2-multiple').val(null).trigger('change.select2');
+            
+            // Clear search field manually if needed
+            $('#liveSearchInput').val('');
+            
+            // Fetch clean list
+            fetchEnquiries(1);
         }
 
         // Live search with debounce (Switch to 'input' for better "X" button handling)
