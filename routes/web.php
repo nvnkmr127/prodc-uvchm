@@ -120,7 +120,12 @@ use App\Http\Controllers\Api\TestController;
 */
 
 // --- 1. Public Routes ---
-Route::get('/', fn() => view('welcome'))->name('home');
+Route::get('/', function () {
+    if (auth()->check()) {
+        return redirect()->route('admin.dashboard');
+    }
+    return redirect()->route('login');
+})->name('home');
 
 // ============================================================
 // TEMPORARY DEBUG ROUTE — REMOVE AFTER ROOT CAUSE IS FOUND

@@ -298,27 +298,68 @@
             scrollbar-width: thin;
         }
 
-        /* Select2 Custom Styling to match theme */
-        .select2-container--default .select2-selection--multiple {
-            background-color: #f8f9fc !important;
-            border: none !important;
-            border-radius: 0.35rem !important;
-            min-height: 38px;
+        /* --- Filter Pill System --- */
+        .filter-pills-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
         }
-        .select2-container--default .select2-selection--multiple .select2-selection__choice {
-            background-color: #4e73df !important;
-            border: none !important;
-            color: white !important;
-            border-radius: 4px !important;
-            padding: 2px 8px !important;
-            margin-top: 6px !important;
+
+        .filter-pill {
+            padding: 0.5rem 1rem;
+            border-radius: 50px;
+            background: #f8f9fc;
+            border: 1px solid #e3e6f0;
+            color: #4e73df;
+            font-size: 0.75rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
         }
-        .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
-            color: white !important;
-            margin-right: 5px !important;
+
+        .filter-pill:hover {
+            background: #eaecf4;
+            border-color: #4e73df;
         }
-        .select2-container {
-            width: 100% !important;
+
+        .filter-pill.active {
+            background: #4e73df;
+            color: white;
+            border-color: #4e73df;
+            box-shadow: 0 4px 10px rgba(78, 115, 223, 0.25);
+        }
+
+        .filter-section-label {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 800;
+            color: #858796;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+        }
+        
+        .filter-section-label i {
+            width: 1.5rem;
+            text-align: center;
+        }
+
+        /* Responsive Filter Layout */
+        .filter-main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 1.5rem;
+        }
+
+        @media (max-width: 992px) {
+            .filter-main-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
@@ -431,38 +472,31 @@
         </div>
 
         <div class="card shadow mb-4 border-0" style="border-radius: 1rem;">
-            <div class="card-body py-3">
+            <div class="card-body py-4">
                 <form id="filterForm" onsubmit="event.preventDefault(); fetchEnquiries(1);">
                     <input type="hidden" name="sort" id="sortField" value="{{ request('sort', 'next_follow_up_date') }}">
                     <input type="hidden" name="direction" id="sortDirection" value="{{ request('direction', 'asc') }}">
                     <input type="hidden" name="per_page" id="perPageField" value="{{ request('per_page', 25) }}">
-                    <div class="row">
-                        <!-- Column 1: Discovery -->
-                        <div class="col-lg-4 col-md-12 border-right">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h6 class="font-weight-bold text-primary mb-0 small text-uppercase">
-                                    <i class="fas fa-search mr-2"></i> Discovery
-                                </h6>
-                                @if(request()->anyFilled(['search', 'assigned_to_user_id', 'course_id', 'status', 'start_date', 'end_date', 'test_attended']))
-                                    <a href="javascript:void(0)" onclick="resetAllFilters()" class="small text-danger font-weight-bold">
-                                        <i class="fas fa-times-circle mr-1"></i>Clear all
-                                    </a>
-                                @endif
+                    
+                    <div class="filter-main-grid">
+                        <!-- Group 1: Search & Counselor -->
+                        <div class="filter-col">
+                            <div class="filter-section-label">
+                                <i class="fas fa-search text-primary"></i> Quick Discovery
                             </div>
-                            <div class="mb-3 position-relative">
-                                <div class="input-group bg-light rounded" style="padding: 2px;">
-                                    <input type="text" class="form-control bg-light border-0 small"
+                            <div class="position-relative mb-3">
+                                <div class="input-group bg-light rounded-pill px-3 py-1 shadow-sm border">
+                                    <input type="text" class="form-control bg-transparent border-0 small"
                                         name="search" id="liveSearchInput" value="{{ request('search') }}"
-                                        placeholder="Name, Phone, Village..." autocomplete="off">
-                                    <div id="searchSpinner" class="position-absolute" style="right: 10px; top: 50%; transform: translateY(-50%); display: none; z-index: 5;">
+                                        placeholder="Search name, phone, area..." autocomplete="off">
+                                    <div id="searchSpinner" class="position-absolute" style="right: 20px; top: 50%; transform: translateY(-50%); display: none; z-index: 5;">
                                         <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
                                     </div>
                                 </div>
                             </div>
                             <div>
-                                <label class="small text-muted font-weight-bold">Counselor Assignment</label>
                                 <select class="form-control select2-multiple filter-input"
-                                    name="assigned_to_user_id[]" multiple data-placeholder="All Counselors">
+                                    name="assigned_to_user_id[]" multiple data-placeholder="Assigned Counselors">
                                     @foreach($counselors as $counselor)
                                         <option value="{{ $counselor->id }}" {{ in_array($counselor->id, (array) request('assigned_to_user_id')) ? 'selected' : '' }}>
                                             {{ $counselor->name }}
@@ -472,128 +506,107 @@
                             </div>
                         </div>
 
-                        <!-- Column 2: Qualification -->
-                        <div class="col-lg-4 col-md-12 border-right">
-                            <h6 class="font-weight-bold text-info mb-3 small text-uppercase">
-                                <i class="fas fa-filter mr-2"></i> Qualification
-                            </h6>
-                            <div class="row">
-                                <div class="col-6 mb-3">
-                                    <label class="small text-muted font-weight-bold">Status</label>
-                                    <select class="form-control select2-multiple filter-input"
-                                        name="status[]" multiple data-placeholder="All Statuses">
-                                        @foreach(['New', 'Contacted', 'Interested', 'Follow-up', 'Admitted', 'Interested Next Year', 'Next Entrance Exam', 'Not Interested'] as $s)
-                                            <option value="{{ $s }}" {{ in_array($s, (array) request('status')) ? 'selected' : '' }}>{{ $s }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
-                                <div class="col-6 mb-3">
-                                    <label class="small text-muted font-weight-bold">Source</label>
-                                    <select class="form-control select2-multiple filter-input" name="source[]" multiple data-placeholder="All Sources">
-                                        @foreach($sources as $value => $label)
-                                            <option value="{{ $value }}" {{ in_array($value, (array) request('source')) ? 'selected' : '' }}>{{ $label }}</option>
-                                        @endforeach
-                                    </select>
-                                </div>
+                        <!-- Group 2: Course & Qualification -->
+                        <div class="filter-col border-left border-right px-lg-4">
+                            <div class="filter-section-label">
+                                <i class="fas fa-graduation-cap text-info"></i> Preferences
                             </div>
-                            <div>
-                                <label class="small text-muted font-weight-bold">Course Interest</label>
-                                <select class="form-control select2-multiple filter-input" name="course_id[]" multiple data-placeholder="All Courses">
+                            <div class="mb-3">
+                                <select class="form-control select2-multiple filter-input" name="course_id[]" multiple data-placeholder="Course Interests">
                                     @foreach($courses as $id => $name)
                                         <option value="{{ $id }}" {{ in_array($id, (array) request('course_id')) ? 'selected' : '' }}>{{ $name }}</option>
                                     @endforeach
                                 </select>
                             </div>
-                            <div class="mt-3">
-                                <label class="small text-muted font-weight-bold">Entrance Test</label>
-                                <select class="form-control filter-input" name="test_attended">
-                                    <option value="">All</option>
-                                    <option value="1" {{ request('test_attended') === '1' ? 'selected' : '' }}>Attended</option>
-                                    <option value="0" {{ request('test_attended') === '0' ? 'selected' : '' }}>Not Attended</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <!-- Column 3: Timeline & Tools -->
-                        <div class="col-lg-4 col-md-12">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h6 class="font-weight-bold text-success mb-0 small text-uppercase">
-                                    <i class="fas fa-calendar-alt mr-2"></i> Timeline
-                                </h6>
-                                <div class="btn-group">
-                                    @hasanyrole('super-admin|Super-Admin')
-                                    <button type="button" class="btn btn-sm btn-outline-primary shadow-sm font-weight-bold"
-                                        data-toggle="modal" data-target="#importEnquiryModal" title="Import CSV">
-                                        <i class="fas fa-file-import"></i>
-                                    </button>
-                                    @endhasanyrole
-                                    <button type="button" onclick="exportFilteredResults()"
-                                        class="btn btn-sm btn-outline-success shadow-sm font-weight-bold"
-                                        title="Export CSV">
-                                        <i class="fas fa-file-export"></i>
-                                    </button>
-                                    <a href="{{ route('admin.enquiries.index') }}"
-                                        class="btn btn-sm btn-outline-secondary shadow-sm font-weight-bold"
-                                        title="Reset Filters">
-                                        <i class="fas fa-sync-alt"></i>
-                                    </a>
-                                </div>
-                            </div>
-
                             <div class="row">
-                                <div class="col-8">
-                                    <label class="small text-muted font-weight-bold d-block">Created Date Range</label>
-                                    <div class="d-flex">
-                                        <input type="date"
-                                            class="form-control border-0 bg-light small font-weight-bold mr-1 filter-input"
-                                            name="start_date" placeholder="Start Date" title="Start Date"
-                                            value="{{ request('start_date') }}">
-                                        <input type="date"
-                                            class="form-control border-0 bg-light small font-weight-bold ml-1 filter-input"
-                                            name="end_date" placeholder="End Date" title="End Date"
-                                            value="{{ request('end_date') }}">
-                                    </div>
+                                <div class="col-6">
+                                    <select class="form-control select2-multiple filter-input" name="source[]" multiple data-placeholder="Sources">
+                                        @foreach($sources as $value => $label)
+                                            <option value="{{ $value }}" {{ in_array($value, (array) request('source')) ? 'selected' : '' }}>{{ $label }}</option>
+                                        @endforeach
+                                    </select>
                                 </div>
-                                <div class="col-4">
-                                    <label class="small text-muted font-weight-bold">Records</label>
-                                    <select class="form-control bg-light border-0 small" id="perPageSelectTop"
-                                        onchange="updatePerPage(this.value)">
-                                        <option value="10" {{ $enquiries->perPage() == 10 ? 'selected' : '' }}>10</option>
-                                        <option value="25" {{ $enquiries->perPage() == 25 ? 'selected' : '' }}>25</option>
-                                        <option value="50" {{ $enquiries->perPage() == 50 ? 'selected' : '' }}>50</option>
-                                        <option value="100" {{ $enquiries->perPage() == 100 ? 'selected' : '' }}>100</option>
+                                <div class="col-6">
+                                    <select class="form-control filter-input bg-light border-0 small font-weight-bold" name="test_attended" style="height: 38px; border-radius: 4px;">
+                                        <option value="">Entrance Test (All)</option>
+                                        <option value="1" {{ request('test_attended') === '1' ? 'selected' : '' }}>✓ Attended</option>
+                                        <option value="0" {{ request('test_attended') === '0' ? 'selected' : '' }}>✗ Not Attended</option>
                                     </select>
                                 </div>
                             </div>
+                        </div>
 
-                            <div class="mt-3">
-                                <button type="submit" class="btn btn-primary btn-block shadow-sm font-weight-bold">
-                                    <i class="fas fa-search mr-2"></i> Apply Filters
-                                </button>
-                            </div>
-
-                            <!-- Bulk Actions Overlay -->
-                            <div id="bulkActionBar" style="display:none; flex-direction: column; gap:10px; padding: 12px; background: #fff5f5; border-radius: 8px; border: 1px dashed #e74a3b; margin-top: 10px;">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <span class="small font-weight-bold text-danger"><i class="fas fa-layer-group mr-1"></i> Bulk Actions</span>
-                                    <button type="button" class="btn btn-danger btn-sm rounded-circle" onclick="bulkDelete()" title="Delete Selected">
-                                        <i class="fas fa-trash fa-xs"></i>
-                                    </button>
+                        <!-- Group 3: Timeline & Tools -->
+                        <div class="filter-col">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div class="filter-section-label mb-0">
+                                    <i class="fas fa-calendar-check text-success"></i> Timeline
                                 </div>
-                                <div class="input-group input-group-sm">
-                                    <select class="custom-select" id="bulkAssignUser">
+                                <div class="btn-group">
+                                    <button type="button" onclick="exportFilteredResults()" class="btn btn-sm btn-link text-success p-0" title="Export CSV">
+                                        <i class="fas fa-file-export"></i> Export
+                                    </button>
+                                    <span class="mx-2 text-muted opacity-25">|</span>
+                                    <a href="javascript:void(0)" onclick="resetAllFilters()" class="btn btn-sm btn-link text-danger p-0" title="Reset">
+                                        <i class="fas fa-sync-alt"></i> Reset
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="d-flex gap-2 mb-3">
+                                <input type="date" class="form-control form-control-sm bg-light border-0 font-weight-bold filter-input mr-2"
+                                    name="start_date" value="{{ request('start_date') }}" title="Created Start">
+                                <input type="date" class="form-control form-control-sm bg-light border-0 font-weight-bold filter-input"
+                                    name="end_date" value="{{ request('end_date') }}" title="Created End">
+                            </div>
+                            
+                            <!-- Bulk Actions (Simplified) -->
+                            <div id="bulkActionBar" style="display:none; transition: all 0.3s ease;">
+                                <div class="input-group input-group-sm shadow-sm border rounded overflow-hidden">
+                                    <div class="input-group-prepend">
+                                        <span class="input-group text bg-white border-0 px-2 d-flex align-items-center small font-weight-bold text-danger">Selected: </span>
+                                    </div>
+                                    <select class="form-control border-0 bg-white small" id="bulkAssignUser">
                                         <option value="">Assign To...</option>
                                         @foreach($counselors as $c)
                                             <option value="{{ $c->id }}">{{ $c->name }}</option>
                                         @endforeach
                                     </select>
                                     <div class="input-group-append">
-                                        <button type="button" class="btn btn-success" onclick="bulkAssign()">
+                                        <button type="button" class="btn btn-success border-0 px-3" onclick="bulkAssign()" title="Confirm Bulk Assign">
                                             <i class="fas fa-check"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-danger border-0 px-3" onclick="bulkDelete()" title="Bulk Delete">
+                                            <i class="fas fa-trash"></i>
                                         </button>
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- Row 2: Status Pill Filters (The "Easyway" addition) -->
+                    <div class="mt-4 border-top pt-3">
+                        <div class="filter-section-label">
+                            <i class="fas fa-tags text-warning"></i> Status Hub (Tap to filter)
+                        </div>
+                        <div class="filter-pills-container">
+                            <input type="hidden" name="status[]" id="hiddenStatus">
+                            <!-- We can use a single status toggle for "Easyway" or keep multiple. Let's make it single-select for "Easyway" simplicity, or multi-select with pills. -->
+                            @foreach(['New', 'Contacted', 'Interested', 'Follow-up', 'Admitted', 'Interested Next Year', 'Next Entrance Exam', 'Not Interested'] as $s)
+                                @php 
+                                    $isActive = in_array($s, (array) request('status'));
+                                    $iconMap = [
+                                        'New' => 'fa-star', 'Contacted' => 'fa-phone', 'Interested' => 'fa-smile', 
+                                        'Follow-up' => 'fa-clock', 'Admitted' => 'fa-user-check', 
+                                        'Interested Next Year' => 'fa-calendar-alt', 'Next Entrance Exam' => 'fa-edit', 
+                                        'Not Interested' => 'fa-user-times'
+                                    ];
+                                @endphp
+                                <div class="filter-pill {{ $isActive ? 'active' : '' }}" onclick="toggleStatusPill('{{ $s }}', this)">
+                                    <i class="fas {{ $iconMap[$s] ?? 'fa-tag' }} small"></i>
+                                    {{ $s }}
+                                </div>
+                            @endforeach
                         </div>
                     </div>
                 </form>
@@ -983,6 +996,9 @@
             // Reset the test_attended plain select too
             $('select[name="test_attended"]').val('').trigger('change');
 
+            // Reset pill active states
+            $('.filter-pill').removeClass('active');
+
             // Clear search field
             $('#liveSearchInput').val('');
 
@@ -1042,12 +1058,37 @@
                 $('select[name="status[]"]').val([]).trigger('change.select2');
             }
 
-            // Set active class visually
+            // Set active class for cards
             $('.stat-card-mini').removeClass('active');
             $(this).parent().addClass('active');
 
+            // Synchronize Pills
+            $('.filter-pill').removeClass('active');
+            if (status) {
+                $(`.filter-pill:contains("${status}")`).addClass('active');
+            }
+
             fetchEnquiries(1);
         });
+
+        function toggleStatusPill(status, el) {
+            const $pill = $(el);
+            const $select = $('select[name="status[]"]');
+            let currentValues = $select.val() || [];
+
+            if ($pill.hasClass('active')) {
+                $pill.removeClass('active');
+                currentValues = currentValues.filter(v => v !== status);
+            } else {
+                $pill.addClass('active');
+                currentValues.push(status);
+            }
+
+            $select.val(currentValues).trigger('change.select2');
+            
+            // Wait a tiny bit for Select2 trigger to be handled if needed, then fetch
+            setTimeout(() => fetchEnquiries(1), 50);
+        }
 
         // Handle browser back/forward
         window.onpopstate = function(event) {

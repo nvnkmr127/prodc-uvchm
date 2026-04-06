@@ -199,10 +199,16 @@ class UserController extends Controller
             
             // Sync roles using role IDs
             $user->syncRoles($roleIds);
+            
+            // Clear Spatie permission cache to ensure roles/permissions refresh immediately
+            app()->make(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
         } else {
             // Remove all roles if none selected (only if user has permission)
             if (auth()->user()->hasRole('super-admin') || auth()->user()->can('manage users')) {
                 $user->syncRoles([]);
+                
+                // Clear Spatie permission cache
+                app()->make(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
             }
         }
 
@@ -242,6 +248,9 @@ class UserController extends Controller
 
             // Delete the user
             $user->delete();
+
+            // Clear Spatie permission cache
+            app()->make(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
 
             DB::commit();
 
@@ -343,6 +352,9 @@ class UserController extends Controller
                         break;
                 }
             }
+
+            // Clear Spatie permission cache after bulk updates
+            app()->make(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
 
             DB::commit();
 
