@@ -1023,7 +1023,7 @@
                     <div class="widget-body p-0">
                         @if(isset($dashboard_data['pending_collections']) && count($dashboard_data['pending_collections']) > 0)
                             <div class="list-group list-group-flush">
-                                @foreach(array_slice($dashboard_data['pending_collections'], 0, 5) as $pay)
+                                @foreach(collect($dashboard_data['pending_collections'])->take(5) as $pay)
                                     <div class="list-group-item d-flex justify-content-between align-items-center">
                                         <div>
                                             <div class="fw-bold small">{{ $pay->student->name ?? 'Unknown' }}</div>
