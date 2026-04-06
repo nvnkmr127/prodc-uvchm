@@ -449,11 +449,14 @@
                                     </a>
                                 @endif
                             </div>
-                            <div class="mb-3">
+                            <div class="mb-3 position-relative">
                                 <div class="input-group bg-light rounded" style="padding: 2px;">
                                     <input type="text" class="form-control bg-light border-0 small"
                                         name="search" id="liveSearchInput" value="{{ request('search') }}"
-                                        placeholder="Name, Phone..." autocomplete="off">
+                                        placeholder="Name, Phone, Village..." autocomplete="off">
+                                    <div id="searchSpinner" class="position-absolute" style="right: 10px; top: 50%; transform: translateY(-50%); display: none; z-index: 5;">
+                                        <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                                    </div>
                                 </div>
                             </div>
                             <div>
@@ -880,11 +883,14 @@
             const form = $('#filterForm');
             const data = form.serialize() + '&page=' + page;
             const container = $('#enquiryTableBody');
-            const paginationContainer = $('#paginationLinks');
+            const paginationContainer = $('#paginationContainer'); // Fixed: matched correctly with HTML ID
             const url = "{{ route('admin.enquiries.index') }}";
+
+            console.log("Fetching Enquiries with data:", data); // Debug log
 
             // Show loading state
             container.css('opacity', '0.5');
+            $('#searchSpinner').show();
             document.body.style.cursor = 'wait';
 
             $.ajax({
@@ -896,6 +902,7 @@
                     paginationContainer.html(res.pagination);
                     if (res.stats) updateStats(res.stats);
                     document.body.style.cursor = 'default';
+                    $('#searchSpinner').hide();
                     
                     // Update URL without reload to preserve state
                     const newUrl = url + '?' + data;
@@ -903,18 +910,19 @@
                 },
                 error: function () {
                     container.css('opacity', '1');
+                    $('#searchSpinner').hide();
                     document.body.style.cursor = 'default';
-                    alert('Failed to load enquiries.');
+                    alert('Search failed or server timed out.');
                 }
             });
         }
 
-        // Live search with debounce
-        $('#liveSearchInput').on('keyup', function() {
+        // Live search with debounce (Switch to 'input' for better "X" button handling)
+        $('#liveSearchInput').on('input', function() {
             clearTimeout(fetchTimer);
             fetchTimer = setTimeout(() => {
                 fetchEnquiries(1);
-            }, 500);
+            }, 400); // Slightly faster debounce
         });
 
         // Filter triggers

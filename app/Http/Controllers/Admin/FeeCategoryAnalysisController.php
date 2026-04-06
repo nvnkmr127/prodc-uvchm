@@ -67,7 +67,10 @@ class FeeCategoryAnalysisController extends Controller
 
         // Base Query
         $query = \App\Models\StudentFee::with(['student.batch.course'])
-            ->where('fee_category_id', $id);
+            ->where('fee_category_id', $id)
+            ->whereHas('student', function($q) {
+                $q->where('status', '!=', 'dropout');
+            });
 
         // 1. Filter by Search
         if ($request->filled('search')) {
@@ -215,6 +218,7 @@ class FeeCategoryAnalysisController extends Controller
             $query = \App\Models\StudentFee::with(['student.batch.course', 'feeCategory', 'payments'])
                 ->where('fee_category_id', $feeCategoryId)
                 ->join('students', 'student_fees.student_id', '=', 'students.id')
+                ->where('students.status', '!=', 'dropout')
                 ->select('student_fees.*');
 
             // --- APPLY FILTERS (Same as Show Method) ---
@@ -272,6 +276,7 @@ class FeeCategoryAnalysisController extends Controller
                 ->where('fee_category_id', $feeCategoryId)
                 ->whereRaw('(amount - paid_amount - concession_amount) > 0')
                 ->join('students', 'student_fees.student_id', '=', 'students.id')
+                ->where('students.status', '!=', 'dropout')
                 ->select('student_fees.*');
 
             // Apply Batch Filter if present

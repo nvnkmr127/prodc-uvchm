@@ -23,7 +23,7 @@ class EnquiryController extends Controller
     private function getStats(Request $request)
     {
         $user = Auth::user();
-        $isAdmin = $user->hasAnyRole(['admin', 'super-admin', 'Admin', 'Super-admin']);
+        $isAdmin = $user->hasAnyRole(['admin', 'super-admin', 'college-admin', 'Admin', 'Super-admin', 'College-admin']);
 
         // 1. Base Query for Status Counts
         // We want counts for each status, but they must respect OTHER filters (course, counselor, date, etc.)
@@ -54,7 +54,8 @@ class EnquiryController extends Controller
             $term = $request->search;
             $statsBaseQuery->where(function ($q) use ($term) {
                 $q->where('student_name', 'LIKE', '%' . $term . '%')
-                    ->orWhere('phone_number', 'LIKE', '%' . $term . '%');
+                    ->orWhere('phone_number', 'LIKE', '%' . $term . '%')
+                    ->orWhere('address', 'LIKE', '%' . $term . '%');
             });
         }
         if ($request->has('test_attended') && $request->test_attended !== '') {
@@ -108,7 +109,7 @@ class EnquiryController extends Controller
     private function applyFilters($query, Request $request)
     {
         $user = Auth::user();
-        $isAdmin = $user->hasAnyRole(['admin', 'super-admin', 'Admin', 'Super-admin']);
+        $isAdmin = $user->hasAnyRole(['admin', 'super-admin', 'college-admin', 'Admin', 'Super-admin', 'College-admin']);
 
         // 1. Apply Visibility for List
         if (!$isAdmin) {
@@ -120,7 +121,8 @@ class EnquiryController extends Controller
             $searchTerm = $request->search;
             $query->where(function ($q) use ($searchTerm) {
                 $q->where('enquiries.student_name', 'LIKE', '%' . $searchTerm . '%')
-                    ->orWhere('enquiries.phone_number', 'LIKE', '%' . $searchTerm . '%');
+                    ->orWhere('enquiries.phone_number', 'LIKE', '%' . $searchTerm . '%')
+                    ->orWhere('enquiries.address', 'LIKE', '%' . $searchTerm . '%');
             });
         }
 
@@ -169,7 +171,7 @@ class EnquiryController extends Controller
     {
         // VISIBILITY FIX: Restrict Non-Admins to see only their assigned enquiries
         $user = Auth::user();
-        $isAdmin = $user->hasAnyRole(['admin', 'super-admin', 'Admin', 'Super-admin']);
+        $isAdmin = $user->hasAnyRole(['admin', 'super-admin', 'college-admin', 'Admin', 'Super-admin', 'College-admin']);
 
         // --- 1. Calculate Stats (Universal Filter Application) ---
         // Pass all request inputs (including defaults) to get filtered stats
@@ -387,7 +389,7 @@ class EnquiryController extends Controller
     {
         // VISIBILITY FIX
         $user = Auth::user();
-        $isAdmin = $user->hasAnyRole(['admin', 'super-admin', 'Admin', 'Super-admin']);
+        $isAdmin = $user->hasAnyRole(['admin', 'super-admin', 'college-admin', 'Admin', 'Super-admin', 'College-admin']);
 
         // Default Deny
         if (!$isAdmin && $enquiry->assigned_to_user_id != $user->id) {
@@ -479,7 +481,7 @@ class EnquiryController extends Controller
             });
 
         $user = Auth::user();
-        $isAdmin = $user->hasAnyRole(['admin', 'super-admin', 'Admin', 'Super-admin']);
+        $isAdmin = $user->hasAnyRole(['admin', 'super-admin', 'college-admin', 'Admin', 'Super-admin', 'College-admin']);
 
         // Default Deny: If not an admin, restrict to self
         if (!$isAdmin) {
@@ -619,7 +621,7 @@ class EnquiryController extends Controller
     {
         // VISIBILITY FIX
         $user = Auth::user();
-        $isAdmin = $user->hasAnyRole(['admin', 'super-admin', 'Admin', 'Super-admin']);
+        $isAdmin = $user->hasAnyRole(['admin', 'super-admin', 'college-admin', 'Admin', 'Super-admin', 'College-admin']);
 
         // Default Deny
         if (!$isAdmin && $enquiry->assigned_to_user_id != $user->id) {
@@ -693,7 +695,7 @@ class EnquiryController extends Controller
     public function destroy(Enquiry $enquiry)
     {
         $user = Auth::user();
-        $isAdmin = $user->hasAnyRole(['admin', 'super-admin', 'Admin', 'Super-admin']);
+        $isAdmin = $user->hasAnyRole(['admin', 'super-admin', 'college-admin', 'Admin', 'Super-admin', 'College-admin']);
 
         if (!$isAdmin && $enquiry->assigned_to_user_id != $user->id) {
             abort(403, 'Unauthorized access to this enquiry.');
