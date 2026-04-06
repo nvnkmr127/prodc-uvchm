@@ -77,26 +77,6 @@
                 <span class="text-muted small">—</span>
             @endif
         </td>
-        <td class="text-center">
-            @if($enquiry->include_uniform || $enquiry->include_books)
-                <span class="badge badge-success px-2 py-1" style="font-size:0.65rem;">
-                    @if($enquiry->include_uniform) U @endif
-                    @if($enquiry->include_books) B @endif
-                </span>
-            @else
-                <span class="text-muted opacity-50 small">—</span>
-            @endif
-        </td>
-        <td class="text-center">
-            @if($enquiry->test_attended)
-                <span class="badge badge-pill badge-info px-3">{{ $enquiry->test_marks ?? 0 }} M</span>
-            @else
-                <span class="badge badge-pill badge-light border text-muted">No</span>
-            @endif
-        </td>
-        <td class="text-center font-weight-bold">
-            ₹{{ number_format($enquiry->agreed_fee, 0) }}
-        </td>
         <td class="text-right pr-4">
             <div class="d-flex justify-content-end gap-1">
                 <button type="button" class="btn btn-outline-primary btn-sm rounded-circle px-2" onclick="openEnquiryModal({{ $enquiry->id }})"
@@ -119,7 +99,7 @@
     </tr>
 @empty
     <tr>
-        <td colspan="11" class="text-center py-5 text-muted">
+        <td colspan="8" class="text-center py-5 text-muted">
             <i class="fas fa-inbox fa-3x mb-3 opacity-25"></i>
             <h5>No enquiries found</h5>
             <p>Try adjusting your search or filters to find what you're looking for.</p>

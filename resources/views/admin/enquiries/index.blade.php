@@ -57,13 +57,12 @@
         }
 
         /* Status Colors - Glass Accents */
-        .status-New-border { border-left-color: #0ea5e9 !important; background: rgba(14, 165, 233, 0.03); }
-        .status-Contacted-border { border-left-color: #10b981 !important; background: rgba(16, 185, 129, 0.03); }
-        .status-Interested-border { border-left-color: #f59e0b !important; background: rgba(245, 158, 11, 0.03); }
-        .status-Follow-up-border { border-left-color: #f97316 !important; background: rgba(249, 115, 22, 0.03); }
-        .status-Admitted-border { border-left-color: #059669 !important; background: rgba(5, 150, 105, 0.03); }
         .status-Next-Year-border { border-left-color: #8b5cf6 !important; background: rgba(139, 92, 246, 0.03); }
         .status-Entrance-Exam-border { border-left-color: #f43f5e !important; background: rgba(244, 63, 94, 0.03); }
+        .status-Admitted-border { border-left-color: #10b981 !important; background: rgba(16, 185, 129, 0.03); }
+        .status-Interested-border { border-left-color: #f59e0b !important; background: rgba(245, 158, 11, 0.03); }
+        .status-Follow-up-border { border-left-color: #f97316 !important; background: rgba(249, 115, 22, 0.03); }
+        .status-Contacted-border { border-left-color: #0ea5e9 !important; background: rgba(14, 165, 233, 0.03); }
         .status-Not-Interested-border { border-left-color: #ef4444 !important; background: rgba(239, 68, 68, 0.03); }
         .status-Total-border { border-left-color: #4f46e5 !important; background: rgba(79, 70, 229, 0.03); }
 
@@ -230,45 +229,14 @@
             font-size: 0.7rem;
         }
 
-        .status-new {
-            background-color: #e3f2fd;
-            color: #36b9cc;
-        }
-
-        .status-contacted {
-            background-color: #e8f5e9;
-            color: #1cc88a;
-        }
-
-        .status-interested {
-            background-color: #fff3cd;
-            color: #f6c23e;
-        }
-
-        .status-follow-up {
-            background-color: #fff3e0;
-            color: #fd7e14;
-        }
-
-        .status-admitted {
-            background-color: #d1e7dd;
-            color: #0f6848;
-        }
-
-        .status-Next-Year {
-            background-color: #d1e7dd;
-            color: #0f6848;
-        }
-
-        .status-next-entrance-exam {
-            background-color: #fff1f2;
-            color: #e11d48;
-        }
-
-        .status-not-interested {
-            background-color: #f8d7da;
-            color: #e74a3b;
-        }
+        .status-new { background-color: #e0f2fe; color: #0369a1; }
+        .status-contacted { background-color: #f0fdf4; color: #15803d; }
+        .status-interested { background-color: #fffbeb; color: #b45309; }
+        .status-follow-up { background-color: #fff7ed; color: #c2410c; }
+        .status-admitted { background-color: #f0fdfa; color: #0d9488; }
+        .status-interested-next-year { background-color: #f5f3ff; color: #6d28d9; }
+        .status-next-entrance-exam { background-color: #fff1f2; color: #e11d48; }
+        .status-not-interested { background-color: #fef2f2; color: #b91c1c; }
 
         /* Urgent Row */
         .row-urgent td:first-child {
@@ -430,32 +398,6 @@
         </div>
 
         <div class="stats-grid">
-            <div class="stat-card-mini status-new-border">
-                <a href="javascript:void(0)" class="text-decoration-none stat-card-link" data-status="New">
-                    <div class="stat-label text-info">New Leads</div>
-                    <div class="stat-value" id="count-New">{{ $counts['New'] ?? 0 }}</div>
-                </a>
-            </div>
-            <div class="stat-card-mini status-Next-Year-border">
-                <a href="javascript:void(0)" class="text-decoration-none stat-card-link" data-status="Interested Next Year">
-                    <div class="stat-label text-info">Next Year</div>
-                    <div class="stat-value" id="count-Next-Year">{{ $counts['Next Year'] }}</div>
-                </a>
-            </div>
-            <div class="stat-card-mini status-next-entrance-exam-border">
-                <a href="javascript:void(0)" class="text-decoration-none stat-card-link" data-status="Next Entrance Exam">
-                    <div class="stat-label text-danger">Entrance Exam</div>
-                    <div class="stat-value" id="count-Entrance-Exam">{{ $counts['Next Entrance Exam'] ?? 0 }}</div>
-                </a>
-            </div>
-            <div class="stat-card-mini status-contacted-border">
-                <a href="javascript:void(0)" class="text-decoration-none stat-card-link" data-status="Contacted">
-                    <div class="stat-label text-success">Contacted</div>
-                    <div class="stat-value" id="count-Contacted">{{ $counts['Contacted'] ?? 0 }}</div>
-                </a>
-            </div>
-            <div class="stat-card-mini status-followup-border">
-                <a href="javascript:void(0)" class="text-decoration-none stat-card-link" data-status="Follow-up">
             @php 
                 $currentFilters = request()->except(['status', 'page', 'test_attended']); 
             @endphp
@@ -495,16 +437,19 @@
                     <div class="row">
                         <!-- Column 1: Discovery -->
                         <div class="col-lg-4 col-md-12 border-right">
-                            <h6 class="font-weight-bold text-primary mb-3 small text-uppercase">
-                                <i class="fas fa-search mr-2"></i> Discovery
-                            </h6>
-                            <div class="search-box-container mb-3">
-                                <label class="small text-muted font-weight-bold">Search Students</label>
-                                <div class="input-group">
-                                    <div class="input-group-prepend">
-                                        <span class="input-group-text bg-light border-0"><i class="fas fa-search text-gray-400"></i></span>
-                                    </div>
-                                    <input type="text" class="form-control bg-light border-0 small filter-input"
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h6 class="font-weight-bold text-primary mb-0 small text-uppercase">
+                                    <i class="fas fa-search mr-2"></i> Discovery
+                                </h6>
+                                @if(request()->anyFilled(['search', 'assigned_to_user_id', 'course_id', 'status', 'from_date', 'to_date', 'test_attended']))
+                                    <a href="{{ route('admin.enquiries.index') }}" class="small text-danger font-weight-bold">
+                                        <i class="fas fa-times-circle mr-1"></i>Clear all
+                                    </a>
+                                @endif
+                            </div>
+                            <div class="mb-3">
+                                <div class="input-group bg-light rounded" style="padding: 2px;">
+                                    <input type="text" class="form-control bg-light border-0 small"
                                         name="search" id="liveSearchInput" value="{{ request('search') }}"
                                         placeholder="Name, Phone..." autocomplete="off">
                                 </div>
@@ -662,59 +607,43 @@
                                         <label class="custom-control-label" for="selectAll"></label>
                                     </div>
                                 </th>
-                                <!-- Headers -->
-                                <th width="23%">
-                                    <a href="javascript:void(0)" onclick="sortList('student_name')" class="sort-link {{ request('sort') == 'student_name' ? 'active' : '' }}">
-                                        Student Profile
-                                        <i class="fas fa-sort{{ request('sort') == 'student_name' ? (request('direction') == 'asc' ? '-up' : '-down') : '' }} ml-1"></i>
+                                <th width="20%">
+                                    @php $s = 'student_name'; $isS = request('sort') == $s; @endphp
+                                    <a href="javascript:void(0)" onclick="sortList('{{ $s }}')" class="sort-link {{ $isS ? 'active' : '' }}">
+                                        Student Profile <i class="fas fa-sort{{ $isS ? (request('direction') == 'asc' ? '-up' : '-down') : '' }} ml-1"></i>
+                                    </a>
+                                </th>
+                                <th>
+                                    @php $s = 'course_name'; $isS = request('sort') == $s; @endphp
+                                    <a href="javascript:void(0)" onclick="sortList('{{ $s }}')" class="sort-link {{ $isS ? 'active' : '' }}">
+                                        Course <i class="fas fa-sort{{ $isS ? (request('direction') == 'asc' ? '-up' : '-down') : '' }} ml-1"></i>
+                                    </a>
+                                </th>
+                                <th>
+                                    @php $s = 'counselor_name'; $isS = request('sort') == $s; @endphp
+                                    <a href="javascript:void(0)" onclick="sortList('{{ $s }}')" class="sort-link {{ $isS ? 'active' : '' }}">
+                                        Counselor <i class="fas fa-sort{{ $isS ? (request('direction') == 'asc' ? '-up' : '-down') : '' }} ml-1"></i>
+                                    </a>
+                                </th>
+                                <th>
+                                    @php $s = 'status'; $isS = request('sort') == $s; @endphp
+                                    <a href="javascript:void(0)" onclick="sortList('{{ $s }}')" class="sort-link {{ $isS ? 'active' : '' }}">
+                                        Status <i class="fas fa-sort{{ $isS ? (request('direction') == 'asc' ? '-up' : '-down') : '' }} ml-1"></i>
+                                    </a>
+                                </th>
+                                <th>
+                                    @php $s = 'next_follow_up_date'; $isS = request('sort', $s) == $s; @endphp
+                                    <a href="javascript:void(0)" onclick="sortList('{{ $s }}')" class="sort-link {{ $isS ? 'active' : '' }}">
+                                        Next Date <i class="fas fa-sort{{ $isS ? (request('direction') == 'asc' ? '-up' : '-down') : '' }} ml-1"></i>
                                     </a>
                                 </th>
                                 <th width="12%">
-                                    <a href="javascript:void(0)" onclick="sortList('course_name')" class="sort-link {{ request('sort') == 'course_name' ? 'active' : '' }}">
-                                        Course
-                                        <i class="fas fa-sort{{ request('sort') == 'course_name' ? (request('direction') == 'asc' ? '-up' : '-down') : '' }} ml-1"></i>
+                                    @php $s = 'source'; $isS = request('sort') == $s; @endphp
+                                    <a href="javascript:void(0)" onclick="sortList('{{ $s }}')" class="sort-link {{ $isS ? 'active' : '' }}">
+                                        Source <i class="fas fa-sort{{ $isS ? (request('direction') == 'asc' ? '-up' : '-down') : '' }} ml-1"></i>
                                     </a>
                                 </th>
-                                <th width="10%">
-                                    <a href="javascript:void(0)" onclick="sortList('source')" class="sort-link {{ request('sort') == 'source' ? 'active' : '' }}">
-                                        Source
-                                        <i class="fas fa-sort{{ request('sort') == 'source' ? (request('direction') == 'asc' ? '-up' : '-down') : '' }} ml-1"></i>
-                                    </a>
-                                </th>
-                                <th width="16%">
-                                    <a href="javascript:void(0)" onclick="sortList('counselor_name')" class="sort-link {{ request('sort') == 'counselor_name' ? 'active' : '' }}">
-                                        Counselor
-                                        <i class="fas fa-sort{{ request('sort') == 'counselor_name' ? (request('direction') == 'asc' ? '-up' : '-down') : '' }} ml-1"></i>
-                                    </a>
-                                </th>
-                                <th width="13%">
-                                    <a href="javascript:void(0)" onclick="sortList('next_follow_up_date')" class="sort-link {{ request('sort', 'next_follow_up_date') == 'next_follow_up_date' ? 'active' : '' }}">
-                                        Follow-up
-                                        <i class="fas fa-sort{{ request('sort', 'next_follow_up_date') == 'next_follow_up_date' ? (request('direction', 'asc') == 'asc' ? '-up' : '-down') : '' }} ml-1"></i>
-                                    </a>
-                                </th>
-                                        <i class="fas fa-sort{{ $isSorted ? (request('direction') == 'asc' ? '-up' : '-down') : '' }} ml-1"></i>
-                                    </a>
-                                </th>
-                                <th>
-                                    @php $isSorted = request('sort') == 'status'; @endphp
-                                    <a href="javascript:void(0)" onclick="sortList('status')" class="sort-link {{ $isSorted ? 'active' : '' }}">
-                                        Status
-                                        <i class="fas fa-sort{{ $isSorted ? (request('direction') == 'asc' ? '-up' : '-down') : '' }} ml-1"></i>
-                                    </a>
-                                </th>
-                                <th>
-                                    @php $isSorted = request('sort') == 'next_follow_up_date'; @endphp
-                                    <a href="javascript:void(0)" onclick="sortList('next_follow_up_date')" class="sort-link {{ $isSorted ? 'active' : '' }}">
-                                        Next Date
-                                        <i class="fas fa-sort{{ $isSorted ? (request('direction') == 'asc' ? '-up' : '-down') : '' }} ml-1"></i>
-                                    </a>
-                                </th>
-                                <th>Source</th>
-                                <th class="text-center">U/B</th>
-                                <th class="text-center">Entrance</th>
-                                <th class="text-center">Agreed Fee</th>
-                                <th class="text-right pr-4">Action</th>
+                                <th width="15%" class="text-right pr-4">Action</th>
                             </tr>
                         </thead>
                         <tbody id="enquiryTableBody">
@@ -935,11 +864,12 @@
                 closeOnSelect: false
             });
 
-            // --- Filter Logic handled by filterInputHandler ---
-
-        // --- Pagination Logic (Standard GET) ---
-        $(document).ready(function () {
-            // Note: Pagination links are now standard <a> tags from Laravel.
+            // Checkbox logic for bulk actions
+            $('#selectAll').on('change', function () {
+                $('.enquiry-checkbox').prop('checked', this.checked);
+                toggleBulkActions();
+            });
+            $(document).on('change', '.enquiry-checkbox', toggleBulkActions);
         });
 
         // --- Sorting logic (Standard GET) ---

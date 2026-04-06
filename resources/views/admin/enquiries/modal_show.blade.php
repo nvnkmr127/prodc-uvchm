@@ -48,7 +48,7 @@
     }
 
     .timeline-container-modal {
-        max-height: 450px; 
+        max-height: 600px; 
         overflow-y: auto; 
         padding-right: 5px;
         border-top: 1px solid #eaecf4;
@@ -246,50 +246,80 @@
                     <textarea name="address" class="form-control form-control-sm-custom border-0 bg-light" rows="2" placeholder="Address information...">{{ $enquiry->address }}</textarea>
                 </div>
 
-                <button type="submit" class="btn btn-primary btn-block shadow-sm font-weight-bold py-2 mb-2">
-                    <i class="fas fa-check-circle mr-2"></i> Update Lead Profile
-                </button>
-                
-                @if($enquiry->status !== 'Admitted')
-                <a href="{{ route('admin.enquiries.convertToAdmission', $enquiry->id) }}" class="btn btn-light btn-block btn-sm text-success border font-weight-bold">
-                    <i class="fas fa-graduation-cap mr-2"></i> Finalize Admission
-                </a>
-                @endif
+                <div class="mt-4 pt-3 border-top">
+                    <div class="row no-gutters">
+                        <div class="col-8 pr-1">
+                            <button type="submit" class="btn btn-primary btn-block shadow-sm font-weight-bold py-2">
+                                <i class="fas fa-save mr-1"></i> Update Profile
+                            </button>
+                        </div>
+                        <div class="col-4 pl-1">
+                            @if($enquiry->status !== 'Admitted')
+                                <a href="{{ route('admin.enquiries.convertToAdmission', $enquiry->id) }}" 
+                                   class="btn btn-success btn-block shadow-sm font-weight-bold py-2" 
+                                   title="Convert to Student">
+                                    <i class="fas fa-user-check"></i>
+                                </a>
+                            @else
+                                <button type="button" class="btn btn-light btn-block text-success disabled font-weight-bold py-2">
+                                    <i class="fas fa-check-double"></i>
+                                </button>
+                            @endif
+                        </div>
+                    </div>
+                </div>
             </form>
+            <div class="mb-5 py-3"></div> <!-- Extra breathing room at bottom -->
         </div>
 
         <div class="col-md-7">
             
-           <div class="bg-light p-3 rounded mb-3 border">
-                <h6 class="font-weight-bold text-gray-800 mb-2 small text-uppercase">Add Interaction / Follow-up</h6>
+            <div class="bg-light p-3 rounded mb-3 border">
+                <h6 class="font-weight-bold text-gray-800 mb-2 small text-uppercase">
+                    <i class="fas fa-bolt text-warning mr-2"></i>Quick Actions
+                </h6>
                 
-                <div class="mb-2 d-flex flex-wrap" style="gap: 5px;">
-    <button type="button" class="btn btn-sm btn-white border shadow-sm quick-response-btn" data-text="Call not picked">
-        <i class="fas fa-phone-slash text-danger mr-1"></i> Call not picked
-    </button>
-    <button type="button" class="btn btn-sm btn-white border shadow-sm quick-response-btn" data-text="Asked to call back later">
-        <i class="fas fa-clock text-warning mr-1"></i> Call back later
-    </button>
-    <button type="button" class="btn btn-sm btn-white border shadow-sm quick-response-btn" data-text="Student is Interested">
-        <i class="fas fa-thumbs-up text-success mr-1"></i> Interested
-    </button>
-    <button type="button" class="btn btn-sm btn-white border shadow-sm quick-response-btn" data-text="Not Interested">
-        <i class="fas fa-thumbs-down text-secondary mr-1"></i> Not Interested
-    </button>
-    <button type="button" class="btn btn-sm btn-white border shadow-sm quick-response-btn" data-text="Wrong Number">
-        <i class="fas fa-times text-muted mr-1"></i> Wrong #
-    </button>
-    
-    <button type="button" class="btn btn-sm btn-white border shadow-sm quick-response-btn" data-text="College visit planned on ">
-        <i class="fas fa-building text-info mr-1"></i> Visit Planned
-    </button>
-    <button type="button" class="btn btn-sm btn-white border shadow-sm quick-response-btn" data-text="Looking for Next Academic Year">
-        <i class="fas fa-calendar-alt text-primary mr-1"></i> Next Year
-    </button>
-    <button type="button" class="btn btn-sm btn-white border shadow-sm quick-response-btn" data-text="Needs to discuss with parents">
-        <i class="fas fa-users text-dark mr-1"></i> Parents
-    </button>
-</div>
+                <div class="mb-3">
+                    <div class="small text-muted mb-1 font-weight-bold">Call Outcomes</div>
+                    <div class="d-flex flex-wrap gap-1" style="gap: 5px;">
+                        <button type="button" class="btn btn-xs btn-white border shadow-sm quick-response-btn py-1 px-2 mb-1" data-text="Call not picked">
+                            <i class="fas fa-phone-slash text-danger mr-1"></i> No Pick
+                        </button>
+                        <button type="button" class="btn btn-xs btn-white border shadow-sm quick-response-btn py-1 px-2 mb-1" data-text="Asked to call back later">
+                            <i class="fas fa-clock text-warning mr-1"></i> Call Back
+                        </button>
+                        <button type="button" class="btn btn-xs btn-white border shadow-sm quick-response-btn py-1 px-2 mb-1" data-text="Wrong Number / Invalid">
+                            <i class="fas fa-times-circle text-muted mr-1"></i> Wrong #
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <div class="small text-muted mb-1 font-weight-bold">Sentiment</div>
+                    <div class="d-flex flex-wrap gap-1" style="gap: 5px;">
+                        <button type="button" class="btn btn-xs btn-white border shadow-sm quick-response-btn py-1 px-2 mb-1" data-text="Student is Very Interested">
+                            <i class="fas fa-heart text-danger mr-1"></i> Hot Lead
+                        </button>
+                        <button type="button" class="btn btn-xs btn-white border shadow-sm quick-response-btn py-1 px-2 mb-1" data-text="Standard Interest shown">
+                            <i class="fas fa-thumbs-up text-success mr-1"></i> Interested
+                        </button>
+                        <button type="button" class="btn btn-xs btn-white border shadow-sm quick-response-btn py-1 px-2 mb-1" data-text="Not interested at this moment">
+                            <i class="fas fa-thumbs-down text-secondary mr-1"></i> Not Interested
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <div class="small text-muted mb-1 font-weight-bold">Status Transitions</div>
+                    <div class="d-flex flex-wrap gap-1" style="gap: 5px;">
+                        <button type="button" class="btn btn-xs btn-white border shadow-sm quick-response-btn py-1 px-2 mb-1" data-text="College visit planned on ">
+                            <i class="fas fa-building text-info mr-1"></i> Visit Plan
+                        </button>
+                        <button type="button" class="btn btn-xs btn-white border shadow-sm quick-response-btn py-1 px-2 mb-1" data-text="Looking for Next Academic Year">
+                            <i class="fas fa-calendar-alt text-primary mr-1"></i> Next Year
+                        </button>
+                    </div>
+                </div>
 
                 <form action="{{ route('admin.enquiries.follow-ups.store', $enquiry->id) }}" method="POST" id="ajaxFollowUpForm">
                     @csrf
@@ -424,7 +454,7 @@
                         <p class="small mb-0">No history recorded yet.</p>
                     </div>
                 @endif
-            </div>
+            <div class="mb-5 py-5"></div> <!-- Extra breathing room for history list -->
         </div>
     </div>
 </div>

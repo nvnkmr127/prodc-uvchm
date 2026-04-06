@@ -47,7 +47,24 @@ class CollegeAdminDashboardController extends Controller
             'attendance_chart' => $this->getAttendanceChart(),
             'payment_modes' => $this->getPaymentModesData(),
             'pending_collections' => $this->getPendingCollections(),
-            'birthdays' => $this->getBirthdayData()
+            'birthdays' => $this->getBirthdayData(),
+            'enquiry_stats' => $this->getEnquiryStats()
+        ];
+    }
+
+    /**
+     * Get real-time enquiry statistics
+     */
+    private function getEnquiryStats()
+    {
+        $today = today();
+        return [
+            'today_count' => \App\Models\Enquiry::whereDate('created_at', $today)->count(),
+            'new_count' => \App\Models\Enquiry::where('status', 'New')->count(),
+            'interested_count' => \App\Models\Enquiry::where('status', 'Interested')->count(),
+            'followup_today' => \App\Models\Enquiry::whereDate('next_follow_up_date', $today)->count(),
+            'admitted_count' => \App\Models\Enquiry::where('status', 'Admitted')->count(),
+            'total_count' => \App\Models\Enquiry::count(),
         ];
     }
 
@@ -223,10 +240,10 @@ private function getPaymentModesData()
     \Log::info("User {$user->id} has {$totalPayments} total payments");
     
     if ($totalPayments == 0) {
-        \Log::info('No payments found, returning test data');
+        \Log::info('No payments found, returning zero data');
         return [
             'labels' => ['Cash', 'Online', 'Card', 'UPI'],
-            'values' => [25000.0, 35000.0, 15000.0, 20000.0] // Test data
+            'values' => [0, 0, 0, 0]
         ];
     }
 
