@@ -57,15 +57,22 @@
         }
 
         /* Status Colors - Glass Accents */
-        .status-new-border { border-left-color: #0ea5e9 !important; background: rgba(14, 165, 233, 0.03); }
-        .status-contacted-border { border-left-color: #10b981 !important; background: rgba(16, 185, 129, 0.03); }
-        .status-interested-border { border-left-color: #f59e0b !important; background: rgba(245, 158, 11, 0.03); }
-        .status-followup-border { border-left-color: #f97316 !important; background: rgba(249, 115, 22, 0.03); }
-        .status-admitted-border { border-left-color: #059669 !important; background: rgba(5, 150, 105, 0.03); }
+        .status-New-border { border-left-color: #0ea5e9 !important; background: rgba(14, 165, 233, 0.03); }
+        .status-Contacted-border { border-left-color: #10b981 !important; background: rgba(16, 185, 129, 0.03); }
+        .status-Interested-border { border-left-color: #f59e0b !important; background: rgba(245, 158, 11, 0.03); }
+        .status-Follow-up-border { border-left-color: #f97316 !important; background: rgba(249, 115, 22, 0.03); }
+        .status-Admitted-border { border-left-color: #059669 !important; background: rgba(5, 150, 105, 0.03); }
         .status-Next-Year-border { border-left-color: #8b5cf6 !important; background: rgba(139, 92, 246, 0.03); }
-        .status-next-entrance-exam-border { border-left-color: #f43f5e !important; background: rgba(244, 63, 94, 0.03); }
-        .status-dropped-border { border-left-color: #ef4444 !important; background: rgba(239, 68, 68, 0.03); }
-        .border-left-primary { border-left-color: #4f46e5 !important; background: rgba(79, 70, 229, 0.03); }
+        .status-Entrance-Exam-border { border-left-color: #f43f5e !important; background: rgba(244, 63, 94, 0.03); }
+        .status-Not-Interested-border { border-left-color: #ef4444 !important; background: rgba(239, 68, 68, 0.03); }
+        .status-Total-border { border-left-color: #4f46e5 !important; background: rgba(79, 70, 229, 0.03); }
+
+        .stat-card-mini.active {
+            border: 2px solid var(--crm-primary);
+            background: #fff;
+            transform: scale(1.02);
+            box-shadow: 0 10px 25px rgba(78, 115, 223, 0.15);
+        }
 
         /* --- Live Search Dropdown --- */
         .search-box-container {
@@ -450,31 +457,31 @@
             <div class="stat-card-mini status-followup-border">
                 <a href="javascript:void(0)" class="text-decoration-none stat-card-link" data-status="Follow-up">
             @php 
-                // Helper to preserve current filters except status when clicking cards
-                $currentFilters = request()->except(['status', 'page']); 
+                $currentFilters = request()->except(['status', 'page', 'test_attended']); 
             @endphp
-            <div class="stat-card {{ !request('status') ? 'active' : '' }}">
-                <a href="{{ route('admin.enquiries.index', $currentFilters) }}" class="text-decoration-none">
+            <div class="stat-card-mini status-Total-border {{ !request('status') && !request('test_attended') ? 'active' : '' }}">
+                <a href="{{ route('admin.enquiries.index', $currentFilters) }}" class="text-decoration-none h-100 d-block">
                     <div class="stat-label text-primary">Total Enquiries</div>
                     <div class="stat-value" id="count-Total">{{ $counts['Total'] ?? 0 }}</div>
                 </a>
             </div>
             @foreach(['New', 'Contacted', 'Interested', 'Follow-up', 'Interested Next Year', 'Admitted', 'Next Entrance Exam', 'Not Interested'] as $status)
                 @php 
-                    $statKey = $status == 'Interested Next Year' ? 'Next Year' : $status;
+                    $statKey = $status == 'Interested Next Year' ? 'Next Year' : ($status == 'Next Entrance Exam' ? 'Entrance Exam' : $status);
+                    $cssKey = str_replace(' ', '-', $statKey);
                     $isActive = request('status') == $status;
                 @endphp
-                <div class="stat-card {{ $isActive ? 'active' : '' }}">
-                    <a href="{{ route('admin.enquiries.index', array_merge($currentFilters, ['status' => $status])) }}" class="text-decoration-none">
-                        <div class="stat-label text-gray-700">{{ $status }}</div>
-                        <div class="stat-value" id="count-{{ str_replace(' ', '-', $statKey) }}">{{ $counts[$statKey] ?? 0 }}</div>
+                <div class="stat-card-mini status-{{ $cssKey }}-border {{ $isActive ? 'active' : '' }}">
+                    <a href="{{ route('admin.enquiries.index', array_merge($currentFilters, ['status' => $status])) }}" class="text-decoration-none h-100 d-block">
+                        <div class="stat-label text-gray-700">{{ $status == 'Next Entrance Exam' ? 'Entrance Exam' : ($status == 'Interested Next Year' ? 'Next Year' : $status) }}</div>
+                        <div class="stat-value">{{ $counts[$statKey == 'Entrance Exam' ? 'Next Entrance Exam' : $statKey] ?? 0 }}</div>
                     </a>
                 </div>
             @endforeach
-            <div class="stat-card-mini status-contacted-border {{ request('test_attended') === '1' ? 'active' : '' }}">
-                <a href="{{ route('admin.enquiries.index', array_merge($currentFilters, ['test_attended' => 1])) }}" class="text-decoration-none">
+            <div class="stat-card-mini status-Contacted-border {{ request('test_attended') === '1' ? 'active' : '' }}">
+                <a href="{{ route('admin.enquiries.index', array_merge($currentFilters, ['test_attended' => 1])) }}" class="text-decoration-none h-100 d-block">
                     <div class="stat-label text-primary">Test Attended</div>
-                    <div class="stat-value" id="count-TestAttended">{{ $counts['Test Attended'] ?? 0 }}</div>
+                    <div class="stat-value">{{ $counts['Test Attended'] ?? 0 }}</div>
                 </a>
             </div>
         </div>
@@ -686,15 +693,28 @@
                                         <i class="fas fa-sort{{ request('sort', 'next_follow_up_date') == 'next_follow_up_date' ? (request('direction', 'asc') == 'asc' ? '-up' : '-down') : '' }} ml-1"></i>
                                     </a>
                                 </th>
-                                <th width="8%" class="text-center">
-                                    <a href="javascript:void(0)" onclick="sortList('status')" class="sort-link {{ request('sort') == 'status' ? 'active' : '' }}">
-                                        Status
-                                        <i class="fas fa-sort{{ request('sort') == 'status' ? (request('direction') == 'asc' ? '-up' : '-down') : '' }} ml-1"></i>
+                                        <i class="fas fa-sort{{ $isSorted ? (request('direction') == 'asc' ? '-up' : '-down') : '' }} ml-1"></i>
                                     </a>
                                 </th>
-                                <th width="8%" class="text-center">Kit (U/B)</th>
-                                <th width="12%">Entrance Test</th>
-                                <th width="14%" class="text-center">Actions</th>
+                                <th>
+                                    @php $isSorted = request('sort') == 'status'; @endphp
+                                    <a href="javascript:void(0)" onclick="sortList('status')" class="sort-link {{ $isSorted ? 'active' : '' }}">
+                                        Status
+                                        <i class="fas fa-sort{{ $isSorted ? (request('direction') == 'asc' ? '-up' : '-down') : '' }} ml-1"></i>
+                                    </a>
+                                </th>
+                                <th>
+                                    @php $isSorted = request('sort') == 'next_follow_up_date'; @endphp
+                                    <a href="javascript:void(0)" onclick="sortList('next_follow_up_date')" class="sort-link {{ $isSorted ? 'active' : '' }}">
+                                        Next Date
+                                        <i class="fas fa-sort{{ $isSorted ? (request('direction') == 'asc' ? '-up' : '-down') : '' }} ml-1"></i>
+                                    </a>
+                                </th>
+                                <th>Source</th>
+                                <th class="text-center">U/B</th>
+                                <th class="text-center">Entrance</th>
+                                <th class="text-center">Agreed Fee</th>
+                                <th class="text-right pr-4">Action</th>
                             </tr>
                         </thead>
                         <tbody id="enquiryTableBody">

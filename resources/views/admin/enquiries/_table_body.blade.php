@@ -48,14 +48,7 @@
             </span>
         </td>
         <td>
-            @if($enquiry->source)
-                <span class="source-badge {{ $sourceClass }}">{{ $enquiry->source }}</span>
-            @else
-                <span class="text-muted small">—</span>
-            @endif
-        </td>
-        <td>
-            <select class="inline-edit" onchange="quickUpdate({{ $enquiry->id }}, 'assigned_to_user_id', this.value)">
+            <select class="form-control form-control-sm border-0 bg-light select-counselor" onchange="quickUpdate({{ $enquiry->id }}, 'assigned_to_user_id', this.value)">
                 <option value="">Unassigned</option>
                 @foreach($counselors as $counselor)
                     <option value="{{ $counselor->id }}" {{ $enquiry->assigned_to_user_id == $counselor->id ? 'selected' : '' }}>
@@ -65,42 +58,60 @@
             </select>
         </td>
         <td>
-            @if($isOverdue)
-                <div class="small text-urgent mb-1"><i class="fas fa-exclamation-circle mr-1"></i>Overdue</div>
-            @elseif($isDueToday)
-                <div class="small text-due-today mb-1"><i class="fas fa-clock mr-1"></i>Due Today</div>
-            @endif
-            <input type="date" class="inline-edit {{ $isOverdue ? 'text-urgent' : ($isDueToday ? 'text-due-today' : '') }}"
-                value="{{ $enquiry->next_follow_up_date ? \Carbon\Carbon::parse($enquiry->next_follow_up_date)->format('Y-m-d') : '' }}"
-                onchange="quickUpdate({{ $enquiry->id }}, 'next_follow_up_date', this.value)">
-        </td>
-        <td class="text-center">
-            <select class="inline-edit badge-pill-custom status-{{ Str::slug($enquiry->status) }} border-0 font-weight-bold"
-                onchange="quickUpdate({{ $enquiry->id }}, 'status', this.value)" style="appearance: none; -webkit-appearance: none; cursor:pointer;">
-                @foreach(['New', 'Contacted', 'Interested', 'Follow-up', 'Admitted', 'Interested Next Year', 'Next Entrance Exam', 'Not Interested'] as $s)
+            <select class="form-control form-control-sm border-0 font-weight-bold status-{{ Str::slug($enquiry->status) }}"
+                onchange="quickUpdate({{ $enquiry->id }}, 'status', this.value)" style="cursor:pointer; min-width: 100px;">
+                @foreach(['New', 'Contacted', 'Interested', 'Follow-up', 'Interested Next Year', 'Admitted', 'Next Entrance Exam', 'Not Interested'] as $s)
                     <option value="{{ $s }}" {{ $enquiry->status == $s ? 'selected' : '' }}>{{ $s }}</option>
                 @endforeach
             </select>
         </td>
-
+        <td>
+            <input type="date" class="form-control form-control-sm border-0 {{ $isOverdue ? 'text-danger font-weight-bold' : ($isDueToday ? 'text-primary' : '') }}"
+                value="{{ $enquiry->next_follow_up_date ? \Carbon\Carbon::parse($enquiry->next_follow_up_date)->format('Y-m-d') : '' }}"
+                onchange="quickUpdate({{ $enquiry->id }}, 'next_follow_up_date', this.value)">
+        </td>
+        <td>
+            @if($enquiry->source)
+                <span class="badge badge-outline-secondary">{{ $enquiry->source }}</span>
+            @else
+                <span class="text-muted small">—</span>
+            @endif
+        </td>
         <td class="text-center">
-            <div class="btn-group">
-                <button type="button" class="btn btn-light btn-sm btn-circle" onclick="openEnquiryModal({{ $enquiry->id }})"
-                    title="View">
-                    <i class="fas fa-eye text-primary"></i>
+            @if($enquiry->include_uniform || $enquiry->include_books)
+                <span class="badge badge-success px-2 py-1" style="font-size:0.65rem;">
+                    @if($enquiry->include_uniform) U @endif
+                    @if($enquiry->include_books) B @endif
+                </span>
+            @else
+                <span class="text-muted opacity-50 small">—</span>
+            @endif
+        </td>
+        <td class="text-center">
+            @if($enquiry->test_attended)
+                <span class="badge badge-pill badge-info px-3">{{ $enquiry->test_marks ?? 0 }} M</span>
+            @else
+                <span class="badge badge-pill badge-light border text-muted">No</span>
+            @endif
+        </td>
+        <td class="text-center font-weight-bold">
+            ₹{{ number_format($enquiry->agreed_fee, 0) }}
+        </td>
+        <td class="text-right pr-4">
+            <div class="d-flex justify-content-end gap-1">
+                <button type="button" class="btn btn-outline-primary btn-sm rounded-circle px-2" onclick="openEnquiryModal({{ $enquiry->id }})"
+                    title="Quick Edit Profile">
+                    <i class="fas fa-user-edit"></i>
                 </button>
-                <a href="tel:{{ $enquiry->phone_number }}" class="btn btn-light btn-sm btn-circle" title="Call">
-                    <i class="fas fa-phone text-success"></i>
-                </a>
                 <a href="https://wa.me/{{ str_replace(['+', ' ', '-'], '', $enquiry->phone_number) }}" target="_blank"
-                    class="btn btn-light btn-sm btn-circle" title="WhatsApp">
-                    <i class="fab fa-whatsapp text-warning"></i>
+                    class="btn btn-outline-success btn-sm rounded-circle px-2" title="WhatsApp Message">
+                    <i class="fab fa-whatsapp"></i>
                 </a>
-                <form action="{{ route('admin.enquiries.destroy', $enquiry->id) }}" method="POST" class="d-inline"
-                    onsubmit="return confirm('Delete?');">
+                <form action="{{ route('admin.enquiries.destroy', $enquiry->id) }}" method="POST" class="ml-1"
+                    onsubmit="return confirm('Delete this record?');">
                     @csrf @method('DELETE')
-                    <button type="submit" class="btn btn-light btn-sm btn-circle" title="Delete">
-                        <i class="fas fa-trash text-danger"></i>
+                    <button type="submit" class="btn btn-outline-danger btn-sm rounded-circle px-2" title="Delete">
+                        <i class="fas fa-trash"></i>
                     </button>
                 </form>
             </div>
@@ -108,9 +119,10 @@
     </tr>
 @empty
     <tr>
-        <td colspan="8" class="text-center py-5 text-muted">
+        <td colspan="11" class="text-center py-5 text-muted">
             <i class="fas fa-inbox fa-3x mb-3 opacity-25"></i>
             <h5>No enquiries found</h5>
+            <p>Try adjusting your search or filters to find what you're looking for.</p>
         </td>
     </tr>
 @endforelse
