@@ -17,13 +17,38 @@ use App\Imports\EnquiriesImport;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\Log;
 
-
 class EnquiryController extends Controller
 {
+    private function isUserAdmin($user = null)
+    {
+        $user = $user ?: Auth::user();
+        return $user->hasAnyRole([
+            'admin', 'super-admin', 'college-admin', 
+            'Admin', 'Super-admin', 'College-admin', 
+            'Super Admin', 'superadmin'
+        ]);
+    }
+
+    private function ensureBulkEnquiryAccess(array $ids, $user, bool $isAdmin): void
+    {
+        if ($isAdmin) {
+            return;
+        }
+
+        $authorizedIds = Enquiry::whereIn('id', $ids)
+            ->where('assigned_to_user_id', $user->id)
+            ->pluck('id')
+            ->all();
+
+        if (count($authorizedIds) !== count($ids)) {
+            abort(403, 'Unauthorized access to one or more enquiries.');
+        }
+    }
+
     private function getStats(Request $request)
     {
         $user = Auth::user();
-        $isAdmin = $user->hasAnyRole(['admin', 'super-admin', 'college-admin', 'Admin', 'Super-admin', 'College-admin']);
+        $isAdmin = $this->isUserAdmin($user);
 
         // 1. Base Query for Status Counts
         // We want counts for each status, but they must respect OTHER filters (course, counselor, date, etc.)
@@ -109,7 +134,7 @@ class EnquiryController extends Controller
     private function applyFilters($query, Request $request)
     {
         $user = Auth::user();
-        $isAdmin = $user->hasAnyRole(['admin', 'super-admin', 'college-admin', 'Admin', 'Super-admin', 'College-admin']);
+        $isAdmin = $this->isUserAdmin($user);
 
         // 1. Apply Visibility for List
         if (!$isAdmin) {
@@ -170,9 +195,8 @@ class EnquiryController extends Controller
 
     public function index(Request $request)
     {
-        // VISIBILITY FIX: Restrict Non-Admins to see only their assigned enquiries
         $user = Auth::user();
-        $isAdmin = $user->hasAnyRole(['admin', 'super-admin', 'college-admin', 'Admin', 'Super-admin', 'College-admin']);
+        $isAdmin = $this->isUserAdmin($user);
 
         // --- 1. Calculate Stats (Universal Filter Application) ---
         // Pass all request inputs (including defaults) to get filtered stats
@@ -391,7 +415,7 @@ class EnquiryController extends Controller
     {
         // VISIBILITY FIX
         $user = Auth::user();
-        $isAdmin = $user->hasAnyRole(['admin', 'super-admin', 'college-admin', 'Admin', 'Super-admin', 'College-admin']);
+        $isAdmin = $this->isUserAdmin($user);
 
         // Default Deny
         if (!$isAdmin && $enquiry->assigned_to_user_id != $user->id) {
@@ -430,7 +454,7 @@ class EnquiryController extends Controller
     {
         // VISIBILITY FIX
         $user = Auth::user();
-        $isAdmin = $user->hasAnyRole(['admin', 'super-admin', 'college-admin', 'Admin', 'Super-admin', 'College-admin']);
+        $isAdmin = $this->isUserAdmin($user);
         if (!$isAdmin && $enquiry->assigned_to_user_id != $user->id) {
             abort(403, 'Unauthorized access to this enquiry.');
         }
@@ -490,7 +514,7 @@ class EnquiryController extends Controller
             });
 
         $user = Auth::user();
-        $isAdmin = $user->hasAnyRole(['admin', 'super-admin', 'college-admin', 'Admin', 'Super-admin', 'College-admin']);
+        $isAdmin = $this->isUserAdmin($user);
 
         // Default Deny: If not an admin, restrict to self
         if (!$isAdmin) {
@@ -518,7 +542,7 @@ class EnquiryController extends Controller
     {
         // VISIBILITY FIX
         $user = Auth::user();
-        $isAdmin = $user->hasAnyRole(['admin', 'super-admin', 'college-admin', 'Admin', 'Super-admin', 'College-admin']);
+        $isAdmin = $this->isUserAdmin($user);
         if (!$isAdmin && $enquiry->assigned_to_user_id != $user->id) {
             if ($request->ajax()) return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
             abort(403, 'Unauthorized access to this enquiry.');
@@ -570,7 +594,7 @@ class EnquiryController extends Controller
     {
         // VISIBILITY FIX
         $user = Auth::user();
-        $isAdmin = $user->hasAnyRole(['admin', 'super-admin', 'college-admin', 'Admin', 'Super-admin', 'College-admin']);
+        $isAdmin = $this->isUserAdmin($user);
         if (!$isAdmin && $enquiry->assigned_to_user_id != $user->id) {
             abort(403, 'Unauthorized access to this enquiry.');
         }
@@ -645,7 +669,7 @@ class EnquiryController extends Controller
     {
         // VISIBILITY FIX
         $user = Auth::user();
-        $isAdmin = $user->hasAnyRole(['admin', 'super-admin', 'college-admin', 'Admin', 'Super-admin', 'College-admin']);
+        $isAdmin = $this->isUserAdmin($user);
 
         // Default Deny
         if (!$isAdmin && $enquiry->assigned_to_user_id != $user->id) {
@@ -688,8 +712,13 @@ class EnquiryController extends Controller
             'ids.*' => 'exists:enquiries,id',
         ]);
 
+        $user = Auth::user();
+        $isAdmin = $this->isUserAdmin($user);
+        $ids = array_values(array_unique($request->ids));
+        $this->ensureBulkEnquiryAccess($ids, $user, $isAdmin);
+
         try {
-            Enquiry::whereIn('id', $request->ids)->delete();
+            Enquiry::whereIn('id', $ids)->delete();
             return response()->json(['success' => true, 'message' => 'Selected enquiries deleted successfully.']);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Error deleting items.']);
@@ -704,7 +733,12 @@ class EnquiryController extends Controller
             'target_user_id' => 'required|exists:users,id',
         ]);
 
-        Enquiry::whereIn('id', $request->ids)->update([
+        $user = Auth::user();
+        $isAdmin = $this->isUserAdmin($user);
+        $ids = array_values(array_unique($request->ids));
+        $this->ensureBulkEnquiryAccess($ids, $user, $isAdmin);
+
+        Enquiry::whereIn('id', $ids)->update([
             'assigned_to_user_id' => $request->target_user_id,
             'updated_at' => now() // Update timestamp
         ]);
@@ -719,7 +753,7 @@ class EnquiryController extends Controller
     public function destroy(Enquiry $enquiry)
     {
         $user = Auth::user();
-        $isAdmin = $user->hasAnyRole(['admin', 'super-admin', 'college-admin', 'Admin', 'Super-admin', 'College-admin']);
+        $isAdmin = $this->isUserAdmin($user);
 
         if (!$isAdmin && $enquiry->assigned_to_user_id != $user->id) {
             abort(403, 'Unauthorized access to this enquiry.');

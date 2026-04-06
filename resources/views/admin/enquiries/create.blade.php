@@ -248,7 +248,7 @@
                             <option value="Website" {{ old('source') == 'Website' ? 'selected' : '' }}>Website / Google</option>
                             <option value="Social Media" {{ old('source') == 'Social Media' ? 'selected' : '' }}>Social Media</option>
                             <option value="Agent" {{ old('source') == 'Agent' ? 'selected' : '' }}>Agent</option>
-                            <option value="Referral" {{ old('source') == 'Referral' ? 'selected' : '' }}>Referral</option>
+                            <option value="Referrals" {{ old('source') == 'Referrals' ? 'selected' : '' }}>Referrals</option>
                             <option value="Walk-in" {{ old('source') == 'Walk-in' ? 'selected' : '' }}>Walk-in</option>
                             <option value="Other" {{ old('source') == 'Other' ? 'selected' : '' }}>Other</option>
                         </select>
@@ -312,7 +312,7 @@
                 referralInput.required = true;
                 referralLabel.textContent = 'Agent Name';
                 referralInput.placeholder = 'Enter agent name';
-            } else if (sourceSelect.value === 'Referral') {
+            } else if (sourceSelect.value === 'Referrals' || sourceSelect.value === 'Referral') {
                 referralWrapper.style.display = 'block';
                 referralInput.required = true;
                 referralLabel.textContent = 'Referral Name';

@@ -62,6 +62,7 @@
     .timeline-container-modal::-webkit-scrollbar-thumb {
         background-color: #d1d3e2;
         border-radius: 10px;
+    }
     .shadow-xs {
         box-shadow: 0 .125rem .25rem 0 rgba(58,59,69,.05)!important;
     }
