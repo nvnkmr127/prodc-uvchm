@@ -31,6 +31,7 @@
     # Inject X-Forwarded-Proto for PHP/Laravel to detect HTTPS correctly
     # This is needed when LiteSpeed is doing SSL termination
     Header set X-Forwarded-Proto "https" env=HTTPS
+    Header append Vary "Cookie"
 
     # --- Prevent LiteSpeed/Proxy from caching the login page ---
     # A cached login page contains a stale CSRF token → triggers 419 on submit.
@@ -39,7 +40,7 @@
         Header always set Pragma "no-cache"
         Header always set Expires "Sat, 01 Jan 2000 00:00:00 GMT"
         Header always set X-LiteSpeed-Cache-Control "no-cache"
-        Header always set Vary "*"
+        Header always set Vary "Cookie"
     </If>
 </IfModule>
 

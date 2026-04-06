@@ -24,6 +24,12 @@
     <link href="{{ asset('css/modern-theme.css') }}?v={{ time() }}" rel="stylesheet">
     <link href="{{ asset('css/mobile-overrides.css') }}?v={{ time() }}" rel="stylesheet">
 
+    <!-- Essential Scripts (Loaded early for inline script support) -->
+    <script src="{{ asset('admin_theme/vendor/jquery/jquery.js') }}"></script>
+    <script src="{{ asset('admin_theme/vendor/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
+    <script src="{{ asset('admin_theme/vendor/jquery-easing/jquery.easing.min.js') }}"></script>
+    <script src="{{ asset('admin_theme/js/sb-admin-2.min.js') }}"></script>
+
 
 
     @stack('styles')
@@ -949,8 +955,9 @@
                         <audio id="sound_error" src="{{ asset('sounds/error.mp3') }}" preload="auto"></audio>
                         <audio id="sound_info" src="{{ asset('sounds/notification.mp3') }}" preload="auto"></audio>
 
+                        @push('scripts')
                         <script>
-                            document.addEventListener('DOMContentLoaded', function () {
+                            $(document).ready(function () {
                                 // 1. Load immediately
                                 loadNotifications();
 
@@ -968,8 +975,20 @@
                                         'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
                                     },
                                     success: function (response) {
-                                        if (response.success) {
-                                            updateBellUI(response);
+                                        if (response.success && response.notifications.length > 0) {
+                                            const totalCount = response.notifications.length;
+                                            $('#notificationCount').text(totalCount > 9 ? '9+' : totalCount).show();
+
+                                            // Play sound if new notifications arrived
+                                            if (totalCount > previousCount && previousCount !== 0) {
+                                                const sound = document.getElementById('sound_info');
+                                                if (sound) sound.play().catch(e => console.log('Sound error:', e));
+                                            }
+                                            previousCount = totalCount;
+                                            renderNotifications(response.notifications);
+                                        } else {
+                                            $('#notificationCount').hide();
+                                            renderNotifications([]);
                                         }
                                     },
                                     error: function (err) {
@@ -1226,10 +1245,12 @@
     </div>
 
     <!-- JavaScript Files -->
-    <script src="{{ asset('admin_theme/vendor/jquery/jquery.js') }}"></script>
-    <script src="{{ asset('admin_theme/vendor/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
-    <script src="{{ asset('admin_theme/vendor/jquery-easing/jquery.easing.min.js') }}"></script>
-    <script src="{{ asset('admin_theme/js/sb-admin-2.min.js') }}"></script>
+    <!-- Core Libraries (Already loaded in head) -->
+    {{-- <script src="{{ asset('admin_theme/vendor/jquery/jquery.js') }}"></script> --}}
+    {{-- <script src="{{ asset('admin_theme/vendor/bootstrap/js/bootstrap.bundle.min.js') }}"></script> --}}
+    {{-- <script src="{{ asset('admin_theme/vendor/jquery-easing/jquery.easing.min.js') }}"></script> --}}
+    {{-- <script src="{{ asset('admin_theme/js/sb-admin-2.min.js') }}"></script> --}}
+
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
     <script src="{{ asset('admin_theme/vendor/datatables/jquery.dataTables.min.js') }}"></script>
