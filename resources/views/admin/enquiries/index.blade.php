@@ -476,8 +476,10 @@
                 <div class="stat-value" id="count-Total">{{ $counts['Total'] ?? 0 }}</div>
             </div>
             <div class="stat-card-mini status-contacted-border">
-                <div class="stat-label text-primary">Test Attended</div>
-                <div class="stat-value" id="count-TestAttended">{{ $counts['Test Attended'] ?? 0 }}</div>
+                <a href="javascript:void(0)" class="text-decoration-none stat-card-link" data-test="1">
+                    <div class="stat-label text-primary">Test Attended</div>
+                    <div class="stat-value" id="count-TestAttended">{{ $counts['Test Attended'] ?? 0 }}</div>
+                </a>
             </div>
 
         </div>
@@ -946,14 +948,18 @@
             $(document).on('click', '.stat-card-link', function (e) {
                 e.preventDefault();
                 const status = $(this).data('status');
+                const testVal = $(this).data('test'); // Optional test filter
                 
-                // Set the status filter in the form
-                const statusSelect = $('select[name="status[]"]');
-                statusSelect.val([status]).trigger('change');
+                if (status) {
+                    const statusSelect = $('select[name="status[]"]');
+                    statusSelect.val([status]).trigger('change');
+                } else if (testVal !== undefined) {
+                    const testSelect = $('select[name="test_attended"]');
+                    testSelect.val(testVal).trigger('change');
+                }
                 
-                // fetchEnquiries will be called by the change trigger above
-                // but to ensure it happens correctly:
-                fetchEnquiries(1);
+                // Note: The 'trigger(change)' above will fire filterInputHandler which calls fetchEnquiries(1).
+                // No need for a manual fetch here anymore to avoid redundant requests.
             });
         });
 
@@ -1023,18 +1029,22 @@
         let debounceTimer;
         $('.filter-input').on('change keyup', filterInputHandler);
 
+        let currentRequest = null;
         // --- Main AJAX Fetch ---
         function fetchEnquiries(page = 1) {
+            // Abort previous request to prevent race conditions
+            if (currentRequest) {
+                currentRequest.abort();
+            }
+
             // Collect all filters
             let data = $('#filterForm').serialize();
-
-            // Append page manually as serialize() doesn't include it unless it's in a hidden field
             data += '&page=' + page;
 
-            // Show Loading Indicator (Optional: Add a spinner or opacity)
+            // Show Loading Indicator
             $('#dataTable').css('opacity', '0.5');
 
-            $.ajax({
+            currentRequest = $.ajax({
                 url: "{{ route('admin.enquiries.index') }}",
                 type: "GET",
                 data: data,
@@ -1045,13 +1055,16 @@
                         updateStats(response.stats);
                     }
                     $('#dataTable').css('opacity', '1');
-
-                    // Update URL (Push State)
-                    // window.history.replaceState(null, null, "?" + data); // Removed as per request
                 },
-                error: function () {
-                    alert("Failed to load data");
-                    $('#dataTable').css('opacity', '1');
+                error: function (xhr) {
+                    // Don't alert if it was a manual abort
+                    if (xhr.statusText !== 'abort') {
+                        alert("Failed to load data");
+                        $('#dataTable').css('opacity', '1');
+                    }
+                },
+                complete: function() {
+                    currentRequest = null;
                 }
             });
         }

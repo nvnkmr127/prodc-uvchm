@@ -361,7 +361,6 @@ class EnquiryController extends Controller
         $validated = $request->validate([
             'field' => 'required|in:assigned_to_user_id,next_follow_up_date,status,source,test_attended,test_marks,discount_offered,include_uniform,include_books,agreed_fee',
             'value' => 'nullable',
-            'filter_assigned_to' => 'nullable|exists:users,id' // Helper for stats
         ]);
 
         $field = $validated['field'];
@@ -669,7 +668,6 @@ class EnquiryController extends Controller
             'ids' => 'required|array',
             'ids.*' => 'exists:enquiries,id',
             'target_user_id' => 'required|exists:users,id',
-            'filter_assigned_to' => 'nullable|exists:users,id' // Helper for stats
         ]);
 
         Enquiry::whereIn('id', $request->ids)->update([
