@@ -106,8 +106,8 @@ class CollegeAdminDashboardController extends Controller
         $user = auth()->user();
         $today = now();
         
-        $todayPayments = Payment::where('payment_type', 'component')
-            ->where('created_by', $user->id)
+        $todayPayments = Payment::withoutGlobalScope('academic_year')
+            ->where('payment_type', 'component')
             ->whereDate('payment_date', $today)
             ->get();
         
@@ -135,13 +135,13 @@ class CollegeAdminDashboardController extends Controller
         $user = auth()->user();
         $today = now();
         
-        $todayAmount = Payment::where('payment_type', 'component')
-            ->where('created_by', $user->id)
+        $todayAmount = Payment::withoutGlobalScope('academic_year')
+            ->where('payment_type', 'component')
             ->whereDate('payment_date', $today)
             ->sum('amount');
         
-        $yesterdayAmount = Payment::where('payment_type', 'component')
-            ->where('created_by', $user->id)
+        $yesterdayAmount = Payment::withoutGlobalScope('academic_year')
+            ->where('payment_type', 'component')
             ->whereDate('payment_date', $today->copy()->subDay())
             ->sum('amount');
         
@@ -228,8 +228,8 @@ private function getPaymentModesData()
     $today = now();
 
     // Get actual payment data
-    $paymentModes = Payment::where('payment_type', 'component')
-        ->where('created_by', $user->id)
+    $paymentModes = Payment::withoutGlobalScope('academic_year')
+        ->where('payment_type', 'component')
         ->whereDate('payment_date', $today)
         ->selectRaw('payment_method, SUM(amount) as total')
         ->groupBy('payment_method')
@@ -251,8 +251,8 @@ private function getPaymentModesData()
 
     // If no payments today, get last 7 days data for demo
     if (empty($paymentModes) || array_sum($paymentModes) == 0) {
-        $paymentModes = Payment::where('payment_type', 'component')
-            ->where('created_by', $user->id)
+        $paymentModes = Payment::withoutGlobalScope('academic_year')
+            ->where('payment_type', 'component')
             ->whereBetween('payment_date', [now()->subDays(7), now()])
             ->selectRaw('payment_method, SUM(amount) as total')
             ->groupBy('payment_method')
@@ -288,8 +288,8 @@ private function getPaymentModesData()
     {
         $user = auth()->user();
         
-        return Payment::where('payment_type', 'component')
-            ->where('created_by', $user->id)
+        return Payment::withoutGlobalScope('academic_year')
+            ->where('payment_type', 'component')
             ->whereDate('payment_date', today())
             ->count();
     }
@@ -301,8 +301,8 @@ private function getPaymentModesData()
     {
         $user = auth()->user();
         
-        $lastPayment = Payment::where('payment_type', 'component')
-            ->where('created_by', $user->id)
+        $lastPayment = Payment::withoutGlobalScope('academic_year')
+            ->where('payment_type', 'component')
             ->latest()
             ->first();
         
@@ -318,9 +318,9 @@ private function getPaymentModesData()
         $activities = collect();
         
         // Recent payments by this user
-        $recentPayments = Payment::with('student')
+        $recentPayments = Payment::withoutGlobalScope('academic_year')
+            ->with('student')
             ->where('payment_type', 'component')
-            ->where('created_by', $user->id)
             ->latest()
             ->limit(15)
             ->get();
@@ -402,8 +402,8 @@ private function getPaymentModesData()
         for ($i = 6; $i >= 0; $i--) {
             $date = now()->subDays($i);
             
-            $dayPayments = Payment::where('payment_type', 'component')
-                ->where('created_by', $user->id)
+            $dayPayments = Payment::withoutGlobalScope('academic_year')
+                ->where('payment_type', 'component')
                 ->whereDate('payment_date', $date)
                 ->get();
             
@@ -450,7 +450,8 @@ private function getPaymentModesData()
      */
     private function getPendingCollections()
     {
-        return \App\Models\StudentFee::with(['student.batch.course'])
+        return \App\Models\StudentFee::withoutGlobalScope('academic_year')
+            ->with(['student.batch.course'])
             ->whereIn('status', ['unpaid', 'partial'])
             ->latest('due_date')
             ->take(10)

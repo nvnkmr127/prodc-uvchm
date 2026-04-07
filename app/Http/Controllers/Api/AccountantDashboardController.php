@@ -14,12 +14,13 @@ class AccountantDashboardController extends Controller
      */
     public function financialMetrics()
     {
-        // MODIFIED: All metrics are now calculated using the StudentFee (component) model.
-        $allFees = StudentFee::get();
+        // MODIFIED: All metrics are now calculated using the StudentFee (component) model - bypass global scope
+        $allFees = StudentFee::withoutGlobalScope('academic_year')->get();
         
         $metrics = [
             'total_revenue' => $allFees->sum('paid_amount'),
-            'monthly_revenue' => Payment::where('payment_type', 'component')
+            'monthly_revenue' => Payment::withoutGlobalScope('academic_year')
+                                        ->where('payment_type', 'component')
                                         ->whereMonth('payment_date', now()->month)
                                         ->whereYear('payment_date', now()->year)
                                         ->sum('amount'),
@@ -54,10 +55,10 @@ class AccountantDashboardController extends Controller
     private function getCollectionRate()
     {
         // MODIFIED: Calculates rate based on net expected amount from all components vs. amount paid.
-        $totalBilled = StudentFee::sum('amount');
-        $totalConcession = StudentFee::sum('concession_amount');
+        $totalBilled = StudentFee::withoutGlobalScope('academic_year')->sum('amount');
+        $totalConcession = StudentFee::withoutGlobalScope('academic_year')->sum('concession_amount');
         $netBilled = $totalBilled - $totalConcession;
-        $totalCollected = StudentFee::sum('paid_amount');
+        $totalCollected = StudentFee::withoutGlobalScope('academic_year')->sum('paid_amount');
         
         if ($netBilled == 0) return 100; // Avoid division by zero if no fees are billed
         return round(($totalCollected / $netBilled) * 100, 2);
@@ -69,7 +70,8 @@ class AccountantDashboardController extends Controller
     private function getDailyCollections()
     {
         // MODIFIED: Queries only component-based payments.
-        return Payment::where('payment_type', 'component')
+        return Payment::withoutGlobalScope('academic_year')
+                     ->where('payment_type', 'component')
                      ->selectRaw('DATE(payment_date) as date, SUM(amount) as total')
                      ->whereBetween('payment_date', [now()->subDays(30), now()])
                      ->groupBy('date')
@@ -83,7 +85,8 @@ class AccountantDashboardController extends Controller
     private function getMonthlyCollections()
     {
         // MODIFIED: Queries only component-based payments.
-        return Payment::where('payment_type', 'component')
+        return Payment::withoutGlobalScope('academic_year')
+                     ->where('payment_type', 'component')
                      ->selectRaw('MONTH(payment_date) as month, SUM(amount) as total')
                      ->whereYear('payment_date', now()->year)
                      ->groupBy('month')
@@ -96,7 +99,8 @@ class AccountantDashboardController extends Controller
     private function getPaymentMethodDistribution()
     {
         // MODIFIED: Queries only component-based payments.
-        return Payment::where('payment_type', 'component')
+        return Payment::withoutGlobalScope('academic_year')
+                     ->where('payment_type', 'component')
                      ->selectRaw('payment_method, COUNT(*) as count, SUM(amount) as total')
                      ->groupBy('payment_method')
                      ->get()
@@ -114,7 +118,8 @@ class AccountantDashboardController extends Controller
     private function getTopDefaulters()
     {
         // MODIFIED: Identifies defaulters based on unpaid/partial StudentFee components.
-        return Student::whereHas('studentFees', function($query) {
+        return Student::withoutGlobalScope('academic_year')
+                 ->whereHas('studentFees', function($query) {
                      $query->whereIn('status', ['unpaid', 'partial', 'overdue']);
                  })
                  ->with('studentFees')

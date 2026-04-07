@@ -400,14 +400,15 @@ class StudentController extends Controller
 
     public function show(Student $student)
     {
-        // Re-enabled global scope as requested by user
-        $student = Student::with([
+        // Re-enabled global scope as requested by user, but bypass for specific record lookup
+        $student = Student::withoutGlobalScope('academic_year')->with([
             'batch.course',
             'studentFees.feeCategory',
         ])->findOrFail($student->id);
 
         // Get payment history with proper relationships and ordering
-        $paymentHistory = Payment::where('student_id', $student->id)
+        $paymentHistory = Payment::withoutGlobalScope('academic_year')
+            ->where('student_id', $student->id)
             ->with([
                 'createdBy:id,name',
                 'updatedBy:id,name',

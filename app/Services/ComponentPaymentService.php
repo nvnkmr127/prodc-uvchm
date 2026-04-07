@@ -40,8 +40,9 @@ class ComponentPaymentService
                 'component_details' => $components,
                 'transaction_id' => $paymentData['transaction_id'] ?? null,
                 'notes' => $paymentData['notes'] ?? null,
-                // [FIX] Populate academic_year for filtering
-                'academic_year' => $student->batch?->academicYear?->name ?? null,
+                // [FIX] Populate academic_year for filtering - bypass global scope
+                'academic_year' => $student->batch()->withoutGlobalScope('academic_year')->first()?->academicYear?->name ?? null,
+                'academic_year_id' => $student->batch()->withoutGlobalScope('academic_year')->first()?->academic_year_id ?? null,
             ]);
 
             // Apply payments to individual components

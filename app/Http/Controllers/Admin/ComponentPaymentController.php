@@ -274,8 +274,9 @@ public function storeQuickPayment(Request $request)
             'notes' => $validated['notes'],
             'payment_type' => 'component',
             'status' => 'completed',
-            'academic_year' => $student->batch->academicYear->name ?? null,
-            'academic_year_id' => $student->batch->academic_year_id ?? null,
+            // [FIX] Use withoutGlobalScope to ensure we get the batch info even if it's from a different year
+            'academic_year' => $student->batch()->withoutGlobalScope('academic_year')->first()?->academicYear?->name ?? null,
+            'academic_year_id' => $student->batch()->withoutGlobalScope('academic_year')->first()?->academic_year_id ?? null,
             'created_by' => auth()->id()
         ]);
 
@@ -440,8 +441,9 @@ private function calculatePaymentFrequency($studentId)
                 'transaction_id' => $validated['transaction_id'],
                 'notes' => $validated['notes'],
                 'status' => 'completed',
-                'academic_year' => $student->batch->academicYear->name ?? null,
-                'academic_year_id' => $student->batch->academic_year_id ?? null,
+                // [FIX] Use withoutGlobalScope to ensure we get the batch info even if it's from a different year
+                'academic_year' => $student->batch()->withoutGlobalScope('academic_year')->first()?->academicYear?->name ?? null,
+                'academic_year_id' => $student->batch()->withoutGlobalScope('academic_year')->first()?->academic_year_id ?? null,
                 'created_by' => auth()->id(), // Explicitly set created_by
                 'updated_by' => auth()->id()  // Set updated_by as well
             ]);
@@ -2252,7 +2254,7 @@ public function createFeeComponentsForStudent(Student $student, $academicYear = 
     public function index(Request $request)
     {
         // [UPDATED] Eager load component items and fee categories for the view
-        $query = Payment::with(['student', 'createdBy', 'componentItems.studentFee.feeCategory']);
+        $query = Payment::withoutGlobalScope('academic_year')->with(['student', 'createdBy', 'componentItems.studentFee.feeCategory']);
 
         // 1. Student Search
         if ($request->filled('student_search')) {
@@ -2270,7 +2272,7 @@ public function createFeeComponentsForStudent(Student $student, $academicYear = 
 
         // 3. Date Filters (Default to today if not provided to satisfy user request)
         if (!$request->has('date_from')) {
-            $request->merge(['date_from' => Carbon::today()->format('Y-m-d')]);
+            $request->merge(['date_from' => Carbon::now()->startOfMonth()->format('Y-m-d')]);
         }
         if (!$request->has('date_to')) {
             $request->merge(['date_to' => Carbon::today()->format('Y-m-d')]);
