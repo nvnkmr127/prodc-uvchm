@@ -26,6 +26,7 @@ use App\Models\Asset;
 use App\Models\LeaveApplication;
 use App\Models\Subject;
 use App\Models\FollowUp;
+use App\Models\InboundWebhook;
 
 class DashboardController extends Controller
 {
@@ -395,8 +396,8 @@ class DashboardController extends Controller
                 'today_new' => Enquiry::whereDate('created_at', now())->count(),
                 'pending_followups' => 0, // FollowUp table has no status column
                 'conversion_rate' => $this->calculateConversionRate(),
-                'webhooks_count' => \App\Models\InboundWebhook::count(),
-                'active_webhooks' => \App\Models\InboundWebhook::where('is_active', true)->count(),
+                'webhooks_count' => InboundWebhook::count(),
+                'active_webhooks' => InboundWebhook::where('is_active', true)->count(),
             ],
             'academic_stats' => [
                 'total_subjects' => Subject::count(),
@@ -1964,7 +1965,7 @@ class DashboardController extends Controller
     }
     private function getStudentDistribution()
     {
-        return \App\Models\Student::join('batches', 'students.batch_id', '=', 'batches.id')
+        return Student::join('batches', 'students.batch_id', '=', 'batches.id')
             ->join('courses', 'batches.course_id', '=', 'courses.id')
             ->where('students.status', 'active')
             ->groupBy('courses.name')

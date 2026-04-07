@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\Rule;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class WebhookController extends Controller
 {
@@ -19,7 +21,7 @@ class WebhookController extends Controller
     public function index(Request $request)
     {
         try {
-            $query = \App\Models\Webhook::query();
+            $query = Webhook::query();
 
             // Filter by event type
             if ($request->filled('event_type')) {
@@ -46,12 +48,12 @@ class WebhookController extends Controller
 
             try {
                 // Try to get events from the model, with fallback
-                if (method_exists(\App\Models\Webhook::class, 'getAvailableEvents')) {
-                    $eventTypes = \App\Models\Webhook::getAvailableEvents();
+                if (method_exists(Webhook::class, 'getAvailableEvents')) {
+                    $eventTypes = Webhook::getAvailableEvents();
                 }
 
-                if (method_exists(\App\Models\Webhook::class, 'getEventCategories')) {
-                    $categories = \App\Models\Webhook::getEventCategories();
+                if (method_exists(Webhook::class, 'getEventCategories')) {
+                    $categories = Webhook::getEventCategories();
                 }
             } catch (\Exception $e) {
                 // Fallback to basic event types (COMPONENT-BASED) with daily.summary
@@ -82,12 +84,12 @@ class WebhookController extends Controller
 
         } catch (\Exception $e) {
             // Log the error
-            \Log::error('Webhook index error: ' . $e->getMessage(), [
+            Log::error('Webhook index error: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString()
             ]);
 
             // Return a safe fallback view with empty paginated collection
-            $webhooks = new \Illuminate\Pagination\LengthAwarePaginator([], 0, 20);
+            $webhooks = new LengthAwarePaginator([], 0, 20);
             $eventTypes = [];
             $categories = [];
             $stats = [
@@ -108,15 +110,15 @@ class WebhookController extends Controller
         try {
             $date = $date ?? now()->format('Y-m-d');
 
-            $callsQuery = \App\Models\WebhookCall::whereDate('created_at', $date);
+            $callsQuery = WebhookCall::whereDate('created_at', $date);
             $totalCalls = (clone $callsQuery)->count();
             $successfulCalls = (clone $callsQuery)->where('success', true)->count();
             $successRate = $totalCalls > 0 ? round(($successfulCalls / $totalCalls) * 100, 1) : 100;
 
             return [
-                'total' => \App\Models\Webhook::count(),
-                'active' => \App\Models\Webhook::where('is_active', true)->count(),
-                'failing' => \App\Models\Webhook::where('consecutive_failures', '>=', 3)->count(),
+                'total' => Webhook::count(),
+                'active' => Webhook::where('is_active', true)->count(),
+                'failing' => Webhook::where('consecutive_failures', '>=', 3)->count(),
                 'calls_count' => $totalCalls,
                 'success_rate' => $successRate,
             ];
