@@ -713,6 +713,13 @@ class WebhookController extends Controller
                 'execution_time_ms' => $executionTime,
             ]);
 
+            // Pulse the webhook status
+            if ($response->successful()) {
+                $webhook->markAsSuccessful();
+            } else {
+                $webhook->markAsFailed();
+            }
+
             $message = "Webhook replayed successfully! Response Code: " . $response->status();
 
             if ($request->wantsJson()) {
@@ -792,7 +799,7 @@ class WebhookController extends Controller
     {
         $webhooks = Webhook::with('calls')->get();
 
-        $exportData = $webhooks->map(function ($webhook) {
+        $exportData = $webhooks->map(function (Webhook $webhook) {
             try {
                 $health = $webhook->getHealthStatus();
             } catch (\Exception $e) {

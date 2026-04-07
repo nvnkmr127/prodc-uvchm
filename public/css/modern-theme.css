@@ -78,6 +78,26 @@ h6 {
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+    transition: width 0.2s ease;
+}
+
+/* Increased Sidebar Width for Deskopt */
+@media (min-width: 768px) {
+    .sidebar {
+        width: 17.5rem !important; /* Increased from 14rem to fit long text and badges */
+    }
+
+    .sidebar .sidebar-brand {
+        width: 17.5rem !important;
+    }
+
+    .sidebar.toggled {
+        width: 6.5rem !important; /* Keep standard collapsed width */
+    }
+    
+    .sidebar.toggled .sidebar-brand {
+        width: 6.5rem !important;
+    }
 }
 
 /* Custom Scrollbar for Sidebar */
@@ -105,6 +125,7 @@ h6 {
     font-weight: 500;
     padding: 12px 16px;
     color: rgba(255, 255, 255, 0.8) !important;
+    white-space: nowrap; /* Prevent wrapping which makes it look broken */
 }
 
 .sidebar .nav-item .nav-link:hover {

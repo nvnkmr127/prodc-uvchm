@@ -60,6 +60,7 @@ class SendDailySummaryWebhook extends Command
             $successCount = 0;
             $failureCount = 0;
 
+            /** @var Webhook $webhook */
             foreach ($webhooks as $webhook) {
                 $this->info("🔄 Sending to: {$webhook->url}");
 
@@ -75,17 +76,14 @@ class SendDailySummaryWebhook extends Command
                     if ($response['success']) {
                         $this->info("  ✅ Success: HTTP {$response['status_code']}");
                         $successCount++;
-                        $webhook->update(['consecutive_failures' => 0]);
                     } else {
                         $this->error("  ❌ Failed: {$response['error']}");
                         $failureCount++;
-                        $webhook->increment('consecutive_failures');
                     }
 
                 } catch (Exception $e) {
                     $this->error("  ❌ Exception: {$e->getMessage()}");
                     $failureCount++;
-                    $webhook->increment('consecutive_failures');
                 }
             }
 
@@ -307,7 +305,7 @@ class SendDailySummaryWebhook extends Command
                 \App\Models\WebhookCall::create([
                     'webhook_id' => $webhook->id,
                     'payload' => $payload,
-                    'response_status' => $response->status(),
+                    'status_code' => $response->status(),
                     'response_body' => $response->body(),
                     'success' => $response->successful(),
                     'execution_time_ms' => 0, // Simplified for now
@@ -315,12 +313,12 @@ class SendDailySummaryWebhook extends Command
                 ]);
             }
 
-            // Update webhook last_called_at
-            $webhook->update([
-                'last_called_at' => now(),
-                'last_success_at' => $response->successful() ? now() : $webhook->last_success_at,
-                'last_failure_at' => $response->successful() ? $webhook->last_failure_at : now(),
-            ]);
+            // Update webhook health status through standard model methods
+            if ($response->successful()) {
+                $webhook->markAsSuccessful();
+            } else {
+                $webhook->markAsFailed();
+            }
 
             return [
                 'success' => $response->successful(),
@@ -335,7 +333,7 @@ class SendDailySummaryWebhook extends Command
                 \App\Models\WebhookCall::create([
                     'webhook_id' => $webhook->id,
                     'payload' => $payload,
-                    'response_status' => 0,
+                    'status_code' => 0,
                     'response_body' => $e->getMessage(),
                     'success' => false,
                     'execution_time_ms' => 0,
@@ -343,7 +341,7 @@ class SendDailySummaryWebhook extends Command
                 ]);
             }
 
-            $webhook->update(['last_failure_at' => now()]);
+            $webhook->markAsFailed();
 
             return [
                 'success' => false,

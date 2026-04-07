@@ -221,6 +221,7 @@ class UniversalWebhookListener
 
             $allWebhooks = $specificWebhooks->merge($wildcardWebhooks)->unique('id');
 
+            /** @var Webhook $webhook */
             foreach ($allWebhooks as $webhook) {
                 try {
                     $this->sendOptimizedWebhook($webhook, $payload);
@@ -278,7 +279,10 @@ class UniversalWebhookListener
                 'execution_time_ms' => round((microtime(true) - $startTime) * 1000),
             ]);
 
+            // Update webhook health status and pulse the 'last_called_at' timestamp
             if ($response->successful()) {
+                $webhook->markAsSuccessful();
+                
                 Log::channel('webhook-events')->debug('Optimized webhook sent successfully', [
                     'webhook_id' => $webhook->id,
                     'event' => $payload['event'],
@@ -287,6 +291,8 @@ class UniversalWebhookListener
                     'execution_time' => round((microtime(true) - $startTime) * 1000) . 'ms'
                 ]);
             } else {
+                $webhook->markAsFailed();
+                
                 Log::channel('webhook-events')->warning('Webhook call failed', [
                     'webhook_id' => $webhook->id,
                     'event' => $payload['event'],
@@ -296,10 +302,14 @@ class UniversalWebhookListener
             }
 
         } catch (\Exception $e) {
-            // Log failed webhook call
+            // Update fail status on model
             if ($webhook->exists) {
+                $webhook->markAsFailed();
+                
+                // Log failed webhook call
                 $webhook->calls()->create([
                     'success' => false,
+                    'status_code' => 0,
                     'payload' => $payload,
                     'response_body' => $e->getMessage(),
                     'execution_time_ms' => round((microtime(true) - $startTime) * 1000),
