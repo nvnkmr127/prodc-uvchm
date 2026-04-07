@@ -433,21 +433,20 @@ class StudentController extends Controller
         // Get recent payments for backward compatibility
         $recentPayments = $paymentHistory->take(10);
 
-        // ✨ Calculate attendance data for current month using the unified helper
+        // ✨ Calculate overall attendance across all months
+        $overallAttendance = $this->calculateOverallSummary($student);
+        $attendancePercentage = $overallAttendance['overall_percentage'];
+
+        // ✨ Calculate attendance data for current month (internal summary)
         $attendanceDataFull = $this->fetchMonthlyAttendanceData($student, now()->format('Y-m'));
-        $attendanceData = $attendanceDataFull['monthly']; // Extract monthly summary for the card
-
-        // Map the detailed data to the view variables
-        $presentDays = $attendanceData['present_days'];
-        $absentDays = $attendanceData['absent_days'];
-        $lateDays = $attendanceData['late_days'];
-        $totalWorkingDays = $attendanceData['present_days'] + $attendanceData['absent_days'] + $attendanceData['late_days'] + $attendanceData['excused_days'] + $attendanceData['internship_days'];
-
-        // Calculate percentage based on the standardized logic
-        $attendancePercentage = $attendanceDataFull['summary']['overall_percentage'];
-
-        // ✨ Add percentage to the array for view compatibility (Blade uses $attendanceData['attendance_percentage'])
+        $attendanceData = $attendanceDataFull['monthly']; 
+        
+        // Use Overall stats for the header cards
         $attendanceData['attendance_percentage'] = $attendancePercentage;
+        $attendanceData['month_name'] = 'Overall';
+        $presentDays = $overallAttendance['present_days'];
+        $absentDays = $overallAttendance['absent_days'];
+        $totalWorkingDays = $overallAttendance['total_days'];
 
         // ✨ NEW: Get comprehensive activity logs
         $recentActivity = $this->getStudentActivityLogs($student);
@@ -781,6 +780,10 @@ class StudentController extends Controller
         try {
             $month = $request->input('month', now()->format('Y-m'));
             $data = $this->fetchMonthlyAttendanceData($student, $month);
+            
+            // Add overall percentage to the response for the header card
+            $overall = $this->calculateOverallSummary($student);
+            $data['overall_percentage'] = $overall['overall_percentage'];
 
             return response()->json([
                 'success' => true,

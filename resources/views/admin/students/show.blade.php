@@ -4179,10 +4179,16 @@
         }
 
         // Update summary cards
-        const percentage = (data.summary?.overall_percentage || 0) + '%';
+        const monthlyPercentage = (data.summary?.overall_percentage || 0) + '%';
+        const totalOverallPercentage = (data.overall_percentage || 0) + '%';
 
-        $('#headerAttendancePercentage').text(percentage);
-        $('#tabAttendancePercentage').text(percentage);
+        // Keep the header as overall if needed, or update if the user wants month-specific header
+        // Given the request, the header should stay as overall
+        if (data.overall_percentage !== undefined) {
+             $('#headerAttendancePercentage').text(totalOverallPercentage);
+        }
+        
+        $('#tabAttendancePercentage').text(monthlyPercentage);
 
         // Update Counters
         $('#totalWorkingDays').text(workingDaysCount); // New Counter
