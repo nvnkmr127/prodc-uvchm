@@ -508,8 +508,9 @@ class StudentController extends Controller
                 ];
             });
 
-        // Get payment activities - FIXED with safe property access
-        $paymentActivities = Payment::where('student_id', $student->id)
+        // Get payment activities - FIXED with global scope bypass
+        $paymentActivities = Payment::withoutGlobalScope('academic_year')
+            ->where('student_id', $student->id)
             ->with(['createdBy', 'componentItems.studentFee.feeCategory'])
             ->orderBy('created_at', 'desc')
             ->take($limit)
@@ -567,9 +568,35 @@ class StudentController extends Controller
         }
 
 
-        // Get fee generation activities from student fees - FIXED to avoid reading large log files
+        // Get attendance activities
+        $attendanceActivities = Attendance::withoutGlobalScope('academic_year')
+            ->where('student_id', $student->id)
+            ->with(['markedBy', 'batch'])
+            ->orderBy('created_at', 'desc')
+            ->take($limit)
+            ->get()
+            ->map(function ($attendance) {
+                return [
+                    'type' => 'attendance',
+                    'icon' => 'fa-user-check',
+                    'title' => 'Attendance Marked',
+                    'description' => 'Marked as ' . ucfirst($attendance->status) . ($attendance->batch ? ' for ' . $attendance->batch->name : ''),
+                    'user' => optional($attendance->markedBy)->name ?? 'System',
+                    'timestamp' => $attendance->created_at,
+                    'properties' => [
+                        'status' => $attendance->status,
+                        'date' => $attendance->attendance_date?->format('Y-m-d'),
+                        'notes' => $attendance->notes ?? 'N/A'
+                    ],
+                    'color' => $attendance->status === 'present' ? 'success' : ($attendance->status === 'absent' ? 'danger' : 'warning')
+                ];
+            });
+
+
+        // Get fee generation activities from student fees - FIXED with global scope bypass
         $feeActivities = collect();
-        $recentFees = StudentFee::where('student_id', $student->id)
+        $recentFees = StudentFee::withoutGlobalScope('academic_year')
+            ->where('student_id', $student->id)
             ->orderBy('created_at', 'desc')
             ->take(5)
             ->get();
@@ -593,6 +620,7 @@ class StudentController extends Controller
         // Merge and sort all activities
         $allActivities = $spatieActivities->toBase()
             ->merge($paymentActivities)
+            ->merge($attendanceActivities)
             ->merge($concessionActivities)
             ->merge($feeActivities)
             ->sortByDesc('timestamp')

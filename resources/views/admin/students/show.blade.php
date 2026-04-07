@@ -1874,6 +1874,9 @@ $statusColor = match ($student->status) {
                                         <a class="dropdown-item activity-filter" href="#" data-type="concession">
                                             <i class="fas fa-percent mr-2"></i>Concessions Only
                                         </a>
+                                        <a class="dropdown-item activity-filter" href="#" data-type="attendance">
+                                            <i class="fas fa-user-check mr-2"></i>Attendance Only
+                                        </a>
                                         <a class="dropdown-item activity-filter" href="#" data-type="spatie_log">
                                             <i class="fas fa-cogs mr-2"></i>System Changes
                                         </a>
