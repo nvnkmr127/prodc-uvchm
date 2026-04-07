@@ -15,8 +15,8 @@ class Payment extends Model
 {
     use HasFactory, WebhookEnabled, HasAcademicYear;
 
-    // Define the custom column name for academic year
-    public $academic_year_column = 'academic_year';
+    // Define the custom column name for academic year - USING ID FOR RELIABILITY
+    public $academic_year_column = 'academic_year_id';
 
     /**
      * The attributes that are mass assignable.
