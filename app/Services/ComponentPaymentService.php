@@ -150,58 +150,6 @@ class ComponentPaymentService
     }
 
     /**
-     * Reverse a component payment
-     */
-    public function reversePayment(Payment $payment)
-    {
-        DB::beginTransaction();
-        try {
-            if (!$payment->isComponentPayment()) {
-                throw new Exception('Only component payments can be reversed through this service.');
-            }
-
-            // 1. Revert each component item's impact on StudentFee
-            foreach ($payment->componentItems as $item) {
-                if ($item->studentFee) {
-                    $item->studentFee->reversePayment($item->amount_paid);
-                }
-            }
-
-            // 2. Update payment status
-            $payment->update([
-                'status' => 'refunded',
-                'notes' => ($payment->notes ? $payment->notes . "\n" : "") . "Payment reversed on " . now()->format('Y-m-d H:i')
-            ]);
-
-            // 3. Log activity
-            activity()
-                ->performedOn($payment->student)
-                ->causedBy(auth()->user())
-                ->withProperties(['payment_id' => $payment->id])
-                ->log("Payment of ₹{$payment->amount} reversed (Receipt: {$payment->receipt_number})");
-
-            DB::commit();
-
-            return [
-                'success' => true,
-                'message' => 'Payment reversed successfully.'
-            ];
-
-        } catch (Exception $e) {
-            DB::rollback();
-            Log::error('Payment reversal failed:', [
-                'payment_id' => $payment->id,
-                'error' => $e->getMessage()
-            ]);
-
-            return [
-                'success' => false,
-                'error' => $e->getMessage()
-            ];
-        }
-    }
-
-    /**
      * Get component reminder overview for dashboard
      */
     public function getComponentReminderOverview(): array

@@ -464,8 +464,7 @@ private function calculatePaymentFrequency($studentId)
 
                 // Update student fee
                 $studentFee->increment('paid_amount', $component['amount']);
-                $studentFee->updateStatus();
-                $studentFee->save();
+                $this->updateStudentFeeStatus($studentFee);
 
                 // Log the component creation
                 Log::info('Component item created', [
@@ -651,8 +650,13 @@ public function getPaymentTimeline(Student $student)
                     ]);
 
                     $studentFee->increment('paid_amount', $component['amount']);
-                    $studentFee->updateStatus();
-                    $studentFee->save();
+                    
+                    $remainingAmount = $studentFee->amount - $studentFee->concession_amount - $studentFee->paid_amount;
+                    if ($remainingAmount <= 0) {
+                        $studentFee->update(['status' => 'paid']);
+                    } elseif ($studentFee->paid_amount > 0) {
+                        $studentFee->update(['status' => 'partial']);
+                    }
                 }
 
                 // Log bulk payment creation
@@ -2264,9 +2268,9 @@ public function createFeeComponentsForStudent(Student $student, $academicYear = 
             $query->where('payment_method', $request->payment_method);
         }
 
-        // 3. Date Filters (Default to last 7 days if not provided)
+        // 3. Date Filters (Default to today if not provided to satisfy user request)
         if (!$request->has('date_from')) {
-            $request->merge(['date_from' => Carbon::today()->subDays(7)->format('Y-m-d')]);
+            $request->merge(['date_from' => Carbon::today()->format('Y-m-d')]);
         }
         if (!$request->has('date_to')) {
             $request->merge(['date_to' => Carbon::today()->format('Y-m-d')]);
