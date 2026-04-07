@@ -675,23 +675,23 @@
 @section('content')
 
     @php
-        // Safety check: Ensure all variables are defined
-        $presentDays = $presentDays ?? 0;
-        $absentDays = $absentDays ?? 0;
-        $totalWorkingDays = $totalWorkingDays ?? 0;
-        $attendancePercentage = $attendancePercentage ?? 0;
+// Safety check: Ensure all variables are defined
+$presentDays = $presentDays ?? 0;
+$absentDays = $absentDays ?? 0;
+$totalWorkingDays = $totalWorkingDays ?? 0;
+$attendancePercentage = $attendancePercentage ?? 0;
 
-        if (!isset($attendanceData)) {
-            $attendanceData = [
-                'present_days' => $presentDays,
-                'absent_days' => $absentDays,
-                'total_working_days' => $totalWorkingDays,
-                'attendance_percentage' => $attendancePercentage,
-                'month_name' => \Carbon\Carbon::parse($month ?? now())->format('F Y'),
-                'late_days' => 0,
-                'excused_days' => 0,
-            ];
-        }
+if (!isset($attendanceData)) {
+    $attendanceData = [
+        'present_days' => $presentDays,
+        'absent_days' => $absentDays,
+        'total_working_days' => $totalWorkingDays,
+        'attendance_percentage' => $attendancePercentage,
+        'month_name' => \Carbon\Carbon::parse($month ?? now())->format('F Y'),
+        'late_days' => 0,
+        'excused_days' => 0,
+    ];
+}
     @endphp
 
     {{-- Modern Cover Profile Header --}}
@@ -703,49 +703,49 @@
                 <div class="col-lg-auto text-center text-lg-left">
                     <div class="student-avatar-container">
                         @php
-                            // 1. Determine Photo URL with robust fallback
-                            $photoUrl = null;
-                            
-                            if ($student->photo) {
-                                $photoPath = $student->photo;
-                                
-                                // Try multiple methods to find the photo
-                                if (\Storage::disk('public')->exists($photoPath)) {
-                                    $photoUrl = asset('storage/' . $photoPath);
-                                } elseif (!str_contains($photoPath, '/')) {
-                                    // Check if it needs student_photos prefix
-                                    $prefixedPath = 'student_photos/' . $photoPath;
-                                    if (\Storage::disk('public')->exists($prefixedPath)) {
-                                        $photoUrl = asset('storage/' . $prefixedPath);
-                                    }
-                                } else {
-                                    // Direct filesystem check
-                                    $fullPath = storage_path('app/public/' . $photoPath);
-                                    if (file_exists($fullPath)) {
-                                        $photoUrl = asset('storage/' . $photoPath);
-                                    } else {
-                                        // Check with student_photos prefix on filesystem
-                                        $fullPathWithPrefix = storage_path('app/public/student_photos/' . basename($photoPath));
-                                        if (file_exists($fullPathWithPrefix)) {
-                                            $photoUrl = asset('storage/student_photos/' . basename($photoPath));
-                                        }
-                                    }
-                                }
-                            }
-                            
-                            // 2. Fallback to UI Avatars if photo not found
-                            if (!$photoUrl) {
-                                $name = urlencode($student->name);
-                                $photoUrl = "https://ui-avatars.com/api/?name={$name}&background=random&color=fff&size=200&font-size=0.33&bold=true";
-                            }
+// 1. Determine Photo URL with robust fallback
+$photoUrl = null;
 
-                            // 3. Status Color Logic
-                            $statusColor = match ($student->status) {
-                                'active' => '#1cc88a', // Green
-                                'graduated' => '#36b9cc', // Info Blue
-                                'dropped' => '#e74a3b', // Red
-                                default => '#858796' // Grey
-                            };
+if ($student->photo) {
+    $photoPath = $student->photo;
+
+    // Try multiple methods to find the photo
+    if (\Storage::disk('public')->exists($photoPath)) {
+        $photoUrl = asset('storage/' . $photoPath);
+    } elseif (!str_contains($photoPath, '/')) {
+        // Check if it needs student_photos prefix
+        $prefixedPath = 'student_photos/' . $photoPath;
+        if (\Storage::disk('public')->exists($prefixedPath)) {
+            $photoUrl = asset('storage/' . $prefixedPath);
+        }
+    } else {
+        // Direct filesystem check
+        $fullPath = storage_path('app/public/' . $photoPath);
+        if (file_exists($fullPath)) {
+            $photoUrl = asset('storage/' . $photoPath);
+        } else {
+            // Check with student_photos prefix on filesystem
+            $fullPathWithPrefix = storage_path('app/public/student_photos/' . basename($photoPath));
+            if (file_exists($fullPathWithPrefix)) {
+                $photoUrl = asset('storage/student_photos/' . basename($photoPath));
+            }
+        }
+    }
+}
+
+// 2. Fallback to UI Avatars if photo not found
+if (!$photoUrl) {
+    $name = urlencode($student->name);
+    $photoUrl = "https://ui-avatars.com/api/?name={$name}&background=random&color=fff&size=200&font-size=0.33&bold=true";
+}
+
+// 3. Status Color Logic
+$statusColor = match ($student->status) {
+    'active' => '#1cc88a', // Green
+    'graduated' => '#36b9cc', // Info Blue
+    'dropped' => '#e74a3b', // Red
+    default => '#858796' // Grey
+};
                         @endphp
 
                         <img src="{{ $photoUrl }}" class="student-avatar-img" alt="Student Photo">
@@ -964,7 +964,7 @@
                                                 @endif
                                                 @if(isset($financialSummary['concession_amount']) && $financialSummary['concession_amount'] > 0)
                                                     @php
-                                                        $concessionPercentage = isset($financialSummary['total_amount']) && $financialSummary['total_amount'] > 0 ? round(($financialSummary['concession_amount'] / $financialSummary['total_amount']) * 100, 1) : 0;
+        $concessionPercentage = isset($financialSummary['total_amount']) && $financialSummary['total_amount'] > 0 ? round(($financialSummary['concession_amount'] / $financialSummary['total_amount']) * 100, 1) : 0;
                                                     @endphp
                                                     <div class="progress-bar bg-warning" role="progressbar"
                                                         style="width: {{ $concessionPercentage }}%"
@@ -1241,27 +1241,27 @@
                                     @if($studentFees->count() > 0)
                                         @foreach($studentFees as $studentFee)
                                             @php
-                                                $paidAmount = $studentFee->paid_amount ?? 0;
-                                                $concessionAmount = $studentFee->concession_amount ?? 0;
-                                                $totalAmount = $studentFee->amount ?? 0;
-                                                $remainingAmount = $totalAmount - $paidAmount - $concessionAmount;
+        $paidAmount = $studentFee->paid_amount ?? 0;
+        $concessionAmount = $studentFee->concession_amount ?? 0;
+        $totalAmount = $studentFee->amount ?? 0;
+        $remainingAmount = $totalAmount - $paidAmount - $concessionAmount;
 
-                                                $paymentPercentage = ($totalAmount > 0) ?
-                                                    round((($paidAmount + $concessionAmount) / $totalAmount) * 100, 1) : 0;
+        $paymentPercentage = ($totalAmount > 0) ?
+            round((($paidAmount + $concessionAmount) / $totalAmount) * 100, 1) : 0;
 
-                                                if ($remainingAmount <= 0) {
-                                                    $statusClass = 'success';
-                                                    $statusText = 'Fully Paid';
-                                                    $progressClass = 'bg-success';
-                                                } elseif ($paidAmount > 0 || $concessionAmount > 0) {
-                                                    $statusClass = 'warning';
-                                                    $statusText = 'Partially Paid';
-                                                    $progressClass = 'bg-warning';
-                                                } else {
-                                                    $statusClass = 'danger';
-                                                    $statusText = 'Unpaid';
-                                                    $progressClass = 'bg-danger';
-                                                }
+        if ($remainingAmount <= 0) {
+            $statusClass = 'success';
+            $statusText = 'Fully Paid';
+            $progressClass = 'bg-success';
+        } elseif ($paidAmount > 0 || $concessionAmount > 0) {
+            $statusClass = 'warning';
+            $statusText = 'Partially Paid';
+            $progressClass = 'bg-warning';
+        } else {
+            $statusClass = 'danger';
+            $statusText = 'Unpaid';
+            $progressClass = 'bg-danger';
+        }
                                             @endphp
 
                                             <div class="fee-component-card">
@@ -1436,13 +1436,13 @@
                                                             </td>
                                                             <td>
                                                                 @php
-                                                                    $statusClass = match ($payment->status ?? 'completed') {
-                                                                        'completed' => 'success',
-                                                                        'pending' => 'warning',
-                                                                        'failed' => 'danger',
-                                                                        'refunded' => 'info',
-                                                                        default => 'secondary'
-                                                                    };
+        $statusClass = match ($payment->status ?? 'completed') {
+            'completed' => 'success',
+            'pending' => 'warning',
+            'failed' => 'danger',
+            'refunded' => 'info',
+            default => 'secondary'
+        };
                                                                 @endphp
                                                                 <span class="badge badge-{{ $statusClass }}">
                                                                     {{ ucfirst($payment->status ?? 'completed') }}
@@ -1620,7 +1620,7 @@
                                                         onchange="loadAttendanceData()">
                                                         @for($i = 0; $i < 12; $i++)
                                                             @php
-                                                                $month = now()->subMonths($i);
+    $month = now()->subMonths($i);
                                                             @endphp
                                                             <option value="{{ $month->format('Y-m') }}" {{ $i === 0 ? 'selected' : '' }}>
                                                                 {{ $month->format('F Y') }}
@@ -2406,7 +2406,7 @@
                                         @if(isset($studentFees) && $studentFees->count() > 0)
                                             @foreach($studentFees as $studentFee)
                                                 @php
-                                                    $dueAmount = $studentFee->amount - $studentFee->paid_amount;
+        $dueAmount = $studentFee->amount - $studentFee->paid_amount;
                                                 @endphp
                                                 @if($dueAmount > 0)
                                                     <div class="payment-component-item" data-fee-id="{{ $studentFee->id }}" data-max-amount="{{ $dueAmount }}">
@@ -4179,16 +4179,10 @@
         }
 
         // Update summary cards
-        const monthlyPercentage = (data.summary?.overall_percentage || 0) + '%';
-        const totalOverallPercentage = (data.overall_percentage || 0) + '%';
+        const percentage = (data.summary?.overall_percentage || 0) + '%';
 
-        // Keep the header as overall if needed, or update if the user wants month-specific header
-        // Given the request, the header should stay as overall
-        if (data.overall_percentage !== undefined) {
-             $('#headerAttendancePercentage').text(totalOverallPercentage);
-        }
-        
-        $('#tabAttendancePercentage').text(monthlyPercentage);
+        $('#headerAttendancePercentage').text(percentage);
+        $('#tabAttendancePercentage').text(percentage);
 
         // Update Counters
         $('#totalWorkingDays').text(workingDaysCount); // New Counter
