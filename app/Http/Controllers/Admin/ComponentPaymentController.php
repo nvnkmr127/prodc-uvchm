@@ -17,6 +17,8 @@ use Carbon\Carbon;
 use App\Models\ComponentPaymentItem;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\Models\Activity;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\PaymentActivityExport;
 
 
 
@@ -272,6 +274,8 @@ public function storeQuickPayment(Request $request)
             'notes' => $validated['notes'],
             'payment_type' => 'component',
             'status' => 'completed',
+            'academic_year' => $student->batch->academicYear->name ?? null,
+            'academic_year_id' => $student->batch->academic_year_id ?? null,
             'created_by' => auth()->id()
         ]);
 
@@ -436,7 +440,8 @@ private function calculatePaymentFrequency($studentId)
                 'transaction_id' => $validated['transaction_id'],
                 'notes' => $validated['notes'],
                 'status' => 'completed',
-                'academic_year' => now()->format('Y'), // Set current academic year
+                'academic_year' => $student->batch->academicYear->name ?? null,
+                'academic_year_id' => $student->batch->academic_year_id ?? null,
                 'created_by' => auth()->id(), // Explicitly set created_by
                 'updated_by' => auth()->id()  // Set updated_by as well
             ]);
@@ -479,7 +484,7 @@ private function calculatePaymentFrequency($studentId)
                     [
                         'amount' => $payment->amount,
                         'payment_method' => $payment->payment_method,
-                        'payment_date' => $payment->payment_date->format('Y-m-d'),
+                        'payment_date' => \Carbon\Carbon::parse($payment->payment_date)->format('Y-m-d'),
                         'components' => $validated['components'],
                         'student_id' => $payment->student_id
                     ],
@@ -528,7 +533,7 @@ public function exportActivityLog(Student $student)
         ->orderBy('created_at', 'desc')
         ->get();
 
-    return Excel::download(new PaymentActivityExport($activities, $student), 
+    return Excel::download(new PaymentActivityExport($activities), 
         "payment_activity_{$student->enrollment_number}.xlsx");
 }
 
@@ -569,15 +574,12 @@ public function getActivityLogData(Student $student, Request $request)
 public function addActivityLogEntry(Student $student, $type, $description, $details = null)
 {
     // You might want to create a separate ActivityLog model for non-payment activities
-    ActivityLog::create([
-        'student_id' => $student->id,
-        'user_id' => auth()->id(),
-        'activity_type' => $type,
-        'description' => $description,
-        'details' => $details,
-        'ip_address' => request()->ip(),
-        'user_agent' => request()->userAgent(),
-    ]);
+    // Use Spatie Activity Log directly
+    activity()
+        ->performedOn($student)
+        ->causedBy(auth()->id())
+        ->withProperties($details ?? [])
+        ->log($description);
 }
 
 /**
@@ -633,7 +635,8 @@ public function getPaymentTimeline(Student $student)
                     'payment_method' => $validated['payment_method'],
                     'payment_date' => $validated['payment_date'],
                     'status' => 'completed',
-                    'academic_year' => now()->format('Y'),
+                    'academic_year' => $student->batch->academicYear->name ?? null,
+                    'academic_year_id' => $student->batch->academic_year_id ?? null,
                     'created_by' => auth()->id(), // Explicitly set created_by
                     'updated_by' => auth()->id()  // Set updated_by as well
                 ]);
@@ -665,7 +668,7 @@ public function getPaymentTimeline(Student $student)
                         [
                             'amount' => $payment->amount,
                             'payment_method' => $payment->payment_method,
-                            'payment_date' => $payment->payment_date->format('Y-m-d'),
+                            'payment_date' => \Carbon\Carbon::parse($payment->payment_date)->format('Y-m-d'),
                             'components' => $paymentData['components']
                         ],
                         'Bulk payment created'

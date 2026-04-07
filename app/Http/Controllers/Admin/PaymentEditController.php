@@ -74,13 +74,15 @@ class PaymentEditController extends Controller
             // Capture original state
             $originalState = $this->capturePaymentState($payment);
 
-            // Update payment
+            // Update payment with academic year alignment
             $payment->update([
                 'amount' => $validated['amount'],
                 'payment_method' => $validated['payment_method'],
                 'payment_date' => $validated['payment_date'],
                 'transaction_id' => $validated['transaction_id'],
                 'notes' => $validated['notes'],
+                'academic_year' => $payment->student->batch->academicYear->name ?? $payment->academic_year,
+                'academic_year_id' => $payment->student->batch->academic_year_id ?? $payment->academic_year_id,
                 'updated_by' => auth()->id()
             ]);
 

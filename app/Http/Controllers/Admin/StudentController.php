@@ -68,8 +68,8 @@ class StudentController extends Controller
 
     public function index(Request $request)
     {
-        // Start with a query builder - DISABLE ALL global scopes to see all students
-        $query = Student::withoutGlobalScopes()->with('batch.course');
+        // Start with a query builder - Respect global scopes as requested
+        $query = Student::query()->with('batch.course');
 
         // 1. apply academic year filter (Global context)
         if ($request->filled('academic_year_id') || !$request->has('show_all')) {
@@ -255,15 +255,8 @@ class StudentController extends Controller
      */
     private function getCurrentAcademicYear(): string
     {
-        $currentYear = date('Y');
-        $currentMonth = date('n');
-
-        // Academic year typically starts in April (month 4)
-        if ($currentMonth >= 4) {
-            return $currentYear . '-' . ($currentYear + 1);
-        } else {
-            return ($currentYear - 1) . '-' . $currentYear;
-        }
+        return \App\Models\AcademicYear::where('is_current', true)->value('name') 
+            ?? (date('n') >= 4 ? date('Y') . '-' . (date('Y') + 1) : (date('Y') - 1) . '-' . date('Y'));
     }
 
 
@@ -407,8 +400,8 @@ class StudentController extends Controller
 
     public function show(Student $student)
     {
-        // Bypass global scope to see all data for this student
-        $student = Student::withoutGlobalScope('academic_year')->with([
+        // Re-enabled global scope as requested by user
+        $student = Student::with([
             'batch.course',
             'studentFees.feeCategory',
         ])->findOrFail($student->id);
