@@ -2272,7 +2272,7 @@ public function createFeeComponentsForStudent(Student $student, $academicYear = 
 
         // 3. Date Filters (Default to today if not provided to satisfy user request)
         if (!$request->has('date_from')) {
-            $request->merge(['date_from' => Carbon::now()->startOfMonth()->format('Y-m-d')]);
+            $request->merge(['date_from' => Carbon::today()->format('Y-m-d')]);
         }
         if (!$request->has('date_to')) {
             $request->merge(['date_to' => Carbon::today()->format('Y-m-d')]);

@@ -223,7 +223,13 @@ class WebhookController extends Controller
         }
 
         $request->validate([
-            'url' => 'required|url|unique:webhooks,url',
+            'url' => [
+                'required',
+                'url',
+                Rule::unique('webhooks')->where(function ($query) use ($request) {
+                    return $query->where('event_name', $request->event_name);
+                })
+            ],
             'event_name' => [
                 'required',
                 'string',
@@ -421,7 +427,9 @@ class WebhookController extends Controller
             'url' => [
                 'required',
                 'url',
-                Rule::unique('webhooks', 'url')->ignore($webhook->id)
+                Rule::unique('webhooks')->where(function ($query) use ($request) {
+                    return $query->where('event_name', $request->event_name);
+                })->ignore($webhook->id)
             ],
             'event_name' => [
                 'required',
