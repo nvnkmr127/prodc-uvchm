@@ -286,8 +286,9 @@ class Payment extends Model
     {
         $prefix = 'RCP-' . date('Y') . '-';
 
-        // Get the latest receipt number for this year
-        $latest = static::where('receipt_number', 'LIKE', $prefix . '%')
+        // Get the latest receipt number for this year - BYPASS GLOBAL SCOPES
+        $latest = static::withoutGlobalScope('academic_year')
+            ->where('receipt_number', 'LIKE', $prefix . '%')
             ->orderByRaw('CAST(SUBSTRING(receipt_number, ' . (strlen($prefix) + 1) . ') AS UNSIGNED) DESC')
             ->first();
 

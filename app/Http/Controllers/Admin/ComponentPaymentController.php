@@ -258,8 +258,8 @@ public function storeQuickPayment(Request $request)
             throw new \Exception('Payment amount exceeds remaining balance.');
         }
 
-        // Generate receipt number
-        $receiptNumber = 'RCP-' . date('Ymd') . '-' . str_pad(Payment::whereDate('created_at', today())->count() + 1, 4, '0', STR_PAD_LEFT);
+        // Generate receipt number - BYPASS GLOBAL SCOPES
+        $receiptNumber = 'RCP-' . date('Ymd') . '-' . str_pad(Payment::withoutGlobalScope('academic_year')->whereDate('created_at', today())->count() + 1, 4, '0', STR_PAD_LEFT);
 
         // Create payment record
         $payment = Payment::create([
@@ -363,8 +363,9 @@ private function calculatePaymentFrequency($studentId)
         $year = date('Y');
         $month = date('m');
         
-        // Get the next sequence number for this month
-        $lastPayment = Payment::where('receipt_number', 'like', "{$prefix}{$year}{$month}%")
+        // Get the next sequence number for this month - BYPASS GLOBAL SCOPE
+        $lastPayment = Payment::withoutGlobalScope('academic_year')
+                              ->where('receipt_number', 'like', "{$prefix}{$year}{$month}%")
                               ->orderBy('receipt_number', 'desc')
                               ->first();
         
