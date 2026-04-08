@@ -7,6 +7,9 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Artisan;
 use App\Models\Setting;
+use App\Models\Student;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Storage;
 
 class FixSystemIssues extends Command
 {
@@ -119,6 +122,18 @@ class FixSystemIssues extends Command
         // Check for old course columns that need removal
         $issues = array_merge($issues, $this->checkOldColumns());
 
+        // Check for stalled ETimeOffice syncs
+        $issues = array_merge($issues, $this->checkETimeOfficeSync());
+
+        // Check for backup health
+        $issues = array_merge($issues, $this->checkBackupHealth());
+
+        // Check for missing ETimeOffice mappings
+        $issues = array_merge($issues, $this->checkETimeOfficeMappings());
+
+        // Check for pending migrations
+        $issues = array_merge($issues, $this->checkMigrationStatus());
+
         return $issues;
     }
 
@@ -216,6 +231,18 @@ class FixSystemIssues extends Command
             case 'orphaned_students':
                 return $this->fixOrphanedStudents($issue);
             
+            case 'stalled_sync':
+                return $this->fixStalledSyncs($issue);
+            
+            case 'missing_mapping':
+                return $this->fixETimeOfficeMappings($issue);
+            
+            case 'pending_migrations':
+                return $this->fixPendingMigrations($issue);
+            
+            case 'backup_disabled':
+                return $this->fixBackupHealth($issue);
+            
             default:
                 return false;
         }
@@ -301,6 +328,180 @@ class FixSystemIssues extends Command
             $this->error("Failed to fix orphaned students: " . $e->getMessage());
             return false;
         }
+    }
+
+    private function checkETimeOfficeSync(): array
+    {
+        $issues = [];
+        if (Schema::hasTable('etimeoffice_sync_logs')) {
+            $stalledSyncs = DB::table('etimeoffice_sync_logs')
+                ->where('status', 'running')
+                ->where('started_at', '<', now()->subMinutes(30))
+                ->count();
+
+            if ($stalledSyncs > 0) {
+                $issues[] = [
+                    'type' => 'stalled_sync',
+                    'description' => "{$stalledSyncs} ETimeOffice sync(s) appear to be stalled",
+                    'count' => $stalledSyncs
+                ];
+            }
+        }
+        return $issues;
+    }
+
+    private function checkBackupHealth(): array
+    {
+        $issues = [];
+        
+        // Check if auto backup is enabled
+        $autoBackup = Setting::where('key', 'auto_backup')->value('value');
+        if (!$autoBackup || !filter_var($autoBackup, FILTER_VALIDATE_BOOLEAN)) {
+            $issues[] = [
+                'type' => 'backup_disabled',
+                'description' => 'Auto backup is disabled in settings'
+            ];
+        }
+
+        // Check last backup age (logic from BackupHealthCheck.php)
+        try {
+            $disks = config('backup.backup.destination.disks', ['local']);
+            $disk = Storage::disk($disks[0]);
+            $appName = config('backup.backup.name', config('app.name', 'Laravel'));
+            
+            if ($disk->exists($appName)) {
+                $files = $disk->files($appName);
+                $lastModified = null;
+                
+                foreach ($files as $file) {
+                    if (pathinfo($file, PATHINFO_EXTENSION) === 'zip') {
+                        $modified = $disk->lastModified($file);
+                        if (!$lastModified || $modified > $lastModified) {
+                            $lastModified = $modified;
+                        }
+                    }
+                }
+                
+                if ($lastModified) {
+                    $lastBackupDate = Carbon::createFromTimestamp($lastModified);
+                    if ($lastBackupDate->diffInDays(now()) > 1) {
+                        $issues[] = [
+                            'type' => 'backup_outdated',
+                            'description' => "Last backup was more than 24 hours ago ({$lastBackupDate->diffForHumans()})"
+                        ];
+                    }
+                } else {
+                    $issues[] = [
+                        'type' => 'no_backups',
+                        'description' => 'No backup files found in storage'
+                    ];
+                }
+            }
+        } catch (\Exception $e) {
+            // Skip if backup config or disk is not available
+        }
+
+        return $issues;
+    }
+
+    private function checkETimeOfficeMappings(): array
+    {
+        $issues = [];
+        if (Schema::hasTable('students')) {
+            $unmappedStudents = Student::where('status', 'active')
+                ->whereNull('biometric_employee_code')
+                ->whereNotNull('enrollment_number')
+                ->count();
+
+            if ($unmappedStudents > 0) {
+                $issues[] = [
+                    'type' => 'missing_mapping',
+                    'description' => "{$unmappedStudents} active students are missing ETimeOffice biometric mapping",
+                    'count' => $unmappedStudents
+                ];
+            }
+        }
+        return $issues;
+    }
+
+    private function checkMigrationStatus(): array
+    {
+        $issues = [];
+        try {
+            Artisan::call('migrate:status');
+            $output = Artisan::output();
+            
+            if (stripos($output, 'Pending') !== false) {
+                $issues[] = [
+                    'type' => 'pending_migrations',
+                    'description' => 'There are pending database migrations'
+                ];
+            }
+        } catch (\Exception $e) {
+            // Migration status check failed
+        }
+        return $issues;
+    }
+
+    private function fixStalledSyncs(array $issue): bool
+    {
+        try {
+            DB::table('etimeoffice_sync_logs')
+                ->where('status', 'running')
+                ->where('started_at', '<', now()->subMinutes(30))
+                ->update([
+                    'status' => 'failed',
+                    'errors' => json_encode(['Sync stalled and was automatically marked as failed']),
+                    'completed_at' => now()
+                ]);
+            return true;
+        } catch (\Exception $e) {
+            $this->error("Failed to fix stalled syncs: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    private function fixETimeOfficeMappings(array $issue): bool
+    {
+        try {
+            $count = Student::where('status', 'active')
+                ->whereNull('biometric_employee_code')
+                ->whereNotNull('enrollment_number')
+                ->chunkById(100, function ($students) {
+                    foreach ($students as $student) {
+                        $student->update(['biometric_employee_code' => $student->enrollment_number]);
+                    }
+                });
+            return true;
+        } catch (\Exception $e) {
+            $this->error("Failed to fix student mappings: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    private function fixPendingMigrations(array $issue): bool
+    {
+        try {
+            Artisan::call('migrate', ['--force' => true]);
+            return true;
+        } catch (\Exception $e) {
+            $this->error("Failed to run migrations: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    private function fixBackupHealth(array $issue): bool
+    {
+        if ($issue['type'] === 'backup_disabled') {
+            try {
+                Setting::updateOrCreate(['key' => 'auto_backup'], ['value' => '1']);
+                return true;
+            } catch (\Exception $e) {
+                $this->error("Failed to enable auto backup: " . $e->getMessage());
+                return false;
+            }
+        }
+        return false;
     }
 
     private function clearCaches(): void

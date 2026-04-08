@@ -1,0 +1,8 @@
+- [x] `system:diagnose` command exists and runs correctly
+- [x] `system:diagnose` output includes database, cache, file permissions, and external service checks
+- [x] `system:diagnose` correctly identifies and reports log exceptions
+- [x] `system:fix` command includes new checks for ETimeOffice and Backup health
+- [x] `system:fix` identifies missing biometric mappings for active students
+- [x] `system:fix` detects and offers to fix stalled ETimeOffice syncs
+- [x] All tests in `system:final-test` still pass
+- [x] Summary report provided at the end of `system:diagnose`
