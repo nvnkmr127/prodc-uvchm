@@ -2,20 +2,20 @@
 
 namespace App\Models;
 
+use App\Traits\HasAcademicYear;
+use App\Traits\WebhookEnabled;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasMany; // <-- FIX: Added the missing import
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
-use Illuminate\Database\Eloquent\Relations\HasOne; // <-- FIX: Added the missing import
-use App\Traits\WebhookEnabled;
-use App\Traits\HasAcademicYear;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Batch extends Model
 {
-    use WebhookEnabled;
-    use HasFactory;
     use HasAcademicYear;
+    use HasFactory;
+    use WebhookEnabled;
 
     protected $fillable = [
         'academic_year_id',
@@ -25,7 +25,7 @@ class Batch extends Model
         'end_date',
         'status',
         'is_on_internship',
-        'internship_start_date'
+        'internship_start_date',
     ];
 
     protected $casts = [
@@ -33,7 +33,17 @@ class Batch extends Model
         'end_date' => 'date',
         'is_on_internship' => 'boolean', // [ADDED]
         'internship_start_date' => 'date',
+        'status' => 'string',
     ];
+
+    /**
+     * Check if batch is active
+     */
+    public function getIsActiveAttribute(): bool
+    {
+        return $this->status === 'active';
+    }
+
     /**
      * A Batch belongs to one Course.
      */
@@ -76,7 +86,7 @@ class Batch extends Model
      */
     public function subjects(): HasManyThrough
     {
-        // This relationship seems complex and might not be correct. 
+        // This relationship seems complex and might not be correct.
         // A direct relationship might be better if subjects can be batch-specific.
         // For now, leaving as is.
         return $this->hasManyThrough(Subject::class, Course::class, 'id', 'id', 'course_id', 'id');

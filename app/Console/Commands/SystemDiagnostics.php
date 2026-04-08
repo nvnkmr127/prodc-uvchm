@@ -38,8 +38,8 @@ class SystemDiagnostics extends Command
         $healthExitCode = Artisan::call('health:check');
         $healthOutput = Artisan::output();
         $results['Health Check'] = [
-            'status' => $healthExitCode === 0 ? '✅ Passed' : '❌ Failed',
-            'details' => $this->option('full') ? $healthOutput : 'Use --full to see details'
+            'status' => $healthExitCode === Command::SUCCESS ? '✅ Passed' : '❌ Failed',
+            'details' => $this->option('full') ? $healthOutput : 'Use --full to see details',
         ];
 
         // 2. Execute System Final Test
@@ -47,8 +47,8 @@ class SystemDiagnostics extends Command
         $finalTestExitCode = Artisan::call('system:final-test');
         $finalTestOutput = Artisan::output();
         $results['Final System Test'] = [
-            'status' => $finalTestExitCode === 0 ? '✅ Passed' : '❌ Failed',
-            'details' => $this->option('full') ? $finalTestOutput : 'Use --full to see details'
+            'status' => $finalTestExitCode === Command::SUCCESS ? '✅ Passed' : '❌ Failed',
+            'details' => $this->option('full') ? $finalTestOutput : 'Use --full to see details',
         ];
 
         // 3. Execute Backup Monitor
@@ -56,24 +56,24 @@ class SystemDiagnostics extends Command
         $backupExitCode = Artisan::call('backup:monitor');
         $backupOutput = Artisan::output();
         $results['Backup Monitor'] = [
-            'status' => $backupExitCode === 0 ? '✅ Healthy' : '⚠️ Issues',
-            'details' => $this->option('full') ? $backupOutput : 'Use --full to see details'
+            'status' => $backupExitCode === Command::SUCCESS ? '✅ Healthy' : '⚠️ Issues',
+            'details' => $this->option('full') ? $backupOutput : 'Use --full to see details',
         ];
 
         // 4. Analyze Laravel Log
         $this->info('📝 Analyzing laravel.log...');
         $logAnalysis = $this->analyzeLog();
         $results['Log Analysis'] = [
-            'status' => $logAnalysis['errors_found'] > 0 ? '⚠️ ' . $logAnalysis['errors_found'] . ' Errors Found' : '✅ No Recent Errors',
-            'details' => $logAnalysis['summary']
+            'status' => $logAnalysis['errors_found'] > 0 ? '⚠️ '.$logAnalysis['errors_found'].' Errors Found' : '✅ No Recent Errors',
+            'details' => $logAnalysis['summary'],
         ];
 
         // 5. Validate .env Keys
         $this->info('🔑 Validating .env keys...');
         $envValidation = $this->validateEnv();
         $results['Env Validation'] = [
-            'status' => $envValidation['missing_count'] === 0 ? '✅ Valid' : '❌ ' . $envValidation['missing_count'] . ' Keys Missing/Invalid',
-            'details' => $envValidation['summary']
+            'status' => $envValidation['missing_count'] === 0 ? '✅ Valid' : '❌ '.$envValidation['missing_count'].' Keys Missing/Invalid',
+            'details' => $envValidation['summary'],
         ];
 
         // Display Summary Table
@@ -104,7 +104,7 @@ class SystemDiagnostics extends Command
     private function analyzeLog()
     {
         $logPath = storage_path('logs/laravel.log');
-        if (!File::exists($logPath)) {
+        if (! File::exists($logPath)) {
             return ['errors_found' => 0, 'summary' => 'Log file not found'];
         }
 
@@ -124,9 +124,9 @@ class SystemDiagnostics extends Command
 
         return [
             'errors_found' => $errorCount,
-            'summary' => $errorCount > 0 
-                ? 'Found ' . $errorCount . ' errors. Last 5: ' . implode(', ', $recentErrors)
-                : 'Checked last 200 lines.'
+            'summary' => $errorCount > 0
+                ? 'Found '.$errorCount.' errors. Last 5: '.implode(', ', $recentErrors)
+                : 'Checked last 200 lines.',
         ];
     }
 
@@ -151,7 +151,7 @@ class SystemDiagnostics extends Command
             if (empty($value)) {
                 $missing[] = $key;
             }
-            
+
             // Special check for APP_KEY default
             if ($key === 'APP_KEY' && $value === 'base64:bTR4N2czamV5OWJyYzVnM3Y0Y21ib2VzdWxpa3VjNmc=') {
                 $missing[] = 'APP_KEY (Default detected)';
@@ -160,9 +160,9 @@ class SystemDiagnostics extends Command
 
         return [
             'missing_count' => count($missing),
-            'summary' => count($missing) > 0 
-                ? 'Missing/Invalid: ' . implode(', ', $missing)
-                : 'All critical keys present.'
+            'summary' => count($missing) > 0
+                ? 'Missing/Invalid: '.implode(', ', $missing)
+                : 'All critical keys present.',
         ];
     }
 }

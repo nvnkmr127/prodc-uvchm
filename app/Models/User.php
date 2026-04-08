@@ -3,33 +3,31 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Notifications\Notifiable;
-use Spatie\Permission\Traits\HasRoles;
-use Laravel\Sanctum\HasApiTokens; // Add this import
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use App\Traits\WebhookEnabled;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable; // Add this import
+use Laravel\Sanctum\HasApiTokens;
+use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
-    use WebhookEnabled;
-
-    use HasFactory, Notifiable, HasRoles, HasApiTokens; // Add HasApiTokens trait
+    use HasApiTokens, HasFactory, HasRoles, Notifiable;
+    use WebhookEnabled; // Add HasApiTokens trait
 
     /**
      * The attributes that are mass assignable.
      *
      * @var array<int, string>
      */
-   protected $fillable = [
+    protected $fillable = [
         'name',
         'email',
         'password',
         'status',
-        'email_verified_at'
+        'email_verified_at',
     ];
-
 
     /**
      * The attributes that should be hidden for serialization.
@@ -53,8 +51,6 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
-    
-    
 
     /**
      * Get the student profile associated with the user.
@@ -63,13 +59,13 @@ class User extends Authenticatable
     {
         return $this->hasOne(Student::class);
     }
-    
- /**
+
+    /**
      * Get the user's status badge color
      */
     public function getStatusBadgeAttribute()
     {
-        return match($this->status) {
+        return match ($this->status) {
             'active' => 'success',
             'inactive' => 'secondary',
             'suspended' => 'danger',
@@ -92,73 +88,83 @@ class User extends Authenticatable
     {
         return $this->status === 'suspended';
     }
-    
+
     public function dashboardPreferences()
-{
-    return $this->hasMany(UserDashboardPreference::class);
-}
+    {
+        return $this->hasMany(UserDashboardPreference::class);
+    }
 
-public function getDefaultDashboard()
-{
-    $userRoles = $this->getRoleNames();
-    
-    if ($userRoles->isEmpty()) {
-        return null;
-    }
-    
-    // Get the first role's default dashboard
-    $roleName = $userRoles->first();
-    $role = Role::where('name', $roleName)->first();
-    
-    if (!$role) {
-        return null;
-    }
-    
-    return Dashboard::where('role_id', $role->id)
-                   ->where('is_default', true)
-                   ->where('is_active', true)
-                   ->first();
-}
+    public function getDefaultDashboard()
+    {
+        $userRoles = $this->getRoleNames();
 
-public function getDashboardForRole($roleName = null)
-{
-    if (!$roleName) {
-        $roleName = $this->getRoleNames()->first();
+        if ($userRoles->isEmpty()) {
+            return null;
+        }
+
+        // Get the first role's default dashboard
+        $roleName = $userRoles->first();
+        $role = Role::where('name', $roleName)->first();
+
+        if (! $role) {
+            return null;
+        }
+
+        return Dashboard::where('role_id', $role->id)
+            ->where('is_default', true)
+            ->where('is_active', true)
+            ->first();
     }
-    
-    $role = Role::where('name', $roleName)->first();
-    
-    if (!$role) {
-        return null;
+
+    public function getDashboardForRole($roleName = null)
+    {
+        if (! $roleName) {
+            $roleName = $this->getRoleNames()->first();
+        }
+
+        $role = Role::where('name', $roleName)->first();
+
+        if (! $role) {
+            return null;
+        }
+
+        // Check for user-customized dashboard first
+        $preference = $this->dashboardPreferences()
+            ->whereHas('dashboard', function ($query) use ($role) {
+                $query->where('role_id', $role->id);
+            })
+            ->orderBy('last_accessed_at', 'desc')
+            ->first();
+
+        if ($preference) {
+            return $preference->dashboard;
+        }
+
+        // Fall back to default dashboard for role
+        return Dashboard::where('role_id', $role->id)
+            ->where('is_default', true)
+            ->where('is_active', true)
+            ->first();
     }
-    
-    // Check for user-customized dashboard first
-    $preference = $this->dashboardPreferences()
-                      ->whereHas('dashboard', function ($query) use ($role) {
-                          $query->where('role_id', $role->id);
-                      })
-                      ->orderBy('last_accessed_at', 'desc')
-                      ->first();
-    
-    if ($preference) {
-        return $preference->dashboard;
-    }
-    
-    // Fall back to default dashboard for role
-    return Dashboard::where('role_id', $role->id)
-                   ->where('is_default', true)
-                   ->where('is_active', true)
-                   ->first();
-}
 
     /**
      * Get the subjects assigned to this faculty member.
      */
-public function subjects()
-{
-    return $this->belongsToMany(Subject::class, 'subject_user', 'user_id', 'subject_id')
-                ->withTimestamps();
-}
+    public function subjects()
+    {
+        return $this->belongsToMany(Subject::class, 'subject_user', 'user_id', 'subject_id')
+            ->withTimestamps();
+    }
+
+    /**
+     * Get the batches assigned to this faculty member through the timetable.
+     */
+    public function assignedBatches(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(Batch::class, 'timetables', 'user_id', 'batch_id')
+            ->distinct()
+            ->withTimestamps();
+    }
 
     /**
      * Get the salary structure for this user.

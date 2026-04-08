@@ -2,14 +2,14 @@
 
 namespace App\Traits\Attendance;
 
-use App\Models\Student;
+use App\Models\Attendance\Attendance;
 use App\Models\Batch;
+use App\Models\Student;
 use App\Models\Subject;
 use App\Models\User;
-use App\Models\Attendance\Attendance;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
-use Carbon\Carbon;
 
 trait ValidatesData
 {
@@ -29,7 +29,7 @@ trait ValidatesData
             'late_minutes' => 'nullable|integer|min:0|max:1440',
             'biometric_log_id' => 'nullable|integer|exists:biometric_logs,id',
             'location' => 'nullable|string|max:255',
-            'device_id' => 'nullable|string|max:100'
+            'device_id' => 'nullable|string|max:100',
         ];
 
         $messages = [
@@ -46,7 +46,7 @@ trait ValidatesData
             'status.in' => 'Invalid attendance status',
             'late_minutes.integer' => 'Late minutes must be a number',
             'late_minutes.min' => 'Late minutes cannot be negative',
-            'late_minutes.max' => 'Late minutes cannot exceed 24 hours'
+            'late_minutes.max' => 'Late minutes cannot exceed 24 hours',
         ];
 
         $validator = Validator::make($data, $rules, $messages);
@@ -80,10 +80,10 @@ trait ValidatesData
             }
         }
 
-        if (!empty($errors)) {
+        if (! empty($errors)) {
             throw ValidationException::withMessages([
                 'bulk_validation' => 'Some records failed validation',
-                'errors' => $errors
+                'errors' => $errors,
             ]);
         }
 
@@ -130,10 +130,10 @@ trait ValidatesData
      */
     public function validateAttendancePermissions(array $data, ?int $userId = null): bool
     {
-        $userId = $userId ?? auth()->id();
+        $userId = $userId ?? \Illuminate\Support\Facades\Auth::id();
         $user = User::find($userId);
 
-        if (!$user) {
+        if (! $user) {
             return false;
         }
 
@@ -167,25 +167,25 @@ trait ValidatesData
     {
         $errors = [];
         $attendanceDate = Carbon::parse($date);
-        
+
         // Check if date is in the future
-        if ($attendanceDate->isFuture() && !($options['allow_future'] ?? false)) {
+        if ($attendanceDate->isFuture() && ! ($options['allow_future'] ?? false)) {
             $errors[] = 'Cannot mark attendance for future dates';
         }
 
         // Check if date is too far in the past
         $maxPastDays = config('attendance.security.max_past_days', 30);
-        if ($attendanceDate->lt(now()->subDays($maxPastDays)) && !($options['admin_override'] ?? false)) {
+        if ($attendanceDate->lt(now()->subDays($maxPastDays)) && ! ($options['admin_override'] ?? false)) {
             $errors[] = "Cannot mark attendance for dates older than {$maxPastDays} days";
         }
 
         // Check if it's a weekend (if weekend attendance is disabled)
-        if (!config('attendance.weekend_working_enabled', false) && $attendanceDate->isWeekend()) {
+        if (! config('attendance.weekend_working_enabled', false) && $attendanceDate->isWeekend()) {
             $errors[] = 'Weekend attendance is not enabled';
         }
 
         // Check if it's a holiday
-        if ($this->isHoliday($attendanceDate) && !($options['allow_holidays'] ?? false)) {
+        if ($this->isHoliday($attendanceDate) && ! ($options['allow_holidays'] ?? false)) {
             $errors[] = 'Cannot mark attendance on holidays';
         }
 
@@ -200,7 +200,7 @@ trait ValidatesData
         $errors = [];
 
         // If no current status, any status is allowed for new records
-        if (!$currentStatus) {
+        if (! $currentStatus) {
             return $errors;
         }
 
@@ -209,13 +209,13 @@ trait ValidatesData
             'present' => ['late', 'absent', 'excused'],
             'absent' => ['present', 'late', 'excused'],
             'late' => ['present', 'absent', 'excused'],
-            'excused' => ['present', 'absent', 'late']
+            'excused' => ['present', 'absent', 'late'],
         ];
 
         // Check if transition is allowed
-        if (!in_array($newStatus, $allowedTransitions[$currentStatus] ?? [])) {
+        if (! in_array($newStatus, $allowedTransitions[$currentStatus] ?? [])) {
             // Allow admin override
-            if (!($options['admin_override'] ?? false)) {
+            if (! ($options['admin_override'] ?? false)) {
                 $errors[] = "Cannot change status from '{$currentStatus}' to '{$newStatus}'";
             }
         }
@@ -226,7 +226,7 @@ trait ValidatesData
             $timeSinceMarked = now()->diffInHours($attendance->marked_at);
             $timeLimit = config('attendance.security.edit_time_limit_hours', 24);
 
-            if ($timeSinceMarked > $timeLimit && !($options['admin_override'] ?? false)) {
+            if ($timeSinceMarked > $timeLimit && ! ($options['admin_override'] ?? false)) {
                 $errors[] = "Cannot modify attendance after {$timeLimit} hours";
             }
         }
@@ -242,14 +242,16 @@ trait ValidatesData
         $errors = [];
 
         $student = Student::find($studentId);
-        if (!$student) {
+        if (! $student) {
             $errors[] = 'Student not found';
+
             return $errors;
         }
 
         $batch = Batch::find($batchId);
-        if (!$batch) {
+        if (! $batch) {
             $errors[] = 'Batch not found';
+
             return $errors;
         }
 
@@ -259,12 +261,12 @@ trait ValidatesData
         }
 
         // Check if student is active
-        if (!$student->is_active) {
+        if (! $student->is_active) {
             $errors[] = 'Cannot mark attendance for inactive student';
         }
 
         // Check if batch is active
-        if (!$batch->is_active) {
+        if (! $batch->is_active) {
             $errors[] = 'Cannot mark attendance for inactive batch';
         }
 
@@ -280,7 +282,7 @@ trait ValidatesData
 
         if ($data['status'] === 'late') {
             // Late minutes are required for late status
-            if (!isset($data['late_minutes']) || $data['late_minutes'] <= 0) {
+            if (! isset($data['late_minutes']) || $data['late_minutes'] <= 0) {
                 $errors[] = 'Late minutes are required when status is late';
             }
 
@@ -332,7 +334,7 @@ trait ValidatesData
 
         // Validate batch-student compatibility
         $compatibilityErrors = $this->validateBatchStudentCompatibility(
-            $data['student_id'], 
+            $data['student_id'],
             $data['batch_id']
         );
         $errors = array_merge($errors, $compatibilityErrors);
@@ -348,9 +350,9 @@ trait ValidatesData
         );
         $errors = array_merge($errors, $quotaErrors);
 
-        if (!empty($errors)) {
+        if (! empty($errors)) {
             throw ValidationException::withMessages([
-                'business_rules' => $errors
+                'business_rules' => $errors,
             ]);
         }
     }
@@ -379,14 +381,6 @@ trait ValidatesData
             }
         }
 
-        // Check if faculty is the class teacher
-        if (isset($data['batch_id'])) {
-            $batch = Batch::find($data['batch_id']);
-            if ($batch && $batch->class_teacher_id === $faculty->id) {
-                return true;
-            }
-        }
-
         return false;
     }
 
@@ -395,15 +389,15 @@ trait ValidatesData
         $combinations = [];
 
         foreach ($validated as $data) {
-            $key = $data['student_id'] . '|' . $data['attendance_date'];
-            
+            $key = $data['student_id'].'|'.$data['attendance_date'];
+
             if (isset($data['subject_id'])) {
-                $key .= '|' . $data['subject_id'];
+                $key .= '|'.$data['subject_id'];
             }
 
             if (in_array($key, $combinations)) {
                 throw ValidationException::withMessages([
-                    'duplicate_records' => 'Duplicate attendance records found in bulk data'
+                    'duplicate_records' => 'Duplicate attendance records found in bulk data',
                 ]);
             }
 
@@ -419,7 +413,7 @@ trait ValidatesData
 
             if ($existingQuery->exists()) {
                 throw ValidationException::withMessages([
-                    'existing_records' => "Attendance already exists for student ID {$data['student_id']} on {$data['attendance_date']}"
+                    'existing_records' => "Attendance already exists for student ID {$data['student_id']} on {$data['attendance_date']}",
                 ]);
             }
         }
@@ -429,11 +423,11 @@ trait ValidatesData
     {
         // This would integrate with a holiday management system
         // For now, return false - can be enhanced to check against holiday calendar
-        
+
         // Basic implementation - check if it's a major holiday
         $holidays = config('attendance.holidays', []);
         $dateString = $date->format('m-d'); // Month-day format
-        
+
         return in_array($dateString, $holidays);
     }
 }

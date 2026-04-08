@@ -2,35 +2,34 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Builder;
-use Spatie\Activitylog\Traits\LogsActivity;
-use Spatie\Activitylog\LogOptions;
 use App\Traits\StudentPhotoHelper;
-use App\Services\ComponentPaymentService;
-use Illuminate\Support\Facades\Schema;
 use App\Traits\WebhookEnabled;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Schema;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class Student extends Model
 {
-    use WebhookEnabled;
     use HasFactory, LogsActivity, StudentPhotoHelper;
+    use WebhookEnabled;
 
     /**
-     * Boot method 
+     * Boot method
      */
     protected static function boot()
     {
         parent::boot();
 
         // Apply Global Scope for Academic Year (via Batch)
-        if (config('app.enable_academic_year_global_scope', true) && !app()->runningInConsole() && !request()->is('api/*')) {
+        if (config('app.enable_academic_year_global_scope', true) && ! app()->runningInConsole() && ! request()->is('api/*')) {
             static::addGlobalScope('academic_year', function (Builder $builder) {
                 $selectedYearId = session('selected_academic_year_id');
                 // Default to current year if session not set (optional, consistent with HasAcademicYear)
-                if (!$selectedYearId) {
+                if (! $selectedYearId) {
                     $currentYear = \App\Models\AcademicYear::where('is_current', true)->first();
                     $selectedYearId = $currentYear?->id;
                 }
@@ -48,7 +47,15 @@ class Student extends Model
     protected $primaryKey = 'id';
 
     // If you need to use student_id elsewhere, create a custom accessor
-    protected $appends = ['student_id'];
+    protected $appends = ['student_id', 'is_active'];
+
+    /**
+     * Check if student is active
+     */
+    public function getIsActiveAttribute(): bool
+    {
+        return $this->status === 'active';
+    }
 
     protected $fillable = [
         'name',
@@ -109,7 +116,7 @@ class Student extends Model
      */
     public function getAgeAttribute()
     {
-        if (!$this->dob) {
+        if (! $this->dob) {
             return null;
         }
 
@@ -119,9 +126,9 @@ class Student extends Model
         $years = (int) $dob->diffInYears($now);
         $months = (int) $dob->copy()->addYears($years)->diffInMonths($now);
 
-        $ageString = $years . ' Years';
+        $ageString = $years.' Years';
         if ($months > 0) {
-            $ageString .= ', ' . $months . ' Months';
+            $ageString .= ', '.$months.' Months';
         }
 
         return $ageString;
@@ -142,7 +149,7 @@ class Student extends Model
     protected $dates = [
         'admission_date',
         'created_at',
-        'updated_at'
+        'updated_at',
     ];
 
     // ===================================
@@ -192,7 +199,7 @@ class Student extends Model
         }
 
         // Optional: Don't log if the user is not logged in (System actions)
-        if (!auth()->check()) {
+        if (! auth()->check()) {
             return false;
         }
 
@@ -368,8 +375,9 @@ class Student extends Model
     {
         $mobiles = array_filter([
             $this->student_mobile ? "Student: {$this->student_mobile}" : null,
-            $this->father_mobile ? "Father: {$this->father_mobile}" : null
+            $this->father_mobile ? "Father: {$this->father_mobile}" : null,
         ]);
+
         return implode(', ', $mobiles) ?: 'No Contact Info';
     }
 
@@ -486,6 +494,7 @@ class Student extends Model
         if ($currentYear) {
             return $this->practicalGroupsForYear($currentYear->id);
         }
+
         return $this->practicalGroups()->where('id', null); // Return empty relationship
     }
 
@@ -524,18 +533,18 @@ class Student extends Model
                 'total_concession' => 0, // We don't track this separately for dropouts
                 'payment_status' => 'dropout',
                 'final_outstanding_at_dropout' => $this->final_outstanding_amount,
-                'dropout_info' => $this->getDropoutSummary()
+                'dropout_info' => $this->getDropoutSummary(),
             ];
         }
 
         // Standard logic for active/graduated students
-        if (!Schema::hasTable('student_fees')) {
+        if (! Schema::hasTable('student_fees')) {
             return [
                 'total_fees' => 0,
                 'total_paid' => 0,
                 'total_outstanding' => 0,
                 'total_concession' => 0,
-                'payment_status' => 'no_system'
+                'payment_status' => 'no_system',
             ];
         }
 
@@ -553,7 +562,7 @@ class Student extends Model
             'total_paid' => $totalPaid,
             'total_outstanding' => $totalOutstanding,
             'total_concession' => $totalConcession,
-            'payment_status' => $totalOutstanding > 0 ? 'pending' : 'completed'
+            'payment_status' => $totalOutstanding > 0 ? 'pending' : 'completed',
         ];
     }
 
@@ -566,7 +575,7 @@ class Student extends Model
             return false; // Dropout students don't have "outstanding" fees in the operational sense
         }
 
-        if (!Schema::hasTable('student_fees')) {
+        if (! Schema::hasTable('student_fees')) {
             return false;
         }
 
@@ -580,7 +589,7 @@ class Student extends Model
      */
     public function getOverdueFees()
     {
-        if ($this->isDropout() || !Schema::hasTable('student_fees')) {
+        if ($this->isDropout() || ! Schema::hasTable('student_fees')) {
             return collect();
         }
 
@@ -631,7 +640,7 @@ class Student extends Model
      */
     public function getDropoutDuration(): ?int
     {
-        if (!$this->isDropout() || !$this->dropout_date) {
+        if (! $this->isDropout() || ! $this->dropout_date) {
             return null;
         }
 
@@ -643,7 +652,7 @@ class Student extends Model
      */
     public function getDropoutSummary(): array
     {
-        if (!$this->isDropout()) {
+        if (! $this->isDropout()) {
             return [];
         }
 
@@ -655,7 +664,7 @@ class Student extends Model
             'total_paid' => $this->total_paid_amount,
             'processed_by' => $this->processedBy->name ?? 'Unknown',
             'processed_at' => $this->dropout_processed_at,
-            'can_be_reactivated' => true // Add business logic here if needed
+            'can_be_reactivated' => true, // Add business logic here if needed
         ];
     }
 
@@ -709,10 +718,12 @@ class Student extends Model
      */
     public function getAttendancePercentage($startDate = null, $endDate = null, $ignoreScope = false): float
     {
-        if (!$startDate)
+        if (! $startDate) {
             $startDate = now()->startOfMonth();
-        if (!$endDate)
+        }
+        if (! $endDate) {
             $endDate = now()->endOfMonth();
+        }
 
         $query = $this->attendances();
         if ($ignoreScope) {
@@ -723,8 +734,9 @@ class Student extends Model
             ->whereBetween('attendance_date', [$startDate, $endDate])
             ->count();
 
-        if ($totalClasses === 0)
+        if ($totalClasses === 0) {
             return 0;
+        }
 
         $presentClasses = $query
             ->whereBetween('attendance_date', [$startDate, $endDate])
@@ -747,8 +759,8 @@ class Student extends Model
      */
     public function generateNewEnrollmentNumber(): string
     {
-        if (!$this->batch) {
-            return 'UNASSIGNED-' . time();
+        if (! $this->batch) {
+            return 'UNASSIGNED-'.time();
         }
 
         $settings = Setting::all()->keyBy('key');
@@ -791,6 +803,7 @@ class Student extends Model
         if ($remainingAmount <= 0) {
             return 'paid';
         }
+
         return 'unpaid';
     }
 
@@ -832,7 +845,7 @@ class Student extends Model
         }
 
         if (Schema::hasTable('student_fees')) {
-            return $this->unpaidFees()->get()->sum(fn($fee) => $fee->getRemainingAmount());
+            return $this->unpaidFees()->get()->sum(fn ($fee) => $fee->getRemainingAmount());
         }
 
         return 0.0;
@@ -876,11 +889,11 @@ class Student extends Model
                 'gender',
                 'status',
                 'dropout_date',
-                'dropout_reason' // Added dropout fields
+                'dropout_reason', // Added dropout fields
             ])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs()
-            ->setDescriptionForEvent(fn(string $eventName) => match ($eventName) {
+            ->setDescriptionForEvent(fn (string $eventName) => match ($eventName) {
                 'created' => 'Student profile created',
                 'updated' => 'Student profile updated',
                 'deleted' => 'Student profile deleted',
@@ -900,7 +913,7 @@ class Student extends Model
                 'old_status' => $oldStatus,
                 'new_status' => $newStatus,
                 'reason' => $reason,
-                'type' => 'status_change'
+                'type' => 'status_change',
             ])
             ->log("Student status changed from {$oldStatus} to {$newStatus}");
     }
@@ -918,7 +931,7 @@ class Student extends Model
                 'new_batch_id' => $newBatchId,
                 'old_batch_name' => $oldBatch?->name,
                 'new_batch_name' => $newBatch?->name,
-                'type' => 'batch_change'
+                'type' => 'batch_change',
             ])
             ->log("Student transferred from {$oldBatch?->name} to {$newBatch?->name}");
     }
@@ -931,8 +944,8 @@ class Student extends Model
             ->withProperties([
                 'fee_structure_id' => $feeStructureId,
                 'components_generated' => $componentsCount,
-                'academic_year' => date('Y') . '-' . (date('Y') + 1),
-                'type' => 'fee_generation'
+                'academic_year' => date('Y').'-'.(date('Y') + 1),
+                'type' => 'fee_generation',
             ])
             ->log("Fee components generated - {$componentsCount} components created");
     }
@@ -949,7 +962,7 @@ class Student extends Model
                 'dropout_date' => $this->dropout_date,
                 'dropout_reason' => $reason,
                 'financial_summary' => $financialSummary,
-                'type' => 'student_dropout'
+                'type' => 'student_dropout',
             ])
             ->log("Student marked as dropout: {$reason}");
     }
@@ -965,7 +978,7 @@ class Student extends Model
             ->withProperties([
                 'reactivation_reason' => $reason,
                 'previous_dropout_date' => $this->dropout_date,
-                'type' => 'student_reactivation'
+                'type' => 'student_reactivation',
             ])
             ->log("Student reactivated from dropout: {$reason}");
     }

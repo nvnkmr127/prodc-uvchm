@@ -2,13 +2,13 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Artisan;
 use App\Models\Setting;
 use App\Models\Student;
 use Carbon\Carbon;
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 
 class FixSystemIssues extends Command
@@ -26,28 +26,30 @@ class FixSystemIssues extends Command
 
         $this->info('🔧 College Management System - Issue Fixer');
         $this->info('============================================');
-        
+
         if ($dryRun) {
             $this->warn('🔍 DRY RUN MODE - No changes will be made');
             $this->newLine();
         }
 
         $issues = $this->detectIssues();
-        
+
         if (empty($issues)) {
             $this->info('✅ No issues detected! Your system appears to be healthy.');
+
             return Command::SUCCESS;
         }
 
-        $this->warn("🚨 Found " . count($issues) . " issues:");
+        $this->warn('🚨 Found '.count($issues).' issues:');
         foreach ($issues as $issue) {
             $this->line("   • {$issue['description']}");
         }
         $this->newLine();
 
-        if (!$force && !$dryRun) {
-            if (!$this->confirm('Do you want to fix these issues?')) {
+        if (! $force && ! $dryRun) {
+            if (! $this->confirm('Do you want to fix these issues?')) {
                 $this->info('Operation cancelled.');
+
                 return Command::SUCCESS;
             }
         }
@@ -59,14 +61,14 @@ class FixSystemIssues extends Command
             $this->info("🔧 Fixing: {$issue['description']}");
 
             try {
-                if (!$dryRun) {
+                if (! $dryRun) {
                     $result = $this->fixIssue($issue);
                     if ($result) {
                         $fixed++;
-                        $this->info("   ✅ Fixed successfully");
+                        $this->info('   ✅ Fixed successfully');
                     } else {
                         $failed++;
-                        $this->error("   ❌ Failed to fix");
+                        $this->error('   ❌ Failed to fix');
                     }
                 } else {
                     $this->info("   🔍 Would fix: {$issue['type']}");
@@ -74,12 +76,12 @@ class FixSystemIssues extends Command
                 }
             } catch (\Exception $e) {
                 $failed++;
-                $this->error("   ❌ Error: " . $e->getMessage());
+                $this->error('   ❌ Error: '.$e->getMessage());
             }
         }
 
         $this->newLine();
-        
+
         if ($dryRun) {
             $this->info("🔍 Dry run completed. {$fixed} issues would be fixed.");
         } else {
@@ -89,14 +91,14 @@ class FixSystemIssues extends Command
             }
         }
 
-        if (!$dryRun && $fixed > 0) {
+        if (! $dryRun && $fixed > 0) {
             $this->info('🧹 Clearing caches...');
             $this->clearCaches();
         }
 
         $this->newLine();
         $this->info('🎉 System fix operation completed!');
-        
+
         return Command::SUCCESS;
     }
 
@@ -105,11 +107,11 @@ class FixSystemIssues extends Command
         $issues = [];
 
         // Check for missing settings table
-        if (!Schema::hasTable('settings')) {
+        if (! Schema::hasTable('settings')) {
             $issues[] = [
                 'type' => 'missing_table',
                 'description' => 'Settings table does not exist',
-                'table' => 'settings'
+                'table' => 'settings',
             ];
         }
 
@@ -152,12 +154,12 @@ class FixSystemIssues extends Command
         foreach ($requiredColumns as $table => $columns) {
             if (Schema::hasTable($table)) {
                 foreach ($columns as $column) {
-                    if (!Schema::hasColumn($table, $column)) {
+                    if (! Schema::hasColumn($table, $column)) {
                         $issues[] = [
                             'type' => 'missing_column',
                             'description' => "Missing column '{$column}' in '{$table}' table",
                             'table' => $table,
-                            'column' => $column
+                            'column' => $column,
                         ];
                     }
                 }
@@ -184,7 +186,7 @@ class FixSystemIssues extends Command
                     $issues[] = [
                         'type' => 'orphaned_students',
                         'description' => "{$orphanedStudents} students with invalid batch references",
-                        'count' => $orphanedStudents
+                        'count' => $orphanedStudents,
                     ];
                 }
             }
@@ -207,7 +209,7 @@ class FixSystemIssues extends Command
                         'type' => 'old_column',
                         'description' => "Old unused column '{$column}' in courses table",
                         'table' => 'courses',
-                        'column' => $column
+                        'column' => $column,
                     ];
                 }
             }
@@ -221,28 +223,28 @@ class FixSystemIssues extends Command
         switch ($issue['type']) {
             case 'missing_table':
                 return $this->createMissingTable($issue);
-            
+
             case 'missing_column':
                 return $this->addMissingColumn($issue);
-            
+
             case 'old_column':
                 return $this->removeOldColumn($issue);
-            
+
             case 'orphaned_students':
                 return $this->fixOrphanedStudents($issue);
-            
+
             case 'stalled_sync':
                 return $this->fixStalledSyncs($issue);
-            
+
             case 'missing_mapping':
                 return $this->fixETimeOfficeMappings($issue);
-            
+
             case 'pending_migrations':
                 return $this->fixPendingMigrations($issue);
-            
+
             case 'backup_disabled':
                 return $this->fixBackupHealth($issue);
-            
+
             default:
                 return false;
         }
@@ -253,12 +255,15 @@ class FixSystemIssues extends Command
         if ($issue['table'] === 'settings') {
             try {
                 Artisan::call('migrate', ['--force' => true]);
+
                 return true;
             } catch (\Exception $e) {
-                $this->error("Failed to create settings table: " . $e->getMessage());
+                $this->error('Failed to create settings table: '.$e->getMessage());
+
                 return false;
             }
         }
+
         return false;
     }
 
@@ -278,7 +283,7 @@ class FixSystemIssues extends Command
                         break;
                     case 'status':
                         $tableSchema->enum('status', ['active', 'inactive', 'graduated', 'transferred', 'suspended'])
-                                   ->default('active');
+                            ->default('active');
                         break;
                     case 'enrollment_number':
                         $tableSchema->string('enrollment_number', 50)->nullable();
@@ -293,9 +298,11 @@ class FixSystemIssues extends Command
                         $tableSchema->string($column)->nullable();
                 }
             });
+
             return true;
         } catch (\Exception $e) {
-            $this->error("Failed to add column {$issue['column']}: " . $e->getMessage());
+            $this->error("Failed to add column {$issue['column']}: ".$e->getMessage());
+
             return false;
         }
     }
@@ -306,9 +313,11 @@ class FixSystemIssues extends Command
             Schema::table($issue['table'], function ($table) use ($issue) {
                 $table->dropColumn($issue['column']);
             });
+
             return true;
         } catch (\Exception $e) {
-            $this->error("Failed to remove column {$issue['column']}: " . $e->getMessage());
+            $this->error("Failed to remove column {$issue['column']}: ".$e->getMessage());
+
             return false;
         }
     }
@@ -322,10 +331,11 @@ class FixSystemIssues extends Command
                 ->whereNull('batches.id')
                 ->whereNotNull('students.batch_id')
                 ->update(['students.batch_id' => null]);
-            
+
             return true;
         } catch (\Exception $e) {
-            $this->error("Failed to fix orphaned students: " . $e->getMessage());
+            $this->error('Failed to fix orphaned students: '.$e->getMessage());
+
             return false;
         }
     }
@@ -343,23 +353,24 @@ class FixSystemIssues extends Command
                 $issues[] = [
                     'type' => 'stalled_sync',
                     'description' => "{$stalledSyncs} ETimeOffice sync(s) appear to be stalled",
-                    'count' => $stalledSyncs
+                    'count' => $stalledSyncs,
                 ];
             }
         }
+
         return $issues;
     }
 
     private function checkBackupHealth(): array
     {
         $issues = [];
-        
+
         // Check if auto backup is enabled
         $autoBackup = Setting::where('key', 'auto_backup')->value('value');
-        if (!$autoBackup || !filter_var($autoBackup, FILTER_VALIDATE_BOOLEAN)) {
+        if (! $autoBackup || ! filter_var($autoBackup, FILTER_VALIDATE_BOOLEAN)) {
             $issues[] = [
                 'type' => 'backup_disabled',
-                'description' => 'Auto backup is disabled in settings'
+                'description' => 'Auto backup is disabled in settings',
             ];
         }
 
@@ -368,32 +379,32 @@ class FixSystemIssues extends Command
             $disks = config('backup.backup.destination.disks', ['local']);
             $disk = Storage::disk($disks[0]);
             $appName = config('backup.backup.name', config('app.name', 'Laravel'));
-            
+
             if ($disk->exists($appName)) {
                 $files = $disk->files($appName);
                 $lastModified = null;
-                
+
                 foreach ($files as $file) {
                     if (pathinfo($file, PATHINFO_EXTENSION) === 'zip') {
                         $modified = $disk->lastModified($file);
-                        if (!$lastModified || $modified > $lastModified) {
+                        if (! $lastModified || $modified > $lastModified) {
                             $lastModified = $modified;
                         }
                     }
                 }
-                
+
                 if ($lastModified) {
                     $lastBackupDate = Carbon::createFromTimestamp($lastModified);
                     if ($lastBackupDate->diffInDays(now()) > 1) {
                         $issues[] = [
                             'type' => 'backup_outdated',
-                            'description' => "Last backup was more than 24 hours ago ({$lastBackupDate->diffForHumans()})"
+                            'description' => "Last backup was more than 24 hours ago ({$lastBackupDate->diffForHumans()})",
                         ];
                     }
                 } else {
                     $issues[] = [
                         'type' => 'no_backups',
-                        'description' => 'No backup files found in storage'
+                        'description' => 'No backup files found in storage',
                     ];
                 }
             }
@@ -417,10 +428,11 @@ class FixSystemIssues extends Command
                 $issues[] = [
                     'type' => 'missing_mapping',
                     'description' => "{$unmappedStudents} active students are missing ETimeOffice biometric mapping",
-                    'count' => $unmappedStudents
+                    'count' => $unmappedStudents,
                 ];
             }
         }
+
         return $issues;
     }
 
@@ -430,16 +442,17 @@ class FixSystemIssues extends Command
         try {
             Artisan::call('migrate:status');
             $output = Artisan::output();
-            
+
             if (stripos($output, 'Pending') !== false) {
                 $issues[] = [
                     'type' => 'pending_migrations',
-                    'description' => 'There are pending database migrations'
+                    'description' => 'There are pending database migrations',
                 ];
             }
         } catch (\Exception $e) {
             // Migration status check failed
         }
+
         return $issues;
     }
 
@@ -452,11 +465,13 @@ class FixSystemIssues extends Command
                 ->update([
                     'status' => 'failed',
                     'errors' => json_encode(['Sync stalled and was automatically marked as failed']),
-                    'completed_at' => now()
+                    'completed_at' => now(),
                 ]);
+
             return true;
         } catch (\Exception $e) {
-            $this->error("Failed to fix stalled syncs: " . $e->getMessage());
+            $this->error('Failed to fix stalled syncs: '.$e->getMessage());
+
             return false;
         }
     }
@@ -464,17 +479,34 @@ class FixSystemIssues extends Command
     private function fixETimeOfficeMappings(array $issue): bool
     {
         try {
-            $count = Student::where('status', 'active')
+            $query = Student::where('status', 'active')
                 ->whereNull('biometric_employee_code')
-                ->whereNotNull('enrollment_number')
-                ->chunkById(100, function ($students) {
-                    foreach ($students as $student) {
-                        $student->update(['biometric_employee_code' => $student->enrollment_number]);
-                    }
-                });
+                ->whereNotNull('enrollment_number');
+
+            $count = $query->count();
+
+            if ($count === 0) {
+                return true;
+            }
+
+            if (! $this->option('force')) {
+                if (! $this->confirm("This will map {$count} active students' biometric codes to their enrollment numbers. Is this correct?")) {
+                    $this->warn('   ⏭️  Skipping biometric mapping');
+
+                    return true;
+                }
+            }
+
+            $query->chunkById(100, function ($students) {
+                foreach ($students as $student) {
+                    $student->update(['biometric_employee_code' => $student->enrollment_number]);
+                }
+            });
+
             return true;
         } catch (\Exception $e) {
-            $this->error("Failed to fix student mappings: " . $e->getMessage());
+            $this->error('Failed to fix student mappings: '.$e->getMessage());
+
             return false;
         }
     }
@@ -482,10 +514,20 @@ class FixSystemIssues extends Command
     private function fixPendingMigrations(array $issue): bool
     {
         try {
+            if (app()->isProduction() && ! $this->option('force')) {
+                if (! $this->confirm('System is in PRODUCTION. Are you sure you want to force run pending migrations?', false)) {
+                    $this->warn('   ⏭️  Skipping migrations in production');
+
+                    return true;
+                }
+            }
+
             Artisan::call('migrate', ['--force' => true]);
+
             return true;
         } catch (\Exception $e) {
-            $this->error("Failed to run migrations: " . $e->getMessage());
+            $this->error('Failed to run migrations: '.$e->getMessage());
+
             return false;
         }
     }
@@ -495,12 +537,15 @@ class FixSystemIssues extends Command
         if ($issue['type'] === 'backup_disabled') {
             try {
                 Setting::updateOrCreate(['key' => 'auto_backup'], ['value' => '1']);
+
                 return true;
             } catch (\Exception $e) {
-                $this->error("Failed to enable auto backup: " . $e->getMessage());
+                $this->error('Failed to enable auto backup: '.$e->getMessage());
+
                 return false;
             }
         }
+
         return false;
     }
 
@@ -513,7 +558,7 @@ class FixSystemIssues extends Command
             Artisan::call('view:clear');
             $this->info('✅ Caches cleared successfully');
         } catch (\Exception $e) {
-            $this->warn('⚠️  Some caches could not be cleared: ' . $e->getMessage());
+            $this->warn('⚠️  Some caches could not be cleared: '.$e->getMessage());
         }
     }
 }

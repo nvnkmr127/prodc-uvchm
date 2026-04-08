@@ -13,7 +13,7 @@ class ComponentPaymentItem extends Model
         'payment_id',
         'student_fee_id',
         'amount_paid',  // ✅ CORRECT COLUMN NAME
-        'notes'
+        'notes',
     ];
 
     protected $casts = [
@@ -23,7 +23,7 @@ class ComponentPaymentItem extends Model
     /**
      * Get the payment that owns this item
      */
-    public function payment()
+    public function payment(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(Payment::class);
     }
@@ -31,7 +31,7 @@ class ComponentPaymentItem extends Model
     /**
      * Get the student fee that this payment item is for
      */
-    public function studentFee()
+    public function studentFee(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(StudentFee::class);
     }

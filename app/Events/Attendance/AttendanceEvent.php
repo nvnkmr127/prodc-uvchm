@@ -1,4 +1,5 @@
 <?php
+
 // File: app/Events/Attendance/AttendanceEvent.php
 
 namespace App\Events\Attendance;
@@ -6,7 +7,6 @@ namespace App\Events\Attendance;
 use App\Models\Attendance\Attendance;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
-use Illuminate\Broadcasting\PresenceChannel;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
@@ -16,11 +16,13 @@ class AttendanceEvent implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
-    public Attendance $attendance;
+    public ?Attendance $attendance;
+
     public string $action;
+
     public array $metadata;
 
-    public function __construct(string $action, Attendance $attendance, array $metadata = [])
+    public function __construct(string $action, ?Attendance $attendance = null, array $metadata = [])
     {
         $this->action = $action;
         $this->attendance = $attendance;
@@ -32,11 +34,14 @@ class AttendanceEvent implements ShouldBroadcast
      */
     public function broadcastOn(): array
     {
-        return [
-            new PrivateChannel('attendance.' . $this->attendance->batch_id),
-            new PrivateChannel('student.' . $this->attendance->student_id),
-            new Channel('attendance.updates')
-        ];
+        $channels = [new Channel('attendance.updates')];
+
+        if ($this->attendance) {
+            $channels[] = new PrivateChannel('attendance.'.$this->attendance->batch_id);
+            $channels[] = new PrivateChannel('student.'.$this->attendance->student_id);
+        }
+
+        return $channels;
     }
 
     /**
@@ -44,9 +49,14 @@ class AttendanceEvent implements ShouldBroadcast
      */
     public function broadcastWith(): array
     {
-        return [
+        $data = [
             'action' => $this->action,
-            'attendance' => [
+            'metadata' => $this->metadata,
+            'timestamp' => now()->toISOString(),
+        ];
+
+        if ($this->attendance) {
+            $data['attendance'] = [
                 'id' => $this->attendance->id,
                 'student_id' => $this->attendance->student_id,
                 'student_name' => $this->attendance->student->name,
@@ -54,11 +64,11 @@ class AttendanceEvent implements ShouldBroadcast
                 'batch_name' => $this->attendance->batch->name,
                 'status' => $this->attendance->status,
                 'attendance_date' => $this->attendance->attendance_date->format('Y-m-d'),
-                'marked_at' => $this->attendance->marked_at->toISOString()
-            ],
-            'metadata' => $this->metadata,
-            'timestamp' => now()->toISOString()
-        ];
+                'marked_at' => $this->attendance->marked_at->toISOString(),
+            ];
+        }
+
+        return $data;
     }
 
     /**
@@ -66,6 +76,6 @@ class AttendanceEvent implements ShouldBroadcast
      */
     public function broadcastAs(): string
     {
-        return 'attendance.' . $this->action;
+        return 'attendance.'.$this->action;
     }
 }
