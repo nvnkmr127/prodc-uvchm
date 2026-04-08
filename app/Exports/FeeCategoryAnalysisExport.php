@@ -5,14 +5,15 @@ namespace App\Exports;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
-use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 use Maatwebsite\Excel\Concerns\WithStyles;
+use Maatwebsite\Excel\Concerns\WithTitle;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class FeeCategoryAnalysisExport implements WithMultipleSheets
 {
     protected $data;
+
     protected $type;
 
     public function __construct($data, $type = 'overview')
@@ -29,15 +30,15 @@ class FeeCategoryAnalysisExport implements WithMultipleSheets
             case 'overview':
                 $sheets[] = new FeeCategoryOverviewSheet($this->data);
                 break;
-                
+
             case 'detailed':
                 $sheets[] = new FeeCategoryDetailedSheet($this->data);
                 break;
-                
+
             case 'pending':
                 $sheets[] = new FeeCategoryPendingSheet($this->data);
                 break;
-                
+
             default:
                 $sheets[] = new FeeCategoryOverviewSheet($this->data);
         }
@@ -46,7 +47,7 @@ class FeeCategoryAnalysisExport implements WithMultipleSheets
     }
 }
 
-class FeeCategoryOverviewSheet implements FromCollection, WithHeadings, WithMapping, WithTitle, WithStyles
+class FeeCategoryOverviewSheet implements FromCollection, WithHeadings, WithMapping, WithStyles, WithTitle
 {
     protected $data;
 
@@ -81,7 +82,7 @@ class FeeCategoryOverviewSheet implements FromCollection, WithHeadings, WithMapp
             'Average Fee Amount',
             'Earliest Due Date',
             'Latest Due Date',
-            'Status'
+            'Status',
         ];
     }
 
@@ -138,7 +139,7 @@ class FeeCategoryOverviewSheet implements FromCollection, WithHeadings, WithMapp
                 \Carbon\Carbon::parse($category->earliest_due_date)->format('Y-m-d') : 'N/A',
             isset($category->latest_due_date) && $category->latest_due_date ?
                 \Carbon\Carbon::parse($category->latest_due_date)->format('Y-m-d') : 'N/A',
-            $status
+            $status,
         ];
     }
 
@@ -157,7 +158,7 @@ class FeeCategoryOverviewSheet implements FromCollection, WithHeadings, WithMapp
     }
 }
 
-class FeeCategoryDetailedSheet implements FromCollection, WithHeadings, WithMapping, WithTitle, WithStyles
+class FeeCategoryDetailedSheet implements FromCollection, WithHeadings, WithMapping, WithStyles, WithTitle
 {
     protected $data;
 
@@ -185,7 +186,7 @@ class FeeCategoryDetailedSheet implements FromCollection, WithHeadings, WithMapp
             'Balance',
             'Status',
             'Due Date',
-            'Last Payment Date'
+            'Last Payment Date',
         ];
     }
 
@@ -197,21 +198,21 @@ class FeeCategoryDetailedSheet implements FromCollection, WithHeadings, WithMapp
         $course = $fee->student->batch->course->name ?? 'N/A';
         $batch = $fee->student->batch->name ?? 'N/A';
         $category = $fee->feeCategory->name ?? 'N/A';
-        
+
         // Financials
         $amount = $fee->amount ?? 0;
         $concession = $fee->concession_amount ?? 0;
         $paid = $fee->paid_amount ?? 0;
         $balance = $amount - $concession - $paid;
-        
+
         // Status & Dates
         $status = ucfirst($fee->status ?? 'pending');
         $dueDate = $fee->due_date ? \Carbon\Carbon::parse($fee->due_date)->format('Y-m-d') : 'N/A';
-        
+
         // Get last payment date if available
         $lastPayment = 'N/A';
         // Check if 'payments' relationship exists and is loaded
-        if(isset($fee->payments) && $fee->payments->isNotEmpty()) {
+        if (isset($fee->payments) && $fee->payments->isNotEmpty()) {
             $lastPayment = $fee->payments->sortByDesc('payment_date')->first()->payment_date->format('Y-m-d');
         }
 
@@ -227,7 +228,7 @@ class FeeCategoryDetailedSheet implements FromCollection, WithHeadings, WithMapp
             number_format($balance, 2, '.', ''),
             $status,
             $dueDate,
-            $lastPayment
+            $lastPayment,
         ];
     }
 
@@ -246,7 +247,7 @@ class FeeCategoryDetailedSheet implements FromCollection, WithHeadings, WithMapp
     }
 }
 
-class FeeCategoryPendingSheet implements FromCollection, WithHeadings, WithMapping, WithTitle, WithStyles
+class FeeCategoryPendingSheet implements FromCollection, WithHeadings, WithMapping, WithStyles, WithTitle
 {
     protected $data;
 
@@ -279,7 +280,7 @@ class FeeCategoryPendingSheet implements FromCollection, WithHeadings, WithMappi
             'Student Mobile',
             'Father Mobile',
             'Contact Email',
-            'Last Payment Date'
+            'Last Payment Date',
         ];
     }
 
@@ -365,7 +366,7 @@ class FeeCategoryPendingSheet implements FromCollection, WithHeadings, WithMappi
             $studentMobile,
             $fatherMobile,
             $email,
-            $lastPaymentDate
+            $lastPaymentDate,
         ];
     }
 

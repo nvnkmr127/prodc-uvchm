@@ -2,8 +2,8 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -14,31 +14,31 @@ return new class extends Migration
     {
         // First, ensure category_type exists in fee_categories table
         Schema::table('fee_categories', function (Blueprint $table) {
-            if (!Schema::hasColumn('fee_categories', 'category_type')) {
+            if (! Schema::hasColumn('fee_categories', 'category_type')) {
                 $table->enum('category_type', [
-                    'tuition_fee', 
-                    'uniform_fee', 
-                    'library_fee', 
-                    'exam_fee', 
-                    'lab_fee', 
-                    'transport_fee', 
+                    'tuition_fee',
+                    'uniform_fee',
+                    'library_fee',
+                    'exam_fee',
+                    'lab_fee',
+                    'transport_fee',
                     'hostel_fee',
                     'sports_fee',
                     'registration_fee',
                     'caution_deposit',
-                    'other'
+                    'other',
                 ])->default('other')->after('name');
             }
         });
 
         // Add component tracking fields to payments table (if not exists)
         Schema::table('payments', function (Blueprint $table) {
-            if (!Schema::hasColumn('payments', 'component_details')) {
+            if (! Schema::hasColumn('payments', 'component_details')) {
                 $table->json('component_details')->nullable()->after('notes')
                     ->comment('JSON array of fee components paid in this transaction');
             }
-            
-            if (!Schema::hasColumn('payments', 'payment_type')) {
+
+            if (! Schema::hasColumn('payments', 'payment_type')) {
                 $table->enum('payment_type', ['full', 'partial', 'component', 'bulk'])
                     ->default('full')->after('payment_method')
                     ->comment('Type of payment: full invoice, partial, component-wise, or bulk');
@@ -47,25 +47,25 @@ return new class extends Migration
 
         // Enhance student_fees table with additional tracking
         Schema::table('student_fees', function (Blueprint $table) {
-            if (!Schema::hasColumn('student_fees', 'payment_id')) {
+            if (! Schema::hasColumn('student_fees', 'payment_id')) {
                 $table->foreignId('payment_id')->nullable()->after('invoice_id')
                     ->constrained('payments')->onDelete('set null')
                     ->comment('Reference to the payment that settled this fee');
             }
-            
-            if (!Schema::hasColumn('student_fees', 'partial_payments')) {
+
+            if (! Schema::hasColumn('student_fees', 'partial_payments')) {
                 $table->json('partial_payments')->nullable()->after('transaction_id')
                     ->comment('Track multiple partial payments for this fee component');
             }
-            
-            if (!Schema::hasColumn('student_fees', 'original_amount')) {
+
+            if (! Schema::hasColumn('student_fees', 'original_amount')) {
                 $table->decimal('original_amount', 10, 2)->nullable()->after('amount')
                     ->comment('Original amount before any splits due to partial payments');
             }
         });
 
         // Create component payment tracking table
-        if (!Schema::hasTable('component_payments')) {
+        if (! Schema::hasTable('component_payments')) {
             Schema::create('component_payments', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('payment_id')->constrained()->onDelete('cascade');
@@ -75,7 +75,7 @@ return new class extends Migration
                 $table->decimal('amount', 10, 2);
                 $table->text('notes')->nullable();
                 $table->timestamps();
-                
+
                 $table->index(['payment_id', 'fee_category_id']);
                 $table->index(['student_id', 'fee_category_id']);
             });
@@ -119,11 +119,11 @@ return new class extends Migration
     public function down(): void
     {
         // Drop the view first
-        DB::statement("DROP VIEW IF EXISTS component_payment_summary");
-        
+        DB::statement('DROP VIEW IF EXISTS component_payment_summary');
+
         // Drop component_payments table
         Schema::dropIfExists('component_payments');
-        
+
         // Remove added columns from student_fees
         Schema::table('student_fees', function (Blueprint $table) {
             if (Schema::hasColumn('student_fees', 'payment_id')) {
@@ -137,7 +137,7 @@ return new class extends Migration
                 $table->dropColumn('original_amount');
             }
         });
-        
+
         // Remove added columns from payments
         Schema::table('payments', function (Blueprint $table) {
             if (Schema::hasColumn('payments', 'component_details')) {

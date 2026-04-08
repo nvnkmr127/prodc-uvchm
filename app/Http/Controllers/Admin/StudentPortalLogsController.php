@@ -3,11 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\StudentPortalActivityLog;
 use App\Models\Student;
+use App\Models\StudentPortalActivityLog;
 use App\Services\SuspiciousActivityDetector;
-use Illuminate\Http\Request;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 
 class StudentPortalLogsController extends Controller
 {
@@ -32,10 +32,10 @@ class StudentPortalLogsController extends Controller
         }
 
         // Filter by date range (Default to today if not provided to satisfy user request)
-        if (!$request->has('date_from')) {
+        if (! $request->has('date_from')) {
             $request->merge(['date_from' => Carbon::today()->format('Y-m-d')]);
         }
-        if (!$request->has('date_to')) {
+        if (! $request->has('date_to')) {
             $request->merge(['date_to' => Carbon::today()->format('Y-m-d')]);
         }
 
@@ -74,7 +74,7 @@ class StudentPortalLogsController extends Controller
 
         $logs = $query->get();
 
-        $filename = 'student_portal_logs_' . date('Y-m-d_His') . '.csv';
+        $filename = 'student_portal_logs_'.date('Y-m-d_His').'.csv';
 
         $headers = [
             'Content-Type' => 'text/csv',
@@ -96,14 +96,14 @@ class StudentPortalLogsController extends Controller
                 'Timestamp',
                 'Suspicious',
                 'Flagged Reason',
-                'Metadata'
+                'Metadata',
             ]);
 
             // Data rows
             foreach ($logs as $log) {
                 $location = '';
                 if ($log->location_data) {
-                    $location = ($log->location_data['city'] ?? '') . ', ' . ($log->location_data['country'] ?? '');
+                    $location = ($log->location_data['city'] ?? '').', '.($log->location_data['country'] ?? '');
                 }
 
                 fputcsv($file, [
@@ -117,7 +117,7 @@ class StudentPortalLogsController extends Controller
                     $log->created_at->format('Y-m-d H:i:s'),
                     $log->is_suspicious ? 'Yes' : 'No',
                     $log->flagged_reason ?? '',
-                    json_encode($log->metadata)
+                    json_encode($log->metadata),
                 ]);
             }
 
@@ -187,6 +187,7 @@ class StudentPortalLogsController extends Controller
     public function show($id)
     {
         $log = StudentPortalActivityLog::with('student')->findOrFail($id);
+
         return view('admin.student-portal-logs.show', compact('log'));
     }
 }

@@ -2,18 +2,19 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
 use App\Models\AcademicYear;
+use App\Models\Admission;
 use App\Models\Batch;
 use App\Models\Payment;
 use App\Models\Student;
-use App\Models\Admission;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class DiagnoseAcademicYear extends Command
 {
     protected $signature = 'academic-year:diagnose';
+
     protected $description = 'Diagnose academic year filtering issues';
 
     public function handle()
@@ -62,7 +63,7 @@ class DiagnoseAcademicYear extends Command
                 $distribution = Batch::select('academic_year_id', DB::raw('count(*) as count'))
                     ->groupBy('academic_year_id')
                     ->get();
-                $this->line("  Distribution by Year:");
+                $this->line('  Distribution by Year:');
                 foreach ($distribution as $dist) {
                     $yearName = $dist->academic_year_id ? AcademicYear::find($dist->academic_year_id)?->name : 'NULL';
                     $this->line("    - Year {$yearName}: {$dist->count} batches");
@@ -82,7 +83,7 @@ class DiagnoseAcademicYear extends Command
                 ->select('batches.academic_year_id', DB::raw('count(*) as count'))
                 ->groupBy('batches.academic_year_id')
                 ->get();
-            $this->line("  Distribution by Year (via batch):");
+            $this->line('  Distribution by Year (via batch):');
             foreach ($studentsPerYear as $dist) {
                 $yearName = $dist->academic_year_id ? AcademicYear::find($dist->academic_year_id)?->name : 'NULL';
                 $this->line("    - Year {$yearName}: {$dist->count} students");
@@ -109,7 +110,7 @@ class DiagnoseAcademicYear extends Command
                 $distribution = Payment::select('academic_year_id', DB::raw('count(*) as count'))
                     ->groupBy('academic_year_id')
                     ->get();
-                $this->line("  Distribution by Year:");
+                $this->line('  Distribution by Year:');
                 foreach ($distribution as $dist) {
                     $yearName = $dist->academic_year_id ? AcademicYear::find($dist->academic_year_id)?->name : 'NULL';
                     $this->line("    - Year {$yearName}: {$dist->count} payments");
@@ -139,7 +140,7 @@ class DiagnoseAcademicYear extends Command
                 $distribution = Admission::select('academic_year_id', DB::raw('count(*) as count'))
                     ->groupBy('academic_year_id')
                     ->get();
-                $this->line("  Distribution by Year:");
+                $this->line('  Distribution by Year:');
                 foreach ($distribution as $dist) {
                     $yearName = $dist->academic_year_id ? AcademicYear::find($dist->academic_year_id)?->name : 'NULL';
                     $this->line("    - Year {$yearName}: {$dist->count} admissions");
@@ -167,6 +168,7 @@ class DiagnoseAcademicYear extends Command
         }
 
         $this->newLine();
+
         return 0;
     }
 }

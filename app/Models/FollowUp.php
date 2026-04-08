@@ -2,25 +2,25 @@
 
 namespace App\Models;
 
+use App\Traits\WebhookEnabled;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
-use App\Traits\WebhookEnabled;
-use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class FollowUp extends Model
 {
-    use WebhookEnabled;
     use HasFactory, LogsActivity;
+    use WebhookEnabled;
 
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
             ->logOnly(['notes'])
             ->logOnlyDirty()
-            ->setDescriptionForEvent(fn(string $eventName) => "Follow-up note was {$eventName}");
+            ->setDescriptionForEvent(fn (string $eventName) => "Follow-up note was {$eventName}");
     }
 
     /**
@@ -29,10 +29,10 @@ class FollowUp extends Model
      * @var array<int, string>
      */
     protected $fillable = [
-        'user_id', 
-        'notes', 
-        'followable_id', 
-        'followable_type'
+        'user_id',
+        'notes',
+        'followable_id',
+        'followable_type',
     ];
 
     /**

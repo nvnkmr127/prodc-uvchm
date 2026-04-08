@@ -3,34 +3,32 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Support\Facades\Auth;
-use App\Models\User;
-use App\Models\Student;
-use App\Models\Course;
-use App\Models\Batch;
-use App\Models\Timetable;
-use App\Models\Enquiry;
-use App\Models\Payment;
-use App\Models\Expense;
-use App\Models\StudentFee;
-use App\Models\ComponentPaymentItem;
-use App\Models\FeeCategory;
+use App\Models\Asset;
 use App\Models\Attendance;
-use App\Services\DashboardService;
+use App\Models\Batch;
+use App\Models\Course;
+use App\Models\Enquiry;
+use App\Models\Expense;
+use App\Models\FeeCategory;
+use App\Models\FollowUp;
+use App\Models\InboundWebhook;
+use App\Models\LeaveApplication;
+use App\Models\Payment;
+use App\Models\Student;
+use App\Models\StudentFee;
+use App\Models\Subject;
+use App\Models\User;
 use App\Services\ComponentPaymentService;
+use App\Services\DashboardService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
-use Carbon\Carbon;
-use App\Models\Asset;
-use App\Models\LeaveApplication;
-use App\Models\Subject;
-use App\Models\FollowUp;
-use App\Models\InboundWebhook;
 
 class DashboardController extends Controller
 {
     protected $dashboardService;
+
     protected $componentPaymentService;
 
     public function __construct(DashboardService $dashboardService, ComponentPaymentService $componentPaymentService)
@@ -69,12 +67,11 @@ class DashboardController extends Controller
 
         $data = [
             'user' => $user,
-            'dashboard_data' => $realDashboardData
+            'dashboard_data' => $realDashboardData,
         ];
 
         return view('admin.dashboard.super-admin', $data);
     }
-
 
     /**
      * College Admin Dashboard - Administrative overview with enhanced component metrics
@@ -86,7 +83,7 @@ class DashboardController extends Controller
 
         $data = [
             'user' => $user,
-            'dashboard_data' => $realDashboardData
+            'dashboard_data' => $realDashboardData,
         ];
 
         return view('admin.dashboard.college-admin', $data);
@@ -102,7 +99,7 @@ class DashboardController extends Controller
 
         $data = [
             'user' => $user,
-            'dashboard_data' => $realDashboardData
+            'dashboard_data' => $realDashboardData,
         ];
 
         return view('accountant.dashboard', $data);
@@ -118,7 +115,7 @@ class DashboardController extends Controller
 
         $data = [
             'user' => $user,
-            'dashboard_data' => $realDashboardData
+            'dashboard_data' => $realDashboardData,
         ];
 
         return view('faculty.dashboard', $data);
@@ -134,7 +131,7 @@ class DashboardController extends Controller
 
         $data = [
             'user' => $user,
-            'dashboard_data' => $realDashboardData
+            'dashboard_data' => $realDashboardData,
         ];
 
         return view('staff.dashboard', $data);
@@ -147,7 +144,7 @@ class DashboardController extends Controller
     {
         $student = $user->student ?? Student::where('email', $user->email)->first();
 
-        if (!$student) {
+        if (! $student) {
             return redirect('/profile')->with('error', 'Please complete your student profile.');
         }
 
@@ -160,7 +157,7 @@ class DashboardController extends Controller
             'upcoming_events' => $this->getMyUpcomingEvents($student),
             'recent_payments' => $this->getMyRecentPayments($student),
             'outstanding_fees' => $this->getMyOutstandingFees($student),
-            'payment_history' => $this->getMyPaymentHistory($student)
+            'payment_history' => $this->getMyPaymentHistory($student),
         ];
 
         return view('student.dashboard', $data);
@@ -250,7 +247,7 @@ class DashboardController extends Controller
             'collection_efficiency' => $collectionEfficiency,
             'overdue_amount' => $this->getOverdueAmount(),
             'collection_rate' => $this->getCollectionRate(),
-            'average_payment_time' => $this->getAveragePaymentTime()
+            'average_payment_time' => $this->getAveragePaymentTime(),
         ];
     }
 
@@ -273,7 +270,7 @@ class DashboardController extends Controller
                 ->sum('amount'),
             'pending_collections' => $this->calculateTotalOutstanding(),
             'collection_targets' => $this->getCollectionTargets(),
-            'payment_methods_breakdown' => $this->getPaymentMethodBreakdown()
+            'payment_methods_breakdown' => $this->getPaymentMethodBreakdown(),
         ];
     }
 
@@ -293,7 +290,7 @@ class DashboardController extends Controller
                         ->whereIn('status', ['unpaid', 'partial'])
                         ->whereRaw('amount - paid_amount - concession_amount > 0')
                         ->with('feeCategory');
-                }
+                },
             ])
             ->get();
 
@@ -302,7 +299,7 @@ class DashboardController extends Controller
             'total_overdue_amount' => 0,
             'defaulters_by_category' => [],
             'defaulters_by_batch' => [],
-            'recovery_potential' => 0
+            'recovery_potential' => 0,
         ];
 
         foreach ($defaulters as $student) {
@@ -312,10 +309,10 @@ class DashboardController extends Controller
 
                 // Category breakdown
                 $categoryName = $fee->feeCategory->name ?? 'Unknown';
-                if (!isset($analysis['defaulters_by_category'][$categoryName])) {
+                if (! isset($analysis['defaulters_by_category'][$categoryName])) {
                     $analysis['defaulters_by_category'][$categoryName] = [
                         'count' => 0,
-                        'amount' => 0
+                        'amount' => 0,
                     ];
                 }
                 $analysis['defaulters_by_category'][$categoryName]['count']++;
@@ -383,7 +380,7 @@ class DashboardController extends Controller
             'inventory_stats' => [
                 'total_assets' => Asset::count(),
                 'total_value' => Asset::sum('purchase_price') ?? 0,
-                'assigned_assets' => Asset::where('condition', 'Good')->count()
+                'assigned_assets' => Asset::where('condition', 'Good')->count(),
             ],
             'hr_stats' => [
                 'pending_leaves' => LeaveApplication::where('status', 'Pending')->count(),
@@ -406,7 +403,7 @@ class DashboardController extends Controller
 
             // System Health
             'concurrent_sessions' => $this->getConcurrentSessions(),
-            'birthdays' => $this->getBirthdayData()
+            'birthdays' => $this->getBirthdayData(),
         ];
     }
 
@@ -466,6 +463,7 @@ class DashboardController extends Controller
     {
         $total = Enquiry::count();
         $converted = Enquiry::where('status', 'Admitted')->count();
+
         return $total > 0 ? round(($converted / $total) * 100, 1) : 0;
     }
 
@@ -531,7 +529,7 @@ class DashboardController extends Controller
             'today_count' => Payment::whereDate('payment_date', $today)->where('payment_type', 'component')->count(),
             'payment_methods' => $paymentMethods,
             'hourly_distribution' => $hourlyPayments,
-            'avg_payment_amount' => $todayPayments > 0 ? round($todayPayments / max(1, Payment::whereDate('payment_date', $today)->where('payment_type', 'component')->count())) : 0
+            'avg_payment_amount' => $todayPayments > 0 ? round($todayPayments / max(1, Payment::whereDate('payment_date', $today)->where('payment_type', 'component')->count())) : 0,
         ];
     }
 
@@ -559,7 +557,7 @@ class DashboardController extends Controller
                 'category_name' => $categoryName ?: 'Unknown',
                 'total_amount' => $totalAmount,
                 'fee_count' => $fees->count(),
-                'student_count' => $fees->pluck('student_id')->unique()->count()
+                'student_count' => $fees->pluck('student_id')->unique()->count(),
             ];
         });
 
@@ -572,7 +570,7 @@ class DashboardController extends Controller
             return [
                 'course_name' => $courseName ?: 'Unknown',
                 'total_amount' => $totalAmount,
-                'student_count' => $fees->pluck('student_id')->unique()->count()
+                'student_count' => $fees->pluck('student_id')->unique()->count(),
             ];
         });
 
@@ -587,9 +585,10 @@ class DashboardController extends Controller
             }),
             'due_this_week' => $pendingFees->whereBetween('due_date', [now(), now()->addWeek()])->sum(function ($fee) {
                 return max(0, ($fee->amount ?? 0) - ($fee->paid_amount ?? 0) - ($fee->concession_amount ?? 0));
-            })
+            }),
         ];
     }
+
     /**
      * Get recent payments with detailed information
      */
@@ -615,11 +614,10 @@ class DashboardController extends Controller
                     'created_by' => $payment->createdBy->name ?? 'System',
                     'created_at' => $payment->created_at,
                     'time_ago' => $payment->created_at->diffForHumans(),
-                    'components_paid' => $payment->componentItems->count() ?? 0
+                    'components_paid' => $payment->componentItems->count() ?? 0,
                 ];
             });
     }
-
 
     /**
      * Get students who haven't made any component payments
@@ -652,7 +650,7 @@ class DashboardController extends Controller
         // Calculate total outstanding for non-paying students
         $totalOutstandingNonPaying = $nonPayingStudents->sum(function ($student) {
             return collect($student->studentFees)->sum(function ($fee) {
-                return max(0, (float)($fee->amount ?? 0) - (float)($fee->paid_amount ?? 0) - (float)($fee->concession_amount ?? 0));
+                return max(0, (float) ($fee->amount ?? 0) - (float) ($fee->paid_amount ?? 0) - (float) ($fee->concession_amount ?? 0));
             });
         });
 
@@ -671,7 +669,7 @@ class DashboardController extends Controller
                     'outstanding_amount' => $outstandingAmount,
                     'total_fees' => $student->studentFees->count(),
                     'admission_date' => $student->created_at,
-                    'days_since_admission' => $student->created_at->diffInDays(now())
+                    'days_since_admission' => $student->created_at->diffInDays(now()),
                 ];
             }),
             'partial_paying_students' => $partialPayingStudents->map(function ($student) {
@@ -688,14 +686,14 @@ class DashboardController extends Controller
                     'total_amount' => $totalAmount,
                     'paid_amount' => $paidAmount,
                     'outstanding_amount' => $outstandingAmount,
-                    'payment_percentage' => $totalAmount > 0 ? round(($paidAmount / $totalAmount) * 100, 1) : 0
+                    'payment_percentage' => $totalAmount > 0 ? round(($paidAmount / $totalAmount) * 100, 1) : 0,
                 ];
             }),
             'total_non_paying' => $nonPayingStudents->count(),
             'total_partial_paying' => $partialPayingStudents->count(),
             'total_outstanding_non_paying' => $totalOutstandingNonPaying,
             'avg_outstanding_per_student' => $nonPayingStudents->count() > 0 ?
-                round($totalOutstandingNonPaying / $nonPayingStudents->count()) : 0
+                round($totalOutstandingNonPaying / $nonPayingStudents->count()) : 0,
         ];
     }
 
@@ -719,7 +717,7 @@ class DashboardController extends Controller
                 'date' => $date->format('M d'),
                 'amount' => $dailyAmount,
                 'count' => $dailyCount,
-                'avg_amount' => $dailyCount > 0 ? round($dailyAmount / $dailyCount) : 0
+                'avg_amount' => $dailyCount > 0 ? round($dailyAmount / $dailyCount) : 0,
             ];
         }
 
@@ -737,9 +735,9 @@ class DashboardController extends Controller
                 ->count();
 
             $weeklyTrends[] = [
-                'week' => $weekStart->format('M d') . ' - ' . $weekEnd->format('M d'),
+                'week' => $weekStart->format('M d').' - '.$weekEnd->format('M d'),
                 'amount' => $weeklyAmount,
-                'count' => $weeklyCount
+                'count' => $weeklyCount,
             ];
         }
 
@@ -747,7 +745,7 @@ class DashboardController extends Controller
             'daily_trends' => $dailyTrends,
             'weekly_trends' => $weeklyTrends,
             'peak_day' => collect($dailyTrends)->sortByDesc('amount')->first(),
-            'peak_week' => collect($weeklyTrends)->sortByDesc('amount')->first()
+            'peak_week' => collect($weeklyTrends)->sortByDesc('amount')->first(),
         ];
     }
 
@@ -766,11 +764,11 @@ class DashboardController extends Controller
                 return [
                     'type' => 'payment',
                     'user' => $payment->student->name ?? 'Unknown',
-                    'action' => 'Made component payment of ₹' . number_format($payment->amount),
+                    'action' => 'Made component payment of ₹'.number_format($payment->amount),
                     'time' => $payment->created_at->diffForHumans(),
                     'icon' => 'fa-rupee-sign',
                     'color' => 'success',
-                    'meta' => 'Payment ID: ' . $payment->receipt_number
+                    'meta' => 'Payment ID: '.$payment->receipt_number,
                 ];
             });
 
@@ -783,11 +781,11 @@ class DashboardController extends Controller
                 return [
                     'type' => 'fee_assignment',
                     'user' => 'System',
-                    'action' => 'Fee assigned to ' . ($fee->student->name ?? 'Unknown') . ' - ' . ($fee->feeCategory->name ?? 'Unknown'),
+                    'action' => 'Fee assigned to '.($fee->student->name ?? 'Unknown').' - '.($fee->feeCategory->name ?? 'Unknown'),
                     'time' => $fee->created_at->diffForHumans(),
                     'icon' => 'fa-file-invoice',
                     'color' => 'info',
-                    'meta' => '₹' . number_format($fee->amount)
+                    'meta' => '₹'.number_format($fee->amount),
                 ];
             });
 
@@ -799,11 +797,11 @@ class DashboardController extends Controller
                 return [
                     'type' => 'admission',
                     'user' => 'Admin',
-                    'action' => 'New student admission - ' . $student->name,
+                    'action' => 'New student admission - '.$student->name,
                     'time' => $student->created_at->diffForHumans(),
                     'icon' => 'fa-user-plus',
                     'color' => 'primary',
-                    'meta' => 'Student ID: ' . $student->id
+                    'meta' => 'Student ID: '.$student->id,
                 ];
             });
 
@@ -835,7 +833,7 @@ class DashboardController extends Controller
             'active_today' => $activeToday,
             'on_leave' => $onLeave,
             'top_performers' => 0,
-            'avg_rating' => 0
+            'avg_rating' => 0,
         ];
     }
 
@@ -856,7 +854,7 @@ class DashboardController extends Controller
             $performance[$course->name] = [
                 'students' => $totalStudents,
                 'pass_rate' => 0,
-                'satisfaction' => 0
+                'satisfaction' => 0,
             ];
         }
 
@@ -893,10 +891,9 @@ class DashboardController extends Controller
             'outstanding' => $outstanding,
             'collection_rate' => $collectionRate,
             'overdue' => $overdue,
-            'advance' => $advance
+            'advance' => $advance,
         ];
     }
-
 
     /**
      * Get recent component-based transactions
@@ -916,13 +913,12 @@ class DashboardController extends Controller
                     'components' => $payment->componentItems->map(function ($item) {
                         return [
                             'category' => $item->studentFee->feeCategory->name ?? 'Unknown',
-                            'amount' => $item->amount_paid
+                            'amount' => $item->amount_paid,
                         ];
-                    })
+                    }),
                 ];
             });
     }
-
 
     /**
      * Get real defaulters analysis
@@ -946,7 +942,7 @@ class DashboardController extends Controller
                 ->where('due_date', '<', now()->toDateString())
                 ->whereIn('status', ['unpaid', 'partial'])
                 ->sum(function ($fee) {
-                    return max(0, (float)($fee->amount ?? 0) - (float)($fee->paid_amount ?? 0) - (float)($fee->concession_amount ?? 0));
+                    return max(0, (float) ($fee->amount ?? 0) - (float) ($fee->paid_amount ?? 0) - (float) ($fee->concession_amount ?? 0));
                 });
 
             $totalOverdueAmount += $studentOverdue;
@@ -966,9 +962,10 @@ class DashboardController extends Controller
             'moderate_defaulters' => $moderateDefaulters,
             'recent_defaulters' => $recentDefaulters,
             'total_overdue_amount' => $totalOverdueAmount,
-            'avg_overdue_per_student' => $totalDefaulters > 0 ? round($totalOverdueAmount / $totalDefaulters) : 0
+            'avg_overdue_per_student' => $totalDefaulters > 0 ? round($totalOverdueAmount / $totalDefaulters) : 0,
         ];
     }
+
     /**
      * Get monthly trends for component payments
      */
@@ -984,7 +981,7 @@ class DashboardController extends Controller
 
             $trends[] = [
                 'month' => $date->format('M Y'),
-                'collection' => $monthlyCollection
+                'collection' => $monthlyCollection,
             ];
         }
 
@@ -1009,6 +1006,7 @@ class DashboardController extends Controller
             ->havingRaw('SUM(student_fees.amount - student_fees.paid_amount - student_fees.concession_amount) > 0')
             ->get();
     }
+
     /**
      * Helper methods for calculations
      */
@@ -1016,7 +1014,7 @@ class DashboardController extends Controller
     {
         return StudentFee::whereIn('status', ['unpaid', 'partial'])
             ->get()
-            ->sum(function($fee) {
+            ->sum(function ($fee) {
                 return max(0, ($fee->amount ?? 0) - ($fee->paid_amount ?? 0) - ($fee->concession_amount ?? 0));
             });
     }
@@ -1040,7 +1038,6 @@ class DashboardController extends Controller
             });
     }
 
-
     private function getOverdueAmount()
     {
         return StudentFee::where('due_date', '<', Carbon::now())
@@ -1059,8 +1056,9 @@ class DashboardController extends Controller
 
         $netBilled = $totalBilled - $totalConcessions;
 
-        if ($netBilled <= 0)
+        if ($netBilled <= 0) {
             return 100;
+        }
 
         return round(($totalCollected / $netBilled) * 100, 2);
     }
@@ -1086,17 +1084,19 @@ class DashboardController extends Controller
             'partial_components' => StudentFee::where('status', 'partial')->count(),
             'overdue_components' => StudentFee::where('due_date', '<', Carbon::now())
                 ->whereIn('status', ['unpaid', 'partial'])->count(),
-            'system_efficiency' => $this->calculateSystemEfficiency()
+            'system_efficiency' => $this->calculateSystemEfficiency(),
         ];
     }
 
     private function calculateSystemEfficiency()
     {
         $totalComponents = StudentFee::count();
-        if ($totalComponents == 0)
+        if ($totalComponents == 0) {
             return 100;
+        }
 
         $resolvedComponents = StudentFee::where('status', 'paid')->count();
+
         return round(($resolvedComponents / $totalComponents) * 100, 2);
     }
 
@@ -1111,7 +1111,7 @@ class DashboardController extends Controller
                         DB::raw('SUM(paid_amount) as paid_amount'),
                         DB::raw('SUM(concession_amount) as concession_amount')
                     )->groupBy('fee_category_id');
-                }
+                },
             ])
             ->get();
     }
@@ -1143,8 +1143,10 @@ class DashboardController extends Controller
         $currentMonth = Student::whereMonth('created_at', Carbon::now()->month)->count();
         $lastMonth = Student::whereMonth('created_at', Carbon::now()->subMonth()->month)->count();
 
-        if ($lastMonth == 0)
+        if ($lastMonth == 0) {
             return 100;
+        }
+
         return round((($currentMonth - $lastMonth) / $lastMonth) * 100, 1);
     }
 
@@ -1169,8 +1171,10 @@ class DashboardController extends Controller
             ->whereMonth('payment_date', Carbon::now()->subMonth()->month)
             ->sum('amount');
 
-        if ($lastMonth == 0)
+        if ($lastMonth == 0) {
             return 100;
+        }
+
         return round((($currentMonth - $lastMonth) / $lastMonth) * 100, 1);
     }
 
@@ -1184,7 +1188,7 @@ class DashboardController extends Controller
             'cache_status' => 'healthy',
             'storage_status' => 'healthy',
             'memory_usage' => '45%',
-            'cpu_usage' => '23%'
+            'cpu_usage' => '23%',
         ];
     }
 
@@ -1206,7 +1210,7 @@ class DashboardController extends Controller
             'total_students' => $totalStudents,
             'present_today' => $presentToday,
             'attendance_rate' => $attendanceRate,
-            'weekly_average' => $this->getWeeklyAttendanceAverage()
+            'weekly_average' => $this->getWeeklyAttendanceAverage(),
         ];
     }
 
@@ -1229,7 +1233,7 @@ class DashboardController extends Controller
 
         return [
             'labels' => $labels,
-            'data' => $data
+            'data' => $data,
         ];
     }
 
@@ -1247,7 +1251,7 @@ class DashboardController extends Controller
                     'name' => $enquiry->name,
                     'course' => $enquiry->course->name ?? 'General',
                     'status' => $enquiry->status,
-                    'created_at' => $enquiry->created_at->diffForHumans()
+                    'created_at' => $enquiry->created_at->diffForHumans(),
                 ];
             });
     }
@@ -1262,14 +1266,14 @@ class DashboardController extends Controller
                 'title' => 'System Update Available',
                 'message' => 'A new system update is available for installation.',
                 'type' => 'info',
-                'time' => '2 hours ago'
+                'time' => '2 hours ago',
             ],
             [
                 'title' => 'Backup Completed',
                 'message' => 'Daily system backup completed successfully.',
                 'type' => 'success',
-                'time' => '1 day ago'
-            ]
+                'time' => '1 day ago',
+            ],
         ];
     }
 
@@ -1320,11 +1324,11 @@ class DashboardController extends Controller
         if ($defaultersCount > 0) {
             $alerts[] = [
                 'title' => 'Fee Defaulters Alert',
-                'message' => $defaultersCount . ' students have overdue payments',
+                'message' => $defaultersCount.' students have overdue payments',
                 'level' => 'danger',
                 'icon' => 'exclamation-triangle',
                 'time' => 'Now',
-                'action_url' => route('admin.payment-defaulters.index') ?? '#'
+                'action_url' => route('admin.payment-defaulters.index') ?? '#',
             ];
         }
 
@@ -1333,16 +1337,15 @@ class DashboardController extends Controller
         if ($storagePercent > 75) {
             $alerts[] = [
                 'title' => 'Storage Warning',
-                'message' => 'Server storage usage is at ' . $storagePercent . '% capacity',
+                'message' => 'Server storage usage is at '.$storagePercent.'% capacity',
                 'level' => 'warning',
                 'icon' => 'hdd',
-                'time' => 'Now'
+                'time' => 'Now',
             ];
         }
 
         return $alerts;
     }
-
 
     /**
      * Get fee collection data for super admin
@@ -1359,7 +1362,7 @@ class DashboardController extends Controller
             'total_collected' => $totalCollected,
             'total_concessions' => $totalConcessions,
             'outstanding' => $outstanding,
-            'collection_rate' => $totalBilled > 0 ? round(($totalCollected / $totalBilled) * 100, 1) : 0
+            'collection_rate' => $totalBilled > 0 ? round(($totalCollected / $totalBilled) * 100, 1) : 0,
         ];
     }
 
@@ -1405,8 +1408,6 @@ class DashboardController extends Controller
         return '45%';
     }
 
-
-
     /**
      * Get weekly attendance average
      */
@@ -1433,7 +1434,7 @@ class DashboardController extends Controller
         return [
             'total_students' => Student::count(),
             'active_courses' => Course::count(),
-            'total_faculty' => User::role('staff')->count()
+            'total_faculty' => User::role('staff')->count(),
         ];
     }
 
@@ -1479,7 +1480,7 @@ class DashboardController extends Controller
         return [
             'labels' => $months,
             'revenue' => $revenue,
-            'expenses' => $expenses
+            'expenses' => $expenses,
         ];
     }
 
@@ -1487,7 +1488,8 @@ class DashboardController extends Controller
     {
         try {
             $size = DB::select("SELECT ROUND(SUM(data_length + index_length) / 1024 / 1024, 1) AS 'size' FROM information_schema.tables WHERE table_schema = ?", [config('database.connections.mysql.database')]);
-            return $size[0]->size . 'MB';
+
+            return $size[0]->size.'MB';
         } catch (\Exception $e) {
             return '2.4GB'; // Fallback
         }
@@ -1498,7 +1500,8 @@ class DashboardController extends Controller
         // If you have API logging, calculate from logs
         // Otherwise return estimated value based on users
         $activeUsers = $this->getActiveUsersCount();
-        return round($activeUsers * 520) . 'K'; // Estimated API calls
+
+        return round($activeUsers * 520).'K'; // Estimated API calls
     }
 
     private function getConcurrentSessions()
@@ -1513,6 +1516,7 @@ class DashboardController extends Controller
             $total = disk_total_space('/');
             $free = disk_free_space('/');
             $used = $total - $free;
+
             return round(($used / $total) * 100);
         } catch (\Exception $e) {
             return 45; // Fallback
@@ -1563,7 +1567,7 @@ class DashboardController extends Controller
                 'percentage_of_total' => $totalCurrentAmount > 0 ?
                     round(($method->total / $totalCurrentAmount) * 100, 1) : 0,
                 'avg_transaction_amount' => $method->count > 0 ?
-                    round($method->total / $method->count) : 0
+                    round($method->total / $method->count) : 0,
             ];
         }
 
@@ -1572,7 +1576,7 @@ class DashboardController extends Controller
             'total_amount' => $totalCurrentAmount,
             'total_transactions' => $currentMonthData->sum('count'),
             'most_popular_method' => $currentMonthData->sortByDesc('count')->first()->payment_method ?? 'N/A',
-            'highest_value_method' => $currentMonthData->sortByDesc('total')->first()->payment_method ?? 'N/A'
+            'highest_value_method' => $currentMonthData->sortByDesc('total')->first()->payment_method ?? 'N/A',
         ];
     }
 
@@ -1602,7 +1606,7 @@ class DashboardController extends Controller
             $last6Months[] = [
                 'month' => $month->format('M Y'),
                 'collected' => $monthlyCollected,
-                'target' => $monthlyCollected * 1.2 // Assuming 20% buffer as target
+                'target' => $monthlyCollected * 1.2, // Assuming 20% buffer as target
             ];
         }
 
@@ -1613,7 +1617,7 @@ class DashboardController extends Controller
             'collection_target' => $totalExpected,
             'monthly_trends' => $last6Months,
             'avg_collection_time' => $this->getAverageCollectionTime(),
-            'on_time_payments' => $this->getOnTimePaymentPercentage()
+            'on_time_payments' => $this->getOnTimePaymentPercentage(),
         ];
     }
 
@@ -1623,7 +1627,7 @@ class DashboardController extends Controller
             '1-30' => [1, 30],
             '31-60' => [31, 60],
             '61-90' => [61, 90],
-            '90+' => [91, 9999]
+            '90+' => [91, 9999],
         ];
 
         $analysis = [];
@@ -1651,7 +1655,7 @@ class DashboardController extends Controller
                 'amount' => $rangeAmount,
                 'students' => $overdueData->pluck('student_id')->unique()->count(),
                 'avg_amount_per_student' => $overdueData->pluck('student_id')->unique()->count() > 0 ?
-                    round($rangeAmount / $overdueData->pluck('student_id')->unique()->count()) : 0
+                    round($rangeAmount / $overdueData->pluck('student_id')->unique()->count()) : 0,
             ];
 
             $totalOverdueAmount += $rangeAmount;
@@ -1673,7 +1677,7 @@ class DashboardController extends Controller
                     'course_name' => $courseName ?: 'Unknown',
                     'overdue_amount' => $amount,
                     'overdue_count' => $fees->count(),
-                    'student_count' => $fees->pluck('student_id')->unique()->count()
+                    'student_count' => $fees->pluck('student_id')->unique()->count(),
                 ];
             })
             ->sortByDesc('overdue_amount')
@@ -1686,7 +1690,7 @@ class DashboardController extends Controller
             'total_overdue_count' => $totalOverdueCount,
             'course_wise' => $courseWiseOverdue,
             'recovery_priority' => $this->getRecoveryPriorityList(),
-            'overdue_trend' => $this->getOverdueTrend()
+            'overdue_trend' => $this->getOverdueTrend(),
         ];
     }
 
@@ -1746,7 +1750,7 @@ class DashboardController extends Controller
                 return [
                     'student_name' => $payment->student->name ?? 'Unknown',
                     'student_id' => $payment->student_id,
-                    'recovered_amount' => $payment->total_recovered
+                    'recovered_amount' => $payment->total_recovered,
                 ];
             });
 
@@ -1760,7 +1764,7 @@ class DashboardController extends Controller
             'recovery_by_method' => $recoveryByMethod,
             'top_recovering_students' => $topRecoveringStudents,
             'avg_recovery_time' => $this->getAverageRecoveryTime(),
-            'recovery_success_rate' => $this->getRecoverySuccessRate()
+            'recovery_success_rate' => $this->getRecoverySuccessRate(),
         ];
     }
 
@@ -1788,7 +1792,6 @@ class DashboardController extends Controller
     {
         return [];
     }
-
 
     private function getStudentFeeInsights($user)
     {
@@ -1872,7 +1875,7 @@ class DashboardController extends Controller
             ->selectRaw('AVG(DATEDIFF(payments.payment_date, student_fees.due_date)) as avg_days')
             ->value('avg_days');
 
-        return round($avgDays ?? 15, 1) . ' days';
+        return round($avgDays ?? 15, 1).' days';
     }
 
     private function getOnTimePaymentPercentage()
@@ -1911,7 +1914,7 @@ class DashboardController extends Controller
                     'course_name' => $fee->student->batch->course->name ?? 'Unknown',
                     'overdue_amount' => $overdueAmount,
                     'days_past_due' => $daysPastDue,
-                    'priority_score' => round($priorityScore, 2)
+                    'priority_score' => round($priorityScore, 2),
                 ];
             })
             ->sortByDesc('priority_score')
@@ -1931,7 +1934,7 @@ class DashboardController extends Controller
 
             $trends[] = [
                 'month' => $date->format('M Y'),
-                'overdue_amount' => $overdueAmount
+                'overdue_amount' => $overdueAmount,
             ];
         }
 
@@ -1949,7 +1952,7 @@ class DashboardController extends Controller
             ->selectRaw('AVG(DATEDIFF(payments.payment_date, student_fees.due_date)) as avg_days')
             ->value('avg_days');
 
-        return round($avgDays ?? 30, 1) . ' days';
+        return round($avgDays ?? 30, 1).' days';
     }
 
     private function getRecoverySuccessRate()
@@ -1963,6 +1966,7 @@ class DashboardController extends Controller
 
         return $totalOverdueFees > 0 ? round(($recoveredFees / $totalOverdueFees) * 100, 1) : 0;
     }
+
     private function getStudentDistribution()
     {
         return Student::join('batches', 'students.batch_id', '=', 'batches.id')

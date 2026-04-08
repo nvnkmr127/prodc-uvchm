@@ -63,13 +63,13 @@ class AttendanceController extends Controller
             // Use updateOrCreate to either create a new record or update an existing one
             $attendance = Attendance::updateOrCreate(
                 [
-                    'student_id'      => $studentId,
+                    'student_id' => $studentId,
                     'attendance_date' => $request->attendance_date,
                 ],
                 [
-                    'batch_id'        => $request->batch_id,
-                    'faculty_id'      => Auth::id(),
-                    'status'          => $status,
+                    'batch_id' => $request->batch_id,
+                    'faculty_id' => Auth::id(),
+                    'status' => $status,
                 ]
             );
 
@@ -123,7 +123,7 @@ class AttendanceController extends Controller
                     'absent_count' => $absentCount,
                     'late_count' => $lateCount,
                     'attendance_percentage' => $attendancePercentage,
-                ]
+                ],
             ]);
         }
     }
@@ -159,7 +159,7 @@ class AttendanceController extends Controller
     {
         foreach ($absentStudents as $attendance) {
             $student = $attendance->student;
-            
+
             // Check for consecutive absences in the last 7 days
             $recentAbsences = Attendance::where('student_id', $student->id)
                 ->where('attendance_date', '>=', now()->subDays(7))
@@ -183,7 +183,7 @@ class AttendanceController extends Controller
                         'consecutive_absences' => $recentAbsences->count(),
                         'last_present_date' => $this->getLastPresentDate($student),
                         'requires_intervention' => true,
-                    ]
+                    ],
                 ]);
             }
         }
@@ -198,7 +198,7 @@ class AttendanceController extends Controller
         $presentClasses = Attendance::where('student_id', $student->id)
             ->whereIn('status', ['present', 'late'])
             ->count();
-            
+
         return $totalClasses > 0 ? ($presentClasses / $totalClasses) * 100 : 100;
     }
 
@@ -244,7 +244,7 @@ class AttendanceController extends Controller
                     'status' => $att->status,
                     'batch' => $att->batch->name,
                 ];
-            })
+            }),
         ]);
     }
 
@@ -261,12 +261,12 @@ class AttendanceController extends Controller
 
         try {
             $updated = 0;
-            
+
             foreach ($request->attendance_ids as $attendanceId) {
                 $attendance = Attendance::where('id', $attendanceId)
                     ->where('faculty_id', Auth::id()) // Ensure faculty can only update their records
                     ->first();
-                    
+
                 if ($attendance) {
                     $attendance->update(['status' => $request->status]);
                     $updated++;
@@ -286,18 +286,18 @@ class AttendanceController extends Controller
                     'updated_count' => $updated,
                     'new_status' => $request->status,
                     'timestamp' => now()->toISOString(),
-                ]
+                ],
             ]);
 
             return response()->json([
                 'success' => true,
                 'message' => "Updated {$updated} attendance records",
-                'updated_count' => $updated
+                'updated_count' => $updated,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Bulk update failed: ' . $e->getMessage()
+                'message' => 'Bulk update failed: '.$e->getMessage(),
             ], 500);
         }
     }

@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::table('system_notifications', function (Blueprint $table) {
             $table->unsignedBigInteger('user_id')->nullable()->after('id');
             $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
-            
+
             // Add index for better query performance
             $table->index(['user_id', 'created_at']);
         });

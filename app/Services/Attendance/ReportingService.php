@@ -2,11 +2,10 @@
 
 namespace App\Services\Attendance;
 
-use App\Services\Attendance\AnalyticsService;
-use Maatwebsite\Excel\Facades\Excel;
 use Barryvdh\DomPDF\Facade\Pdf;
-use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Storage;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ReportingService
 {
@@ -23,8 +22,8 @@ class ReportingService
     public function exportAttendanceReport(array $filters = [], string $format = 'excel'): array
     {
         $reportData = $this->analyticsService->generateAttendanceReport($filters);
-        
-        return match($format) {
+
+        return match ($format) {
             'excel' => $this->exportToExcel($reportData, $filters),
             'pdf' => $this->exportToPdf($reportData, $filters),
             'csv' => $this->exportToCsv($reportData, $filters),
@@ -38,7 +37,7 @@ class ReportingService
     public function generateStudentReport(int $studentId, array $filters = []): array
     {
         $studentData = $this->analyticsService->calculateStudentAttendanceData($studentId, $filters);
-        
+
         return [
             'student_info' => $this->getStudentInfo($studentId),
             'attendance_data' => $studentData,
@@ -53,7 +52,7 @@ class ReportingService
     public function generateBatchReport(array $filters = []): array
     {
         $batchData = $this->analyticsService->getBatchPerformance($filters);
-        
+
         return [
             'batch_comparison' => $batchData,
             'trends' => $this->analyticsService->getTrendAnalysis($filters),
@@ -68,14 +67,11 @@ class ReportingService
     private function exportToExcel(array $data, array $filters): array
     {
         $filename = $this->generateFilename('attendance_report', 'xlsx', $filters);
-        $filePath = 'reports/' . $filename;
+        $filePath = 'reports/'.$filename;
 
         // Create Excel export class
-        $export = new class($data) implements \Maatwebsite\Excel\Concerns\FromArray, 
-                                             \Maatwebsite\Excel\Concerns\WithHeadings,
-                                             \Maatwebsite\Excel\Concerns\WithStyles,
-                                             \Maatwebsite\Excel\Concerns\WithMultipleSheets {
-            
+        $export = new class($data) implements \Maatwebsite\Excel\Concerns\FromArray, \Maatwebsite\Excel\Concerns\WithHeadings, \Maatwebsite\Excel\Concerns\WithMultipleSheets, \Maatwebsite\Excel\Concerns\WithStyles
+        {
             private array $data;
 
             public function __construct(array $data)
@@ -91,8 +87,8 @@ class ReportingService
             public function headings(): array
             {
                 return [
-                    'Date Range', 'Total Records', 'Present', 'Absent', 'Late', 
-                    'Attendance %', 'Punctuality %', 'Generated At'
+                    'Date Range', 'Total Records', 'Present', 'Absent', 'Late',
+                    'Attendance %', 'Punctuality %', 'Generated At',
                 ];
             }
 
@@ -113,17 +109,18 @@ class ReportingService
             private function prepareDataForExcel(array $data): array
             {
                 $summary = $data['summary'];
+
                 return [
                     [
-                        $summary['date_range']['start'] . ' to ' . $summary['date_range']['end'],
+                        $summary['date_range']['start'].' to '.$summary['date_range']['end'],
                         $summary['total_records'],
                         $summary['present_count'],
                         $summary['absent_count'],
                         $summary['late_count'],
-                        $summary['attendance_percentage'] . '%',
-                        $summary['punctuality_percentage'] . '%',
+                        $summary['attendance_percentage'].'%',
+                        $summary['punctuality_percentage'].'%',
                         $data['generated_at'],
-                    ]
+                    ],
                 ];
             }
         };
@@ -145,7 +142,7 @@ class ReportingService
     private function exportToPdf(array $data, array $filters): array
     {
         $filename = $this->generateFilename('attendance_report', 'pdf', $filters);
-        $filePath = 'reports/' . $filename;
+        $filePath = 'reports/'.$filename;
 
         $html = view('attendance.reports.pdf-template', [
             'data' => $data,
@@ -154,11 +151,11 @@ class ReportingService
         ])->render();
 
         $pdf = Pdf::loadHTML($html)
-                 ->setPaper('a4', 'portrait')
-                 ->setOptions([
-                     'defaultFont' => 'DejaVu Sans',
-                     'isRemoteEnabled' => true,
-                 ]);
+            ->setPaper('a4', 'portrait')
+            ->setOptions([
+                'defaultFont' => 'DejaVu Sans',
+                'isRemoteEnabled' => true,
+            ]);
 
         Storage::disk('public')->put($filePath, $pdf->output());
 
@@ -177,20 +174,20 @@ class ReportingService
     private function exportToCsv(array $data, array $filters): array
     {
         $filename = $this->generateFilename('attendance_report', 'csv', $filters);
-        $filePath = 'reports/' . $filename;
+        $filePath = 'reports/'.$filename;
 
         $csvData = $this->prepareCsvData($data);
-        
+
         $handle = fopen('php://temp', 'r+');
-        
+
         // Add headers
         fputcsv($handle, array_keys($csvData[0] ?? []));
-        
+
         // Add data rows
         foreach ($csvData as $row) {
             fputcsv($handle, $row);
         }
-        
+
         rewind($handle);
         $csvContent = stream_get_contents($handle);
         fclose($handle);
@@ -213,11 +210,11 @@ class ReportingService
     {
         $csvData = [];
         $summary = $data['summary'];
-        
+
         // Add summary row
         $csvData[] = [
             'type' => 'Summary',
-            'date_range' => $summary['date_range']['start'] . ' to ' . $summary['date_range']['end'],
+            'date_range' => $summary['date_range']['start'].' to '.$summary['date_range']['end'],
             'total_records' => $summary['total_records'],
             'present_count' => $summary['present_count'],
             'absent_count' => $summary['absent_count'],
@@ -252,18 +249,18 @@ class ReportingService
     {
         $timestamp = now()->format('Y-m-d_H-i-s');
         $filterString = '';
-        
+
         if (isset($filters['batch_id'])) {
-            $filterString .= '_batch-' . $filters['batch_id'];
+            $filterString .= '_batch-'.$filters['batch_id'];
         }
-        
+
         if (isset($filters['date_from']) && isset($filters['date_to'])) {
             $from = Carbon::parse($filters['date_from'])->format('Y-m-d');
             $to = Carbon::parse($filters['date_to'])->format('Y-m-d');
-            $filterString .= '_' . $from . '_to_' . $to;
+            $filterString .= '_'.$from.'_to_'.$to;
         }
-        
-        return $prefix . $filterString . '_' . $timestamp . '.' . $extension;
+
+        return $prefix.$filterString.'_'.$timestamp.'.'.$extension;
     }
 
     /**
@@ -272,8 +269,8 @@ class ReportingService
     private function getStudentInfo(int $studentId): array
     {
         $student = \App\Models\Student::with(['batch', 'user'])->find($studentId);
-        
-        if (!$student) {
+
+        if (! $student) {
             return [];
         }
 
@@ -294,7 +291,7 @@ class ReportingService
     {
         $recommendations = [];
         $percentage = $this->calculateAttendancePercentage($studentData);
-        
+
         if ($percentage < 60) {
             $recommendations[] = [
                 'type' => 'critical',
@@ -304,8 +301,8 @@ class ReportingService
                     'Schedule parent meeting',
                     'Develop attendance improvement plan',
                     'Consider counseling support',
-                    'Monitor daily attendance'
-                ]
+                    'Monitor daily attendance',
+                ],
             ];
         } elseif ($percentage < 75) {
             $recommendations[] = [
@@ -316,8 +313,8 @@ class ReportingService
                     'Send attendance warning notice',
                     'Contact parents/guardians',
                     'Identify attendance barriers',
-                    'Provide additional support'
-                ]
+                    'Provide additional support',
+                ],
             ];
         } elseif ($percentage < 85) {
             $recommendations[] = [
@@ -327,8 +324,8 @@ class ReportingService
                 'actions' => [
                     'Encourage regular attendance',
                     'Recognize improvement efforts',
-                    'Monitor for any declining trends'
-                ]
+                    'Monitor for any declining trends',
+                ],
             ];
         } else {
             $recommendations[] = [
@@ -337,8 +334,8 @@ class ReportingService
                 'message' => 'Student maintains excellent attendance record.',
                 'actions' => [
                     'Recognize and reward good attendance',
-                    'Use as positive example for others'
-                ]
+                    'Use as positive example for others',
+                ],
             ];
         }
 
@@ -352,8 +349,8 @@ class ReportingService
                     'Immediate contact with student/parents',
                     'Verify student welfare and safety',
                     'Understand reasons for absence',
-                    'Provide necessary support'
-                ]
+                    'Provide necessary support',
+                ],
             ];
         }
 
@@ -366,7 +363,7 @@ class ReportingService
     private function generateBatchRecommendations(array $batchData): array
     {
         $recommendations = [];
-        
+
         if (isset($batchData['needs_attention'])) {
             foreach ($batchData['needs_attention'] as $batch) {
                 $recommendations[] = [
@@ -379,8 +376,8 @@ class ReportingService
                         'Analyze factors affecting batch attendance',
                         'Review timetable and schedule conflicts',
                         'Conduct batch-specific interventions',
-                        'Enhance engagement strategies'
-                    ]
+                        'Enhance engagement strategies',
+                    ],
                 ];
             }
         }
@@ -397,8 +394,8 @@ class ReportingService
                 'actions' => [
                     'Recognize and celebrate achievement',
                     'Study success factors for replication',
-                    'Share best practices with other batches'
-                ]
+                    'Share best practices with other batches',
+                ],
             ];
         }
 
@@ -411,12 +408,14 @@ class ReportingService
     private function calculateAttendancePercentage(array $studentData): float
     {
         $total = $studentData['total_classes'] ?? 0;
-        if ($total === 0) return 100.0;
-        
-        $present = ($studentData['present_classes'] ?? 0) + 
-                   ($studentData['late_classes'] ?? 0) + 
+        if ($total === 0) {
+            return 100.0;
+        }
+
+        $present = ($studentData['present_classes'] ?? 0) +
+                   ($studentData['late_classes'] ?? 0) +
                    ($studentData['excused_classes'] ?? 0);
-        
+
         return round(($present / $total) * 100, 2);
     }
 
@@ -427,14 +426,14 @@ class ReportingService
     {
         $startDate = Carbon::create($year, $month, 1)->startOfMonth();
         $endDate = $startDate->copy()->endOfMonth();
-        
+
         $filters = [
             'date_from' => $startDate,
             'date_to' => $endDate,
         ];
-        
+
         $reportData = $this->analyticsService->generateAttendanceReport($filters);
-        
+
         // Add month-specific analysis
         $reportData['monthly_analysis'] = [
             'month_name' => $startDate->format('F Y'),
@@ -442,7 +441,7 @@ class ReportingService
             'holidays' => $this->getHolidays($startDate, $endDate),
             'weekly_breakdown' => $this->getWeeklyBreakdown($startDate, $endDate),
         ];
-        
+
         return $reportData;
     }
 
@@ -455,7 +454,7 @@ class ReportingService
             'date_from' => $startDate,
             'date_to' => $endDate,
         ], $additionalFilters);
-        
+
         return $this->analyticsService->generateAttendanceReport($filters);
     }
 
@@ -466,12 +465,12 @@ class ReportingService
     {
         // This would integrate with Laravel's task scheduling
         // to automatically generate and email reports
-        
+
         // Monthly reports for administrators
         if (now()->isFirstOfMonth()) {
             $this->generateAndEmailMonthlyReport();
         }
-        
+
         // Weekly reports for faculty
         if (now()->isFriday()) {
             $this->generateAndEmailWeeklyReport();
@@ -485,23 +484,23 @@ class ReportingService
     {
         $basicReport = $this->generateStudentReport($studentId, $filters);
         $student = \App\Models\Student::find($studentId);
-        
-        if (!$student) {
+
+        if (! $student) {
             throw new \Exception('Student not found');
         }
 
         // Get detailed attendance history
         $attendanceHistory = $this->getStudentAttendanceHistory($studentId, $filters);
-        
+
         // Get monthly trends
         $monthlyTrends = $this->getStudentMonthlyTrends($studentId, $filters);
-        
+
         // Get subject-wise breakdown if available
         $subjectBreakdown = $this->getStudentSubjectBreakdown($studentId, $filters);
-        
+
         // Compare with batch average
         $batchComparison = $this->getStudentBatchComparison($studentId, $filters);
-        
+
         return array_merge($basicReport, [
             'attendance_history' => $attendanceHistory,
             'monthly_trends' => $monthlyTrends,
@@ -517,20 +516,20 @@ class ReportingService
     public function generateParentNotificationReport(int $studentId): array
     {
         $student = \App\Models\Student::with(['parentContacts'])->find($studentId);
-        
-        if (!$student) {
+
+        if (! $student) {
             throw new \Exception('Student not found');
         }
 
         $attendanceData = $this->analyticsService->calculateStudentAttendanceData($studentId);
         $percentage = $this->calculateAttendancePercentage($attendanceData);
-        
+
         // Determine notification urgency
         $urgency = $this->determineNotificationUrgency($percentage, $attendanceData);
-        
+
         // Generate parent-friendly summary
         $summary = $this->generateParentFriendlySummary($student, $attendanceData, $percentage);
-        
+
         return [
             'student_info' => [
                 'name' => $student->name,
@@ -544,7 +543,7 @@ class ReportingService
                 'school_phone' => setting('school_phone', ''),
                 'email' => setting('school_email', ''),
                 'attendance_officer' => setting('attendance_officer_name', ''),
-            ]
+            ],
         ];
     }
 
@@ -554,24 +553,24 @@ class ReportingService
     public function generateFacultyAttendanceSummary(int $facultyId, array $filters = []): array
     {
         $faculty = \App\Models\User::find($facultyId);
-        
-        if (!$faculty) {
+
+        if (! $faculty) {
             throw new \Exception('Faculty not found');
         }
 
         // Get classes taught by this faculty
         $classesQuery = \App\Models\Attendance::where('faculty_id', $facultyId);
         $this->applyFilters($classesQuery, $filters);
-        
+
         $attendanceRecords = $classesQuery->with(['student', 'student.batch'])->get();
-        
+
         // Group by batch/class
         $classSummary = $attendanceRecords->groupBy('student.batch.name')->map(function ($classAttendances, $batchName) {
             $total = $classAttendances->count();
             $present = $classAttendances->where('status', 'present')->count();
             $late = $classAttendances->where('status', 'late')->count();
             $absent = $classAttendances->where('status', 'absent')->count();
-            
+
             return [
                 'batch_name' => $batchName,
                 'total_records' => $total,
@@ -607,14 +606,14 @@ class ReportingService
     {
         $workingDays = 0;
         $current = $start->copy();
-        
+
         while ($current->lte($end)) {
             if ($current->isWeekday()) {
                 $workingDays++;
             }
             $current->addDay();
         }
-        
+
         return $workingDays;
     }
 
@@ -629,22 +628,22 @@ class ReportingService
     {
         $weeks = [];
         $current = $start->copy()->startOfWeek();
-        
+
         while ($current->lt($end)) {
             $weekEnd = $current->copy()->endOfWeek();
             if ($weekEnd->gt($end)) {
                 $weekEnd = $end->copy();
             }
-            
+
             $weeks[] = [
                 'week_start' => $current->format('Y-m-d'),
                 'week_end' => $weekEnd->format('Y-m-d'),
                 'week_number' => $current->weekOfYear,
             ];
-            
+
             $current->addWeek();
         }
-        
+
         return $weeks;
     }
 
@@ -652,17 +651,17 @@ class ReportingService
     {
         $query = \App\Models\Attendance::where('student_id', $studentId);
         $this->applyFilters($query, $filters);
-        
+
         return $query->orderBy('attendance_date')
-                    ->get(['attendance_date', 'status'])
-                    ->toArray();
+            ->get(['attendance_date', 'status'])
+            ->toArray();
     }
 
     private function getStudentMonthlyTrends(int $studentId, array $filters): array
     {
         $query = \App\Models\Attendance::where('student_id', $studentId);
         $this->applyFilters($query, $filters);
-        
+
         return $query->selectRaw("
                 DATE_FORMAT(attendance_date, '%Y-%m') as month,
                 COUNT(*) as total,
@@ -674,8 +673,9 @@ class ReportingService
             ->orderBy('month')
             ->get()
             ->map(function ($item) {
-                $item->attendance_percentage = $item->total > 0 ? 
+                $item->attendance_percentage = $item->total > 0 ?
                     round((($item->present + $item->late) / $item->total) * 100, 2) : 0;
+
                 return $item;
             })
             ->toArray();
@@ -691,7 +691,7 @@ class ReportingService
     private function getStudentBatchComparison(int $studentId, array $filters): array
     {
         $student = \App\Models\Student::find($studentId);
-        if (!$student || !$student->batch_id) {
+        if (! $student || ! $student->batch_id) {
             return [];
         }
 
@@ -733,7 +733,7 @@ class ReportingService
     private function determineNotificationUrgency(float $percentage, array $attendanceData): string
     {
         $consecutiveAbsents = $attendanceData['consecutive_absents'] ?? 0;
-        
+
         if ($percentage < 60 || $consecutiveAbsents >= 5) {
             return 'critical';
         } elseif ($percentage < 75 || $consecutiveAbsents >= 3) {
@@ -779,7 +779,7 @@ class ReportingService
 
     private function getParentRecommendedActions(string $urgency, array $attendanceData): array
     {
-        return match($urgency) {
+        return match ($urgency) {
             'critical' => [
                 'Contact school immediately',
                 'Schedule meeting with attendance officer',
@@ -843,7 +843,7 @@ class ReportingService
         // Implementation for automated monthly report generation and emailing
         // This would use Laravel's Mail facade to send reports to administrators
         $monthlyReport = $this->generateMonthlyReport(now()->subMonth()->month, now()->subMonth()->year);
-        
+
         // Email logic would go here
         // Mail::to($administrators)->send(new MonthlyAttendanceReport($monthlyReport));
     }
@@ -856,9 +856,9 @@ class ReportingService
             'date_from' => now()->startOfWeek()->subWeek(),
             'date_to' => now()->endOfWeek()->subWeek(),
         ];
-        
+
         $weeklyReport = $this->analyticsService->generateAttendanceReport($weeklyFilters);
-        
+
         // Email logic would go here
         // $faculty = User::role('faculty')->get();
         // Mail::to($faculty)->send(new WeeklyAttendanceReport($weeklyReport));
@@ -870,16 +870,16 @@ class ReportingService
     public function generateExecutiveSummary(array $filters = []): array
     {
         $analytics = $this->analyticsService->getDashboardAnalytics($filters);
-        
+
         // Calculate key performance indicators
         $kpis = $this->calculateAttendanceKPIs($analytics);
-        
+
         // Identify trends and insights
         $insights = $this->generateExecutiveInsights($analytics);
-        
+
         // Recommendations for management
         $recommendations = $this->generateExecutiveRecommendations($analytics);
-        
+
         return [
             'executive_summary' => [
                 'overview' => $analytics['overview'],
@@ -901,7 +901,7 @@ class ReportingService
     public function generateDetailedAnalyticsReport(array $filters = []): array
     {
         $analytics = $this->analyticsService->getDashboardAnalytics($filters);
-        
+
         return [
             'summary' => $analytics['overview'],
             'detailed_analysis' => [
@@ -932,11 +932,11 @@ class ReportingService
     public function generateComplianceReport(array $filters = []): array
     {
         $analytics = $this->analyticsService->getDashboardAnalytics($filters);
-        
+
         // Calculate compliance metrics
         $complianceRate = $this->calculateComplianceRate($analytics);
         $studentsBelowThreshold = $this->getStudentsBelowThreshold($analytics);
-        
+
         return [
             'compliance_summary' => [
                 'reporting_period' => $this->getReportingPeriod($filters),
@@ -964,13 +964,13 @@ class ReportingService
     public function generateParentCommunicationReport(array $filters = []): array
     {
         $notificationStats = $this->analyticsService->getNotificationStats($filters);
-        
+
         // Get parent contact effectiveness
         $contactEffectiveness = $this->analyzeParentContactEffectiveness($filters);
-        
+
         // Get communication preferences
         $communicationPreferences = $this->analyzeParentCommunicationPreferences();
-        
+
         return [
             'communication_summary' => [
                 'total_notifications_sent' => $notificationStats['total'],
@@ -993,7 +993,7 @@ class ReportingService
     private function calculateAttendanceKPIs(array $analytics): array
     {
         $overview = $analytics['overview'];
-        
+
         return [
             'overall_attendance_rate' => $overview['attendance_percentage'],
             'punctuality_rate' => $overview['punctuality_percentage'],
@@ -1009,10 +1009,10 @@ class ReportingService
         // Proprietary engagement score based on attendance patterns
         $attendanceWeight = 0.6;
         $punctualityWeight = 0.4;
-        
+
         $attendanceScore = $overview['attendance_percentage'];
         $punctualityScore = $overview['punctuality_percentage'];
-        
+
         return round(($attendanceScore * $attendanceWeight) + ($punctualityScore * $punctualityWeight), 2);
     }
 
@@ -1021,15 +1021,15 @@ class ReportingService
         if (empty($trends['data'])) {
             return 100.0;
         }
-        
+
         $percentages = collect($trends['data'])->pluck('attendance_percentage');
         $mean = $percentages->avg();
         $variance = $percentages->map(function ($value) use ($mean) {
             return pow($value - $mean, 2);
         })->avg();
-        
+
         $stdDev = sqrt($variance);
-        
+
         // Higher consistency = lower standard deviation
         // Convert to percentage where 100% = perfect consistency
         return round(max(0, 100 - ($stdDev * 2)), 2);
@@ -1040,24 +1040,24 @@ class ReportingService
         $insights = [];
         $overview = $analytics['overview'];
         $trends = $analytics['trends'];
-        
+
         // Attendance performance insight
         if ($overview['attendance_percentage'] >= 90) {
             $insights[] = [
                 'type' => 'positive',
                 'title' => 'Excellent Attendance Performance',
-                'description' => 'Overall attendance is excellent at ' . $overview['attendance_percentage'] . '%',
+                'description' => 'Overall attendance is excellent at '.$overview['attendance_percentage'].'%',
                 'impact' => 'high',
             ];
         } elseif ($overview['attendance_percentage'] < 75) {
             $insights[] = [
                 'type' => 'concern',
                 'title' => 'Below Standard Attendance',
-                'description' => 'Overall attendance is below standards at ' . $overview['attendance_percentage'] . '%',
+                'description' => 'Overall attendance is below standards at '.$overview['attendance_percentage'].'%',
                 'impact' => 'critical',
             ];
         }
-        
+
         // Trend insight
         if ($trends['trend_direction'] === 'improving') {
             $insights[] = [
@@ -1074,13 +1074,13 @@ class ReportingService
                 'impact' => 'high',
             ];
         }
-        
+
         // Low attendance students insight
         $lowAttendanceCount = count($analytics['low_attendance_students']);
         if ($lowAttendanceCount > 0) {
             $totalStudents = $overview['unique_students'];
             $percentage = round(($lowAttendanceCount / $totalStudents) * 100, 1);
-            
+
             $insights[] = [
                 'type' => 'concern',
                 'title' => 'Students Requiring Intervention',
@@ -1088,7 +1088,7 @@ class ReportingService
                 'impact' => 'high',
             ];
         }
-        
+
         return $insights;
     }
 
@@ -1097,7 +1097,7 @@ class ReportingService
         $recommendations = [];
         $overview = $analytics['overview'];
         $batchPerformance = $analytics['batch_performance'];
-        
+
         // Overall attendance recommendations
         if ($overview['attendance_percentage'] < 85) {
             $recommendations[] = [
@@ -1110,7 +1110,7 @@ class ReportingService
                 'resources_required' => ['Staff time', 'Communication budget', 'Incentive programs'],
             ];
         }
-        
+
         // Batch-specific recommendations
         if (isset($batchPerformance['needs_attention']) && count($batchPerformance['needs_attention']) > 0) {
             $recommendations[] = [
@@ -1123,7 +1123,7 @@ class ReportingService
                 'resources_required' => ['Faculty training', 'Engagement activities', 'Parent meetings'],
             ];
         }
-        
+
         // Technology recommendations
         if (isset($analytics['biometric_stats']['processing_rate']) && $analytics['biometric_stats']['processing_rate'] < 95) {
             $recommendations[] = [
@@ -1136,14 +1136,14 @@ class ReportingService
                 'resources_required' => ['Technical support', 'System upgrades', 'Staff training'],
             ];
         }
-        
+
         return $recommendations;
     }
 
     private function getPerformanceIndicators(array $analytics): array
     {
         $overview = $analytics['overview'];
-        
+
         return [
             'attendance_trend' => [
                 'current' => $overview['attendance_percentage'],
@@ -1167,7 +1167,7 @@ class ReportingService
     {
         $risks = [];
         $lowAttendanceStudents = $analytics['low_attendance_students'];
-        
+
         // High-risk students
         $criticalStudents = collect($lowAttendanceStudents)->where('risk_level', 'critical')->count();
         if ($criticalStudents > 0) {
@@ -1178,7 +1178,7 @@ class ReportingService
                 'mitigation' => 'Immediate intervention and support programs required',
             ];
         }
-        
+
         // Trend risks
         if ($analytics['trends']['trend_direction'] === 'declining') {
             $risks[] = [
@@ -1188,7 +1188,7 @@ class ReportingService
                 'mitigation' => 'Review current policies and implement improvement measures',
             ];
         }
-        
+
         return $risks;
     }
 
@@ -1196,12 +1196,12 @@ class ReportingService
     {
         // Compare current period with previous period
         $currentPeriod = $this->analyticsService->getDashboardAnalytics($filters);
-        
+
         // Calculate previous period
         $periodLength = $this->calculatePeriodLength($filters);
         $previousFilters = $this->getPreviousPeriodFilters($filters, $periodLength);
         $previousPeriod = $this->analyticsService->getDashboardAnalytics($previousFilters);
-        
+
         return [
             'current_period' => $currentPeriod['overview'],
             'previous_period' => $previousPeriod['overview'],
@@ -1218,6 +1218,7 @@ class ReportingService
         if (isset($filters['date_from']) && isset($filters['date_to'])) {
             return Carbon::parse($filters['date_from'])->diffInDays(Carbon::parse($filters['date_to']));
         }
+
         return 30; // Default to 30 days
     }
 
@@ -1225,10 +1226,10 @@ class ReportingService
     {
         $currentStart = Carbon::parse($filters['date_from'] ?? now()->subDays(30));
         $currentEnd = Carbon::parse($filters['date_to'] ?? now());
-        
+
         $previousStart = $currentStart->copy()->subDays($periodLength + 1);
         $previousEnd = $currentEnd->copy()->subDays($periodLength + 1);
-        
+
         return array_merge($filters, [
             'date_from' => $previousStart,
             'date_to' => $previousEnd,
@@ -1239,7 +1240,7 @@ class ReportingService
     {
         $startDate = Carbon::parse($filters['date_from'] ?? now()->subDays(30));
         $endDate = Carbon::parse($filters['date_to'] ?? now());
-        
+
         return [
             'start_date' => $startDate->format('Y-m-d'),
             'end_date' => $endDate->format('Y-m-d'),
@@ -1251,11 +1252,20 @@ class ReportingService
     private function determinePeriodType(Carbon $start, Carbon $end): string
     {
         $days = $start->diffInDays($end);
-        
-        if ($days <= 7) return 'weekly';
-        if ($days <= 31) return 'monthly';
-        if ($days <= 93) return 'quarterly';
-        if ($days <= 186) return 'semester';
+
+        if ($days <= 7) {
+            return 'weekly';
+        }
+        if ($days <= 31) {
+            return 'monthly';
+        }
+        if ($days <= 93) {
+            return 'quarterly';
+        }
+        if ($days <= 186) {
+            return 'semester';
+        }
+
         return 'annual';
     }
 
@@ -1264,10 +1274,13 @@ class ReportingService
     {
         $totalStudents = $analytics['overview']['unique_students'];
         $lowAttendanceStudents = count($analytics['low_attendance_students']);
-        
-        if ($totalStudents === 0) return 100.0;
-        
+
+        if ($totalStudents === 0) {
+            return 100.0;
+        }
+
         $compliantStudents = $totalStudents - $lowAttendanceStudents;
+
         return round(($compliantStudents / $totalStudents) * 100, 2);
     }
 
@@ -1303,7 +1316,7 @@ class ReportingService
     private function getComplianceRecommendations(float $complianceRate, array $nonCompliantStudents): array
     {
         $recommendations = [];
-        
+
         if ($complianceRate < 90) {
             $recommendations[] = [
                 'priority' => 'high',
@@ -1312,7 +1325,7 @@ class ReportingService
                 'expected_outcome' => 'Improve compliance rate by 10-15%',
             ];
         }
-        
+
         if (count($nonCompliantStudents) > 20) {
             $recommendations[] = [
                 'priority' => 'medium',
@@ -1321,7 +1334,7 @@ class ReportingService
                 'expected_outcome' => 'Reduce non-compliance by addressing root causes',
             ];
         }
-        
+
         return $recommendations;
     }
 
@@ -1349,11 +1362,11 @@ class ReportingService
         // Calculate metrics like response rates, opt-out rates, etc.
         $dateFrom = $filters['date_from'] ?? now()->subDays(30);
         $dateTo = $filters['date_to'] ?? now();
-        
+
         $totalContacts = \App\Models\Attendance\ParentContact::count();
         $activeContacts = \App\Models\Attendance\ParentContact::active()->count();
         $verifiedContacts = \App\Models\Attendance\ParentContact::verified()->count();
-        
+
         return [
             'total_parent_contacts' => $totalContacts,
             'active_contacts' => $activeContacts,
@@ -1366,18 +1379,18 @@ class ReportingService
     private function identifyCommuncationImprovements(array $contactEffectiveness): array
     {
         $improvements = [];
-        
+
         foreach ($contactEffectiveness as $channel) {
             if ($channel['delivery_rate'] < 90) {
                 $improvements[] = [
                     'channel' => $channel['channel'],
                     'current_rate' => $channel['delivery_rate'],
                     'issue' => 'Low delivery rate',
-                    'recommendation' => 'Review and optimize ' . $channel['channel'] . ' delivery mechanism',
+                    'recommendation' => 'Review and optimize '.$channel['channel'].' delivery mechanism',
                 ];
             }
         }
-        
+
         return $improvements;
     }
 
@@ -1412,15 +1425,15 @@ class ReportingService
     {
         // Identify specific areas for improvement
         $areas = [];
-        
+
         if ($analytics['overview']['attendance_percentage'] < 85) {
             $areas[] = 'Overall attendance rate';
         }
-        
+
         if ($analytics['overview']['punctuality_percentage'] < 90) {
             $areas[] = 'Student punctuality';
         }
-        
+
         return $areas;
     }
 

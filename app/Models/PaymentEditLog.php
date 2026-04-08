@@ -19,13 +19,13 @@ class PaymentEditLog extends Model
         'edit_reason',
         'ip_address',
         'user_agent',
-        'metadata'
+        'metadata',
     ];
 
     protected $casts = [
         'old_values' => 'array',
         'new_values' => 'array',
-        'metadata' => 'array'
+        'metadata' => 'array',
     ];
 
     /**
@@ -35,7 +35,7 @@ class PaymentEditLog extends Model
     {
         return $this->belongsTo(Payment::class);
     }
-    
+
     /**
      * Get the user who made this edit
      */
@@ -43,8 +43,6 @@ class PaymentEditLog extends Model
     {
         return $this->belongsTo(User::class);
     }
-
-
 
     /**
      * Scopes
@@ -73,14 +71,14 @@ class PaymentEditLog extends Model
      * Static method to log payment changes
      */
     public static function logPaymentChange(
-        Payment $payment, 
-        string $action, 
-        array $oldValues, 
-        array $newValues, 
-        string $editReason = null
+        Payment $payment,
+        string $action,
+        array $oldValues,
+        array $newValues,
+        ?string $editReason = null
     ): self {
         $changesSummary = self::generateChangesSummary($oldValues, $newValues);
-        
+
         return self::create([
             'payment_id' => $payment->id,
             'user_id' => auth()->id(),
@@ -95,8 +93,8 @@ class PaymentEditLog extends Model
                 'payment_type' => $payment->payment_type,
                 'student_id' => $payment->student_id,
                 'original_amount' => $payment->getOriginal('amount'),
-                'new_amount' => $payment->amount
-            ]
+                'new_amount' => $payment->amount,
+            ],
         ]);
     }
 
@@ -106,30 +104,30 @@ class PaymentEditLog extends Model
     private static function generateChangesSummary(array $oldValues, array $newValues): string
     {
         $changes = [];
-        
+
         foreach ($newValues as $key => $newValue) {
             $oldValue = $oldValues[$key] ?? null;
-            
+
             if ($oldValue != $newValue) {
                 switch ($key) {
                     case 'amount':
-                        $changes[] = "Amount: ₹" . number_format($oldValue, 2) . " → ₹" . number_format($newValue, 2);
+                        $changes[] = 'Amount: ₹'.number_format($oldValue, 2).' → ₹'.number_format($newValue, 2);
                         break;
                     case 'payment_method':
-                        $changes[] = "Payment Method: " . ucfirst($oldValue) . " → " . ucfirst($newValue);
+                        $changes[] = 'Payment Method: '.ucfirst($oldValue).' → '.ucfirst($newValue);
                         break;
                     case 'payment_date':
-                        $changes[] = "Payment Date: " . $oldValue . " → " . $newValue;
+                        $changes[] = 'Payment Date: '.$oldValue.' → '.$newValue;
                         break;
                     case 'components':
-                        $changes[] = "Payment Components Modified";
+                        $changes[] = 'Payment Components Modified';
                         break;
                     default:
-                        $changes[] = ucfirst(str_replace('_', ' ', $key)) . " changed";
+                        $changes[] = ucfirst(str_replace('_', ' ', $key)).' changed';
                 }
             }
         }
-        
+
         return implode(', ', $changes);
     }
 
@@ -141,7 +139,7 @@ class PaymentEditLog extends Model
         if ($this->changes_summary) {
             return $this->changes_summary;
         }
-        
+
         return "Payment {$this->action}";
     }
 
@@ -152,13 +150,14 @@ class PaymentEditLog extends Model
     {
         $oldAmount = $this->old_values['amount'] ?? null;
         $newAmount = $this->new_values['amount'] ?? null;
-        
+
         if ($oldAmount && $newAmount && $oldAmount != $newAmount) {
             $difference = $newAmount - $oldAmount;
             $symbol = $difference > 0 ? '+' : '';
-            return "₹" . number_format($oldAmount, 2) . " → ₹" . number_format($newAmount, 2) . " ({$symbol}₹" . number_format($difference, 2) . ")";
+
+            return '₹'.number_format($oldAmount, 2).' → ₹'.number_format($newAmount, 2)." ({$symbol}₹".number_format($difference, 2).')';
         }
-        
+
         return null;
     }
 
@@ -171,15 +170,15 @@ class PaymentEditLog extends Model
         // 1. Amount changed by more than ₹10
         // 2. Payment method changed
         // 3. Components were modified
-        
+
         $oldAmount = $this->old_values['amount'] ?? 0;
         $newAmount = $this->new_values['amount'] ?? 0;
         $amountDifference = abs($newAmount - $oldAmount);
-        
+
         if ($amountDifference > 10) {
             return true;
         }
-        
+
         $significantFields = ['payment_method', 'components'];
         foreach ($significantFields as $field) {
             if (isset($this->old_values[$field]) && isset($this->new_values[$field])) {
@@ -188,7 +187,7 @@ class PaymentEditLog extends Model
                 }
             }
         }
-        
+
         return false;
     }
 }

@@ -2,14 +2,14 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Helpers\ErrorHandler;
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
-use App\Models\User;
-use App\Helpers\ErrorHandler;
 
 class PermissionManagementController extends Controller
 {
@@ -21,25 +21,26 @@ class PermissionManagementController extends Controller
         $totalPermissions = Permission::count();
         $totalRoles = Role::count();
         $totalUsers = User::count();
-        
+
         // Get permissions by module
-        $permissionsByModule = Permission::all()->groupBy(function($permission) {
+        $permissionsByModule = Permission::all()->groupBy(function ($permission) {
             $parts = explode(' ', $permission->name);
+
             return count($parts) > 1 ? $parts[1] : 'general';
         });
-        
+
         // Get role permission statistics
         $roleStats = Role::withCount('permissions')->get();
-        
+
         // Get recently created permissions
         $recentPermissions = Permission::latest()->limit(10)->get();
-        
+
         // Get orphaned permissions (permissions not assigned to any role)
         $orphanedPermissions = Permission::whereDoesntHave('roles')->get();
-        
+
         return view('admin.permission-management.index', compact(
             'totalPermissions',
-            'totalRoles', 
+            'totalRoles',
             'totalUsers',
             'permissionsByModule',
             'roleStats',
@@ -56,14 +57,14 @@ class PermissionManagementController extends Controller
         $validator = Validator::make($request->all(), [
             'permissions' => 'required|array',
             'permissions.*' => 'required|string|max:255|unique:permissions,name',
-            'guard_name' => 'sometimes|string|in:web,api'
+            'guard_name' => 'sometimes|string|in:web,api',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -75,24 +76,25 @@ class PermissionManagementController extends Controller
             foreach ($request->permissions as $permissionName) {
                 $permission = Permission::create([
                     'name' => trim($permissionName),
-                    'guard_name' => $guardName
+                    'guard_name' => $guardName,
                 ]);
                 $createdPermissions[] = $permission;
             }
-            
+
             DB::commit();
-            
+
             return response()->json([
                 'success' => true,
-                'message' => count($createdPermissions) . ' permissions created successfully',
-                'data' => $createdPermissions
+                'message' => count($createdPermissions).' permissions created successfully',
+                'data' => $createdPermissions,
             ]);
-            
+
         } catch (\Exception $e) {
             DB::rollback();
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to create permissions: ' . $e->getMessage()
+                'message' => 'Failed to create permissions: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -107,101 +109,101 @@ class PermissionManagementController extends Controller
             $standardPermissions = [
                 // User Management
                 'view users',
-                'create users', 
+                'create users',
                 'edit users',
                 'delete users',
                 'manage users',
-                
+
                 // Role Management
                 'view roles',
                 'create roles',
-                'edit roles', 
+                'edit roles',
                 'delete roles',
                 'manage roles',
-                
+
                 // Permission Management
                 'view permissions',
                 'create permissions',
                 'edit permissions',
-                'delete permissions', 
+                'delete permissions',
                 'manage permissions',
-                
+
                 // Course Management
                 'view courses',
                 'create courses',
                 'edit courses',
                 'delete courses',
                 'manage courses',
-                
+
                 // Student Management
                 'view students',
                 'create students',
                 'edit students',
                 'delete students',
                 'manage students',
-                
+
                 // Financial Management
                 'view financials',
                 'create financials',
                 'edit financials',
                 'delete financials',
                 'manage financials',
-                
+
                 // HR Management
                 'view hr',
                 'create hr',
                 'edit hr',
                 'delete hr',
                 'manage hr',
-                
+
                 // Timetable Management
                 'view timetable',
                 'create timetable',
                 'edit timetable',
                 'delete timetable',
                 'manage timetable',
-                
+
                 // Inventory Management
                 'view inventory',
                 'create inventory',
                 'edit inventory',
                 'delete inventory',
                 'manage inventory',
-                
+
                 // Document Management
                 'view documents',
                 'create documents',
                 'edit documents',
                 'delete documents',
                 'manage documents',
-                
+
                 // Settings Management
                 'view settings',
                 'edit settings',
                 'manage settings',
-                
+
                 // Report Management
                 'view reports',
                 'create reports',
                 'manage reports',
-                
+
                 // API Token Management
                 'view api tokens',
                 'create api tokens',
                 'edit api tokens',
                 'delete api tokens',
                 'manage api tokens',
-                
+
                 // Admission Management
                 'view admissions',
                 'create admissions',
                 'edit admissions',
                 'delete admissions',
                 'manage admissions',
-                
+
                 // Backend Access
                 'view backend',
-                'access admin panel'
+                'access admin panel',
             ];
 
             $createdCount = 0;
@@ -210,7 +212,7 @@ class PermissionManagementController extends Controller
             foreach ($standardPermissions as $permissionName) {
                 $permission = Permission::firstOrCreate([
                     'name' => $permissionName,
-                    'guard_name' => 'web'
+                    'guard_name' => 'web',
                 ]);
 
                 if ($permission->wasRecentlyCreated) {
@@ -226,14 +228,14 @@ class PermissionManagementController extends Controller
                 'data' => [
                     'created' => $createdCount,
                     'existing' => $existingCount,
-                    'total' => count($standardPermissions)
-                ]
+                    'total' => count($standardPermissions),
+                ],
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Sync failed: ' . $e->getMessage()
+                'message' => 'Sync failed: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -246,7 +248,7 @@ class PermissionManagementController extends Controller
         try {
             $orphanedPermissions = Permission::whereDoesntHave('roles')->get();
             $count = $orphanedPermissions->count();
-            
+
             if ($request->input('confirm') === 'true') {
                 foreach ($orphanedPermissions as $permission) {
                     // Also check if any users have this permission directly
@@ -255,24 +257,24 @@ class PermissionManagementController extends Controller
                         $permission->delete();
                     }
                 }
-                
+
                 return response()->json([
                     'success' => true,
-                    'message' => "{$count} orphaned permissions cleaned up"
+                    'message' => "{$count} orphaned permissions cleaned up",
                 ]);
             }
-            
+
             return response()->json([
                 'success' => true,
                 'message' => "Found {$count} orphaned permissions",
                 'data' => $orphanedPermissions,
-                'requires_confirmation' => true
+                'requires_confirmation' => true,
             ]);
-            
+
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Cleanup failed: ' . $e->getMessage()
+                'message' => 'Cleanup failed: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -284,64 +286,64 @@ class PermissionManagementController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'role_id' => 'required|exists:roles,id',
-            'template' => 'required|string|in:admin,manager,staff,student,viewer'
+            'template' => 'required|string|in:admin,manager,staff,student,viewer',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
         try {
             $role = Role::findById($request->role_id);
-            
+
             // Define permission templates
             $templates = [
                 'admin' => [
                     'manage users', 'manage roles', 'manage permissions', 'manage courses',
                     'manage students', 'manage financials', 'manage hr', 'manage timetable',
                     'manage inventory', 'manage documents', 'manage settings', 'manage reports',
-                    'manage api tokens', 'manage admissions', 'view backend'
+                    'manage api tokens', 'manage admissions', 'view backend',
                 ],
                 'manager' => [
                     'view users', 'edit users', 'view roles', 'manage courses', 'manage students',
-                    'view financials', 'manage hr', 'manage timetable', 'view reports', 'view backend'
+                    'view financials', 'manage hr', 'manage timetable', 'view reports', 'view backend',
                 ],
                 'staff' => [
                     'view students', 'edit students', 'view courses', 'manage timetable',
-                    'view reports', 'view backend'
+                    'view reports', 'view backend',
                 ],
                 'student' => [
-                    'view backend'
+                    'view backend',
                 ],
                 'viewer' => [
                     'view users', 'view roles', 'view courses', 'view students',
-                    'view financials', 'view reports', 'view backend'
-                ]
+                    'view financials', 'view reports', 'view backend',
+                ],
             ];
 
             $permissions = $templates[$request->template] ?? [];
-            
+
             // Clear existing permissions and assign new ones
             $role->syncPermissions($permissions);
-            
+
             return response()->json([
                 'success' => true,
                 'message' => "Template '{$request->template}' applied successfully to role '{$role->name}'",
                 'data' => [
                     'role' => $role->name,
                     'template' => $request->template,
-                    'permissions_count' => count($permissions)
-                ]
+                    'permissions_count' => count($permissions),
+                ],
             ]);
-            
+
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to apply template: ' . $e->getMessage()
+                'message' => 'Failed to apply template: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -353,20 +355,20 @@ class PermissionManagementController extends Controller
     {
         try {
             $permissions = $role->permissions()->get();
-            
+
             return response()->json([
                 'success' => true,
                 'data' => [
                     'role' => $role->name,
                     'permissions' => $permissions->pluck('name'),
-                    'permissions_count' => $permissions->count()
-                ]
+                    'permissions_count' => $permissions->count(),
+                ],
             ]);
-            
+
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to get role permissions: ' . $e->getMessage()
+                'message' => 'Failed to get role permissions: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -378,38 +380,38 @@ class PermissionManagementController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'source_role_id' => 'required|exists:roles,id',
-            'target_role_id' => 'required|exists:roles,id|different:source_role_id'
+            'target_role_id' => 'required|exists:roles,id|different:source_role_id',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
         try {
             $sourceRole = Role::findById($request->source_role_id);
             $targetRole = Role::findById($request->target_role_id);
-            
+
             $sourcePermissions = $sourceRole->permissions()->pluck('name')->toArray();
             $targetRole->syncPermissions($sourcePermissions);
-            
+
             return response()->json([
                 'success' => true,
                 'message' => "Permissions copied from '{$sourceRole->name}' to '{$targetRole->name}'",
                 'data' => [
                     'source_role' => $sourceRole->name,
                     'target_role' => $targetRole->name,
-                    'permissions_copied' => count($sourcePermissions)
-                ]
+                    'permissions_copied' => count($sourcePermissions),
+                ],
             ]);
-            
+
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to copy permissions: ' . $e->getMessage()
+                'message' => 'Failed to copy permissions: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -425,29 +427,30 @@ class PermissionManagementController extends Controller
                 'total_roles' => Role::count(),
                 'total_users' => User::count(),
                 'orphaned_permissions' => Permission::whereDoesntHave('roles')->count(),
-                'permissions_by_module' => Permission::all()->groupBy(function($permission) {
+                'permissions_by_module' => Permission::all()->groupBy(function ($permission) {
                     $parts = explode(' ', $permission->name);
+
                     return count($parts) > 1 ? $parts[1] : 'general';
                 })->map->count(),
-                'role_permission_distribution' => Role::withCount('permissions')->get()->map(function($role) {
+                'role_permission_distribution' => Role::withCount('permissions')->get()->map(function ($role) {
                     return [
                         'role' => $role->name,
-                        'permissions_count' => $role->permissions_count
+                        'permissions_count' => $role->permissions_count,
                     ];
                 }),
                 'most_used_permissions' => Permission::withCount('roles')->orderBy('roles_count', 'desc')->limit(10)->get(),
-                'least_used_permissions' => Permission::withCount('roles')->orderBy('roles_count', 'asc')->limit(10)->get()
+                'least_used_permissions' => Permission::withCount('roles')->orderBy('roles_count', 'asc')->limit(10)->get(),
             ];
 
             return response()->json([
                 'success' => true,
-                'data' => $analytics
+                'data' => $analytics,
             ]);
-            
+
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to get analytics: ' . $e->getMessage()
+                'message' => 'Failed to get analytics: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -465,9 +468,9 @@ class PermissionManagementController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => $orphanedPermissions,
-                'count' => $orphanedPermissions->count()
+                'count' => $orphanedPermissions->count(),
             ]);
-            
+
         } catch (\Exception $e) {
             return ErrorHandler::handleApiException(
                 $e,
@@ -485,7 +488,7 @@ class PermissionManagementController extends Controller
     {
         try {
             $reportType = $request->input('type', 'full');
-            
+
             $report = [
                 'generated_at' => now()->toISOString(),
                 'report_type' => $reportType,
@@ -493,8 +496,8 @@ class PermissionManagementController extends Controller
                     'total_permissions' => Permission::count(),
                     'total_roles' => Role::count(),
                     'total_users' => User::count(),
-                    'orphaned_permissions' => Permission::whereDoesntHave('roles')->count()
-                ]
+                    'orphaned_permissions' => Permission::whereDoesntHave('roles')->count(),
+                ],
             ];
 
             if ($reportType === 'full' || $reportType === 'permissions') {
@@ -511,13 +514,13 @@ class PermissionManagementController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $report
+                'data' => $report,
             ]);
-            
+
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to generate report: ' . $e->getMessage()
+                'message' => 'Failed to generate report: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -529,55 +532,55 @@ class PermissionManagementController extends Controller
     {
         try {
             $issues = [];
-            
+
             // Check for duplicate permissions
             $duplicates = Permission::select('name')
                 ->groupBy('name')
                 ->havingRaw('COUNT(*) > 1')
                 ->get();
-            
+
             if ($duplicates->count() > 0) {
                 $issues[] = [
                     'type' => 'duplicate_permissions',
                     'message' => 'Duplicate permissions found',
-                    'data' => $duplicates
+                    'data' => $duplicates,
                 ];
             }
-            
+
             // Check for orphaned permissions
             $orphaned = Permission::whereDoesntHave('roles')->whereDoesntHave('users')->get();
             if ($orphaned->count() > 0) {
                 $issues[] = [
                     'type' => 'orphaned_permissions',
                     'message' => 'Orphaned permissions found',
-                    'count' => $orphaned->count()
+                    'count' => $orphaned->count(),
                 ];
             }
-            
+
             // Check for roles without permissions
             $emptyRoles = Role::whereDoesntHave('permissions')->get();
             if ($emptyRoles->count() > 0) {
                 $issues[] = [
                     'type' => 'empty_roles',
                     'message' => 'Roles without permissions found',
-                    'data' => $emptyRoles->pluck('name')
+                    'data' => $emptyRoles->pluck('name'),
                 ];
             }
-            
+
             // Check for inconsistent naming
             $permissions = Permission::all();
             $namingIssues = [];
             foreach ($permissions as $permission) {
-                if (!preg_match('/^[a-z]+(\s[a-z]+)*$/', $permission->name)) {
+                if (! preg_match('/^[a-z]+(\s[a-z]+)*$/', $permission->name)) {
                     $namingIssues[] = $permission->name;
                 }
             }
-            
+
             if (count($namingIssues) > 0) {
                 $issues[] = [
                     'type' => 'naming_issues',
                     'message' => 'Permissions with inconsistent naming found',
-                    'data' => $namingIssues
+                    'data' => $namingIssues,
                 ];
             }
 
@@ -586,14 +589,14 @@ class PermissionManagementController extends Controller
                 'data' => [
                     'is_valid' => count($issues) === 0,
                     'issues_count' => count($issues),
-                    'issues' => $issues
-                ]
+                    'issues' => $issues,
+                ],
             ]);
-            
+
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Validation failed: ' . $e->getMessage()
+                'message' => 'Validation failed: '.$e->getMessage(),
             ], 500);
         }
     }

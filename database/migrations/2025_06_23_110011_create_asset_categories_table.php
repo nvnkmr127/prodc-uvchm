@@ -9,14 +9,14 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-public function up(): void
-{
-    Schema::create('asset_categories', function (Blueprint $table) {
-        $table->id();
-        $table->string('name')->unique(); // e.g., "Kitchen Equipment", "Furniture", "IT Hardware"
-        $table->timestamps();
-    });
-}
+    public function up(): void
+    {
+        Schema::create('asset_categories', function (Blueprint $table) {
+            $table->id();
+            $table->string('name')->unique(); // e.g., "Kitchen Equipment", "Furniture", "IT Hardware"
+            $table->timestamps();
+        });
+    }
 
     /**
      * Reverse the migrations.

@@ -8,6 +8,7 @@ use Illuminate\Contracts\Validation\ValidationRule;
 class ValidPhoneNumber implements ValidationRule
 {
     private $allowInternational;
+
     private $requireCountryCode;
 
     public function __construct(bool $allowInternational = false, bool $requireCountryCode = false)
@@ -45,7 +46,7 @@ class ValidPhoneNumber implements ValidationRule
     {
         // Indian mobile numbers: 10 digits starting with 6,7,8,9
         // Landline: 10-11 digits with STD codes
-        
+
         if (preg_match('/^[6-9]\d{9}$/', $phone)) {
             // Valid Indian mobile number
             return;
@@ -61,7 +62,7 @@ class ValidPhoneNumber implements ValidationRule
             return;
         }
 
-        $fail("The :attribute must be a valid Indian phone number (10 digits starting with 6, 7, 8, or 9).");
+        $fail('The :attribute must be a valid Indian phone number (10 digits starting with 6, 7, 8, or 9).');
     }
 
     /**
@@ -72,14 +73,16 @@ class ValidPhoneNumber implements ValidationRule
         // Basic international phone validation
         if ($this->requireCountryCode) {
             // Must start with + and country code
-            if (!preg_match('/^\+[1-9]\d{1,14}$/', $phone)) {
-                $fail("The :attribute must be a valid international phone number with country code (e.g., +91xxxxxxxxxx).");
+            if (! preg_match('/^\+[1-9]\d{1,14}$/', $phone)) {
+                $fail('The :attribute must be a valid international phone number with country code (e.g., +91xxxxxxxxxx).');
+
                 return;
             }
         } else {
             // Allow various formats
-            if (!preg_match('/^(\+[1-9]\d{1,14}|[6-9]\d{9}|0[1-9]\d{8,9})$/', $phone)) {
-                $fail("The :attribute must be a valid phone number.");
+            if (! preg_match('/^(\+[1-9]\d{1,14}|[6-9]\d{9}|0[1-9]\d{8,9})$/', $phone)) {
+                $fail('The :attribute must be a valid phone number.');
+
                 return;
             }
         }
@@ -87,7 +90,7 @@ class ValidPhoneNumber implements ValidationRule
         // Additional length validation
         $digitCount = strlen(preg_replace('/[^\d]/', '', $phone));
         if ($digitCount < 7 || $digitCount > 15) {
-            $fail("The :attribute must contain between 7 and 15 digits.");
+            $fail('The :attribute must contain between 7 and 15 digits.');
         }
     }
 

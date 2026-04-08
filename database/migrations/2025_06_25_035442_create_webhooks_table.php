@@ -9,16 +9,16 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-   public function up(): void
-{
-    Schema::create('webhooks', function (Blueprint $table) {
-        $table->id();
-        $table->string('event_name'); // e.g., "payment.created", "student.admitted"
-        $table->string('url');
-        $table->boolean('is_active')->default(true);
-        $table->timestamps();
-    });
-}
+    public function up(): void
+    {
+        Schema::create('webhooks', function (Blueprint $table) {
+            $table->id();
+            $table->string('event_name'); // e.g., "payment.created", "student.admitted"
+            $table->string('url');
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+        });
+    }
 
     /**
      * Reverse the migrations.

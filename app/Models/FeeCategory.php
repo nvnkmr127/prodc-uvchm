@@ -1,10 +1,11 @@
 <?php
+
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Spatie\Activitylog\Traits\LogsActivity;
+use Illuminate\Database\Eloquent\Model;
 use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class FeeCategory extends Model
 {
@@ -30,7 +31,7 @@ class FeeCategory extends Model
         return LogOptions::defaults()
             ->logOnly(['name', 'description', 'is_required', 'is_installment_allowed', 'status'])
             ->logOnlyDirty()
-            ->setDescriptionForEvent(fn(string $eventName) => "Fee category '{$this->name}' has been {$eventName}");
+            ->setDescriptionForEvent(fn (string $eventName) => "Fee category '{$this->name}' has been {$eventName}");
     }
 
     /**

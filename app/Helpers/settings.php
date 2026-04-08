@@ -4,7 +4,7 @@ use App\Models\Setting;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 
-if (!function_exists('settings_table_available')) {
+if (! function_exists('settings_table_available')) {
     /**
      * Check if settings table can be queried safely.
      */
@@ -26,19 +26,19 @@ if (!function_exists('settings_table_available')) {
     }
 }
 
-if (!function_exists('setting')) {
+if (! function_exists('setting')) {
     /**
      * Get a setting value by key
-     * 
-     * @param string $key
-     * @param mixed $default
+     *
+     * @param  string  $key
+     * @param  mixed  $default
      * @return mixed
      */
     function setting($key, $default = null)
     {
         try {
             // Check if settings table exists
-            if (!settings_table_available()) {
+            if (! settings_table_available()) {
                 return $default;
             }
 
@@ -47,7 +47,7 @@ if (!function_exists('setting')) {
             return Cache::remember($cacheKey, 3600, function () use ($key, $default) {
                 $setting = Setting::where('key', $key)->first();
 
-                if (!$setting) {
+                if (! $setting) {
                     return $default;
                 }
 
@@ -55,18 +55,17 @@ if (!function_exists('setting')) {
             });
 
         } catch (\Throwable $e) {
-            \Log::warning("Settings helper error for key '{$key}': " . $e->getMessage());
+            \Log::warning("Settings helper error for key '{$key}': ".$e->getMessage());
+
             return $default;
         }
     }
 }
 
-if (!function_exists('settings')) {
+if (! function_exists('settings')) {
     /**
      * Get multiple settings at once
-     * 
-     * @param array $keys
-     * @param array $defaults
+     *
      * @return array
      */
     function settings(array $keys, array $defaults = [])
@@ -82,20 +81,20 @@ if (!function_exists('settings')) {
     }
 }
 
-if (!function_exists('update_setting')) {
+if (! function_exists('update_setting')) {
     /**
      * Update a setting value
-     * 
-     * @param string $key
-     * @param mixed $value
-     * @param string $group
-     * @param string $type
+     *
+     * @param  string  $key
+     * @param  mixed  $value
+     * @param  string  $group
+     * @param  string  $type
      * @return bool
      */
     function update_setting($key, $value, $group = 'general', $type = 'text')
     {
         try {
-            if (!settings_table_available()) {
+            if (! settings_table_available()) {
                 return false;
             }
 
@@ -124,16 +123,17 @@ if (!function_exists('update_setting')) {
             return true;
 
         } catch (\Exception $e) {
-            \Log::error("Failed to update setting '{$key}': " . $e->getMessage());
+            \Log::error("Failed to update setting '{$key}': ".$e->getMessage());
+
             return false;
         }
     }
 }
 
-if (!function_exists('clear_settings_cache')) {
+if (! function_exists('clear_settings_cache')) {
     /**
      * Clear all settings cache
-     * 
+     *
      * @return void
      */
     function clear_settings_cache()
@@ -165,21 +165,21 @@ if (!function_exists('clear_settings_cache')) {
             }
 
         } catch (\Exception $e) {
-            \Log::warning('Failed to clear settings cache: ' . $e->getMessage());
+            \Log::warning('Failed to clear settings cache: '.$e->getMessage());
         }
     }
 }
 
-if (!function_exists('public_settings')) {
+if (! function_exists('public_settings')) {
     /**
      * Get all public settings (for frontend use)
-     * 
+     *
      * @return array
      */
     function public_settings()
     {
         try {
-            if (!settings_table_available()) {
+            if (! settings_table_available()) {
                 return [];
             }
 
@@ -190,23 +190,24 @@ if (!function_exists('public_settings')) {
             });
 
         } catch (\Exception $e) {
-            \Log::warning("Public settings error: " . $e->getMessage());
+            \Log::warning('Public settings error: '.$e->getMessage());
+
             return [];
         }
     }
 }
 
-if (!function_exists('get_settings_by_group')) {
+if (! function_exists('get_settings_by_group')) {
     /**
      * Get all settings for a specific group
-     * 
-     * @param string $group
+     *
+     * @param  string  $group
      * @return array
      */
     function get_settings_by_group($group)
     {
         try {
-            if (!settings_table_available()) {
+            if (! settings_table_available()) {
                 return [];
             }
 
@@ -217,23 +218,24 @@ if (!function_exists('get_settings_by_group')) {
             });
 
         } catch (\Exception $e) {
-            \Log::warning("Group settings error for '{$group}': " . $e->getMessage());
+            \Log::warning("Group settings error for '{$group}': ".$e->getMessage());
+
             return [];
         }
     }
 }
 
-if (!function_exists('setting_exists')) {
+if (! function_exists('setting_exists')) {
     /**
      * Check if a setting exists
-     * 
-     * @param string $key
+     *
+     * @param  string  $key
      * @return bool
      */
     function setting_exists($key)
     {
         try {
-            if (!settings_table_available()) {
+            if (! settings_table_available()) {
                 return false;
             }
 
@@ -245,13 +247,13 @@ if (!function_exists('setting_exists')) {
     }
 }
 
-if (!function_exists('format_setting_value')) {
+if (! function_exists('format_setting_value')) {
     /**
      * Format setting value for display
-     * 
-     * @param string $key
-     * @param mixed $value
-     * @param string $type
+     *
+     * @param  string  $key
+     * @param  mixed  $value
+     * @param  string  $type
      * @return string
      */
     function format_setting_value($key, $value, $type = 'text')
@@ -267,31 +269,34 @@ if (!function_exists('format_setting_value')) {
 
             case 'currency':
                 $symbol = setting('currency_symbol', '₹');
-                return $symbol . number_format($value, 2);
+
+                return $symbol.number_format($value, 2);
 
             case 'percentage':
-                return $value . '%';
+                return $value.'%';
 
             case 'array':
             case 'multiselect':
                 $array = is_string($value) ? json_decode($value, true) : $value;
+
                 return is_array($array) ? implode(', ', $array) : $value;
 
             case 'date':
                 $format = setting('date_format', 'd-m-Y');
+
                 return \Carbon\Carbon::parse($value)->format($format);
 
             case 'file':
-                return $value ? '<a href="' . asset('storage/' . $value) . '" target="_blank">View File</a>' : 'No file';
+                return $value ? '<a href="'.asset('storage/'.$value).'" target="_blank">View File</a>' : 'No file';
 
             case 'password':
                 return str_repeat('•', min(8, strlen($value)));
 
             case 'email':
-                return '<a href="mailto:' . $value . '">' . $value . '</a>';
+                return '<a href="mailto:'.$value.'">'.$value.'</a>';
 
             case 'url':
-                return '<a href="' . $value . '" target="_blank">' . \Str::limit($value, 30) . '</a>';
+                return '<a href="'.$value.'" target="_blank">'.\Str::limit($value, 30).'</a>';
 
             default:
                 return (string) $value;
@@ -299,33 +304,33 @@ if (!function_exists('format_setting_value')) {
     }
 }
 
-if (!function_exists('validate_setting_value')) {
+if (! function_exists('validate_setting_value')) {
     /**
      * Validate setting value based on type
-     * 
-     * @param mixed $value
-     * @param string $type
-     * @param array $options
+     *
+     * @param  mixed  $value
+     * @param  string  $type
+     * @param  array  $options
      * @return array
      */
     function validate_setting_value($value, $type, $options = [])
     {
         switch ($type) {
             case 'email':
-                if (!filter_var($value, FILTER_VALIDATE_EMAIL)) {
+                if (! filter_var($value, FILTER_VALIDATE_EMAIL)) {
                     return ['valid' => false, 'message' => 'Invalid email format'];
                 }
                 break;
 
             case 'url':
-                if (!filter_var($value, FILTER_VALIDATE_URL)) {
+                if (! filter_var($value, FILTER_VALIDATE_URL)) {
                     return ['valid' => false, 'message' => 'Invalid URL format'];
                 }
                 break;
 
             case 'number':
             case 'integer':
-                if (!is_numeric($value)) {
+                if (! is_numeric($value)) {
                     return ['valid' => false, 'message' => 'Value must be numeric'];
                 }
 
@@ -338,14 +343,14 @@ if (!function_exists('validate_setting_value')) {
                 break;
 
             case 'select':
-                if (isset($options['allowed']) && !in_array($value, $options['allowed'])) {
+                if (isset($options['allowed']) && ! in_array($value, $options['allowed'])) {
                     return ['valid' => false, 'message' => 'Invalid option selected'];
                 }
                 break;
 
             case 'boolean':
             case 'toggle':
-                if (!in_array($value, ['0', '1', 0, 1, true, false], true)) {
+                if (! in_array($value, ['0', '1', 0, 1, true, false], true)) {
                     return ['valid' => false, 'message' => 'Invalid boolean value'];
                 }
                 break;
@@ -355,7 +360,7 @@ if (!function_exists('validate_setting_value')) {
     }
 }
 
-if (!function_exists('backup_settings')) {
+if (! function_exists('backup_settings')) {
     /**
      * Create a backup of all application settings
      *
@@ -385,24 +390,25 @@ if (!function_exists('backup_settings')) {
                         'created_at' => $setting->created_at?->toISOString(),
                         'updated_at' => $setting->updated_at?->toISOString(),
                     ];
-                })->toArray()
+                })->toArray(),
             ];
 
             // Create backup directory if it doesn't exist
             $backupDir = storage_path('app/backups');
-            if (!is_dir($backupDir)) {
+            if (! is_dir($backupDir)) {
                 mkdir($backupDir, 0755, true);
             }
 
             // Generate filename
-            $filename = 'settings-backup-' . date('Y-m-d-H-i-s') . '.json';
-            $filepath = $backupDir . '/' . $filename;
+            $filename = 'settings-backup-'.date('Y-m-d-H-i-s').'.json';
+            $filepath = $backupDir.'/'.$filename;
 
             // Write backup file
             $result = file_put_contents($filepath, json_encode($backupData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 
             if ($result === false) {
-                \Log::error('Failed to write settings backup file: ' . $filepath);
+                \Log::error('Failed to write settings backup file: '.$filepath);
+
                 return false;
             }
 
@@ -410,50 +416,55 @@ if (!function_exists('backup_settings')) {
                 'filename' => $filename,
                 'filepath' => $filepath,
                 'settings_count' => $settings->count(),
-                'file_size' => filesize($filepath)
+                'file_size' => filesize($filepath),
             ]);
 
             return $filepath;
 
         } catch (\Exception $e) {
-            \Log::error('Settings backup failed: ' . $e->getMessage(), [
+            \Log::error('Settings backup failed: '.$e->getMessage(), [
                 'exception' => $e,
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
+
             return false;
         }
     }
 }
 
-if (!function_exists('restore_settings')) {
+if (! function_exists('restore_settings')) {
     /**
      * Restore settings from a backup file
      *
-     * @param string $filePath Path to the backup file
+     * @param  string  $filePath  Path to the backup file
      * @return bool Success status
      */
     function restore_settings($filePath)
     {
         try {
-            if (!file_exists($filePath)) {
-                \Log::error('Settings backup file not found: ' . $filePath);
+            if (! file_exists($filePath)) {
+                \Log::error('Settings backup file not found: '.$filePath);
+
                 return false;
             }
 
             $content = file_get_contents($filePath);
             if ($content === false) {
-                \Log::error('Failed to read settings backup file: ' . $filePath);
+                \Log::error('Failed to read settings backup file: '.$filePath);
+
                 return false;
             }
 
             $backupData = json_decode($content, true);
             if (json_last_error() !== JSON_ERROR_NONE) {
-                \Log::error('Invalid JSON in settings backup file: ' . json_last_error_msg());
+                \Log::error('Invalid JSON in settings backup file: '.json_last_error_msg());
+
                 return false;
             }
 
-            if (!isset($backupData['settings']) || !is_array($backupData['settings'])) {
+            if (! isset($backupData['settings']) || ! is_array($backupData['settings'])) {
                 \Log::error('Invalid backup format: settings array not found');
+
                 return false;
             }
 
@@ -463,8 +474,9 @@ if (!function_exists('restore_settings')) {
             \DB::beginTransaction();
 
             foreach ($backupData['settings'] as $settingData) {
-                if (!isset($settingData['key']) || empty($settingData['key'])) {
+                if (! isset($settingData['key']) || empty($settingData['key'])) {
                     $skipped++;
+
                     continue;
                 }
 
@@ -482,7 +494,7 @@ if (!function_exists('restore_settings')) {
                     );
                     $restored++;
                 } catch (\Exception $e) {
-                    \Log::warning("Failed to restore setting '{$settingData['key']}': " . $e->getMessage());
+                    \Log::warning("Failed to restore setting '{$settingData['key']}': ".$e->getMessage());
                     $skipped++;
                 }
             }
@@ -496,18 +508,19 @@ if (!function_exists('restore_settings')) {
                 'file' => basename($filePath),
                 'restored' => $restored,
                 'skipped' => $skipped,
-                'total' => count($backupData['settings'])
+                'total' => count($backupData['settings']),
             ]);
 
             return true;
 
         } catch (\Exception $e) {
             \DB::rollBack();
-            \Log::error('Settings restore failed: ' . $e->getMessage(), [
+            \Log::error('Settings restore failed: '.$e->getMessage(), [
                 'file' => $filePath,
                 'exception' => $e,
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
+
             return false;
         }
     }

@@ -2,21 +2,26 @@
 
 namespace App\Imports;
 
-use App\Models\Enquiry;
 use App\Models\Course;
+use App\Models\Enquiry;
 use App\Models\Student;
-use Maatwebsite\Excel\Concerns\ToModel;
-use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Maatwebsite\Excel\Concerns\ToModel;
+use Maatwebsite\Excel\Concerns\WithHeadingRow;
 
 class EnquiriesImport implements ToModel, WithHeadingRow
 {
     protected $assignedTo;
+
     protected $leadDistribution;
+
     protected $defaultSource;
+
     public $importedCount = 0;
+
     public $skippedCount = 0;
+
     public $duplicates = [];
 
     public function __construct($assignedTo = null, $leadDistribution = null, $defaultSource = null)
@@ -31,12 +36,13 @@ class EnquiriesImport implements ToModel, WithHeadingRow
     {
         // DEBUG: Log the row to see what keys Laravel Excel is reading
         // Check storage/logs/laravel.log if imports fail silently
-        // Log::info('CSV Row:', $row); 
+        // Log::info('CSV Row:', $row);
 
         // 1. Sanitize Phone (Handle mismatched headers gracefully)
         $rawPhone = $row['mobile_number'] ?? $row['phone'] ?? $row['mobile'] ?? null;
         if (empty($rawPhone)) {
             $this->skippedCount++;
+
             return null;
         }
 
@@ -46,6 +52,7 @@ class EnquiriesImport implements ToModel, WithHeadingRow
         // 2. Basic Validation — must be at least 10 digits
         if (strlen($phone) < 6) { // Allowing shorter numbers just in case, but usually 10
             $this->skippedCount++;
+
             return null;
         }
 
@@ -59,8 +66,9 @@ class EnquiriesImport implements ToModel, WithHeadingRow
             $this->duplicates[] = [
                 'name' => $row['name'] ?? $row['student_name'] ?? 'N/A',
                 'phone' => $phone,
-                'reason' => 'Duplicate (Existing Student: ' . $duplicateStudent->name . ')'
+                'reason' => 'Duplicate (Existing Student: '.$duplicateStudent->name.')',
             ];
+
             return null;
         }
 
@@ -71,18 +79,18 @@ class EnquiriesImport implements ToModel, WithHeadingRow
             $this->duplicates[] = [
                 'name' => $row['name'] ?? $row['student_name'] ?? 'N/A',
                 'phone' => $phone,
-                'reason' => 'Duplicate (Existing Enquiry: ' . $existingEnquiry->student_name . ')'
+                'reason' => 'Duplicate (Existing Enquiry: '.$existingEnquiry->student_name.')',
             ];
+
             return null;
         }
 
-
         // 5. Course Matching — exact match first, then partial fallback
         $courseId = null;
-        if (!empty($row['course'])) {
+        if (! empty($row['course'])) {
             $courseName = trim($row['course']);
             $course = Course::where('name', $courseName)->first()
-                ?? Course::where('name', 'LIKE', '%' . $courseName . '%')->first();
+                ?? Course::where('name', 'LIKE', '%'.$courseName.'%')->first();
             $courseId = $course ? $course->id : null;
         }
 
@@ -90,12 +98,12 @@ class EnquiriesImport implements ToModel, WithHeadingRow
         // Priority: 1. Manually selected user 2. Round-Robin College Admin 3. Current User (Auth::id())
         $assignedId = $this->assignedTo;
 
-        if (!$assignedId && $this->leadDistribution) {
+        if (! $assignedId && $this->leadDistribution) {
             $assignedId = $this->leadDistribution->getNextCollegeAdminId();
         }
 
         // Fallback to current user if still null
-        if (!$assignedId) {
+        if (! $assignedId) {
             $assignedId = Auth::id();
         }
 
@@ -103,6 +111,7 @@ class EnquiriesImport implements ToModel, WithHeadingRow
         $name = $row['name'] ?? $row['student_name'] ?? $row['student'] ?? null;
         if (empty($name)) {
             $this->skippedCount++;
+
             return null;
         }
 

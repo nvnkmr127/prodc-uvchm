@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
-use App\Models\Student;
 use App\Models\Payment;
-use Illuminate\Http\Request;
-use App\Services\ComponentPaymentService; // ✅ IMPORTED: The new service for component-based finances.
+use App\Models\Student;
+use App\Services\ComponentPaymentService;
+use Illuminate\Http\Request; // ✅ IMPORTED: The new service for component-based finances.
 
 class PaymentController extends Controller
 {
@@ -32,29 +32,29 @@ class PaymentController extends Controller
     {
         $user = auth()->user();
         $student = $user->student;
-        
-        if (!$student) {
+
+        if (! $student) {
             abort(404, 'Student profile not found.');
         }
 
         // Get all financial data using the new service layer.
         $financialSummary = $this->componentPaymentService->getStudentFinancialSummary($student);
-        
+
         // Fetch the specific fee components that are unpaid or partially paid.
         $payableComponents = $student->studentFees()
-                                     ->whereIn('status', ['unpaid', 'partial', 'overdue'])
-                                     ->whereRaw('amount - concession_amount - paid_amount > 0')
-                                     ->with('feeCategory')
-                                     ->orderBy('due_date', 'asc')
-                                     ->get();
-        
+            ->whereIn('status', ['unpaid', 'partial', 'overdue'])
+            ->whereRaw('amount - concession_amount - paid_amount > 0')
+            ->with('feeCategory')
+            ->orderBy('due_date', 'asc')
+            ->get();
+
         // Fetch recent component-based payments.
         $recentPayments = Payment::where('student_id', $student->id)
-                                 ->where('payment_type', 'component')
-                                 ->with('componentItems.studentFee.feeCategory')
-                                 ->latest()
-                                 ->limit(10)
-                                 ->get();
+            ->where('payment_type', 'component')
+            ->with('componentItems.studentFee.feeCategory')
+            ->latest()
+            ->limit(10)
+            ->get();
 
         $paymentData = [
             'student' => $student,
@@ -65,10 +65,10 @@ class PaymentController extends Controller
             'total_concession' => $financialSummary['concession_amount'],
             'total_fees' => $financialSummary['total_amount'],
         ];
-        
+
         return view('student.fee_payment', $paymentData);
     }
-    
+
     /**
      * ✅ UPDATED: initiate()
      * This method is redesigned to handle payments for multiple fee components at once.
@@ -81,13 +81,13 @@ class PaymentController extends Controller
         $request->validate([
             'components' => 'required|array|min:1',
             'components.*.student_fee_id' => 'required|exists:student_fees,id',
-            'components.*.amount' => 'required|numeric|min:1'
+            'components.*.amount' => 'required|numeric|min:1',
         ]);
-        
+
         $user = auth()->user();
         $student = $user->student;
-        
-        if (!$student) {
+
+        if (! $student) {
             return response()->json(['error' => 'Student profile not found'], 404);
         }
 
@@ -97,10 +97,10 @@ class PaymentController extends Controller
             $totalPaymentAmount = 0;
             foreach ($request->components as $component) {
                 $studentFee = $student->studentFees()->findOrFail($component['student_fee_id']);
-                
+
                 if ($component['amount'] > $studentFee->getRemainingAmount()) {
                     return response()->json([
-                        'error' => 'Amount for ' . $studentFee->feeCategory->name . ' exceeds the due amount.'
+                        'error' => 'Amount for '.$studentFee->feeCategory->name.' exceeds the due amount.',
                     ], 400);
                 }
                 $totalPaymentAmount += $component['amount'];
@@ -116,11 +116,11 @@ class PaymentController extends Controller
                 'message' => 'Payment initiation successful. Redirecting to payment gateway...',
                 'payment_url' => '#', // The actual payment gateway URL would go here.
                 'total_amount' => $totalPaymentAmount,
-                'components' => $request->components
+                'components' => $request->components,
             ]);
 
         } catch (\Exception $e) {
-            return response()->json(['error' => 'An error occurred: ' . $e->getMessage()], 500);
+            return response()->json(['error' => 'An error occurred: '.$e->getMessage()], 500);
         }
     }
 }

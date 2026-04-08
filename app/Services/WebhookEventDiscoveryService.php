@@ -1,6 +1,5 @@
 <?php
 
-
 namespace App\Services;
 
 use Illuminate\Support\Facades\File;
@@ -76,7 +75,7 @@ class WebhookEventDiscoveryService
             'category' => ['name' => 'Automation', 'icon' => 'fas fa-robot', 'emoji' => '🤖'],
             'auto_discovered' => false,
             'source' => 'manual',
-            'class' => 'scheduled_webhook'
+            'class' => 'scheduled_webhook',
         ];
 
         $events[] = [
@@ -86,7 +85,7 @@ class WebhookEventDiscoveryService
             'category' => ['name' => 'Student Management', 'icon' => 'fas fa-user-graduate', 'emoji' => '👨‍🎓'],
             'auto_discovered' => false,
             'source' => 'manual',
-            'class' => 'scheduled_command'
+            'class' => 'scheduled_command',
         ];
 
         $events[] = [
@@ -96,14 +95,13 @@ class WebhookEventDiscoveryService
             'category' => ['name' => 'Student Management', 'icon' => 'fas fa-user-graduate', 'emoji' => '👨‍🎓'],
             'auto_discovered' => false,
             'source' => 'manual',
-            'class' => 'scheduled_command'
+            'class' => 'scheduled_command',
         ];
 
         \Log::info('EventDiscoveryService: Discovering events', ['count' => count($events)]);
+
         return $this->organizeAndFormatEvents($events);
     }
-
-
 
     /**
      * Discover events from App/Events directory
@@ -113,14 +111,14 @@ class WebhookEventDiscoveryService
         $events = [];
         $eventsPath = app_path('Events');
 
-        if (!File::exists($eventsPath)) {
+        if (! File::exists($eventsPath)) {
             return $events;
         }
 
         $files = File::allFiles($eventsPath);
 
         foreach ($files as $file) {
-            $className = 'App\\Events\\' . str_replace(['/', '.php'], ['\\', ''], $file->getRelativePathname());
+            $className = 'App\\Events\\'.str_replace(['/', '.php'], ['\\', ''], $file->getRelativePathname());
 
             if (class_exists($className)) {
                 $eventInfo = $this->analyzeEventClass($className);
@@ -141,7 +139,7 @@ class WebhookEventDiscoveryService
         $events = [];
         $modelsPath = app_path('Models');
 
-        if (!File::exists($modelsPath)) {
+        if (! File::exists($modelsPath)) {
             return $events;
         }
 
@@ -154,7 +152,7 @@ class WebhookEventDiscoveryService
             'Batch',
             'Attendance',
             'FeeCategory',
-            'StudentFee'
+            'StudentFee',
         ];
 
         $files = File::allFiles($modelsPath);
@@ -164,24 +162,24 @@ class WebhookEventDiscoveryService
             $filename = $file->getFilename();
             $modelName = str_replace('.php', '', $filename);
 
-            if (!in_array($modelName, $webhookWhitelist)) {
+            if (! in_array($modelName, $webhookWhitelist)) {
                 continue;
             }
 
-            $className = 'App\\Models\\' . str_replace(['/', '.php'], ['\\', ''], $file->getRelativePathname());
+            $className = 'App\\Models\\'.str_replace(['/', '.php'], ['\\', ''], $file->getRelativePathname());
 
             if (class_exists($className)) {
                 foreach ($eloquentEvents as $eventType) {
-                    $eventKey = strtolower($modelName) . '.' . $eventType;
+                    $eventKey = strtolower($modelName).'.'.$eventType;
                     $events[] = [
                         'event_key' => $eventKey,
-                        'name' => $modelName . ' ' . ucfirst($eventType),
-                        'description' => "Triggers whenever a " . strtolower($modelName) . " is " . $eventType . ".",
+                        'name' => $modelName.' '.ucfirst($eventType),
+                        'description' => 'Triggers whenever a '.strtolower($modelName).' is '.$eventType.'.',
                         'class' => "eloquent:{$className}:{$eventType}",
                         'category' => $this->categorizeEvent($eventKey),
                         'auto_discovered' => true,
                         'model' => $modelName,
-                        'eloquent_event' => $eventType
+                        'eloquent_event' => $eventType,
                     ];
                 }
             }
@@ -292,7 +290,7 @@ class WebhookEventDiscoveryService
 
             $properties[$propertyName] = [
                 'type' => $propertyType,
-                'description' => $this->guessPropertyDescription($propertyName, $propertyType)
+                'description' => $this->guessPropertyDescription($propertyName, $propertyType),
             ];
         }
 
@@ -363,7 +361,7 @@ class WebhookEventDiscoveryService
             'category' => $this->categorizeEvent($eventKey),
             'auto_discovered' => true,
             'source' => 'annotation',
-            'file_path' => $filePath
+            'file_path' => $filePath,
         ];
     }
 
@@ -372,14 +370,14 @@ class WebhookEventDiscoveryService
      */
     protected function extractDescriptionFromDocblock($docComment): ?string
     {
-        if (!$docComment) {
+        if (! $docComment) {
             return null;
         }
 
         $lines = explode("\n", $docComment);
         foreach ($lines as $line) {
             $line = trim($line, "/* \t");
-            if ($line && !Str::startsWith($line, '@') && $line !== '/**' && $line !== '*/') {
+            if ($line && ! Str::startsWith($line, '@') && $line !== '/**' && $line !== '*/') {
                 return $line;
             }
         }
@@ -398,10 +396,11 @@ class WebhookEventDiscoveryService
         if (count($words) >= 2) {
             $action = array_pop($words);
             $subject = implode(' ', $words);
+
             return "Triggered when {$subject} is {$action}";
         }
 
-        return "Event triggered: " . Str::title(Str::snake($className, ' '));
+        return 'Event triggered: '.Str::title(Str::snake($className, ' '));
     }
 
     /**
@@ -447,12 +446,12 @@ class WebhookEventDiscoveryService
         foreach ($events as $event) {
             $categoryName = $event['category']['name'];
 
-            if (!isset($categories[$categoryName])) {
+            if (! isset($categories[$categoryName])) {
                 $categories[$categoryName] = [
                     'name' => $categoryName,
                     'icon' => $event['category']['icon'],
                     'emoji' => $event['category']['emoji'],
-                    'events' => []
+                    'events' => [],
                 ];
             }
 
@@ -464,7 +463,7 @@ class WebhookEventDiscoveryService
             'events' => $organized,
             'categories' => $categories,
             'total_count' => count($organized),
-            'discovered_at' => now()
+            'discovered_at' => now(),
         ];
     }
 
@@ -485,7 +484,7 @@ class WebhookEventDiscoveryService
             'synced_events' => count($discovered['events']),
             'categories' => count($discovered['categories']),
             'new_events' => $this->findNewEvents($discovered['events']),
-            'discovered_at' => $discovered['discovered_at']
+            'discovered_at' => $discovered['discovered_at'],
         ];
     }
 
@@ -514,19 +513,22 @@ class WebhookEventDiscoveryService
     public static function getAvailableEvents(): array
     {
         return cache()->remember('webhook_available_events_v3', now()->addHours(24), function () {
-            $service = new self();
+            $service = new self;
             $discovered = $service->discoverAllEvents();
+
             return $discovered['events'];
         });
     }
+
     /**
      * Get events grouped by category
      */
     public static function getEventsByCategory(): array
     {
         return cache()->remember('webhook_events_by_category_v3', now()->addHours(24), function () {
-            $service = new self();
+            $service = new self;
             $discovered = $service->discoverAllEvents();
+
             return $discovered['categories'];
         });
     }

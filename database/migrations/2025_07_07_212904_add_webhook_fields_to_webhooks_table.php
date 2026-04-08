@@ -12,10 +12,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('webhooks', function (Blueprint $table) {
-    $table->string('secret_key')->nullable()->after('url');
-    $table->integer('retry_count')->default(0)->after('is_active');
-    $table->timestamp('last_called_at')->nullable()->after('retry_count');
-});
+            $table->string('secret_key')->nullable()->after('url');
+            $table->integer('retry_count')->default(0)->after('is_active');
+            $table->timestamp('last_called_at')->nullable()->after('retry_count');
+        });
     }
 
     /**

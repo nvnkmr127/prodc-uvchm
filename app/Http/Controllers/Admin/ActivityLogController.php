@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Spatie\Activitylog\Models\Activity;
-use App\Models\User;
 
 class ActivityLogController extends Controller
 {
@@ -16,8 +16,8 @@ class ActivityLogController extends Controller
         // Search functionality
         if ($request->filled('search')) {
             $searchTerm = $request->search;
-            $query->where('description', 'LIKE', '%' . $searchTerm . '%')
-                ->orWhere('log_name', 'LIKE', '%' . $searchTerm . '%');
+            $query->where('description', 'LIKE', '%'.$searchTerm.'%')
+                ->orWhere('log_name', 'LIKE', '%'.$searchTerm.'%');
         }
 
         // Filter by user
@@ -94,7 +94,7 @@ class ActivityLogController extends Controller
 
         if ($days === 0) {
             $deleted = Activity::truncate();
-            $message = "Cleared all activity log entries.";
+            $message = 'Cleared all activity log entries.';
         } else {
             $deleted = Activity::where('created_at', '<', now()->subDays($days))->delete();
             $message = "Deleted {$deleted} old activity log entries.";

@@ -12,6 +12,7 @@ class CertificateTemplateController extends Controller
     public function index()
     {
         $templates = CertificateTemplate::latest()->get();
+
         return view('admin.certificate_templates.index', compact('templates'));
     }
 
@@ -45,7 +46,7 @@ class CertificateTemplateController extends Controller
             'margin_right' => 'nullable|integer',
             'margin_bottom' => 'nullable|integer',
             'margin_left' => 'nullable|integer',
-            'filename_format' => 'nullable|string'
+            'filename_format' => 'nullable|string',
         ]);
 
         if ($request->hasFile('background_image')) {
@@ -54,6 +55,7 @@ class CertificateTemplateController extends Controller
         }
 
         CertificateTemplate::create($validated);
+
         return redirect()->route('admin.certificate-templates.index')
             ->with('success', 'Certificate template created successfully.');
     }
@@ -73,7 +75,7 @@ class CertificateTemplateController extends Controller
             'margin_right' => 'nullable|integer',
             'margin_bottom' => 'nullable|integer',
             'margin_left' => 'nullable|integer',
-            'filename_format' => 'nullable|string'
+            'filename_format' => 'nullable|string',
         ]);
 
         if ($request->hasFile('background_image')) {
@@ -82,6 +84,7 @@ class CertificateTemplateController extends Controller
         }
 
         $certificateTemplate->update($validated);
+
         return redirect()->route('admin.certificate-templates.index')
             ->with('success', 'Certificate template updated successfully.');
     }
@@ -95,6 +98,7 @@ class CertificateTemplateController extends Controller
         }
 
         $certificateTemplate->delete();
+
         return redirect()->route('admin.certificate-templates.index')
             ->with('success', 'Certificate template deleted successfully.');
     }

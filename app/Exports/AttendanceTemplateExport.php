@@ -3,14 +3,14 @@
 namespace App\Exports;
 
 use Maatwebsite\Excel\Concerns\FromArray;
+use Maatwebsite\Excel\Concerns\WithColumnWidths;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithStyles;
-use Maatwebsite\Excel\Concerns\WithColumnWidths;
-use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class AttendanceTemplateExport implements FromArray, WithHeadings, WithStyles, WithColumnWidths
+class AttendanceTemplateExport implements FromArray, WithColumnWidths, WithHeadings, WithStyles
 {
     protected array $templateData;
 
@@ -22,16 +22,16 @@ class AttendanceTemplateExport implements FromArray, WithHeadings, WithStyles, W
     public function array(): array
     {
         $data = [];
-        
+
         // Add instructions as comments in the first few rows
         $data[] = ['INSTRUCTIONS:', '', '', '', ''];
         foreach ($this->templateData['instructions'] as $instruction) {
             $data[] = [$instruction, '', '', '', ''];
         }
-        
+
         // Add empty row
         $data[] = ['', '', '', '', ''];
-        
+
         // Add sample data
         foreach ($this->templateData['sample_data'] as $sample) {
             $data[] = [
@@ -39,10 +39,10 @@ class AttendanceTemplateExport implements FromArray, WithHeadings, WithStyles, W
                 $sample['attendance_date'],
                 $sample['status'],
                 $sample['notes'],
-                $sample['late_minutes']
+                $sample['late_minutes'],
             ];
         }
-        
+
         return $data;
     }
 
@@ -53,7 +53,7 @@ class AttendanceTemplateExport implements FromArray, WithHeadings, WithStyles, W
             'attendance_date',
             'status',
             'notes',
-            'late_minutes'
+            'late_minutes',
         ];
     }
 
@@ -64,27 +64,27 @@ class AttendanceTemplateExport implements FromArray, WithHeadings, WithStyles, W
             1 => [
                 'font' => [
                     'bold' => true,
-                    'color' => ['rgb' => 'FFFFFF']
+                    'color' => ['rgb' => 'FFFFFF'],
                 ],
                 'fill' => [
                     'fillType' => Fill::FILL_SOLID,
-                    'color' => ['rgb' => '4472C4']
+                    'color' => ['rgb' => '4472C4'],
                 ],
                 'alignment' => [
                     'horizontal' => Alignment::HORIZONTAL_CENTER,
-                ]
+                ],
             ],
-            
+
             // Style instruction rows
             '2:6' => [
                 'fill' => [
                     'fillType' => Fill::FILL_SOLID,
-                    'color' => ['rgb' => 'F2F2F2']
+                    'color' => ['rgb' => 'F2F2F2'],
                 ],
                 'font' => [
-                    'italic' => true
-                ]
-            ]
+                    'italic' => true,
+                ],
+            ],
         ];
     }
 

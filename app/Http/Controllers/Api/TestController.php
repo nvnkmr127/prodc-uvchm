@@ -26,7 +26,7 @@ class TestController extends Controller
                 'token_abilities' => $token->abilities ?? ['*'],
                 'last_used_at' => $token->last_used_at,
                 'timestamp' => now()->toISOString(),
-            ]
+            ],
         ]);
     }
 
@@ -36,7 +36,7 @@ class TestController extends Controller
     public function profile(Request $request)
     {
         $user = $request->user();
-        
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -45,7 +45,7 @@ class TestController extends Controller
                 'email' => $user->email,
                 'roles' => $user->getRoleNames(),
                 'permissions' => $user->getAllPermissions()->pluck('name'),
-            ]
+            ],
         ]);
     }
 
@@ -55,19 +55,19 @@ class TestController extends Controller
     public function restrictedTest(Request $request)
     {
         $token = $request->user()->currentAccessToken();
-        
+
         // Check if token has specific abilities
-        if (!$token->can('read')) {
+        if (! $token->can('read')) {
             return response()->json([
                 'success' => false,
-                'message' => 'Insufficient token permissions'
+                'message' => 'Insufficient token permissions',
             ], 403);
         }
 
         return response()->json([
             'success' => true,
             'message' => 'Access granted to restricted endpoint',
-            'token_abilities' => $token->abilities
+            'token_abilities' => $token->abilities,
         ]);
     }
 }

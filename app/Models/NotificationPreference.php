@@ -2,16 +2,16 @@
 
 namespace App\Models;
 
+use App\Traits\WebhookEnabled;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use App\Traits\WebhookEnabled;
 
 class NotificationPreference extends Model
 {
     use WebhookEnabled;
 
     protected $fillable = [
-        'user_id', 'notification_type', 'category', 'enabled', 'settings'
+        'user_id', 'notification_type', 'category', 'enabled', 'settings',
     ];
 
     protected $casts = [
@@ -30,7 +30,7 @@ class NotificationPreference extends Model
         return static::where([
             'user_id' => $userId,
             'notification_type' => $type,
-            'category' => $category
+            'category' => $category,
         ])->value('enabled') ?? true; // Default to enabled
     }
 
@@ -40,10 +40,10 @@ class NotificationPreference extends Model
         return static::updateOrCreate([
             'user_id' => $userId,
             'notification_type' => $type,
-            'category' => $category
+            'category' => $category,
         ], [
             'enabled' => $enabled,
-            'settings' => $settings
+            'settings' => $settings,
         ]);
     }
 }

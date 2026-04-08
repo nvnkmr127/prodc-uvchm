@@ -23,7 +23,7 @@ class PaymentDefaulter extends Model
         'affected_categories_count',
         'priority_score',
         'last_contacted_at',
-        'notes'
+        'notes',
     ];
 
     protected $casts = [
@@ -32,7 +32,7 @@ class PaymentDefaulter extends Model
         'first_overdue_date' => 'date',
         'last_contacted_at' => 'datetime',
         'priority_score' => 'decimal:2',
-        'total_overdue_amount' => 'decimal:2'
+        'total_overdue_amount' => 'decimal:2',
     ];
 
     public function student()

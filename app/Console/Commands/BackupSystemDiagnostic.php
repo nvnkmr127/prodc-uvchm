@@ -2,12 +2,11 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
-use App\Services\BackupService;
 use App\Models\Setting;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
+use App\Services\BackupService;
 use Carbon\Carbon;
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 
 class BackupSystemDiagnostic extends Command
 {
@@ -41,7 +40,7 @@ class BackupSystemDiagnostic extends Command
         $this->checkCronConfiguration();
         $this->checkLogFiles();
         $this->checkDatabaseConnection();
-        
+
         if ($this->option('fix')) {
             $this->newLine();
             $this->info('🔧 ATTEMPTING FIXES...');
@@ -64,11 +63,11 @@ class BackupSystemDiagnostic extends Command
         $gdriveEnabled = Setting::where('key', 'backup_gdrive_enabled')->value('value') ?? '0';
         $retention = Setting::where('key', 'backup_retention_days')->value('value') ?? '30';
 
-        $this->line('Auto Backup: ' . ($autoBackup === '1' ? '<fg=green>ENABLED</fg=green>' : '<fg=red>DISABLED</fg=red>'));
-        $this->line('Frequency: ' . $frequency);
-        $this->line('Maintenance Window: ' . $maintenanceWindow);
-        $this->line('Google Drive: ' . ($gdriveEnabled === '1' ? '<fg=green>ENABLED</fg=green>' : '<fg=yellow>DISABLED</fg=yellow>'));
-        $this->line('Retention Days: ' . $retention);
+        $this->line('Auto Backup: '.($autoBackup === '1' ? '<fg=green>ENABLED</fg=green>' : '<fg=red>DISABLED</fg=red>'));
+        $this->line('Frequency: '.$frequency);
+        $this->line('Maintenance Window: '.$maintenanceWindow);
+        $this->line('Google Drive: '.($gdriveEnabled === '1' ? '<fg=green>ENABLED</fg=green>' : '<fg=yellow>DISABLED</fg=yellow>'));
+        $this->line('Retention Days: '.$retention);
 
         if ($autoBackup !== '1') {
             $this->error('❌ Auto backup is disabled! This is likely why backups aren\'t running daily.');
@@ -83,25 +82,25 @@ class BackupSystemDiagnostic extends Command
         $this->info('==================');
 
         $backupPath = storage_path('app/backups');
-        
-        if (!file_exists($backupPath)) {
-            $this->error('❌ Backup directory does not exist: ' . $backupPath);
+
+        if (! file_exists($backupPath)) {
+            $this->error('❌ Backup directory does not exist: '.$backupPath);
         } else {
-            $this->line('✅ Backup directory exists: ' . $backupPath);
-            
+            $this->line('✅ Backup directory exists: '.$backupPath);
+
             // Check permissions
-            if (!is_writable($backupPath)) {
+            if (! is_writable($backupPath)) {
                 $this->error('❌ Backup directory is not writable');
             } else {
                 $this->line('✅ Backup directory is writable');
             }
-            
+
             // Check disk space
             $freeSpace = disk_free_space($backupPath);
             $totalSpace = disk_total_space($backupPath);
             $usedPercent = round((($totalSpace - $freeSpace) / $totalSpace) * 100, 2);
-            
-            $this->line('Disk Usage: ' . $usedPercent . '%');
+
+            $this->line('Disk Usage: '.$usedPercent.'%');
             if ($usedPercent > 90) {
                 $this->error('❌ Disk usage is critically high!');
             } elseif ($usedPercent > 80) {
@@ -118,42 +117,43 @@ class BackupSystemDiagnostic extends Command
         $this->info('==================');
 
         try {
-            $backupService = new BackupService();
+            $backupService = new BackupService;
             $backups = $backupService->getBackupsList();
-            
+
             if (empty($backups)) {
                 $this->error('❌ No backup files found');
+
                 return;
             }
 
-            $this->line('Total backups found: ' . count($backups));
-            
+            $this->line('Total backups found: '.count($backups));
+
             // Show recent backups
             $recent = array_slice($backups, 0, 5);
             $this->line('Recent backups:');
-            
+
             foreach ($recent as $backup) {
                 $age = $backup['created_at']->diffForHumans();
                 $size = $this->formatBytes($backup['size']);
-                $status = $backup['created_at']->isToday() ? '<fg=green>TODAY</fg=green>' : 
+                $status = $backup['created_at']->isToday() ? '<fg=green>TODAY</fg=green>' :
                          ($backup['created_at']->isYesterday() ? '<fg=yellow>YESTERDAY</fg=yellow>' : $age);
-                
+
                 $this->line("  - {$backup['filename']} ({$size}) - {$status}");
             }
-            
+
             // Check for daily backups in last week
             $lastWeek = collect($backups)->filter(function ($backup) {
                 return $backup['created_at']->isAfter(now()->subWeek());
             });
-            
-            $this->line('Backups in last 7 days: ' . $lastWeek->count());
-            
+
+            $this->line('Backups in last 7 days: '.$lastWeek->count());
+
             if ($lastWeek->count() < 3) {
                 $this->error('❌ Very few recent backups! Backup system may not be running properly.');
             }
-            
+
         } catch (\Exception $e) {
-            $this->error('❌ Failed to check backups: ' . $e->getMessage());
+            $this->error('❌ Failed to check backups: '.$e->getMessage());
         }
 
         $this->newLine();
@@ -165,22 +165,23 @@ class BackupSystemDiagnostic extends Command
         $this->info('=============================');
 
         $gdriveEnabled = Setting::where('key', 'backup_gdrive_enabled')->value('value') ?? '0';
-        
+
         if ($gdriveEnabled !== '1') {
             $this->line('Google Drive backup is disabled');
             $this->newLine();
+
             return;
         }
 
         $clientId = Setting::where('key', 'gdrive_client_id')->value('value');
         $clientSecret = Setting::where('key', 'gdrive_client_secret')->value('value');
         $accessToken = Setting::where('key', 'gdrive_access_token')->value('value');
-        
-        $this->line('Client ID: ' . ($clientId ? '✅ SET' : '❌ MISSING'));
-        $this->line('Client Secret: ' . ($clientSecret ? '✅ SET' : '❌ MISSING'));
-        $this->line('Access Token: ' . ($accessToken ? '✅ SET' : '❌ MISSING'));
 
-        if (!$clientId || !$clientSecret || !$accessToken) {
+        $this->line('Client ID: '.($clientId ? '✅ SET' : '❌ MISSING'));
+        $this->line('Client Secret: '.($clientSecret ? '✅ SET' : '❌ MISSING'));
+        $this->line('Access Token: '.($accessToken ? '✅ SET' : '❌ MISSING'));
+
+        if (! $clientId || ! $clientSecret || ! $accessToken) {
             $this->error('❌ Google Drive is enabled but credentials are incomplete!');
             $this->line('Please complete OAuth setup in Admin > Settings > Backup');
         }
@@ -198,9 +199,9 @@ class BackupSystemDiagnostic extends Command
         if ($lastRun) {
             $minutesAgo = $lastRun->diffInMinutes(now());
             if ($minutesAgo <= 2) {
-                $this->line('✅ Laravel Scheduler: RUNNING (last run ' . $minutesAgo . ' minutes ago)');
+                $this->line('✅ Laravel Scheduler: RUNNING (last run '.$minutesAgo.' minutes ago)');
             } else {
-                $this->warn('⚠️  Laravel Scheduler: May not be running (last run ' . $minutesAgo . ' minutes ago)');
+                $this->warn('⚠️  Laravel Scheduler: May not be running (last run '.$minutesAgo.' minutes ago)');
             }
         } else {
             $this->error('❌ Laravel Scheduler: No recent activity detected');
@@ -211,8 +212,8 @@ class BackupSystemDiagnostic extends Command
         // Show next scheduled backup time
         $frequency = Setting::where('key', 'backup_frequency')->value('value') ?? 'daily';
         $maintenanceWindow = Setting::where('key', 'maintenance_window')->value('value') ?? '02:00';
-        
-        $this->line('Next backup scheduled: ' . $frequency . ' at ' . $maintenanceWindow);
+
+        $this->line('Next backup scheduled: '.$frequency.' at '.$maintenanceWindow);
 
         $this->newLine();
     }
@@ -225,17 +226,17 @@ class BackupSystemDiagnostic extends Command
         $logFiles = [
             'scheduler.log' => 'Scheduler Activity',
             'full-backups.log' => 'Full Backups',
-            'backup-health.log' => 'Backup Health Check'
+            'backup-health.log' => 'Backup Health Check',
         ];
 
         foreach ($logFiles as $filename => $description) {
-            $path = storage_path('logs/' . $filename);
-            
+            $path = storage_path('logs/'.$filename);
+
             if (file_exists($path)) {
                 $size = filesize($path);
                 $modified = Carbon::createFromTimestamp(filemtime($path));
                 $this->line("✅ {$description}: {$this->formatBytes($size)} (modified {$modified->diffForHumans()})");
-                
+
                 // Check for recent activity
                 if ($filename === 'scheduler.log' && $modified->isAfter(now()->subDay())) {
                     $content = file_get_contents($path);
@@ -259,27 +260,27 @@ class BackupSystemDiagnostic extends Command
         try {
             $pdo = DB::connection()->getPdo();
             $this->line('✅ Database connection: OK');
-            
+
             // Test backup creation
             $this->line('Testing database backup creation...');
-            $backupService = new BackupService();
+            $backupService = new BackupService;
             $testResult = $backupService->createDatabaseBackup('diagnostic');
-            
+
             if ($testResult['success']) {
-                $this->line('✅ Test backup created successfully: ' . $testResult['filename']);
-                $this->line('   Size: ' . $this->formatBytes($testResult['size']));
-                
+                $this->line('✅ Test backup created successfully: '.$testResult['filename']);
+                $this->line('   Size: '.$this->formatBytes($testResult['size']));
+
                 // Clean up test backup
                 if (file_exists($testResult['path'])) {
                     unlink($testResult['path']);
                     $this->line('   Test backup cleaned up');
                 }
             } else {
-                $this->error('❌ Test backup failed: ' . $testResult['error']);
+                $this->error('❌ Test backup failed: '.$testResult['error']);
             }
-            
+
         } catch (\Exception $e) {
-            $this->error('❌ Database connection failed: ' . $e->getMessage());
+            $this->error('❌ Database connection failed: '.$e->getMessage());
         }
 
         $this->newLine();
@@ -291,7 +292,7 @@ class BackupSystemDiagnostic extends Command
 
         // Fix 1: Create backup directory if missing
         $backupPath = storage_path('app/backups');
-        if (!file_exists($backupPath)) {
+        if (! file_exists($backupPath)) {
             mkdir($backupPath, 0755, true);
             $this->line('✅ Created backup directory');
             $fixes++;
@@ -307,7 +308,7 @@ class BackupSystemDiagnostic extends Command
 
         // Fix 3: Set default backup frequency if missing
         $frequency = Setting::where('key', 'backup_frequency')->value('value');
-        if (!$frequency) {
+        if (! $frequency) {
             Setting::updateOrCreate(['key' => 'backup_frequency'], ['value' => 'daily']);
             $this->line('✅ Set backup frequency to daily');
             $fixes++;
@@ -315,7 +316,7 @@ class BackupSystemDiagnostic extends Command
 
         // Fix 4: Set default maintenance window if missing
         $maintenanceWindow = Setting::where('key', 'maintenance_window')->value('value');
-        if (!$maintenanceWindow) {
+        if (! $maintenanceWindow) {
             Setting::updateOrCreate(['key' => 'maintenance_window'], ['value' => '02:00']);
             $this->line('✅ Set maintenance window to 02:00');
             $fixes++;
@@ -343,14 +344,14 @@ class BackupSystemDiagnostic extends Command
 
         // Check cron setup
         $lastRun = cache('last_schedule_run');
-        if (!$lastRun || $lastRun->diffInMinutes(now()) > 5) {
+        if (! $lastRun || $lastRun->diffInMinutes(now()) > 5) {
             $recommendations[] = 'Set up Laravel cron job: * * * * * cd /path-to-your-project && php artisan schedule:run >> /dev/null 2>&1';
         }
 
         // Check Google Drive
         $gdriveEnabled = Setting::where('key', 'backup_gdrive_enabled')->value('value') ?? '0';
         $clientId = Setting::where('key', 'gdrive_client_id')->value('value');
-        if ($gdriveEnabled === '1' && !$clientId) {
+        if ($gdriveEnabled === '1' && ! $clientId) {
             $recommendations[] = 'Complete Google Drive OAuth setup for cloud backups';
         }
 
@@ -366,7 +367,7 @@ class BackupSystemDiagnostic extends Command
             $this->line('✅ No specific recommendations at this time');
         } else {
             foreach ($recommendations as $i => $recommendation) {
-                $this->line(($i + 1) . '. ' . $recommendation);
+                $this->line(($i + 1).'. '.$recommendation);
             }
         }
     }
@@ -375,6 +376,7 @@ class BackupSystemDiagnostic extends Command
     {
         $units = ['B', 'KB', 'MB', 'GB'];
         $factor = floor((strlen($size) - 1) / 3);
-        return sprintf("%.2f", $size / pow(1024, $factor)) . ' ' . $units[$factor];
+
+        return sprintf('%.2f', $size / pow(1024, $factor)).' '.$units[$factor];
     }
 }

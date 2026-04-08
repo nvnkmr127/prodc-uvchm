@@ -7,8 +7,11 @@ use Illuminate\Support\Facades\Log;
 class MockWhatsAppService
 {
     protected $mockResponses;
+
     protected $failureRate;
+
     protected $delaySimulation;
+
     protected $templateValidation;
 
     public function __construct()
@@ -32,10 +35,11 @@ class MockWhatsAppService
 
             // Validate phone number format
             $formattedPhone = $this->formatPhoneNumber($phoneNumber);
-            if (!$formattedPhone) {
+            if (! $formattedPhone) {
                 Log::error('Mock WhatsApp: Invalid phone number format', [
-                    'phone' => $phoneNumber
+                    'phone' => $phoneNumber,
                 ]);
+
                 return false;
             }
 
@@ -43,17 +47,19 @@ class MockWhatsAppService
             if (rand(1, 100) <= ($this->failureRate * 100)) {
                 Log::warning('Mock WhatsApp failure simulation', [
                     'phone' => $phoneNumber,
-                    'reason' => 'Simulated API error'
+                    'reason' => 'Simulated API error',
                 ]);
+
                 return false;
             }
 
             // Validate template data if enabled
-            if ($this->templateValidation && !$this->validateTemplateData($data)) {
+            if ($this->templateValidation && ! $this->validateTemplateData($data)) {
                 Log::error('Mock WhatsApp: Invalid template data', [
                     'phone' => $phoneNumber,
-                    'data' => $data
+                    'data' => $data,
                 ]);
+
                 return false;
             }
 
@@ -62,8 +68,8 @@ class MockWhatsAppService
                 'phone' => $formattedPhone,
                 'template' => 'payment_reminder',
                 'data' => $data,
-                'mock_message_id' => 'MOCK_WA_' . uniqid(),
-                'timestamp' => now()->toISOString()
+                'mock_message_id' => 'MOCK_WA_'.uniqid(),
+                'timestamp' => now()->toISOString(),
             ]);
 
             return true;
@@ -71,8 +77,9 @@ class MockWhatsAppService
         } catch (\Exception $e) {
             Log::error('Mock WhatsApp service error', [
                 'phone' => $phoneNumber,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
+
             return false;
         }
     }
@@ -89,16 +96,17 @@ class MockWhatsAppService
             }
 
             $formattedPhone = $this->formatPhoneNumber($phoneNumber);
-            if (!$formattedPhone) {
+            if (! $formattedPhone) {
                 return false;
             }
 
             // Simulate template validation
-            if (!$this->isValidTemplate($templateName)) {
+            if (! $this->isValidTemplate($templateName)) {
                 Log::error('Mock WhatsApp: Invalid template', [
                     'phone' => $phoneNumber,
-                    'template' => $templateName
+                    'template' => $templateName,
                 ]);
+
                 return false;
             }
 
@@ -106,7 +114,7 @@ class MockWhatsAppService
                 'phone' => $formattedPhone,
                 'template' => $templateName,
                 'parameters' => $parameters,
-                'mock_message_id' => 'MOCK_WA_TPL_' . uniqid()
+                'mock_message_id' => 'MOCK_WA_TPL_'.uniqid(),
             ]);
 
             return true;
@@ -115,8 +123,9 @@ class MockWhatsAppService
             Log::error('Mock WhatsApp template error', [
                 'phone' => $phoneNumber,
                 'template' => $templateName,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
+
             return false;
         }
     }
@@ -127,11 +136,11 @@ class MockWhatsAppService
     public function sendBulkMessages(array $recipients, string $templateName, array $commonData = []): array
     {
         $results = [];
-        
+
         foreach ($recipients as $recipient) {
             $phoneNumber = is_array($recipient) ? $recipient['phone'] : $recipient;
             $data = is_array($recipient) ? array_merge($commonData, $recipient['data'] ?? []) : $commonData;
-            
+
             $results[$phoneNumber] = $this->sendTemplateMessage($phoneNumber, $templateName, $data);
         }
 
@@ -139,7 +148,7 @@ class MockWhatsAppService
             'template' => $templateName,
             'total_recipients' => count($recipients),
             'successful' => count(array_filter($results)),
-            'failed' => count($recipients) - count(array_filter($results))
+            'failed' => count($recipients) - count(array_filter($results)),
         ]);
 
         return $results;
@@ -157,13 +166,13 @@ class MockWhatsAppService
         $response = [
             'message_id' => $messageId,
             'status' => $status,
-            'timestamp' => now()->subMinutes(rand(1, 30))->toISOString()
+            'timestamp' => now()->subMinutes(rand(1, 30))->toISOString(),
         ];
 
         if ($status === 'failed') {
             $response['error'] = [
                 'code' => rand(100, 999),
-                'message' => 'Mock delivery failure'
+                'message' => 'Mock delivery failure',
             ];
         }
 
@@ -176,13 +185,13 @@ class MockWhatsAppService
     public function getAccountInfo(): array
     {
         return [
-            'account_id' => 'MOCK_ACCOUNT_' . uniqid(),
+            'account_id' => 'MOCK_ACCOUNT_'.uniqid(),
             'business_name' => 'Mock College Management System',
-            'phone_number' => '+91' . rand(7000000000, 9999999999),
+            'phone_number' => '+91'.rand(7000000000, 9999999999),
             'verified' => true,
             'tier' => 'standard',
             'messaging_limit' => rand(1000, 10000),
-            'last_updated' => now()->toISOString()
+            'last_updated' => now()->toISOString(),
         ];
     }
 
@@ -192,13 +201,13 @@ class MockWhatsAppService
     private function validateTemplateData(array $data): bool
     {
         $requiredFields = ['student_name', 'amount', 'due_date', 'fee_type'];
-        
+
         foreach ($requiredFields as $field) {
-            if (!isset($data[$field]) || empty($data[$field])) {
+            if (! isset($data[$field]) || empty($data[$field])) {
                 return false;
             }
         }
-        
+
         return true;
     }
 
@@ -212,9 +221,9 @@ class MockWhatsAppService
             'fee_due_notice',
             'payment_confirmation',
             'overdue_notice',
-            'welcome_message'
+            'welcome_message',
         ];
-        
+
         return in_array($templateName, $validTemplates);
     }
 
@@ -225,18 +234,18 @@ class MockWhatsAppService
     {
         // Remove all non-numeric characters
         $phone = preg_replace('/[^0-9]/', '', $phone);
-        
+
         // Add country code if not present (assuming India +91)
         if (strlen($phone) === 10) {
-            $phone = '91' . $phone;
+            $phone = '91'.$phone;
         } elseif (strlen($phone) === 11 && substr($phone, 0, 1) === '0') {
-            $phone = '91' . substr($phone, 1);
+            $phone = '91'.substr($phone, 1);
         } elseif (strlen($phone) === 12 && substr($phone, 0, 2) === '91') {
             // Already has country code
         } else {
             return null; // Invalid format
         }
-        
+
         return strlen($phone) === 12 ? $phone : null;
     }
 
@@ -249,9 +258,9 @@ class MockWhatsAppService
             'service_type' => 'mock',
             'total_sent' => rand(500, 2500),
             'success_rate' => (1 - $this->failureRate) * 100,
-            'average_delivery_time' => rand(10, 60) . ' seconds',
+            'average_delivery_time' => rand(10, 60).' seconds',
             'templates_used' => rand(3, 8),
-            'last_activity' => now()->subMinutes(rand(1, 120))->toISOString()
+            'last_activity' => now()->subMinutes(rand(1, 120))->toISOString(),
         ];
     }
 
@@ -261,6 +270,7 @@ class MockWhatsAppService
     public function validatePhoneNumber(string $phone): bool
     {
         $formatted = $this->formatPhoneNumber($phone);
-        return !is_null($formatted) && strlen($formatted) === 12;
+
+        return ! is_null($formatted) && strlen($formatted) === 12;
     }
 }

@@ -2,27 +2,30 @@
 
 namespace App\Jobs\Attendance;
 
-use App\Services\Attendance\NotificationService;
+use App\Events\Attendance\NotificationEvent;
 use App\Models\Attendance\NotificationLog;
 use App\Models\Student;
-use App\Events\Attendance\NotificationEvent;
+use App\Services\Attendance\NotificationService;
+use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
-use Carbon\Carbon;
 
 class ProcessNotificationJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public $timeout = 300; // 5 minutes
+
     public $tries = 3;
+
     public $backoff = [30, 60, 120]; // Retry delays in seconds
 
     protected $notificationData;
+
     protected $type;
 
     public function __construct(array $notificationData, string $type = 'single')
@@ -68,7 +71,7 @@ class ProcessNotificationJob implements ShouldQueue
             Log::error('Notification processing job failed', [
                 'type' => $this->type,
                 'data' => $this->notificationData,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             throw $e;
@@ -84,7 +87,7 @@ class ProcessNotificationJob implements ShouldQueue
             'type' => $this->type,
             'data' => $this->notificationData,
             'exception' => $exception->getMessage(),
-            'attempts' => $this->attempts()
+            'attempts' => $this->attempts(),
         ]);
 
         // Mark notification as failed if ID is provided
@@ -111,7 +114,7 @@ class ProcessNotificationJob implements ShouldQueue
             'message' => $this->notificationData['message'],
             'data' => $this->notificationData['data'] ?? [],
             'status' => 'pending',
-            'priority' => $this->notificationData['priority'] ?? 'normal'
+            'priority' => $this->notificationData['priority'] ?? 'normal',
         ]);
 
         try {
@@ -139,7 +142,7 @@ class ProcessNotificationJob implements ShouldQueue
 
         Log::info('Absent alert processed', [
             'attendance_id' => $attendanceId,
-            'student_id' => $attendance->student_id
+            'student_id' => $attendance->student_id,
         ]);
     }
 
@@ -156,7 +159,7 @@ class ProcessNotificationJob implements ShouldQueue
 
         Log::info('Low attendance alert processed', [
             'student_id' => $studentId,
-            'attendance_percentage' => $stats['attendance_percentage']
+            'attendance_percentage' => $stats['attendance_percentage'],
         ]);
     }
 
@@ -205,7 +208,7 @@ class ProcessNotificationJob implements ShouldQueue
                 $failed++;
                 Log::warning('Bulk notification item failed', [
                     'notification' => $notification,
-                    'error' => $e->getMessage()
+                    'error' => $e->getMessage(),
                 ]);
             }
         }
@@ -213,7 +216,7 @@ class ProcessNotificationJob implements ShouldQueue
         Log::info('Bulk notifications processed', [
             'total' => count($notifications),
             'processed' => $processed,
-            'failed' => $failed
+            'failed' => $failed,
         ]);
     }
 
@@ -234,7 +237,7 @@ class ProcessNotificationJob implements ShouldQueue
                         'title' => $notification->title,
                         'message' => $notification->message,
                         'channels' => explode(',', $notification->channel),
-                        'data' => $notification->data
+                        'data' => $notification->data,
                     ]);
 
                     $notification->markAsSent();
@@ -299,7 +302,7 @@ class ProcessNotificationJob implements ShouldQueue
     private function sendEmailNotification(array $data): void
     {
         $recipient = $data['email'] ?? null;
-        if (!$recipient) {
+        if (! $recipient) {
             // Try to extract from data if not explicitly passed
             if (isset($data['user']) && isset($data['user']['email'])) {
                 $recipient = $data['user']['email'];
@@ -313,7 +316,7 @@ class ProcessNotificationJob implements ShouldQueue
             });
             Log::info("Email sent to {$recipient}");
         } else {
-            Log::warning("No recipient email found for notification", $data);
+            Log::warning('No recipient email found for notification', $data);
         }
     }
 
@@ -321,15 +324,15 @@ class ProcessNotificationJob implements ShouldQueue
     {
         // Placeholder for SMS integration (e.g., Twilio, AWS SNS)
         $phone = $data['phone'] ?? null;
-        if (!$phone && isset($data['user']['phone'])) {
+        if (! $phone && isset($data['user']['phone'])) {
             $phone = $data['user']['phone'];
         }
 
         if ($phone) {
             // Log assumption of sending
-            Log::info("SMS sent to {$phone}: " . ($data['message'] ?? ''));
+            Log::info("SMS sent to {$phone}: ".($data['message'] ?? ''));
         } else {
-            Log::warning("No phone number found for SMS notification", $data);
+            Log::warning('No phone number found for SMS notification', $data);
         }
     }
 
@@ -346,7 +349,7 @@ class ProcessNotificationJob implements ShouldQueue
             if ($user) {
                 // Creating a simple database notification using Laravel's native system
                 // assuming User has Notifiable trait
-                // $user->notify(new \App\Notifications\GeneralNotification($data)); 
+                // $user->notify(new \App\Notifications\GeneralNotification($data));
                 // commented out as we don't have that class guaranteed.
 
                 Log::info("Database notification created for user {$userId}");
@@ -362,7 +365,7 @@ class ProcessNotificationJob implements ShouldQueue
         if ($deviceToken) {
             Log::info("Push notification sent to token {$deviceToken}");
         } else {
-            Log::warning("No device token for push notification");
+            Log::warning('No device token for push notification');
         }
     }
 }

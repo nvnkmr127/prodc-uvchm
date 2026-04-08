@@ -30,7 +30,7 @@ return new class extends Migration
             $table->json('supported_features')->nullable(); // What features device supports
             $table->text('notes')->nullable(); // Admin notes
             $table->timestamps();
-            
+
             // Indexes for better performance
             $table->index(['manufacturer', 'status']);
             $table->index('last_heartbeat');

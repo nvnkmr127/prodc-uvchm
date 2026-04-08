@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Course;
+use App\Models\Attendance;
 use App\Models\Batch;
-use App\Models\Student;
-use App\Models\Attendance; // Added for attendance check
+use App\Models\Course;
+use App\Models\Student; // Added for attendance check
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -45,7 +45,7 @@ class BatchController extends Controller
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
             'status' => 'nullable|in:active,completed,archived', // Changed to nullable
-            'is_on_internship' => 'nullable'
+            'is_on_internship' => 'nullable',
         ]);
 
         // 2. Set Defaults
@@ -64,6 +64,7 @@ class BatchController extends Controller
     public function edit(Batch $batch)
     {
         $courses = Course::orderBy('name')->get();
+
         return view('admin.batches.edit', compact('batch', 'courses'));
     }
 
@@ -76,7 +77,7 @@ class BatchController extends Controller
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
             'status' => 'required|in:active,completed,archived',
-            'is_on_internship' => 'nullable'
+            'is_on_internship' => 'nullable',
         ]);
         // Handle checkbox for update
         $validatedData['is_on_internship'] = $request->boolean('is_on_internship');
@@ -93,6 +94,7 @@ class BatchController extends Controller
         }
 
         $batch->delete();
+
         return redirect()->route('admin.batches.index')->with('success', 'Batch deleted successfully.');
     }
 
@@ -101,16 +103,16 @@ class BatchController extends Controller
      */
     public function toggleInternship(Batch $batch)
     {
-        $newState = !$batch->is_on_internship;
+        $newState = ! $batch->is_on_internship;
         $batch->update([
             'is_on_internship' => $newState,
-            'internship_start_date' => $newState ? now() : null
+            'internship_start_date' => $newState ? now() : null,
         ]);
 
         return response()->json([
             'success' => true,
             'is_on_internship' => $batch->is_on_internship,
-            'message' => $batch->is_on_internship ? 'Batch marked as On Internship' : 'Batch marked as In College'
+            'message' => $batch->is_on_internship ? 'Batch marked as On Internship' : 'Batch marked as In College',
         ]);
     }
 
@@ -160,7 +162,7 @@ class BatchController extends Controller
             ->update(['status' => 'graduated']);
 
         return redirect()->route('admin.batches.index')
-            ->with('success', $studentCount . ' students from ' . $batch->name . ' have been marked as graduated.');
+            ->with('success', $studentCount.' students from '.$batch->name.' have been marked as graduated.');
     }
 
     public function getStudentsWithAttendance(Request $request, Batch $batch)
@@ -189,14 +191,14 @@ class BatchController extends Controller
                 'success' => true,
                 'data' => [
                     'students' => $students,
-                    'existing_attendance' => $existingAttendance
-                ]
+                    'existing_attendance' => $existingAttendance,
+                ],
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to load students: ' . $e->getMessage()
+                'message' => 'Failed to load students: '.$e->getMessage(),
             ], 500);
         }
     }

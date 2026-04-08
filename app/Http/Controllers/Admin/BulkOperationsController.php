@@ -59,7 +59,7 @@ class BulkOperationsController extends Controller
                     'student_count' => $studentCount,
                     'performed_by' => auth()->user()->name,
                     'timestamp' => now()->toISOString(),
-                ]
+                ],
             ]);
 
             return response()->json(['success' => true, 'message' => "Bulk {$operation} completed successfully"]);
@@ -77,7 +77,7 @@ class BulkOperationsController extends Controller
                 ]
             );
 
-            return response()->json(['success' => false, 'message' => 'Bulk operation failed: ' . $e->getMessage()], 500);
+            return response()->json(['success' => false, 'message' => 'Bulk operation failed: '.$e->getMessage()], 500);
         }
     }
 }

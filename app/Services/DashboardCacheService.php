@@ -8,8 +8,8 @@ class DashboardCacheService
 {
     public function getCachedWidgetData(string $widgetId, array $params = []): array
     {
-        $cacheKey = "widget.{$widgetId}." . md5(serialize($params));
-        
+        $cacheKey = "widget.{$widgetId}.".md5(serialize($params));
+
         return Cache::remember($cacheKey, 300, function () use ($widgetId, $params) {
             return app(WidgetDataService::class)->getWidgetData($widgetId, $params);
         });

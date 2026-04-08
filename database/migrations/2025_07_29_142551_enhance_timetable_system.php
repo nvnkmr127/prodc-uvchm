@@ -14,23 +14,23 @@ return new class extends Migration
     {
         // Update subjects table to support lab requirements
         Schema::table('subjects', function (Blueprint $table) {
-            if (!Schema::hasColumn('subjects', 'lab_hours')) {
+            if (! Schema::hasColumn('subjects', 'lab_hours')) {
                 $table->integer('lab_hours')->nullable()->after('requires_lab');
             }
-            if (!Schema::hasColumn('subjects', 'theory_hours')) {
+            if (! Schema::hasColumn('subjects', 'theory_hours')) {
                 $table->integer('theory_hours')->nullable()->after('lab_hours');
             }
-            if (!Schema::hasColumn('subjects', 'description')) {
+            if (! Schema::hasColumn('subjects', 'description')) {
                 $table->text('description')->nullable()->after('theory_hours');
             }
         });
 
         // Update practical_groups table to support academic year
         Schema::table('practical_groups', function (Blueprint $table) {
-            if (!Schema::hasColumn('practical_groups', 'academic_year_id')) {
+            if (! Schema::hasColumn('practical_groups', 'academic_year_id')) {
                 $table->foreignId('academic_year_id')->after('classroom_id')->constrained()->onDelete('cascade');
             }
-            
+
             // Only drop semester column if it exists and academic_year_id was successfully added
             if (Schema::hasColumn('practical_groups', 'semester') && Schema::hasColumn('practical_groups', 'academic_year_id')) {
                 $table->dropColumn('semester');
@@ -40,44 +40,44 @@ return new class extends Migration
         // Ensure timetables table has all required fields for enhanced functionality
         Schema::table('timetables', function (Blueprint $table) {
             // Add indexes for better performance with shortened names
-            if (!$this->hasIndex('timetables', 'batch_date_time_idx')) {
+            if (! $this->hasIndex('timetables', 'batch_date_time_idx')) {
                 $table->index(['batch_id', 'schedule_date', 'time_slot_id'], 'batch_date_time_idx');
             }
-            
-            if (!$this->hasIndex('timetables', 'lab_session_idx')) {
+
+            if (! $this->hasIndex('timetables', 'lab_session_idx')) {
                 $table->index(['is_lab_session', 'academic_year_id'], 'lab_session_idx');
             }
-            
-            if (!$this->hasIndex('timetables', 'practical_group_idx')) {
+
+            if (! $this->hasIndex('timetables', 'practical_group_idx')) {
                 $table->index(['practical_group_id', 'schedule_date'], 'practical_group_idx');
             }
         });
 
         // Update time_slots table to support session types (if not already present)
         Schema::table('time_slots', function (Blueprint $table) {
-            if (!Schema::hasColumn('time_slots', 'type')) {
+            if (! Schema::hasColumn('time_slots', 'type')) {
                 $table->enum('type', ['morning', 'afternoon', 'evening'])->default('morning')->after('end_time');
             }
-            if (!Schema::hasColumn('time_slots', 'is_active')) {
+            if (! Schema::hasColumn('time_slots', 'is_active')) {
                 $table->boolean('is_active')->default(true)->after('type');
             }
         });
 
         // Update classrooms table to support detailed lab information
         Schema::table('classrooms', function (Blueprint $table) {
-            if (!Schema::hasColumn('classrooms', 'lab_type')) {
+            if (! Schema::hasColumn('classrooms', 'lab_type')) {
                 $table->string('lab_type')->nullable()->after('type');
             }
-            if (!Schema::hasColumn('classrooms', 'equipment')) {
+            if (! Schema::hasColumn('classrooms', 'equipment')) {
                 $table->text('equipment')->nullable()->after('lab_type');
             }
-            if (!Schema::hasColumn('classrooms', 'max_group_size')) {
+            if (! Schema::hasColumn('classrooms', 'max_group_size')) {
                 $table->integer('max_group_size')->nullable()->after('capacity');
             }
         });
 
         // Create a new table for timetable generation logs
-        if (!Schema::hasTable('timetable_generation_logs')) {
+        if (! Schema::hasTable('timetable_generation_logs')) {
             Schema::create('timetable_generation_logs', function (Blueprint $table) {
                 $table->id();
                 $table->json('course_ids'); // Courses included in generation
@@ -92,7 +92,7 @@ return new class extends Migration
                 $table->text('error_message')->nullable();
                 $table->foreignId('created_by')->nullable()->constrained('users')->onDelete('set null');
                 $table->timestamps();
-                
+
                 // Indexes with shortened names
                 $table->index(['academic_year_id', 'week_start_date'], 'academic_week_idx');
                 $table->index(['status', 'created_at'], 'status_created_idx');
@@ -100,7 +100,7 @@ return new class extends Migration
         }
 
         // Create a requirements validation table for tracking compliance
-        if (!Schema::hasTable('timetable_requirement_validations')) {
+        if (! Schema::hasTable('timetable_requirement_validations')) {
             Schema::create('timetable_requirement_validations', function (Blueprint $table) {
                 $table->id();
                 $table->string('requirement_code'); // e.g., 'FR-2', 'FR-3', etc.
@@ -114,7 +114,7 @@ return new class extends Migration
                 $table->text('violation_details')->nullable();
                 $table->json('affected_timetable_ids')->nullable(); // IDs of timetable entries causing violations
                 $table->timestamps();
-                
+
                 // Indexes with shortened names
                 $table->index(['requirement_code', 'validation_date'], 'req_code_val_date_idx');
                 $table->index(['is_compliant', 'academic_year_id'], 'compliant_academic_idx');
@@ -124,10 +124,10 @@ return new class extends Migration
 
         // Seed default lab subjects if they don't exist
         $this->seedDefaultLabSubjects();
-        
+
         // Update existing time slots with types if needed
         $this->updateTimeSlotTypes();
-        
+
         // Update existing classrooms with lab types
         $this->updateClassroomLabTypes();
     }
@@ -155,7 +155,7 @@ return new class extends Migration
                 $table->dropForeign(['academic_year_id']);
                 $table->dropColumn('academic_year_id');
             }
-            if (!Schema::hasColumn('practical_groups', 'semester')) {
+            if (! Schema::hasColumn('practical_groups', 'semester')) {
                 $table->integer('semester')->nullable(); // Restore old semester column
             }
         });
@@ -216,7 +216,7 @@ return new class extends Migration
             ['name' => 'Service Lab', 'code' => 'SERVICELAB', 'lab_type' => 'service'],
             ['name' => 'Kitchen Lab', 'code' => 'KITCHENLAB', 'lab_type' => 'kitchen'],
             ['name' => 'Front Office Lab', 'code' => 'FRONTOFFICELAB', 'lab_type' => 'front_office'],
-            ['name' => 'Housekeeping Lab', 'code' => 'HOUSEKEEPINGLAB', 'lab_type' => 'housekeeping']
+            ['name' => 'Housekeeping Lab', 'code' => 'HOUSEKEEPINGLAB', 'lab_type' => 'housekeeping'],
         ];
 
         foreach ($requiredLabTypes as $labType) {
@@ -226,7 +226,7 @@ return new class extends Migration
                 ->where('requires_lab', true)
                 ->exists();
 
-            if (!$exists) {
+            if (! $exists) {
                 \DB::table('subjects')->insert([
                     'name' => $labType['name'],
                     'code' => $labType['code'],
@@ -235,7 +235,7 @@ return new class extends Migration
                     'theory_hours' => 0,
                     'description' => "Practical {$labType['name']} sessions focusing on hands-on skills development",
                     'created_at' => now(),
-                    'updated_at' => now()
+                    'updated_at' => now(),
                 ]);
             }
         }
@@ -275,7 +275,7 @@ return new class extends Migration
                 'kitchen' => ['kitchen', 'culinary', 'cooking', 'food'],
                 'service' => ['service', 'restaurant', 'dining'],
                 'front_office' => ['front office', 'reception', 'front desk', 'fo'],
-                'housekeeping' => ['housekeeping', 'maintenance', 'cleaning', 'hk']
+                'housekeeping' => ['housekeeping', 'maintenance', 'cleaning', 'hk'],
             ];
 
             foreach ($labMappings as $labType => $keywords) {
@@ -286,7 +286,7 @@ return new class extends Migration
                         ->whereNull('lab_type')
                         ->update([
                             'lab_type' => $labType,
-                            'max_group_size' => 15 // Default optimal group size
+                            'max_group_size' => 15, // Default optimal group size
                         ]);
                 }
             }

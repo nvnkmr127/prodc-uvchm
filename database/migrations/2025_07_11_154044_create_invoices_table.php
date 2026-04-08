@@ -2,8 +2,8 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -14,23 +14,23 @@ return new class extends Migration
     {
         // Add missing columns to invoices table
         Schema::table('invoices', function (Blueprint $table) {
-            if (!Schema::hasColumn('invoices', 'due_amount')) {
+            if (! Schema::hasColumn('invoices', 'due_amount')) {
                 $table->decimal('due_amount', 10, 2)->default(0)->after('paid_amount');
             }
-            
-            if (!Schema::hasColumn('invoices', 'term_number')) {
+
+            if (! Schema::hasColumn('invoices', 'term_number')) {
                 $table->integer('term_number')->nullable()->after('student_id');
             }
-            
-            if (!Schema::hasColumn('invoices', 'concession_amount')) {
+
+            if (! Schema::hasColumn('invoices', 'concession_amount')) {
                 $table->decimal('concession_amount', 10, 2)->default(0)->after('total_amount');
             }
-            
-            if (!Schema::hasColumn('invoices', 'concession_notes')) {
+
+            if (! Schema::hasColumn('invoices', 'concession_notes')) {
                 $table->text('concession_notes')->nullable()->after('concession_amount');
             }
-            
-            if (!Schema::hasColumn('invoices', 'token')) {
+
+            if (! Schema::hasColumn('invoices', 'token')) {
                 $table->string('token')->nullable()->after('id');
             }
         });
@@ -40,13 +40,13 @@ return new class extends Migration
 
         // Add indexes for better performance
         Schema::table('invoices', function (Blueprint $table) {
-            if (!$this->indexExists('invoices', 'invoices_student_id_status_index')) {
+            if (! $this->indexExists('invoices', 'invoices_student_id_status_index')) {
                 $table->index(['student_id', 'status']);
             }
-            if (!$this->indexExists('invoices', 'invoices_due_date_index')) {
+            if (! $this->indexExists('invoices', 'invoices_due_date_index')) {
                 $table->index('due_date');
             }
-            if (!$this->indexExists('invoices', 'invoices_invoice_number_unique')) {
+            if (! $this->indexExists('invoices', 'invoices_invoice_number_unique')) {
                 $table->unique('invoice_number');
             }
         });
@@ -73,6 +73,7 @@ return new class extends Migration
                 return true;
             }
         }
+
         return false;
     }
 };

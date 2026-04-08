@@ -2,9 +2,9 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
 use App\Services\ETimeOfficeApiPuller;
 use Carbon\Carbon;
+use Illuminate\Console\Command;
 
 class PullETimeOfficeData extends Command
 {
@@ -45,15 +45,16 @@ class PullETimeOfficeData extends Command
         }
 
         try {
-            $puller = new ETimeOfficeApiPuller();
+            $puller = new ETimeOfficeApiPuller;
 
             // Pull data from API
             $this->info('📡 Connecting to ETimeOffice API...');
             $apiResult = $puller->pullAttendanceData($fromDate, $toDate, $empcode);
 
-            if (!$apiResult['success']) {
+            if (! $apiResult['success']) {
                 $this->error('❌ Failed to pull data from ETimeOffice API');
-                $this->error('Error: ' . $apiResult['error']);
+                $this->error('Error: '.$apiResult['error']);
+
                 return 1;
             }
 
@@ -67,6 +68,7 @@ class PullETimeOfficeData extends Command
                 $this->info('  - No employee punched during this time');
                 $this->info('  - Different time zone settings');
                 $this->info('  - Try a larger time range with --hours=24');
+
                 return 0;
             }
 
@@ -76,18 +78,18 @@ class PullETimeOfficeData extends Command
                 $this->info('');
                 $this->info('📋 Sample punch record structure:');
                 $sampleRecord = $punchData[0];
-                
+
                 if (is_array($sampleRecord)) {
                     $this->info('  Record type: Array');
-                    $this->info('  Available fields: ' . implode(', ', array_keys($sampleRecord)));
+                    $this->info('  Available fields: '.implode(', ', array_keys($sampleRecord)));
                     $this->info('  Sample data:');
                     foreach ($sampleRecord as $key => $value) {
                         $displayValue = is_string($value) ? $value : json_encode($value);
                         $this->info("    {$key}: {$displayValue}");
                     }
                 } else {
-                    $this->info('  Record type: ' . gettype($sampleRecord));
-                    $this->info('  Content: ' . json_encode($sampleRecord));
+                    $this->info('  Record type: '.gettype($sampleRecord));
+                    $this->info('  Content: '.json_encode($sampleRecord));
                 }
             }
 
@@ -99,37 +101,38 @@ class PullETimeOfficeData extends Command
                 $this->info('  1. Verify employee codes match your student records');
                 $this->info('  2. Run without --test to process and save attendance');
                 $this->info('  3. Check student biometric code mappings if no matches found');
+
                 return 0;
             }
 
             // Process the data
             $this->info('');
             $this->info('⚙️  Processing punch records into attendance...');
-            
+
             $processResult = $puller->processAttendanceRecords($punchData);
 
             // Show results
             $this->info('');
             $this->info('📊 PROCESSING RESULTS:');
             $this->info("  API Records: {$apiResult['count']}");
-            $this->info("  Employee Codes Found: " . count($processResult['employee_codes_found']));
+            $this->info('  Employee Codes Found: '.count($processResult['employee_codes_found']));
             $this->info("  Successfully Processed: {$processResult['processed']}");
-            $this->info("  Errors: " . count($processResult['errors']));
+            $this->info('  Errors: '.count($processResult['errors']));
 
-            if (!empty($processResult['employee_codes_found'])) {
+            if (! empty($processResult['employee_codes_found'])) {
                 $codes = $processResult['employee_codes_found'];
-                $this->info("  Employee Codes: " . implode(', ', array_slice($codes, 0, 10)) . 
-                           (count($codes) > 10 ? ' (and ' . (count($codes) - 10) . ' more)' : ''));
+                $this->info('  Employee Codes: '.implode(', ', array_slice($codes, 0, 10)).
+                           (count($codes) > 10 ? ' (and '.(count($codes) - 10).' more)' : ''));
             }
 
-            if (!empty($processResult['errors'])) {
+            if (! empty($processResult['errors'])) {
                 $this->info('');
-                $this->warn("⚠️  Processing Issues (" . count($processResult['errors']) . " total):");
+                $this->warn('⚠️  Processing Issues ('.count($processResult['errors']).' total):');
                 foreach (array_slice($processResult['errors'], 0, 5) as $error) {
                     $this->warn("  - {$error}");
                 }
                 if (count($processResult['errors']) > 5) {
-                    $this->warn("  ... and " . (count($processResult['errors']) - 5) . " more errors");
+                    $this->warn('  ... and '.(count($processResult['errors']) - 5).' more errors');
                 }
             }
 
@@ -143,7 +146,7 @@ class PullETimeOfficeData extends Command
             if ($processResult['processed'] > 0) {
                 $this->info("✅ Successfully processed {$processResult['processed']} attendance records!");
             } else {
-                $this->warn("⚠️  No attendance records were created");
+                $this->warn('⚠️  No attendance records were created');
                 $this->info('');
                 $this->info('🔍 Common issues and solutions:');
                 $this->info('  1. Employee codes don\'t match student records');
@@ -160,7 +163,8 @@ class PullETimeOfficeData extends Command
             $this->info("📈 Total attendance records today: {$todayCount}");
 
         } catch (\Exception $e) {
-            $this->error('❌ Error: ' . $e->getMessage());
+            $this->error('❌ Error: '.$e->getMessage());
+
             return 1;
         }
 

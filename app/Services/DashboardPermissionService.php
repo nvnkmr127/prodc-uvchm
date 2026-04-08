@@ -3,11 +3,10 @@
 namespace App\Services;
 
 use App\Models\Dashboard;
-use App\Models\Widget;
-use Illuminate\Support\Facades\Auth;
-use Spatie\Permission\Models\Role;
-use Illuminate\Support\Collection;
 use App\Models\User;
+use App\Models\Widget;
+use Illuminate\Support\Collection;
+use Spatie\Permission\Models\Role;
 
 class DashboardPermissionService
 {
@@ -20,6 +19,7 @@ class DashboardPermissionService
             return $user->hasPermissionTo($permission);
         } catch (\Spatie\Permission\Exceptions\PermissionDoesNotExist $e) {
             \Log::warning("Permission '{$permission}' does not exist");
+
             return false;
         }
     }
@@ -45,7 +45,7 @@ class DashboardPermissionService
         }
 
         // Check if dashboard is active
-        if (!$dashboard->is_active) {
+        if (! $dashboard->is_active) {
             return false;
         }
 
@@ -77,7 +77,7 @@ class DashboardPermissionService
     public function canCustomizeDashboard($user, Dashboard $dashboard): bool
     {
         // First check if they can view it
-        if (!$this->canViewDashboard($user, $dashboard)) {
+        if (! $this->canViewDashboard($user, $dashboard)) {
             return false;
         }
 
@@ -91,21 +91,21 @@ class DashboardPermissionService
     public function canViewWidget($user, Widget $widget): bool
     {
         // Check if widget is active
-        if (!$widget->is_active) {
+        if (! $widget->is_active) {
             return false;
         }
 
         // Check required permissions
-        if (!empty($widget->required_permissions)) {
+        if (! empty($widget->required_permissions)) {
             foreach ($widget->required_permissions as $permission) {
-                if (!$this->safeHasPermission($user, $permission)) {
+                if (! $this->safeHasPermission($user, $permission)) {
                     return false;
                 }
             }
         }
 
         // Check allowed roles
-        if (!empty($widget->allowed_roles)) {
+        if (! empty($widget->allowed_roles)) {
             $hasAllowedRole = false;
             foreach ($widget->allowed_roles as $role) {
                 if ($user->hasRole($role)) {
@@ -113,7 +113,7 @@ class DashboardPermissionService
                     break;
                 }
             }
-            if (!$hasAllowedRole) {
+            if (! $hasAllowedRole) {
                 return false;
             }
         }
@@ -151,7 +151,7 @@ class DashboardPermissionService
     public function getViewableWidgets($user)
     {
         $widgets = Widget::active()->get();
-        
+
         return $widgets->filter(function ($widget) use ($user) {
             return $this->canViewWidget($user, $widget);
         });
@@ -179,7 +179,7 @@ class DashboardPermissionService
                 return $data;
         }
     }
-    
+
     /**
      * Filter widgets by user permissions
      */
@@ -196,12 +196,19 @@ class DashboardPermissionService
      */
     private function applyFinancialFilters($user, $data)
     {
-        if (!$this->safeHasPermission($user, 'view financial data')) {
+        if (! $this->safeHasPermission($user, 'view financial data')) {
             // Remove sensitive financial information
-            if (isset($data['amount'])) unset($data['amount']);
-            if (isset($data['revenue'])) unset($data['revenue']);
-            if (isset($data['salary'])) unset($data['salary']);
+            if (isset($data['amount'])) {
+                unset($data['amount']);
+            }
+            if (isset($data['revenue'])) {
+                unset($data['revenue']);
+            }
+            if (isset($data['salary'])) {
+                unset($data['salary']);
+            }
         }
+
         return $data;
     }
 
@@ -210,12 +217,13 @@ class DashboardPermissionService
      */
     private function applyStudentFilters($user, $data)
     {
-        if (!$this->safeHasPermission($user, 'view student data')) {
+        if (! $this->safeHasPermission($user, 'view student data')) {
             // Limit student information
             if (isset($data['personal_details'])) {
                 unset($data['personal_details']);
             }
         }
+
         return $data;
     }
 
@@ -224,11 +232,16 @@ class DashboardPermissionService
      */
     private function applyAcademicFilters($user, $data)
     {
-        if (!$this->safeHasPermission($user, 'view academic data')) {
+        if (! $this->safeHasPermission($user, 'view academic data')) {
             // Filter academic information
-            if (isset($data['grades'])) unset($data['grades']);
-            if (isset($data['marks'])) unset($data['marks']);
+            if (isset($data['grades'])) {
+                unset($data['grades']);
+            }
+            if (isset($data['marks'])) {
+                unset($data['marks']);
+            }
         }
+
         return $data;
     }
 
@@ -237,7 +250,7 @@ class DashboardPermissionService
      */
     public function canAccessDashboardBuilder($user): bool
     {
-        return $this->safeHasPermission($user, 'access dashboard builder') || 
+        return $this->safeHasPermission($user, 'access dashboard builder') ||
                $user->hasRole('super-admin');
     }
 
@@ -246,7 +259,7 @@ class DashboardPermissionService
      */
     public function canManageWidgets($user): bool
     {
-        return $this->safeHasPermission($user, 'manage widgets') || 
+        return $this->safeHasPermission($user, 'manage widgets') ||
                $user->hasRole('super-admin');
     }
 
@@ -255,7 +268,7 @@ class DashboardPermissionService
      */
     public function canCreateTemplates($user): bool
     {
-        return $this->safeHasPermission($user, 'create dashboard templates') || 
+        return $this->safeHasPermission($user, 'create dashboard templates') ||
                $user->hasRole('super-admin');
     }
 
@@ -274,7 +287,7 @@ class DashboardPermissionService
             'can_manage_widgets' => $this->canManageWidgets($user),
             'can_create_templates' => $this->canCreateTemplates($user),
             'roles' => $user->roles->pluck('name')->toArray(),
-            'permissions' => $user->getAllPermissions()->pluck('name')->toArray()
+            'permissions' => $user->getAllPermissions()->pluck('name')->toArray(),
         ];
     }
 
@@ -290,25 +303,25 @@ class DashboardPermissionService
 
         switch ($context) {
             case 'financial':
-                if (!$this->safeHasPermission($user, 'view financial data')) {
+                if (! $this->safeHasPermission($user, 'view financial data')) {
                     return $this->filterSensitiveFinancialData($data);
                 }
                 break;
 
             case 'academic':
-                if (!$this->safeHasPermission($user, 'view academic data')) {
+                if (! $this->safeHasPermission($user, 'view academic data')) {
                     return $this->filterSensitiveAcademicData($data);
                 }
                 break;
 
             case 'student':
-                if (!$this->safeHasPermission($user, 'view student data')) {
+                if (! $this->safeHasPermission($user, 'view student data')) {
                     return $this->filterSensitiveStudentData($data);
                 }
                 break;
 
             case 'system':
-                if (!$this->safeHasPermission($user, 'view system data')) {
+                if (! $this->safeHasPermission($user, 'view system data')) {
                     return [];
                 }
                 break;

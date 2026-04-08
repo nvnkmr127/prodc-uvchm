@@ -1,4 +1,5 @@
 <?php
+
 // File: database/migrations/2025_08_03_add_missing_attendance_columns.php
 
 use Illuminate\Database\Migrations\Migration;
@@ -14,33 +15,33 @@ return new class extends Migration
     {
         Schema::table('attendances', function (Blueprint $table) {
             $columns = Schema::getColumnListing('attendances');
-            
+
             // Add missing columns that are referenced in the model
-            if (!in_array('marked_at', $columns)) {
+            if (! in_array('marked_at', $columns)) {
                 $table->timestamp('marked_at')->nullable()->after('status');
             }
-            
-            if (!in_array('marked_by', $columns)) {
+
+            if (! in_array('marked_by', $columns)) {
                 $table->foreignId('marked_by')->nullable()->constrained('users')->onDelete('set null')->after('marked_at');
             }
-            
-            if (!in_array('notes', $columns)) {
+
+            if (! in_array('notes', $columns)) {
                 $table->text('notes')->nullable()->after('marked_by');
             }
-            
-            if (!in_array('late_minutes', $columns)) {
+
+            if (! in_array('late_minutes', $columns)) {
                 $table->integer('late_minutes')->nullable()->after('notes');
             }
-            
-            if (!in_array('location', $columns)) {
+
+            if (! in_array('location', $columns)) {
                 $table->string('location')->nullable()->after('late_minutes');
             }
-            
-            if (!in_array('device_id', $columns)) {
+
+            if (! in_array('device_id', $columns)) {
                 $table->string('device_id')->nullable()->after('location');
             }
-            
-            if (!in_array('biometric_log_id', $columns)) {
+
+            if (! in_array('biometric_log_id', $columns)) {
                 $table->foreignId('biometric_log_id')->nullable()->after('device_id');
             }
         });
@@ -53,9 +54,9 @@ return new class extends Migration
     {
         Schema::table('attendances', function (Blueprint $table) {
             $columns = Schema::getColumnListing('attendances');
-            
+
             $columnsToDropSafely = [];
-            
+
             if (in_array('biometric_log_id', $columns)) {
                 $columnsToDropSafely[] = 'biometric_log_id';
             }
@@ -78,8 +79,8 @@ return new class extends Migration
             if (in_array('marked_at', $columns)) {
                 $columnsToDropSafely[] = 'marked_at';
             }
-            
-            if (!empty($columnsToDropSafely)) {
+
+            if (! empty($columnsToDropSafely)) {
                 $table->dropColumn($columnsToDropSafely);
             }
         });

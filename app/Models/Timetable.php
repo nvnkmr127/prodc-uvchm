@@ -2,10 +2,10 @@
 
 namespace App\Models;
 
+use App\Traits\WebhookEnabled;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use App\Traits\WebhookEnabled;
 
 class Timetable extends Model
 {
@@ -21,7 +21,7 @@ class Timetable extends Model
         'schedule_date',
         'academic_year_id',
         'is_lab_session',        // NEW: Flag for lab sessions
-        'notes'                  // NEW: Additional notes
+        'notes',                  // NEW: Additional notes
     ];
 
     protected $casts = [
@@ -132,6 +132,7 @@ class Timetable extends Model
         if ($currentYear) {
             return $query->where('academic_year_id', $currentYear->id);
         }
+
         return $query;
     }
 
@@ -175,10 +176,10 @@ class Timetable extends Model
     public function getDisplayName(): string
     {
         if ($this->isLabSession() && $this->practicalGroup) {
-            return $this->practicalGroup->name . ' - ' . $this->subject?->name . ' (Lab)';
+            return $this->practicalGroup->name.' - '.$this->subject?->name.' (Lab)';
         }
-        
-        return $this->batch?->name . ' - ' . $this->subject?->name;
+
+        return $this->batch?->name.' - '.$this->subject?->name;
     }
 
     /**
@@ -189,7 +190,7 @@ class Timetable extends Model
         if ($this->isLabSession() && $this->practicalGroup) {
             return $this->practicalGroup->students()->count();
         }
-        
+
         return $this->batch?->students()->where('status', 'active')->count() ?? 0;
     }
 
@@ -201,7 +202,7 @@ class Timetable extends Model
         if ($this->isLabSession() && $this->practicalGroup) {
             return $this->practicalGroup->students;
         }
-        
+
         return $this->batch?->students()->where('status', 'active')->get() ?? collect();
     }
 
@@ -228,11 +229,11 @@ class Timetable extends Model
      */
     public function getTimeRangeAttribute()
     {
-        if (!$this->timeSlot) {
+        if (! $this->timeSlot) {
             return 'No time slot';
         }
-        
-        return $this->timeSlot->start_time . ' - ' . $this->timeSlot->end_time;
+
+        return $this->timeSlot->start_time.' - '.$this->timeSlot->end_time;
     }
 
     /**
@@ -241,11 +242,11 @@ class Timetable extends Model
     public function getTitleAttribute()
     {
         $title = $this->getDisplayName();
-        
+
         if ($this->isLabSession()) {
             return $title; // Already includes (Lab) suffix
         }
-        
+
         return $title;
     }
 
@@ -255,29 +256,29 @@ class Timetable extends Model
     public function getDescriptionAttribute()
     {
         $parts = [];
-        
+
         if ($this->subject) {
-            $parts[] = 'Subject: ' . $this->subject->name;
+            $parts[] = 'Subject: '.$this->subject->name;
         }
-        
+
         if ($this->user) {
-            $parts[] = 'Faculty: ' . $this->user->name;
+            $parts[] = 'Faculty: '.$this->user->name;
         }
-        
+
         if ($this->classroom) {
-            $parts[] = 'Room: ' . $this->classroom->name;
+            $parts[] = 'Room: '.$this->classroom->name;
         }
 
         // NEW: Add practical group info for lab sessions
         if ($this->isLabSession() && $this->practicalGroup) {
-            $parts[] = 'Group: ' . $this->practicalGroup->name;
-            $parts[] = 'Students: ' . $this->getStudentCount();
+            $parts[] = 'Group: '.$this->practicalGroup->name;
+            $parts[] = 'Students: '.$this->getStudentCount();
         }
-        
+
         if ($this->academicYear) {
-            $parts[] = 'Year: ' . $this->academicYear->name;
+            $parts[] = 'Year: '.$this->academicYear->name;
         }
-        
+
         return implode(' | ', $parts);
     }
 
@@ -293,31 +294,31 @@ class Timetable extends Model
             ->where('academic_year_id', $this->academic_year_id);
 
         // Check different types of conflicts
-        $query->where(function($q) {
+        $query->where(function ($q) {
             // Faculty conflict (same faculty teaching multiple classes)
             $q->where('user_id', $this->user_id)
               // Classroom conflict (same room being used)
-              ->orWhere('classroom_id', $this->classroom_id);
+                ->orWhere('classroom_id', $this->classroom_id);
 
             // NEW: Batch-level conflict check
-            if (!$this->isLabSession()) {
+            if (! $this->isLabSession()) {
                 // For regular classes, check if batch has any other session
                 $q->orWhere('batch_id', $this->batch_id);
             } else {
                 // For lab sessions, check if any student in the practical group has another class
                 if ($this->practical_group_id) {
-                    $q->orWhere(function($subQuery) {
+                    $q->orWhere(function ($subQuery) {
                         $subQuery->where('batch_id', $this->batch_id)
-                                ->where('is_lab_session', false); // Regular classes conflict with lab sessions
+                            ->where('is_lab_session', false); // Regular classes conflict with lab sessions
                     });
                 }
             }
         });
-            
+
         if ($excludeId) {
             $query->where('id', '!=', $excludeId);
         }
-        
+
         return $query->exists();
     }
 
@@ -330,26 +331,26 @@ class Timetable extends Model
             ->where('schedule_date', $this->schedule_date)
             ->where('time_slot_id', $this->time_slot_id)
             ->where('academic_year_id', $this->academic_year_id)
-            ->where(function($q) {
+            ->where(function ($q) {
                 $q->where('user_id', $this->user_id)
-                  ->orWhere('classroom_id', $this->classroom_id);
-                  
-                if (!$this->isLabSession()) {
+                    ->orWhere('classroom_id', $this->classroom_id);
+
+                if (! $this->isLabSession()) {
                     $q->orWhere('batch_id', $this->batch_id);
                 } else {
                     if ($this->practical_group_id) {
-                        $q->orWhere(function($subQuery) {
+                        $q->orWhere(function ($subQuery) {
                             $subQuery->where('batch_id', $this->batch_id)
-                                    ->where('is_lab_session', false);
+                                ->where('is_lab_session', false);
                         });
                     }
                 }
             });
-            
+
         if ($excludeId) {
             $query->where('id', '!=', $excludeId);
         }
-        
+
         return $query->get();
     }
 
@@ -372,7 +373,7 @@ class Timetable extends Model
                 'academic_year' => $timetable->academicYear?->name,
                 'schedule_date' => $timetable->schedule_date,
                 'time_range' => $timetable->time_range,
-                'is_lab_session' => $timetable->is_lab_session
+                'is_lab_session' => $timetable->is_lab_session,
             ];
 
             // NEW: Add practical group info for lab sessions
@@ -400,7 +401,7 @@ class Timetable extends Model
                 'batch_name' => $timetable->batch?->name,
                 'subject_name' => $timetable->subject?->name,
                 'schedule_date' => $timetable->schedule_date,
-                'is_lab_session' => $timetable->is_lab_session
+                'is_lab_session' => $timetable->is_lab_session,
             ];
 
             if ($timetable->isLabSession() && $timetable->practicalGroup) {

@@ -15,11 +15,11 @@ return new class extends Migration
             // Add creator tracking fields
             $table->unsignedBigInteger('created_by')->nullable()->after('notes');
             $table->unsignedBigInteger('updated_by')->nullable()->after('created_by');
-            
+
             // Add foreign key constraints
             $table->foreign('created_by')->references('id')->on('users')->onDelete('set null');
             $table->foreign('updated_by')->references('id')->on('users')->onDelete('set null');
-            
+
             // Add indexes for better performance
             $table->index('created_by');
             $table->index('updated_by');

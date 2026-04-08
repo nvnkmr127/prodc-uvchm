@@ -10,17 +10,17 @@ return new class extends Migration
      * Run the migrations.
      */
     public function up(): void
-{
-    Schema::create('students', function (Blueprint $table) {
-        $table->id();
-        $table->foreignId('user_id')->unique()->constrained()->onDelete('cascade'); // The student's login account
-        $table->foreignId('course_id')->constrained()->onDelete('cascade'); // The course they are enrolled in
-        $table->string('enrollment_number')->unique();
-        $table->date('admission_date');
-        $table->enum('status', ['active', 'graduated', 'dropout'])->default('active');
-        $table->timestamps();
-    });
-}
+    {
+        Schema::create('students', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('user_id')->unique()->constrained()->onDelete('cascade'); // The student's login account
+            $table->foreignId('course_id')->constrained()->onDelete('cascade'); // The course they are enrolled in
+            $table->string('enrollment_number')->unique();
+            $table->date('admission_date');
+            $table->enum('status', ['active', 'graduated', 'dropout'])->default('active');
+            $table->timestamps();
+        });
+    }
 
     /**
      * Reverse the migrations.

@@ -4,17 +4,15 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Attendance\Attendance; // Adjust namespace if needed
-use App\Models\Student;
-use App\Models\User;
 use App\Models\Batch;
+use App\Models\Student;
 use App\Models\Subject;
-use Illuminate\Http\Request;
-use Illuminate\Http\JsonResponse;
-use Illuminate\View\View;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\View\View;
 
 class DailyAttendanceController extends Controller
 {
@@ -65,8 +63,8 @@ class DailyAttendanceController extends Controller
             ));
 
         } catch (\Exception $e) {
-            Log::error('Daily attendance index error: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString()
+            Log::error('Daily attendance index error: '.$e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
             ]);
 
             // Return with safe defaults
@@ -76,8 +74,8 @@ class DailyAttendanceController extends Controller
                 'date' => $request->get('date', Carbon::today()->format('Y-m-d')),
                 'batchId' => $request->get('batch_id'),
                 'type' => $request->get('type', 'all'),
-                'stats' => $this->getDefaultStats()
-            ])->with('error', 'Unable to load attendance data. Error: ' . $e->getMessage());
+                'stats' => $this->getDefaultStats(),
+            ])->with('error', 'Unable to load attendance data. Error: '.$e->getMessage());
         }
     }
 
@@ -121,8 +119,8 @@ class DailyAttendanceController extends Controller
             ));
 
         } catch (\Exception $e) {
-            Log::error('Daily attendance show error: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString()
+            Log::error('Daily attendance show error: '.$e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return view('admin.daily_attendance.show', [
@@ -131,8 +129,8 @@ class DailyAttendanceController extends Controller
                 'date' => $request->get('date', Carbon::today()->format('Y-m-d')),
                 'batchId' => $request->get('batch_id'),
                 'type' => $request->get('type', 'all'),
-                'stats' => $this->getDefaultStats()
-            ])->with('error', 'Unable to load attendance data. Error: ' . $e->getMessage());
+                'stats' => $this->getDefaultStats(),
+            ])->with('error', 'Unable to load attendance data. Error: '.$e->getMessage());
         }
     }
 
@@ -163,9 +161,9 @@ class DailyAttendanceController extends Controller
             ));
 
         } catch (\Exception $e) {
-            Log::error('Daily attendance create error: ' . $e->getMessage());
+            Log::error('Daily attendance create error: '.$e->getMessage());
 
-            return back()->with('error', 'Unable to load attendance form. Error: ' . $e->getMessage());
+            return back()->with('error', 'Unable to load attendance form. Error: '.$e->getMessage());
         }
     }
 
@@ -175,10 +173,10 @@ class DailyAttendanceController extends Controller
     public function store(Request $request)
     {
         // Normalize field names for robustness
-        if (!$request->has('attendance_date') && $request->has('date')) {
+        if (! $request->has('attendance_date') && $request->has('date')) {
             $request->merge(['attendance_date' => $request->date]);
         }
-        if (!$request->has('attendances') && $request->has('attendance')) {
+        if (! $request->has('attendances') && $request->has('attendance')) {
             $request->merge(['attendances' => $request->attendance]);
         }
 
@@ -188,7 +186,7 @@ class DailyAttendanceController extends Controller
                 'attendance_date' => 'required|date',
                 'attendances' => 'required|array',
                 'attendances.*.student_id' => 'required|exists:students,id',
-                'attendances.*.status' => 'required|in:present,absent,late,excused'
+                'attendances.*.status' => 'required|in:present,absent,late,excused',
             ]);
 
             DB::beginTransaction();
@@ -210,27 +208,27 @@ class DailyAttendanceController extends Controller
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
                     'success' => true,
-                    'message' => 'Attendance marked successfully for ' . count($request->attendances) . ' students.'
+                    'message' => 'Attendance marked successfully for '.count($request->attendances).' students.',
                 ]);
             }
 
             return redirect()->route('admin.daily-attendance.index')
-                ->with('success', 'Attendance marked successfully for ' . count($request->attendances) . ' students.');
+                ->with('success', 'Attendance marked successfully for '.count($request->attendances).' students.');
 
         } catch (\Exception $e) {
             DB::rollback();
-            Log::error('Daily attendance store error: ' . $e->getMessage());
+            Log::error('Daily attendance store error: '.$e->getMessage());
 
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Failed to save attendance. Error: ' . $e->getMessage()
+                    'message' => 'Failed to save attendance. Error: '.$e->getMessage(),
                 ], 422);
             }
 
             return back()
                 ->withInput()
-                ->with('error', 'Failed to save attendance. Error: ' . $e->getMessage());
+                ->with('error', 'Failed to save attendance. Error: '.$e->getMessage());
         }
     }
 
@@ -298,11 +296,12 @@ class DailyAttendanceController extends Controller
                 'internship' => $internshipCount, // New Metric
                 'late' => $attendanceMetrics->late ?? 0,
                 'excused' => $excused,
-                'percentage' => $percentage
+                'percentage' => $percentage,
             ];
 
         } catch (\Exception $e) {
-            Log::error('Error getting day statistics: ' . $e->getMessage());
+            Log::error('Error getting day statistics: '.$e->getMessage());
+
             return $this->getDefaultStats();
         }
     }
@@ -319,7 +318,7 @@ class DailyAttendanceController extends Controller
             'internship' => 0, // Added
             'late' => 0,
             'excused' => 0,
-            'percentage' => 0
+            'percentage' => 0,
         ];
     }
 
@@ -332,31 +331,32 @@ class DailyAttendanceController extends Controller
             $batch = Batch::with([
                 'students' => function ($query) {
                     $query->where('status', 'active')->orderBy('name');
-                }
+                },
             ])->find($batchId);
 
-            if (!$batch) {
+            if (! $batch) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Batch not found'
+                    'message' => 'Batch not found',
                 ], 404);
             }
 
             return response()->json([
                 'success' => true,
                 'students' => $batch->students,
-                'batch_name' => $batch->name
+                'batch_name' => $batch->name,
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error getting batch students: ' . $e->getMessage());
+            Log::error('Error getting batch students: '.$e->getMessage());
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to load students'
+                'message' => 'Failed to load students',
             ], 500);
         }
     }
+
     /**
      * Get student attendance for a specific month
      */
@@ -381,14 +381,15 @@ class DailyAttendanceController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $attendances
+                'data' => $attendances,
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error fetching student month attendance: ' . $e->getMessage());
+            Log::error('Error fetching student month attendance: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to load attendance data'
+                'message' => 'Failed to load attendance data',
             ], 500);
         }
     }
@@ -404,7 +405,7 @@ class DailyAttendanceController extends Controller
                 'batch_id' => 'required|exists:batches,id',
                 'attendances' => 'required|array',
                 'attendances.*.date' => 'required|date',
-                'attendances.*.status' => 'required|in:present,absent,late,excused'
+                'attendances.*.status' => 'required|in:present,absent,late,excused',
             ]);
 
             DB::beginTransaction();
@@ -432,16 +433,16 @@ class DailyAttendanceController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Attendance updated successfully for ' . count($request->attendances) . ' days.'
+                'message' => 'Attendance updated successfully for '.count($request->attendances).' days.',
             ]);
 
         } catch (\Exception $e) {
             DB::rollback();
-            Log::error('Student bulk attendance store error: ' . $e->getMessage());
+            Log::error('Student bulk attendance store error: '.$e->getMessage());
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to save attendance: ' . $e->getMessage()
+                'message' => 'Failed to save attendance: '.$e->getMessage(),
             ], 500);
         }
     }

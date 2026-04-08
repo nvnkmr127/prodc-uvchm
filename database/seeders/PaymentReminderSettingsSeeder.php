@@ -2,8 +2,8 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\Setting;
+use Illuminate\Database\Seeder;
 
 class PaymentReminderSettingsSeeder extends Seeder
 {
@@ -18,12 +18,12 @@ class PaymentReminderSettingsSeeder extends Seeder
             ['key' => 'escalation_days', 'value' => '30', 'group' => 'payment_reminders'],
             ['key' => 'final_notice_days', 'value' => '45', 'group' => 'payment_reminders'],
             ['key' => 'reminder_time', 'value' => '09:00', 'group' => 'payment_reminders'],
-            
+
             // Communication Settings
             ['key' => 'email_reminders_enabled', 'value' => '1', 'group' => 'communication'],
             ['key' => 'sms_reminders_enabled', 'value' => '1', 'group' => 'communication'],
             ['key' => 'whatsapp_reminders_enabled', 'value' => '0', 'group' => 'communication'],
-            
+
             // Defaulter Management
             ['key' => 'defaulter_tracking_enabled', 'value' => '1', 'group' => 'defaulter_management'],
             ['key' => 'mild_defaulter_days', 'value' => '15', 'group' => 'defaulter_management'],

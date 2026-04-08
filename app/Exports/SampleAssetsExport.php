@@ -6,9 +6,6 @@ use Maatwebsite\Excel\Concerns\WithHeadings;
 
 class SampleAssetsExport implements WithHeadings
 {
-    /**
-    * @return array
-    */
     public function headings(): array
     {
         // These headings MUST match the keys expected by your AssetsImport class

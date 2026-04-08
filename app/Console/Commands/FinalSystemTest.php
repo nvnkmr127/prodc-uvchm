@@ -9,6 +9,7 @@ use Illuminate\Console\Command;
 class FinalSystemTest extends Command
 {
     protected $signature = 'system:final-test {--quick : Run quick tests only}';
+
     protected $description = 'Run comprehensive system tests for notification integration';
 
     public function handle()
@@ -42,25 +43,27 @@ class FinalSystemTest extends Command
         // Display Results
         $this->displayResults($results);
 
-        $allPassed = collect($results)->every(fn($result) => $result['status'] === 'pass');
-        
+        $allPassed = collect($results)->every(fn ($result) => $result['status'] === 'pass');
+
         if ($allPassed) {
             $this->info('🎉 All tests passed! Your notification system is ready!');
+
             return 0;
         } else {
             $this->warn('⚠️  Some tests failed. Check the results above.');
+
             return 1;
         }
     }
 
-    private function testDatabaseTables()
+    private function test_database_tables()
     {
         try {
             $requiredTables = ['system_notifications', 'notification_preferences', 'users', 'students'];
             $missingTables = [];
 
             foreach ($requiredTables as $table) {
-                if (!\Schema::hasTable($table)) {
+                if (! \Schema::hasTable($table)) {
                     $missingTables[] = $table;
                 }
             }
@@ -68,18 +71,18 @@ class FinalSystemTest extends Command
             if (empty($missingTables)) {
                 return ['status' => 'pass', 'message' => 'All required tables exist'];
             } else {
-                return ['status' => 'fail', 'message' => 'Missing tables: ' . implode(', ', $missingTables)];
+                return ['status' => 'fail', 'message' => 'Missing tables: '.implode(', ', $missingTables)];
             }
         } catch (\Exception $e) {
-            return ['status' => 'fail', 'message' => 'Database error: ' . $e->getMessage()];
+            return ['status' => 'fail', 'message' => 'Database error: '.$e->getMessage()];
         }
     }
 
-    private function testNotificationService()
+    private function test_notification_service()
     {
         try {
             $service = app(\App\Services\NotificationService::class);
-            
+
             // Test basic notification
             $notification = $service->send([
                 'title' => 'System Test Notification',
@@ -88,32 +91,33 @@ class FinalSystemTest extends Command
                 'category' => 'system',
                 'priority' => 'low',
                 'roles' => ['super-admin'],
-                'data' => ['test' => true, 'timestamp' => now()->toISOString()]
+                'data' => ['test' => true, 'timestamp' => now()->toISOString()],
             ]);
 
             if ($notification && $notification->id) {
                 // Clean up test notification
                 $notification->delete();
+
                 return ['status' => 'pass', 'message' => 'Notification service working correctly'];
             } else {
                 return ['status' => 'fail', 'message' => 'Failed to create notification'];
             }
         } catch (\Exception $e) {
-            return ['status' => 'fail', 'message' => 'Service error: ' . $e->getMessage()];
+            return ['status' => 'fail', 'message' => 'Service error: '.$e->getMessage()];
         }
     }
 
-    private function testRoutes()
+    private function test_routes()
     {
         try {
             $requiredRoutes = [
                 'admin.notifications.dashboard',
-                'admin.notifications.test'
+                'admin.notifications.test',
             ];
 
             $missingRoutes = [];
             foreach ($requiredRoutes as $route) {
-                if (!\Route::has($route)) {
+                if (! \Route::has($route)) {
                     $missingRoutes[] = $route;
                 }
             }
@@ -121,21 +125,21 @@ class FinalSystemTest extends Command
             if (empty($missingRoutes)) {
                 return ['status' => 'pass', 'message' => 'All required routes registered'];
             } else {
-                return ['status' => 'fail', 'message' => 'Missing routes: ' . implode(', ', $missingRoutes)];
+                return ['status' => 'fail', 'message' => 'Missing routes: '.implode(', ', $missingRoutes)];
             }
         } catch (\Exception $e) {
-            return ['status' => 'fail', 'message' => 'Route error: ' . $e->getMessage()];
+            return ['status' => 'fail', 'message' => 'Route error: '.$e->getMessage()];
         }
     }
 
-    private function testCommands($isQuick)
+    private function test_commands($isQuick)
     {
         $commands = [
             'notifications:status' => 'Notification status command',
-            'system:simple-health' => 'Simple health check command'
+            'system:simple-health' => 'Simple health check command',
         ];
 
-        if (!$isQuick) {
+        if (! $isQuick) {
             $commands['notifications:test'] = 'Notification test command';
             $commands['fees:send-reminders'] = 'Fee reminders command';
         }
@@ -146,11 +150,11 @@ class FinalSystemTest extends Command
                 \Artisan::call($command, $command === 'fees:send-reminders' ? ['--dry-run' => true] : []);
                 $results[$command] = 'pass';
             } catch (\Exception $e) {
-                $results[$command] = 'fail: ' . $e->getMessage();
+                $results[$command] = 'fail: '.$e->getMessage();
             }
         }
 
-        $passedCount = count(array_filter($results, fn($r) => $r === 'pass'));
+        $passedCount = count(array_filter($results, fn ($r) => $r === 'pass'));
         $totalCount = count($results);
 
         if ($passedCount === $totalCount) {
@@ -160,13 +164,13 @@ class FinalSystemTest extends Command
         }
     }
 
-    private function testDashboard()
+    private function test_dashboard()
     {
         try {
             // Check if view file exists
             $viewPath = resource_path('views/admin/notifications/dashboard.blade.php');
-            
-            if (!file_exists($viewPath)) {
+
+            if (! file_exists($viewPath)) {
                 return ['status' => 'fail', 'message' => 'Dashboard view file missing'];
             }
 
@@ -178,7 +182,7 @@ class FinalSystemTest extends Command
 
             return ['status' => 'pass', 'message' => 'Dashboard view file exists and has content'];
         } catch (\Exception $e) {
-            return ['status' => 'fail', 'message' => 'Dashboard error: ' . $e->getMessage()];
+            return ['status' => 'fail', 'message' => 'Dashboard error: '.$e->getMessage()];
         }
     }
 
@@ -191,7 +195,7 @@ class FinalSystemTest extends Command
         $tableData = [];
         foreach ($results as $testName => $result) {
             $status = $result['status'];
-            $icon = match($status) {
+            $icon = match ($status) {
                 'pass' => '✅',
                 'fail' => '❌',
                 'warn' => '⚠️',
@@ -200,8 +204,8 @@ class FinalSystemTest extends Command
 
             $tableData[] = [
                 ucfirst($testName),
-                $icon . ' ' . ucfirst($status),
-                $result['message']
+                $icon.' '.ucfirst($status),
+                $result['message'],
             ];
         }
 

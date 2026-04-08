@@ -2,17 +2,14 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Http\Controllers\Controller;
 use App\Exports\FinancialReportExport;
-use App\Models\Batch;
+use App\Http\Controllers\Controller;
 use App\Models\Expense;
 use App\Models\Payment;
-use App\Models\Student;
-use App\Models\StudentFee;
 use App\Services\ComponentFinancialReportService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
 use Maatwebsite\Excel\Facades\Excel;
 use PDF;
 
@@ -55,8 +52,10 @@ class FinancialReportController extends Controller
             if ($request->has('export')) {
                 if ($reportType == 'summary') {
                     $pdf = PDF::loadView('admin.reports.financial.summary_pdf', compact('reportData', 'startDate', 'endDate'));
-                    return $pdf->download('financial-summary-' . time() . '.pdf');
+
+                    return $pdf->download('financial-summary-'.time().'.pdf');
                 }
+
                 return Excel::download(new FinancialReportExport($reportData, $reportType), "{$reportType}_report.xlsx");
             }
         }
@@ -69,6 +68,7 @@ class FinancialReportController extends Controller
         $range = $request->input('date_range', 'this_month');
         if ($range === 'custom') {
             $request->validate(['start_date' => 'required|date', 'end_date' => 'required|date|after_or_equal:start_date']);
+
             return [Carbon::parse($request->start_date)->startOfDay(), Carbon::parse($request->end_date)->endOfDay()];
         }
 

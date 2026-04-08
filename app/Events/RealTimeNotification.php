@@ -14,7 +14,9 @@ class RealTimeNotification implements ShouldBroadcast
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     public $notification;
+
     public $targetUsers;
+
     public $targetRoles;
 
     public function __construct($notification, $targetUsers = [], $targetRoles = [])
@@ -27,17 +29,17 @@ class RealTimeNotification implements ShouldBroadcast
     public function broadcastOn()
     {
         $channels = [new Channel('notifications')];
-        
+
         // Add user-specific channels
         foreach ($this->targetUsers as $userId) {
             $channels[] = new PrivateChannel("user.{$userId}");
         }
-        
+
         // Add role-based channels
         foreach ($this->targetRoles as $role) {
             $channels[] = new PrivateChannel("role.{$role}");
         }
-        
+
         return $channels;
     }
 

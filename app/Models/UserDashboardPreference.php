@@ -16,7 +16,7 @@ class UserDashboardPreference extends Model
         'widget_preferences',
         'filter_preferences',
         'is_customized',
-        'last_accessed_at'
+        'last_accessed_at',
     ];
 
     protected $casts = [
@@ -24,7 +24,7 @@ class UserDashboardPreference extends Model
         'widget_preferences' => 'array',
         'filter_preferences' => 'array',
         'is_customized' => 'boolean',
-        'last_accessed_at' => 'datetime'
+        'last_accessed_at' => 'datetime',
     ];
 
     // Relationships
@@ -46,12 +46,12 @@ class UserDashboardPreference extends Model
 
     public function hasCustomLayout()
     {
-        return !empty($this->layout_preferences);
+        return ! empty($this->layout_preferences);
     }
 
     public function hasCustomWidgets()
     {
-        return !empty($this->widget_preferences);
+        return ! empty($this->widget_preferences);
     }
 
     public function resetToDefault()
@@ -60,7 +60,7 @@ class UserDashboardPreference extends Model
             'layout_preferences' => null,
             'widget_preferences' => null,
             'filter_preferences' => null,
-            'is_customized' => false
+            'is_customized' => false,
         ]);
     }
 }

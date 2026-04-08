@@ -15,13 +15,14 @@ class BatchFactory extends Factory
      * @return array<string, mixed>
      */
     public function definition(): array
-{
-    $start_date = fake()->dateTimeBetween('now', '+1 month');
-    return [
-        'course_id' => \App\Models\Course::factory(), // Associates with a course
-        'name' => 'Intake ' . fake()->monthName() . ' ' . fake()->year(),
-        'start_date' => $start_date,
-        'end_date' => (clone $start_date)->modify('+1 year'),
-    ];
-}
+    {
+        $start_date = fake()->dateTimeBetween('now', '+1 month');
+
+        return [
+            'course_id' => \App\Models\Course::factory(), // Associates with a course
+            'name' => 'Intake '.fake()->monthName().' '.fake()->year(),
+            'start_date' => $start_date,
+            'end_date' => (clone $start_date)->modify('+1 year'),
+        ];
+    }
 }

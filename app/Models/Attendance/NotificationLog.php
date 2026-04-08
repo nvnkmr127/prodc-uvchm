@@ -2,13 +2,12 @@
 
 namespace App\Models\Attendance;
 
+use App\Models\Student;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
-use App\Models\Student;
-use App\Models\User;
-use App\Models\Attendance\ParentContact;
 
 class NotificationLog extends Model
 {
@@ -40,7 +39,7 @@ class NotificationLog extends Model
         'cost',
         'batch_id',
         'triggered_by',
-        'metadata'
+        'metadata',
     ];
 
     protected $casts = [
@@ -163,7 +162,7 @@ class NotificationLog extends Model
     /**
      * Mark notification as sent
      */
-    public function markAsSent(array $providerResponse = null): void
+    public function markAsSent(?array $providerResponse = null): void
     {
         $this->update([
             'delivery_status' => 'sent',
@@ -177,7 +176,7 @@ class NotificationLog extends Model
     /**
      * Mark notification as delivered
      */
-    public function markAsDelivered(array $deliveryData = null): void
+    public function markAsDelivered(?array $deliveryData = null): void
     {
         $this->update([
             'delivery_status' => 'delivered',
@@ -199,7 +198,7 @@ class NotificationLog extends Model
     /**
      * Mark notification as failed
      */
-    public function markAsFailed(string $errorMessage, array $providerResponse = null): void
+    public function markAsFailed(string $errorMessage, ?array $providerResponse = null): void
     {
         $this->update([
             'delivery_status' => 'failed',
@@ -232,6 +231,7 @@ class NotificationLog extends Model
         if ($this->sent_at && $this->delivered_at) {
             return $this->sent_at->diffInSeconds($this->delivered_at);
         }
+
         return null;
     }
 
@@ -240,7 +240,7 @@ class NotificationLog extends Model
      */
     public function getStatusBadgeAttribute(): array
     {
-        return match($this->delivery_status) {
+        return match ($this->delivery_status) {
             'delivered' => ['text' => 'Delivered', 'class' => 'success'],
             'sent' => ['text' => 'Sent', 'class' => 'info'],
             'failed' => ['text' => 'Failed', 'class' => 'danger'],
@@ -255,7 +255,7 @@ class NotificationLog extends Model
      */
     public function getPriorityBadgeAttribute(): array
     {
-        return match($this->priority) {
+        return match ($this->priority) {
             'urgent' => ['text' => 'Urgent', 'class' => 'danger'],
             'high' => ['text' => 'High', 'class' => 'warning'],
             'normal' => ['text' => 'Normal', 'class' => 'info'],
@@ -269,7 +269,7 @@ class NotificationLog extends Model
      */
     public function getChannelIconAttribute(): string
     {
-        return match($this->channel) {
+        return match ($this->channel) {
             'sms' => 'fa-sms',
             'email' => 'fa-envelope',
             'whatsapp' => 'fa-whatsapp',
@@ -293,10 +293,11 @@ class NotificationLog extends Model
         ]);
 
         $baseRate = $rates[$this->channel] ?? 0;
-        
+
         // For SMS, charge per 160 characters
         if ($this->channel === 'sms') {
             $parts = ceil(strlen($this->message) / 160);
+
             return $baseRate * $parts;
         }
 
@@ -336,8 +337,8 @@ class NotificationLog extends Model
             'delivery_rate' => $total > 0 ? round(($delivered / $total) * 100, 2) : 0,
             'failure_rate' => $total > 0 ? round(($failed / $total) * 100, 2) : 0,
             'average_delivery_time' => static::where('delivery_status', 'delivered')
-                                           ->whereNotNull('delivery_time')
-                                           ->avg('delivery_time'),
+                ->whereNotNull('delivery_time')
+                ->avg('delivery_time'),
             'total_cost' => $query->sum('cost'),
         ];
     }
@@ -359,6 +360,7 @@ class NotificationLog extends Model
             ->get()
             ->map(function ($item) {
                 $item->delivery_rate = $item->total > 0 ? round(($item->delivered / $item->total) * 100, 2) : 0;
+
                 return $item;
             });
     }
@@ -377,11 +379,11 @@ class NotificationLog extends Model
     public static function getRetryableFailures(): \Illuminate\Database\Eloquent\Collection
     {
         return static::where('delivery_status', 'failed')
-                    ->where('delivery_attempts', '<', 3)
-                    ->where('failed_at', '>', now()->subHours(24))
-                    ->orderBy('priority', 'desc')
-                    ->orderBy('failed_at')
-                    ->get();
+            ->where('delivery_attempts', '<', 3)
+            ->where('failed_at', '>', now()->subHours(24))
+            ->orderBy('priority', 'desc')
+            ->orderBy('failed_at')
+            ->get();
     }
 
     /**

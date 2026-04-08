@@ -4,9 +4,8 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
 use App\Http\Controllers\Admin\AttendanceSettingsController;
-use Carbon\Carbon;
+use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
 class ETimeOfficeAutoSync extends Command
@@ -26,11 +25,12 @@ class ETimeOfficeAutoSync extends Command
 
         $this->info("Starting ETimeOffice Auto-Sync (every {$frequency} minutes)");
         $this->info("Date Range: {$range}");
-        $this->info("Test Mode: " . ($testMode ? 'ON' : 'OFF'));
+        $this->info('Test Mode: '.($testMode ? 'ON' : 'OFF'));
 
         // Check if sync is enabled
-        if (!$this->isSyncEnabled()) {
+        if (! $this->isSyncEnabled()) {
             $this->warn('ETimeOffice integration is disabled. Skipping sync.');
+
             return 0;
         }
 
@@ -38,20 +38,21 @@ class ETimeOfficeAutoSync extends Command
         $result = $this->performSync($range, $testMode);
 
         if ($result['success']) {
-            $this->info("Sync completed successfully:");
+            $this->info('Sync completed successfully:');
             $this->info("- Total Records: {$result['data']['total_records']}");
             $this->info("- Created: {$result['data']['created_records']}");
             $this->info("- Updated: {$result['data']['updated_records']}");
             $this->info("- Skipped: {$result['data']['skipped_records']}");
 
-            if (!empty($result['data']['errors'])) {
-                $this->warn("Errors encountered: " . count($result['data']['errors']));
+            if (! empty($result['data']['errors'])) {
+                $this->warn('Errors encountered: '.count($result['data']['errors']));
                 foreach ($result['data']['errors'] as $error) {
                     $this->error("- {$error}");
                 }
             }
         } else {
             $this->error("Sync failed: {$result['message']}");
+
             return 1;
         }
 
@@ -62,31 +63,37 @@ class ETimeOfficeAutoSync extends Command
     {
         try {
             $enabled = \App\Models\Setting::where('key', 'etimeoffice_enabled')->value('value');
-            if (!filter_var($enabled, FILTER_VALIDATE_BOOLEAN)) {
+            if (! filter_var($enabled, FILTER_VALIDATE_BOOLEAN)) {
                 return false;
             }
 
             // Also check for required credentials
             $missing = [];
-            if (!\App\Models\Setting::where('key', 'etimeoffice_api_url')->value('value'))
+            if (! \App\Models\Setting::where('key', 'etimeoffice_api_url')->value('value')) {
                 $missing[] = 'API URL';
-            if (!\App\Models\Setting::where('key', 'etimeoffice_corporate_id')->value('value'))
+            }
+            if (! \App\Models\Setting::where('key', 'etimeoffice_corporate_id')->value('value')) {
                 $missing[] = 'Corporate ID';
-            if (!\App\Models\Setting::where('key', 'etimeoffice_username')->value('value'))
+            }
+            if (! \App\Models\Setting::where('key', 'etimeoffice_username')->value('value')) {
                 $missing[] = 'Username';
-            if (!\App\Models\Setting::where('key', 'etimeoffice_password')->value('value'))
+            }
+            if (! \App\Models\Setting::where('key', 'etimeoffice_password')->value('value')) {
                 $missing[] = 'Password';
+            }
 
-            if (!empty($missing)) {
-                $msg = 'ETimeOffice sync is enabled but missing: ' . implode(', ', $missing);
+            if (! empty($missing)) {
+                $msg = 'ETimeOffice sync is enabled but missing: '.implode(', ', $missing);
                 $this->error($msg);
                 Log::error($msg);
+
                 return false;
             }
 
             return true;
         } catch (\Exception $e) {
-            Log::error('Could not check ETimeOffice sync status: ' . $e->getMessage());
+            Log::error('Could not check ETimeOffice sync status: '.$e->getMessage());
+
             return false;
         }
     }
@@ -98,11 +105,11 @@ class ETimeOfficeAutoSync extends Command
             $request = new \Illuminate\Http\Request([
                 'date_range' => $range,
                 'test_mode' => $testMode ? 'on' : null,
-                'employee_codes' => null
+                'employee_codes' => null,
             ]);
 
             // Use the existing controller method
-            $controller = new AttendanceSettingsController();
+            $controller = new AttendanceSettingsController;
             $response = $controller->pullETimeOfficeData($request);
 
             $responseData = json_decode($response->getContent(), true);
@@ -111,7 +118,7 @@ class ETimeOfficeAutoSync extends Command
             Log::channel('attendance-webhook')->info('Auto-sync completed', [
                 'range' => $range,
                 'test_mode' => $testMode,
-                'result' => $responseData
+                'result' => $responseData,
             ]);
 
             return $responseData;
@@ -119,13 +126,13 @@ class ETimeOfficeAutoSync extends Command
         } catch (\Exception $e) {
             Log::error('Auto-sync failed', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return [
                 'success' => false,
                 'message' => $e->getMessage(),
-                'data' => []
+                'data' => [],
             ];
         }
     }

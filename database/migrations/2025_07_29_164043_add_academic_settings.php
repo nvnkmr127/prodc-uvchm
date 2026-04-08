@@ -1,9 +1,7 @@
 <?php
 
-use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use App\Models\Setting;
+use Illuminate\Database\Migrations\Migration;
 
 return new class extends Migration
 {
@@ -20,7 +18,7 @@ return new class extends Migration
                 'type' => 'multiselect',
                 'group' => 'academic',
                 'label' => 'Working Days',
-                'description' => 'Configure working days for timetable generation'
+                'description' => 'Configure working days for timetable generation',
             ]
         );
 
@@ -32,7 +30,7 @@ return new class extends Migration
                 'type' => 'toggle',
                 'group' => 'academic',
                 'label' => 'Saturday Theory Classes Only',
-                'description' => 'Restrict Saturday to theory classes only (no lab sessions)'
+                'description' => 'Restrict Saturday to theory classes only (no lab sessions)',
             ]
         );
 
@@ -44,7 +42,7 @@ return new class extends Migration
                 'type' => 'toggle',
                 'group' => 'academic',
                 'label' => 'Lab-Theory Alternation Rule',
-                'description' => 'Enforce alternation: Lab in morning → Theory in afternoon, Lab in afternoon → Theory in morning'
+                'description' => 'Enforce alternation: Lab in morning → Theory in afternoon, Lab in afternoon → Theory in morning',
             ]
         );
 
@@ -56,7 +54,7 @@ return new class extends Migration
                 'type' => 'toggle',
                 'group' => 'academic',
                 'label' => 'Auto-Create Required Lab Subjects',
-                'description' => 'Automatically create Service Lab, Kitchen Lab, Front Office Lab, and Housekeeping Lab subjects if missing'
+                'description' => 'Automatically create Service Lab, Kitchen Lab, Front Office Lab, and Housekeeping Lab subjects if missing',
             ]
         );
 
@@ -68,7 +66,7 @@ return new class extends Migration
                 'type' => 'number',
                 'group' => 'academic',
                 'label' => 'Maximum Lab Sessions Per Week',
-                'description' => 'Maximum number of lab sessions per practical group per week'
+                'description' => 'Maximum number of lab sessions per practical group per week',
             ]
         );
 
@@ -84,8 +82,8 @@ return new class extends Migration
                 'options' => json_encode([
                     'strict' => 'Strict - Fail on any conflict',
                     'auto_resolve' => 'Auto-resolve by finding alternatives',
-                    'warn_continue' => 'Warn but continue generation'
-                ])
+                    'warn_continue' => 'Warn but continue generation',
+                ]),
             ]
         );
     }
@@ -101,7 +99,7 @@ return new class extends Migration
             'lab_theory_alternation',
             'auto_create_lab_subjects',
             'max_lab_sessions_per_week',
-            'timetable_conflict_resolution'
+            'timetable_conflict_resolution',
         ];
 
         Setting::whereIn('key', $settingsToRemove)->delete();

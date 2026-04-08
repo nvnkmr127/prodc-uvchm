@@ -10,12 +10,12 @@ return new class extends Migration
      * Run the migrations.
      */
     public function up(): void
-{
-    Schema::table('students', function (Blueprint $table) {
-        // We can add this after the student's name
-        $table->enum('gender', ['Male', 'Female', 'Other'])->nullable()->after('name');
-    });
-}
+    {
+        Schema::table('students', function (Blueprint $table) {
+            // We can add this after the student's name
+            $table->enum('gender', ['Male', 'Female', 'Other'])->nullable()->after('name');
+        });
+    }
 
     /**
      * Reverse the migrations.

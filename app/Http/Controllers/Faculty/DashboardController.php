@@ -3,13 +3,15 @@
 namespace App\Http\Controllers\Faculty;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use App\Services\{DashboardService, DashboardDataService};
-use App\Models\{Timetable, Attendance};
+use App\Models\Attendance;
+use App\Models\Timetable;
+use App\Services\DashboardDataService;
+use App\Services\DashboardService;
 
 class DashboardController extends Controller
 {
     protected $dashboardService;
+
     protected $dataService;
 
     public function __construct(DashboardService $dashboardService, DashboardDataService $dataService)
@@ -32,7 +34,7 @@ class DashboardController extends Controller
             'attendance_summary' => $this->getMyAttendanceSummary($user),
             'student_performance' => $this->getMyStudentPerformance($user),
             'upcoming_classes' => $this->getUpcomingClasses($user),
-            'pending_tasks' => $this->getPendingTasks($user)
+            'pending_tasks' => $this->getPendingTasks($user),
         ];
 
         return view('faculty.dashboard.index', $data);
@@ -41,7 +43,7 @@ class DashboardController extends Controller
     public function myClasses()
     {
         $user = auth()->user();
-        
+
         $classes = Timetable::where('user_id', $user->id)
             ->with(['subject', 'batch.course', 'classroom', 'timeSlot'])
             ->orderBy('schedule_date')
@@ -54,12 +56,12 @@ class DashboardController extends Controller
     public function attendanceOverview()
     {
         $user = auth()->user();
-        
+
         $data = [
             'attendance_statistics' => $this->getAttendanceStatistics($user),
             'class_wise_attendance' => $this->getClassWiseAttendance($user),
             'monthly_trends' => $this->getMonthlyAttendanceTrends($user),
-            'student_performance' => $this->getStudentAttendancePerformance($user)
+            'student_performance' => $this->getStudentAttendancePerformance($user),
         ];
 
         return view('faculty.dashboard.attendance-overview', $data);
@@ -83,7 +85,7 @@ class DashboardController extends Controller
                     'start_time' => $class->timeSlot->start_time ?? 'TBD',
                     'end_time' => $class->timeSlot->end_time ?? 'TBD',
                     'attendance_taken' => Attendance::where('timetable_id', $class->id)->exists(),
-                    'student_count' => $class->batch->students()->count()
+                    'student_count' => $class->batch->students()->count(),
                 ];
             })
             ->toArray();
@@ -120,19 +122,19 @@ class DashboardController extends Controller
         return [
             'total_classes' => $totalClasses,
             'attendance_taken' => $classesWithAttendance,
-            'completion_rate' => $totalClasses > 0 ? 
+            'completion_rate' => $totalClasses > 0 ?
                 round(($classesWithAttendance / $totalClasses) * 100, 1) : 0,
-            'average_attendance' => $totalStudentRecords > 0 ? 
+            'average_attendance' => $totalStudentRecords > 0 ?
                 round(($presentRecords / $totalStudentRecords) * 100, 1) : 0,
             'total_student_records' => $totalStudentRecords,
-            'present_records' => $presentRecords
+            'present_records' => $presentRecords,
         ];
     }
 
     protected function getMyStudentPerformance($user): array
     {
         $myClasses = Timetable::where('user_id', $user->id)->pluck('id');
-        
+
         $attendanceData = Attendance::whereIn('timetable_id', $myClasses)
             ->select('student_id', 'status')
             ->get()
@@ -143,18 +145,18 @@ class DashboardController extends Controller
             $total = $records->count();
             $present = $records->where('status', 'present')->count();
             $percentage = $total > 0 ? ($present / $total) * 100 : 0;
-            
+
             $performanceData[] = [
                 'student_id' => $studentId,
                 'attendance_percentage' => round($percentage, 1),
                 'total_classes' => $total,
-                'classes_attended' => $present
+                'classes_attended' => $present,
             ];
         }
 
         return [
             'total_students' => count($performanceData),
-            'average_performance' => count($performanceData) > 0 ? 
+            'average_performance' => count($performanceData) > 0 ?
                 round(collect($performanceData)->avg('attendance_percentage'), 1) : 0,
             'top_performers' => collect($performanceData)
                 ->sortByDesc('attendance_percentage')
@@ -163,7 +165,7 @@ class DashboardController extends Controller
                 ->toArray(),
             'low_performers' => collect($performanceData)
                 ->where('attendance_percentage', '<', 75)
-                ->count()
+                ->count(),
         ];
     }
 
@@ -184,7 +186,7 @@ class DashboardController extends Controller
                     'classroom' => $class->classroom->name ?? 'TBD',
                     'date' => $class->schedule_date->format('M j, Y'),
                     'time' => $class->timeSlot->start_time ?? 'TBD',
-                    'days_until' => $class->schedule_date->diffInDays(now())
+                    'days_until' => $class->schedule_date->diffInDays(now()),
                 ];
             })
             ->toArray();
@@ -223,7 +225,7 @@ class DashboardController extends Controller
             'overdue_attendance' => $overdueAttendance,
             'upcoming_classes_today' => $upcomingToday,
             'priority_level' => $this->calculateTaskPriority($overdueAttendance, $todayClasses),
-            'total_pending' => $todayClasses + $overdueAttendance
+            'total_pending' => $todayClasses + $overdueAttendance,
         ];
     }
 
@@ -233,9 +235,9 @@ class DashboardController extends Controller
         $allClasses = Timetable::where('user_id', $user->id)
             ->where('schedule_date', '>=', now()->startOfYear())
             ->get();
-        
+
         $totalClasses = $allClasses->count();
-        
+
         // Classes with attendance taken
         $completedClasses = $allClasses->filter(function ($class) {
             return Attendance::where('batch_id', $class->batch_id)
@@ -261,21 +263,21 @@ class DashboardController extends Controller
         for ($i = 3; $i >= 0; $i--) {
             $weekStart = now()->subWeeks($i)->startOfWeek();
             $weekEnd = now()->subWeeks($i)->endOfWeek();
-            
+
             $weekClasses = Timetable::where('user_id', $user->id)
                 ->whereBetween('schedule_date', [$weekStart, $weekEnd])
                 ->count();
-            
+
             $weekCompleted = Timetable::where('user_id', $user->id)
                 ->whereBetween('schedule_date', [$weekStart, $weekEnd])
                 ->whereHas('attendances')
                 ->count();
-            
+
             $weeklyTrend[] = [
                 'week' => $weekStart->format('M j'),
                 'total' => $weekClasses,
                 'completed' => $weekCompleted,
-                'percentage' => $weekClasses > 0 ? round(($weekCompleted / $weekClasses) * 100, 1) : 0
+                'percentage' => $weekClasses > 0 ? round(($weekCompleted / $weekClasses) * 100, 1) : 0,
             ];
         }
 
@@ -293,7 +295,7 @@ class DashboardController extends Controller
             'weekly_trend' => $weeklyTrend,
             'performance_grade' => $this->getAttendanceGrade($completionPercentage),
             'improvement_needed' => $completionPercentage < 80,
-            'streak_days' => $this->calculateAttendanceStreak($user)
+            'streak_days' => $this->calculateAttendanceStreak($user),
         ];
     }
 
@@ -309,6 +311,7 @@ class DashboardController extends Controller
         } elseif ($overdueCount > 0 || $pendingCount > 5) {
             return 'medium';
         }
+
         return 'low';
     }
 
@@ -332,6 +335,7 @@ class DashboardController extends Controller
         } elseif ($percentage >= 60) {
             return 'D';
         }
+
         return 'F';
     }
 
@@ -342,32 +346,33 @@ class DashboardController extends Controller
     {
         $streak = 0;
         $currentDate = now()->subDay();
-        
+
         // Check last 30 days for consecutive attendance completion
         for ($i = 0; $i < 30; $i++) {
             $dayClasses = Timetable::where('user_id', $user->id)
                 ->whereDate('schedule_date', $currentDate)
                 ->count();
-            
+
             if ($dayClasses === 0) {
                 $currentDate->subDay();
+
                 continue; // Skip days with no classes
             }
-            
+
             $dayCompleted = Timetable::where('user_id', $user->id)
                 ->whereDate('schedule_date', $currentDate)
                 ->whereHas('attendances')
                 ->count();
-            
+
             if ($dayCompleted === $dayClasses && $dayClasses > 0) {
                 $streak++;
             } else {
                 break; // Streak broken
             }
-            
+
             $currentDate->subDay();
         }
-        
+
         return $streak;
     }
 }

@@ -2,10 +2,10 @@
 
 namespace App\Models\Attendance;
 
+use App\Models\Student;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use App\Models\Student;
 use Illuminate\Support\Facades\Crypt;
 
 class ParentContact extends Model
@@ -30,7 +30,7 @@ class ParentContact extends Model
         'contact_attempts',
         'delivery_failures',
         'blocked_until',
-        'notes'
+        'notes',
     ];
 
     protected $casts = [
@@ -47,7 +47,7 @@ class ParentContact extends Model
     protected $hidden = [
         'primary_phone',
         'secondary_phone',
-        'whatsapp_number'
+        'whatsapp_number',
     ];
 
     /**
@@ -64,10 +64,10 @@ class ParentContact extends Model
     public function scopeActive($query)
     {
         return $query->where('is_active', true)
-                    ->where(function ($q) {
-                        $q->whereNull('blocked_until')
-                          ->orWhere('blocked_until', '<', now());
-                    });
+            ->where(function ($q) {
+                $q->whereNull('blocked_until')
+                    ->orWhere('blocked_until', '<', now());
+            });
     }
 
     /**
@@ -136,12 +136,16 @@ class ParentContact extends Model
     public function getMaskedPhoneAttribute(): string
     {
         $phone = $this->getDecryptedPrimaryPhoneAttribute();
-        if (!$phone) return 'Not provided';
-        
+        if (! $phone) {
+            return 'Not provided';
+        }
+
         $length = strlen($phone);
-        if ($length <= 4) return $phone;
-        
-        return substr($phone, 0, 2) . str_repeat('*', $length - 4) . substr($phone, -2);
+        if ($length <= 4) {
+            return $phone;
+        }
+
+        return substr($phone, 0, 2).str_repeat('*', $length - 4).substr($phone, -2);
     }
 
     /**
@@ -150,8 +154,8 @@ class ParentContact extends Model
     public function acceptsNotification(string $type): bool
     {
         $preferences = $this->notification_preferences ?? [];
-        
-        return match($type) {
+
+        return match ($type) {
             'attendance' => $preferences['attendance_alerts'] ?? true,
             'absence' => $preferences['absence_alerts'] ?? true,
             'late_arrival' => $preferences['late_arrival_alerts'] ?? true,
@@ -169,6 +173,7 @@ class ParentContact extends Model
     public function getPreferredChannels(): array
     {
         $preferences = $this->notification_preferences ?? [];
+
         return $preferences['channels'] ?? ['sms'];
     }
 
@@ -177,7 +182,7 @@ class ParentContact extends Model
      */
     public function canReceiveNotifications(): bool
     {
-        return $this->is_active 
+        return $this->is_active
             && ($this->blocked_until === null || $this->blocked_until->isPast())
             && $this->delivery_failures < 5;
     }
@@ -185,7 +190,7 @@ class ParentContact extends Model
     /**
      * Record successful notification delivery
      */
-    public function recordSuccessfulContact(string $channel = null): void
+    public function recordSuccessfulContact(?string $channel = null): void
     {
         $this->update([
             'last_contacted_at' => now(),
@@ -197,10 +202,10 @@ class ParentContact extends Model
     /**
      * Record failed notification delivery
      */
-    public function recordFailedContact(string $reason = null): void
+    public function recordFailedContact(?string $reason = null): void
     {
         $failures = $this->delivery_failures + 1;
-        
+
         $updateData = [
             'delivery_failures' => $failures,
             'contact_attempts' => $this->contact_attempts + 1,
@@ -215,8 +220,8 @@ class ParentContact extends Model
         }
 
         if ($reason) {
-            $updateData['notes'] = ($this->notes ? $this->notes . "\n" : '') . 
-                                 now()->format('Y-m-d H:i:s') . ": Failed delivery - {$reason}";
+            $updateData['notes'] = ($this->notes ? $this->notes."\n" : '').
+                                 now()->format('Y-m-d H:i:s').": Failed delivery - {$reason}";
         }
 
         $this->update($updateData);
@@ -242,7 +247,7 @@ class ParentContact extends Model
     {
         $currentPreferences = $this->notification_preferences ?? [];
         $updatedPreferences = array_merge($currentPreferences, $preferences);
-        
+
         $this->update(['notification_preferences' => $updatedPreferences]);
     }
 
@@ -251,7 +256,7 @@ class ParentContact extends Model
      */
     public function getContactInfoForChannel(string $channel): ?string
     {
-        return match($channel) {
+        return match ($channel) {
             'sms' => $this->getDecryptedPrimaryPhoneAttribute(),
             'whatsapp' => $this->whatsapp_number,
             'email' => $this->email,
@@ -263,17 +268,17 @@ class ParentContact extends Model
     /**
      * Get all contacts for a student with notification preferences
      */
-    public static function getNotificationContactsForStudent(int $studentId, string $notificationType = null): \Illuminate\Database\Eloquent\Collection
+    public static function getNotificationContactsForStudent(int $studentId, ?string $notificationType = null): \Illuminate\Database\Eloquent\Collection
     {
         $query = static::where('student_id', $studentId)
-                      ->active()
-                      ->orderBy('emergency_contact', 'desc')
-                      ->orderBy('contact_type');
+            ->active()
+            ->orderBy('emergency_contact', 'desc')
+            ->orderBy('contact_type');
 
         if ($notificationType) {
             $query->where(function ($q) use ($notificationType) {
                 $q->whereJsonContains("notification_preferences->{$notificationType}", true)
-                  ->orWhereNull('notification_preferences');
+                    ->orWhereNull('notification_preferences');
             });
         }
 
@@ -285,7 +290,7 @@ class ParentContact extends Model
      */
     public function getRelationshipBadgeAttribute(): array
     {
-        return match($this->relationship) {
+        return match ($this->relationship) {
             'father' => ['text' => 'Father', 'class' => 'primary'],
             'mother' => ['text' => 'Mother', 'class' => 'info'],
             'guardian' => ['text' => 'Guardian', 'class' => 'success'],
@@ -300,22 +305,22 @@ class ParentContact extends Model
      */
     public function getStatusBadgeAttribute(): array
     {
-        if (!$this->is_active) {
+        if (! $this->is_active) {
             return ['text' => 'Inactive', 'class' => 'secondary'];
         }
-        
+
         if ($this->blocked_until && $this->blocked_until->isFuture()) {
             return ['text' => 'Blocked', 'class' => 'danger'];
         }
-        
+
         if ($this->delivery_failures >= 3) {
             return ['text' => 'Issues', 'class' => 'warning'];
         }
-        
+
         if ($this->verified_at) {
             return ['text' => 'Verified', 'class' => 'success'];
         }
-        
+
         return ['text' => 'Active', 'class' => 'info'];
     }
 
@@ -325,9 +330,9 @@ class ParentContact extends Model
     public static function unblockExpiredContacts(): int
     {
         return static::where('blocked_until', '<', now())
-                    ->update([
-                        'blocked_until' => null,
-                        'is_active' => true,
-                    ]);
+            ->update([
+                'blocked_until' => null,
+                'is_active' => true,
+            ]);
     }
 }

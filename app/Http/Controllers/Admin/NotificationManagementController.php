@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\SystemNotification;
-use App\Models\NotificationPreference;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -139,17 +138,18 @@ class NotificationManagementController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Test notifications sent successfully',
-                'results' => $results
+                'results' => $results,
             ]);
 
         } catch (\Exception $e) {
             Log::error('Notification test failed', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Test failed due to system error'
+                'message' => 'Test failed due to system error',
             ], 500);
         }
     }
@@ -161,19 +161,20 @@ class NotificationManagementController extends Controller
     {
         try {
             $success = $notification->markAsReadBy(auth()->id());
-            
+
             return response()->json([
                 'success' => $success,
-                'message' => $success ? 'Notification marked as read' : 'Failed to mark as read'
+                'message' => $success ? 'Notification marked as read' : 'Failed to mark as read',
             ]);
         } catch (\Exception $e) {
             Log::error('Mark as read failed', [
                 'notification_id' => $notification->id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to mark notification as read'
+                'message' => 'Failed to mark notification as read',
             ], 500);
         }
     }
@@ -201,15 +202,16 @@ class NotificationManagementController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => "Marked {$count} notifications as read"
+                'message' => "Marked {$count} notifications as read",
             ]);
         } catch (\Exception $e) {
             Log::error('Bulk mark as read failed', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to mark notifications as read'
+                'message' => 'Failed to mark notifications as read',
             ], 500);
         }
     }
@@ -253,21 +255,22 @@ class NotificationManagementController extends Controller
                     'categories' => $request->categories,
                     'priorities' => $request->priorities,
                     'cleaned_by' => auth()->user()->name,
-                ]
+                ],
             ]);
 
             return response()->json([
                 'success' => true,
-                'message' => "Cleaned up {$count} old notifications"
+                'message' => "Cleaned up {$count} old notifications",
             ]);
         } catch (\Exception $e) {
             Log::error('Notification cleanup failed', [
                 'error' => $e->getMessage(),
-                'days' => $request->days
+                'days' => $request->days,
             ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Cleanup operation failed'
+                'message' => 'Cleanup operation failed',
             ], 500);
         }
     }
@@ -281,11 +284,21 @@ class NotificationManagementController extends Controller
             $query = SystemNotification::query();
 
             // Apply same filters as index
-            if ($request->category) $query->where('category', $request->category);
-            if ($request->priority) $query->where('priority', $request->priority);
-            if ($request->type) $query->where('type', $request->type);
-            if ($request->date_from) $query->whereDate('created_at', '>=', $request->date_from);
-            if ($request->date_to) $query->whereDate('created_at', '<=', $request->date_to);
+            if ($request->category) {
+                $query->where('category', $request->category);
+            }
+            if ($request->priority) {
+                $query->where('priority', $request->priority);
+            }
+            if ($request->type) {
+                $query->where('type', $request->type);
+            }
+            if ($request->date_from) {
+                $query->whereDate('created_at', '>=', $request->date_from);
+            }
+            if ($request->date_to) {
+                $query->whereDate('created_at', '<=', $request->date_to);
+            }
 
             $notifications = $query->orderBy('created_at', 'desc')->get();
 
@@ -305,7 +318,7 @@ class NotificationManagementController extends Controller
                 ];
             }
 
-            $filename = 'notifications_export_' . now()->format('Y-m-d_H-i-s') . '.csv';
+            $filename = 'notifications_export_'.now()->format('Y-m-d_H-i-s').'.csv';
 
             return response()->stream(function () use ($csvData) {
                 $handle = fopen('php://output', 'w');
@@ -315,15 +328,16 @@ class NotificationManagementController extends Controller
                 fclose($handle);
             }, 200, [
                 'Content-Type' => 'text/csv',
-                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+                'Content-Disposition' => 'attachment; filename="'.$filename.'"',
             ]);
         } catch (\Exception $e) {
             Log::error('Notification export failed', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Export operation failed'
+                'message' => 'Export operation failed',
             ], 500);
         }
     }
@@ -374,7 +388,7 @@ class NotificationManagementController extends Controller
         } catch (\Exception $e) {
             Log::error('Financial notification test failed', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
             $results['error'] = 'Financial notification test failed';
         }
@@ -409,7 +423,7 @@ class NotificationManagementController extends Controller
         } catch (\Exception $e) {
             Log::error('Academic notification test failed', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
             $results['error'] = 'Academic notification test failed';
         }
@@ -441,7 +455,7 @@ class NotificationManagementController extends Controller
         } catch (\Exception $e) {
             Log::error('System notification test failed', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
             $results['error'] = 'System notification test failed';
         }
@@ -462,14 +476,14 @@ class NotificationManagementController extends Controller
                 'category' => 'attendance',
                 'priority' => 'normal',
                 'roles' => ['super-admin'],
-                'data' => ['test' => true]
+                'data' => ['test' => true],
             ]);
             $results['attendance_general'] = $notification ? 'SUCCESS' : 'FAILED';
 
         } catch (\Exception $e) {
             Log::error('Attendance notification test failed', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
             $results['error'] = 'Attendance notification test failed';
         }

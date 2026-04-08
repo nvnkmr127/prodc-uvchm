@@ -12,11 +12,12 @@ class WidgetService
      */
     public function getAllWidgets(): Collection
     {
-        if (!class_exists('App\\Models\\Widget')) {
+        if (! class_exists('App\\Models\\Widget')) {
             return collect();
         }
 
         $widgetClass = 'App\\Models\\Widget';
+
         return $widgetClass::all();
     }
 
@@ -25,11 +26,12 @@ class WidgetService
      */
     public function getWidget(int $id): ?Model
     {
-        if (!class_exists('App\\Models\\Widget')) {
+        if (! class_exists('App\\Models\\Widget')) {
             return null;
         }
 
         $widgetClass = 'App\\Models\\Widget';
+
         return $widgetClass::find($id);
     }
 
@@ -38,11 +40,12 @@ class WidgetService
      */
     public function getWidgetsByCategory(string $category): Collection
     {
-        if (!class_exists('App\\Models\\Widget')) {
+        if (! class_exists('App\\Models\\Widget')) {
             return collect();
         }
 
         $widgetClass = 'App\\Models\\Widget';
+
         return $widgetClass::where('category', $category)->get();
     }
 
@@ -51,11 +54,12 @@ class WidgetService
      */
     public function createWidget(array $data): Model
     {
-        if (!class_exists('App\\Models\\Widget')) {
+        if (! class_exists('App\\Models\\Widget')) {
             throw new \RuntimeException('Widget model is not available');
         }
 
         $widgetClass = 'App\\Models\\Widget';
+
         return $widgetClass::create($data);
     }
 
@@ -64,13 +68,13 @@ class WidgetService
      */
     public function updateWidget(int $id, array $data): bool
     {
-        if (!class_exists('App\\Models\\Widget')) {
+        if (! class_exists('App\\Models\\Widget')) {
             return false;
         }
 
         $widgetClass = 'App\\Models\\Widget';
         $widget = $widgetClass::find($id);
-        if (!$widget) {
+        if (! $widget) {
             return false;
         }
 
@@ -82,13 +86,13 @@ class WidgetService
      */
     public function deleteWidget(int $id): bool
     {
-        if (!class_exists('App\\Models\\Widget')) {
+        if (! class_exists('App\\Models\\Widget')) {
             return false;
         }
 
         $widgetClass = 'App\\Models\\Widget';
         $widget = $widgetClass::find($id);
-        if (!$widget) {
+        if (! $widget) {
             return false;
         }
 
@@ -100,12 +104,13 @@ class WidgetService
      */
     public function getWidgetConfig(int $id): array
     {
-        if (!class_exists('App\\Models\\Widget')) {
+        if (! class_exists('App\\Models\\Widget')) {
             return [];
         }
 
         $widgetClass = 'App\\Models\\Widget';
         $widget = $widgetClass::find($id);
+
         return $widget ? $widget->config ?? [] : [];
     }
 
@@ -114,13 +119,13 @@ class WidgetService
      */
     public function updateWidgetConfig(int $id, array $config): bool
     {
-        if (!class_exists('App\\Models\\Widget')) {
+        if (! class_exists('App\\Models\\Widget')) {
             return false;
         }
 
         $widgetClass = 'App\\Models\\Widget';
         $widget = $widgetClass::find($id);
-        if (!$widget) {
+        if (! $widget) {
             return false;
         }
 

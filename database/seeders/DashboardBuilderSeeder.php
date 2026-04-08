@@ -2,21 +2,24 @@
 
 namespace Database\Seeders;
 
+use App\Models\Widget;
+use App\Models\WidgetCategory;
 use Illuminate\Database\Seeder;
-use App\Models\{Widget, WidgetCategory};
-use Illuminate\Support\Facades\{Schema, DB};
+use Illuminate\Support\Facades\Schema;
 
 class DashboardBuilderSeeder extends Seeder
 {
     public function run(): void
     {
-        if (!Schema::hasTable('widget_categories')) {
+        if (! Schema::hasTable('widget_categories')) {
             $this->command->error('widget_categories table does not exist. Please run migrations first.');
+
             return;
         }
 
-        if (!Schema::hasTable('widgets')) {
+        if (! Schema::hasTable('widgets')) {
             $this->command->error('widgets table does not exist. Please run migrations first.');
+
             return;
         }
 
@@ -33,7 +36,7 @@ class DashboardBuilderSeeder extends Seeder
                 'description' => 'Data visualization and analytics widgets',
                 'icon' => 'ChartBarIcon',
                 'color' => '#3B82F6',
-                'order' => 1
+                'order' => 1,
             ],
             [
                 'name' => 'Academic',
@@ -41,7 +44,7 @@ class DashboardBuilderSeeder extends Seeder
                 'description' => 'Student and course management widgets',
                 'icon' => 'AcademicCapIcon',
                 'color' => '#10B981',
-                'order' => 2
+                'order' => 2,
             ],
             [
                 'name' => 'Financial',
@@ -49,7 +52,7 @@ class DashboardBuilderSeeder extends Seeder
                 'description' => 'Fee and financial management widgets',
                 'icon' => 'CurrencyDollarIcon',
                 'color' => '#F59E0B',
-                'order' => 3
+                'order' => 3,
             ],
             [
                 'name' => 'HR',
@@ -57,7 +60,7 @@ class DashboardBuilderSeeder extends Seeder
                 'description' => 'Staff and faculty management widgets',
                 'icon' => 'UsersIcon',
                 'color' => '#8B5CF6',
-                'order' => 4
+                'order' => 4,
             ],
             [
                 'name' => 'System',
@@ -65,8 +68,8 @@ class DashboardBuilderSeeder extends Seeder
                 'description' => 'System monitoring and administration widgets',
                 'icon' => 'ServerIcon',
                 'color' => '#EF4444',
-                'order' => 5
-            ]
+                'order' => 5,
+            ],
         ];
 
         foreach ($categories as $category) {
@@ -84,15 +87,16 @@ class DashboardBuilderSeeder extends Seeder
         // Check if widgets table has all required columns
         $requiredColumns = [
             'type', 'component', 'category', 'icon', 'description', 'default_config',
-            'data_source', 'default_width', 'default_height', 'is_resizable', 'is_active'
+            'data_source', 'default_width', 'default_height', 'is_resizable', 'is_active',
         ];
 
         $existingColumns = Schema::getColumnListing('widgets');
         $missingColumns = array_diff($requiredColumns, $existingColumns);
 
-        if (!empty($missingColumns)) {
-            $this->command->error('Some widget columns are missing: ' . implode(', ', $missingColumns));
+        if (! empty($missingColumns)) {
+            $this->command->error('Some widget columns are missing: '.implode(', ', $missingColumns));
             $this->command->error('Please run the widget enhancement migration first.');
+
             return;
         }
 
@@ -109,13 +113,13 @@ class DashboardBuilderSeeder extends Seeder
                     'chartType' => 'line',
                     'title' => 'Student Enrollment Trends',
                     'showLegend' => true,
-                    'colors' => ['#3B82F6', '#10B981']
+                    'colors' => ['#3B82F6', '#10B981'],
                 ],
                 'data_source' => 'App\\Services\\DataProviders\\StudentEnrollmentDataService',
                 'default_width' => 6,
                 'default_height' => 4,
                 'is_resizable' => true,
-                'is_active' => true
+                'is_active' => true,
             ],
             [
                 'name' => 'Total Students KPI',
@@ -130,13 +134,13 @@ class DashboardBuilderSeeder extends Seeder
                     'format' => 'number',
                     'showTrend' => true,
                     'showSparkline' => true,
-                    'variant' => 'default'
+                    'variant' => 'default',
                 ],
                 'data_source' => 'App\\Services\\DataProviders\\KPIDataService',
                 'default_width' => 3,
                 'default_height' => 2,
                 'is_resizable' => true,
-                'is_active' => true
+                'is_active' => true,
             ],
             [
                 'name' => 'New Enrollments This Month',
@@ -151,13 +155,13 @@ class DashboardBuilderSeeder extends Seeder
                     'subtitle' => 'This Month',
                     'format' => 'number',
                     'showTrend' => true,
-                    'variant' => 'success'
+                    'variant' => 'success',
                 ],
                 'data_source' => 'App\\Services\\DataProviders\\KPIDataService',
                 'default_width' => 3,
                 'default_height' => 2,
                 'is_resizable' => true,
-                'is_active' => true
+                'is_active' => true,
             ],
             [
                 'name' => 'Student List',
@@ -176,15 +180,15 @@ class DashboardBuilderSeeder extends Seeder
                         ['key' => 'name', 'label' => 'Name', 'sortable' => true],
                         ['key' => 'email', 'label' => 'Email', 'sortable' => true],
                         ['key' => 'status', 'label' => 'Status', 'sortable' => true],
-                        ['key' => 'created_at', 'label' => 'Enrolled', 'type' => 'date', 'sortable' => true]
-                    ]
+                        ['key' => 'created_at', 'label' => 'Enrolled', 'type' => 'date', 'sortable' => true],
+                    ],
                 ],
                 'data_source' => 'App\\Services\\DataProviders\\StudentDataService',
                 'default_width' => 8,
                 'default_height' => 6,
                 'is_resizable' => true,
-                'is_active' => true
-            ]
+                'is_active' => true,
+            ],
         ];
 
         foreach ($widgets as $widgetData) {
@@ -195,7 +199,7 @@ class DashboardBuilderSeeder extends Seeder
                 );
                 $this->command->info("Widget '{$widgetData['name']}' created/updated successfully.");
             } catch (\Exception $e) {
-                $this->command->error("Failed to create widget '{$widgetData['name']}': " . $e->getMessage());
+                $this->command->error("Failed to create widget '{$widgetData['name']}': ".$e->getMessage());
             }
         }
 

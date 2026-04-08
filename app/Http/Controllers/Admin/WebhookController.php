@@ -6,12 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\Webhook;
 use App\Models\WebhookCall;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Validation\Rule;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class WebhookController extends Controller
 {
@@ -84,8 +83,8 @@ class WebhookController extends Controller
 
         } catch (\Exception $e) {
             // Log the error
-            Log::error('Webhook index error: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString()
+            Log::error('Webhook index error: '.$e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
             ]);
 
             // Return a safe fallback view with empty paginated collection
@@ -154,7 +153,7 @@ class WebhookController extends Controller
                 'attendance.daily_absent' => [
                     'name' => 'Daily Absent Report',
                     'description' => 'Triggers once daily after the "Present Cutoff Time". Sends a list of all students who have not marked attendance.',
-                    'category' => 'Student Management'
+                    'category' => 'Student Management',
                 ],
                 'daily.summary' => ['name' => 'Daily Summary Report', 'description' => 'Automated daily report with payment totals and attendance summary. Sent at 5:00 PM on working days (Monday-Saturday)', 'category' => 'Automation'],
             ];
@@ -166,7 +165,7 @@ class WebhookController extends Controller
                         'payment.created' => $eventTypes['payment.created'],
                         'payment.updated' => $eventTypes['payment.updated'],
                         'student_fee.created' => $eventTypes['student_fee.created'],
-                    ]
+                    ],
                 ],
                 'Student Management' => [
                     'icon' => '👨‍🎓',
@@ -175,26 +174,26 @@ class WebhookController extends Controller
                         'student.updated' => $eventTypes['student.updated'],
                         'student.birthday' => $eventTypes['student.birthday'],
                         'attendance.daily_absent' => $eventTypes['attendance.daily_absent'],
-                    ]
+                    ],
                 ],
                 'Lead Management' => [
                     'icon' => '📞',
                     'events' => [
                         'enquiry.created' => $eventTypes['enquiry.created'],
-                    ]
+                    ],
                 ],
                 'Automation' => [
                     'icon' => '🤖',
                     'events' => [
                         'daily.summary' => $eventTypes['daily.summary'],
-                    ]
+                    ],
                 ],
             ];
         }
 
         return view('admin.webhooks.create', [
             'eventTypes' => $eventTypes ?? [],
-            'eventCategories' => $categories ?? []
+            'eventCategories' => $categories ?? [],
         ]);
     }
 
@@ -218,7 +217,7 @@ class WebhookController extends Controller
                 'student.birthday',
                 'enquiry.created',
                 'daily.summary',
-                'attendance.daily_absent'
+                'attendance.daily_absent',
             ];
         }
 
@@ -228,12 +227,12 @@ class WebhookController extends Controller
                 'url',
                 Rule::unique('webhooks')->where(function ($query) use ($request) {
                     return $query->where('event_name', $request->event_name);
-                })
+                }),
             ],
             'event_name' => [
                 'required',
                 'string',
-                Rule::in($validationKeys)
+                Rule::in($validationKeys),
             ],
             'description' => 'nullable|string|max:500',
             'timeout_seconds' => 'nullable|integer|min:5|max:120',
@@ -260,7 +259,7 @@ class WebhookController extends Controller
         $webhook->load([
             'calls' => function ($query) {
                 $query->latest()->limit(50);
-            }
+            },
         ]);
 
         // Get health status safely
@@ -269,7 +268,7 @@ class WebhookController extends Controller
         } catch (\Exception $e) {
             $healthStatus = [
                 'status' => 'unknown',
-                'message' => 'Could not determine health status'
+                'message' => 'Could not determine health status',
             ];
         }
 
@@ -324,7 +323,7 @@ class WebhookController extends Controller
             $eventTypes = Webhook::getAvailableEvents();
             $eventCategories = Webhook::getEventCategories();
         } catch (\Exception $e) {
-            \Log::error('Webhook edit error: ' . $e->getMessage());
+            \Log::error('Webhook edit error: '.$e->getMessage());
 
             // Fallback data - completely safe (COMPONENT-BASED) with daily.summary
             $eventTypes = [
@@ -346,7 +345,7 @@ class WebhookController extends Controller
                         'payment.created' => $eventTypes['payment.created'],
                         'payment.updated' => $eventTypes['payment.updated'],
                         'student_fee.created' => $eventTypes['student_fee.created'],
-                    ]
+                    ],
                 ],
                 'Student Management' => [
                     'icon' => '👨‍🎓',
@@ -355,19 +354,19 @@ class WebhookController extends Controller
                         'student.updated' => $eventTypes['student.updated'],
                         'student.birthday' => $eventTypes['student.birthday'],
                         'attendance.daily_absent' => $eventTypes['attendance.daily_absent'],
-                    ]
+                    ],
                 ],
                 'Lead Management' => [
                     'icon' => '📞',
                     'events' => [
                         'enquiry.created' => $eventTypes['enquiry.created'],
-                    ]
+                    ],
                 ],
                 'Automation' => [
                     'icon' => '🤖',
                     'events' => [
                         'daily.summary' => $eventTypes['daily.summary'],
-                    ]
+                    ],
                 ],
             ];
         }
@@ -394,7 +393,7 @@ class WebhookController extends Controller
             'eventTypes' => is_array($eventTypes) ? $eventTypes : [],
             'eventCategories' => is_array($eventCategories) ? $eventCategories : [],
             'currentEventInfo' => is_array($currentEventInfo) ? $currentEventInfo : null,
-            'recentDeliveries' => $recentDeliveries ?? collect([])
+            'recentDeliveries' => $recentDeliveries ?? collect([]),
         ];
 
         return view('admin.webhooks.edit', $viewData);
@@ -429,12 +428,12 @@ class WebhookController extends Controller
                 'url',
                 Rule::unique('webhooks')->where(function ($query) use ($request) {
                     return $query->where('event_name', $request->event_name);
-                })->ignore($webhook->id)
+                })->ignore($webhook->id),
             ],
             'event_name' => [
                 'required',
                 'string',
-                Rule::in(array_keys($availableEvents))
+                Rule::in(array_keys($availableEvents)),
             ],
             'description' => 'nullable|string|max:500',
             'timeout_seconds' => 'nullable|integer|min:5|max:120',
@@ -450,7 +449,7 @@ class WebhookController extends Controller
             'timeout_seconds',
             'is_active',
             'max_failures_before_disable',
-            'auto_disable_after_failures'
+            'auto_disable_after_failures',
         ]));
 
         return redirect()->route('admin.webhooks.index')
@@ -476,7 +475,7 @@ class WebhookController extends Controller
     public function toggle(Webhook $webhook)
     {
         try {
-            $webhook->update(['is_active' => !$webhook->is_active]);
+            $webhook->update(['is_active' => ! $webhook->is_active]);
 
             // Reset failure count when reactivating
             if ($webhook->is_active && method_exists($webhook, 'resetFailures')) {
@@ -489,7 +488,7 @@ class WebhookController extends Controller
                 return response()->json([
                     'success' => true,
                     'message' => "Webhook has been {$status}.",
-                    'is_active' => $webhook->is_active
+                    'is_active' => $webhook->is_active,
                 ]);
             }
 
@@ -499,7 +498,7 @@ class WebhookController extends Controller
             if (request()->wantsJson()) {
                 return response()->json([
                     'success' => false,
-                    'error' => 'Failed to toggle webhook status'
+                    'error' => 'Failed to toggle webhook status',
                 ], 500);
             }
 
@@ -551,6 +550,7 @@ class WebhookController extends Controller
                 if ($request->wantsJson()) {
                     return response()->json(['success' => true, 'message' => $message]);
                 }
+
                 return redirect()->route('admin.webhooks.index')->with('success', $message);
 
             } else {
@@ -562,6 +562,7 @@ class WebhookController extends Controller
                 if ($request->wantsJson()) {
                     return response()->json(['success' => false, 'message' => $message], 422);
                 }
+
                 return redirect()->route('admin.webhooks.index')->with('error', $message);
             }
 
@@ -569,11 +570,12 @@ class WebhookController extends Controller
             if (method_exists($webhook, 'markAsFailed')) {
                 $webhook->markAsFailed();
             }
-            $message = 'Webhook test failed with an exception: ' . $e->getMessage();
+            $message = 'Webhook test failed with an exception: '.$e->getMessage();
 
             if ($request->wantsJson()) {
                 return response()->json(['success' => false, 'message' => $message], 500);
             }
+
             return redirect()->route('admin.webhooks.index')->with('error', $message);
         }
     }
@@ -589,7 +591,7 @@ class WebhookController extends Controller
             // Run the artisan command in test mode
             \Artisan::call('webhook:daily-summary', [
                 '--test' => true,
-                '--date' => $testDate
+                '--date' => $testDate,
             ]);
 
             $output = \Artisan::output();
@@ -598,18 +600,18 @@ class WebhookController extends Controller
                 'success' => true,
                 'message' => 'Daily summary webhook test completed successfully',
                 'output' => $output,
-                'date' => $testDate
+                'date' => $testDate,
             ]);
 
         } catch (\Exception $e) {
             \Log::error('Daily summary test failed', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -625,7 +627,7 @@ class WebhookController extends Controller
             // Run the artisan command with force flag for manual trigger
             \Artisan::call('webhook:daily-summary', [
                 '--date' => $date,
-                '--force' => true // Force run even on non-working days when manually triggered
+                '--force' => true, // Force run even on non-working days when manually triggered
             ]);
 
             $output = \Artisan::output();
@@ -634,18 +636,18 @@ class WebhookController extends Controller
                 'success' => true,
                 'message' => 'Daily summary webhook sent successfully',
                 'output' => $output,
-                'date' => $date
+                'date' => $date,
             ]);
 
         } catch (\Exception $e) {
             \Log::error('Daily summary send failed', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -695,10 +697,11 @@ class WebhookController extends Controller
     {
         $webhook = $call->webhook;
 
-        if (!$webhook) {
+        if (! $webhook) {
             if ($request->wantsJson()) {
                 return response()->json(['success' => false, 'message' => 'Parent webhook not found.'], 404);
             }
+
             return back()->with('error', 'Parent webhook not found.');
         }
 
@@ -730,25 +733,26 @@ class WebhookController extends Controller
                 $webhook->markAsFailed();
             }
 
-            $message = "Webhook replayed successfully! Response Code: " . $response->status();
+            $message = 'Webhook replayed successfully! Response Code: '.$response->status();
 
             if ($request->wantsJson()) {
                 return response()->json([
                     'success' => $response->successful(),
                     'message' => $message,
                     'status_code' => $response->status(),
-                    'new_call_id' => $newCall->id
+                    'new_call_id' => $newCall->id,
                 ]);
             }
 
             return back()->with($response->successful() ? 'success' : 'error', $message);
 
         } catch (\Exception $e) {
-            $message = 'Webhook replay failed: ' . $e->getMessage();
+            $message = 'Webhook replay failed: '.$e->getMessage();
 
             if ($request->wantsJson()) {
                 return response()->json(['success' => false, 'message' => $message], 500);
             }
+
             return back()->with('error', $message);
         }
     }
@@ -761,7 +765,7 @@ class WebhookController extends Controller
         $request->validate([
             'action' => 'required|in:activate,deactivate,delete,test',
             'webhook_ids' => 'required|array',
-            'webhook_ids.*' => 'exists:webhooks,id'
+            'webhook_ids.*' => 'exists:webhooks,id',
         ]);
 
         $webhooks = Webhook::whereIn('id', $request->webhook_ids);
@@ -829,11 +833,11 @@ class WebhookController extends Controller
             ];
         });
 
-        $filename = 'webhooks-export-' . now()->format('Y-m-d-H-i-s') . '.json';
+        $filename = 'webhooks-export-'.now()->format('Y-m-d-H-i-s').'.json';
 
         return response()->json($exportData, 200, [
             'Content-Type' => 'application/json',
-            'Content-Disposition' => "attachment; filename={$filename}"
+            'Content-Disposition' => "attachment; filename={$filename}",
         ]);
     }
 
@@ -878,14 +882,14 @@ class WebhookController extends Controller
     public function regenerateSecret(Webhook $webhook)
     {
         try {
-            $newSecret = 'whsec_' . bin2hex(random_bytes(32));
+            $newSecret = 'whsec_'.bin2hex(random_bytes(32));
             $webhook->update(['secret_key' => $newSecret]);
 
             if (request()->wantsJson()) {
                 return response()->json([
                     'success' => true,
                     'secret' => $newSecret,
-                    'message' => 'Secret regenerated successfully'
+                    'message' => 'Secret regenerated successfully',
                 ]);
             }
 
@@ -896,7 +900,7 @@ class WebhookController extends Controller
             if (request()->wantsJson()) {
                 return response()->json([
                     'success' => false,
-                    'error' => 'Failed to regenerate secret'
+                    'error' => 'Failed to regenerate secret',
                 ], 500);
             }
 
@@ -916,7 +920,7 @@ class WebhookController extends Controller
         $eventName = $webhook->event_name;
         $basePayload = [
             'event' => $eventName,
-            'event_id' => 'evt_' . Str::random(12),
+            'event_id' => 'evt_'.Str::random(12),
             'webhook_id' => $webhook->id,
             'created_at' => now()->toISOString(),
             'app_name' => config('app.name'),
@@ -933,14 +937,14 @@ class WebhookController extends Controller
                     'formatted_amount' => '₹5,000.00',
                     'payment_method' => 'online',
                     'payment_date' => now()->toDateString(),
-                    'receipt_number' => 'RCP-2025-' . rand(100, 999),
+                    'receipt_number' => 'RCP-2025-'.rand(100, 999),
                     'status' => 'completed',
                 ],
                 'student' => [
                     'id' => rand(1, 100),
                     'name' => 'John Doe',
-                    'enrollment_number' => 'STD-2024-001'
-                ]
+                    'enrollment_number' => 'STD-2024-001',
+                ],
             ];
         } elseif (Str::startsWith($eventName, 'student.')) {
             if ($eventName === 'student.birthday') {
@@ -951,8 +955,8 @@ class WebhookController extends Controller
                         'birthday' => now()->toDateString(),
                         'student_mobile' => '8688771397',
                         'age' => 15,
-                        'enrollment_number' => 'STD-2024-045'
-                    ]
+                        'enrollment_number' => 'STD-2024-045',
+                    ],
                 ];
             } else {
                 $data = [
@@ -962,8 +966,8 @@ class WebhookController extends Controller
                         'email' => 'john.doe@example.com',
                         'student_mobile' => '9887766554',
                         'enrollment_number' => 'STD-2024-001',
-                        'status' => 'active'
-                    ]
+                        'status' => 'active',
+                    ],
                 ];
             }
         } elseif (Str::startsWith($eventName, 'enquiry.')) {
@@ -974,8 +978,8 @@ class WebhookController extends Controller
                     'email' => 'prospect@example.com',
                     'phone' => '9123456780',
                     'course' => 'Full Stack Development',
-                    'message' => 'I am interested in learning more about your web development program.'
-                ]
+                    'message' => 'I am interested in learning more about your web development program.',
+                ],
             ];
         } elseif ($eventName === 'daily.summary') {
             return array_merge($basePayload, [
@@ -988,20 +992,20 @@ class WebhookController extends Controller
                         'payment_count' => 12,
                         'method_distribution' => [
                             'Cash' => 45000.00,
-                            'Online' => 80000.75
-                        ]
+                            'Online' => 80000.75,
+                        ],
                     ],
                     'attendance' => [
                         'present' => 142,
                         'absent' => 8,
                         'total_students' => 150,
-                        'percentage' => 94.6
+                        'percentage' => 94.6,
                     ],
                     'enquiries' => [
                         'new_count' => 5,
-                        'follow_ups' => 12
-                    ]
-                ]
+                        'follow_ups' => 12,
+                    ],
+                ],
             ]);
         } elseif ($eventName === 'attendance.daily_absent') {
             return array_merge($basePayload, [
@@ -1012,15 +1016,15 @@ class WebhookController extends Controller
                         'id' => 101,
                         'name' => 'Alice Brown',
                         'batch' => 'Evening Batch A',
-                        'parent_phone' => '9887766554'
+                        'parent_phone' => '9887766554',
                     ],
                     [
                         'id' => 108,
                         'name' => 'Bob White',
                         'batch' => 'Evening Batch A',
-                        'parent_phone' => '9776655443'
-                    ]
-                ]
+                        'parent_phone' => '9776655443',
+                    ],
+                ],
             ]);
         } else {
             // Generic sample data for other eloquent events (created/updated/deleted)
@@ -1031,8 +1035,8 @@ class WebhookController extends Controller
                 'action' => explode('.', $eventName)[1] ?? 'updated',
                 'attributes' => [
                     'status' => 'active',
-                    'updated_at' => now()->toISOString()
-                ]
+                    'updated_at' => now()->toISOString(),
+                ],
             ];
         }
 

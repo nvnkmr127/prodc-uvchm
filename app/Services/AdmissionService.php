@@ -5,12 +5,10 @@ namespace App\Services;
 use App\Models\Admission;
 use App\Models\Course;
 use App\Models\FeeStructure;
-use App\Models\StudentFee; // MODIFIED: Replaced Invoice with StudentFee
-use App\Models\Student;
+use App\Models\Student; // MODIFIED: Replaced Invoice with StudentFee
+use App\Models\StudentFee;
 use Illuminate\Support\Facades\DB;
-use App\Services\BiometricMappingService;
 use Illuminate\Support\Str;
-use Carbon\Carbon;
 
 class AdmissionService
 {
@@ -21,12 +19,13 @@ class AdmissionService
     {
         $this->biometricService = $biometricService;
     }
+
     /**
      * Processes an approved admission application.
      * This method handles student creation, enrollment number generation,
      * and dynamic fee plan creation within a single database transaction.
      *
-     * @param Admission $admission The admission record to be processed.
+     * @param  Admission  $admission  The admission record to be processed.
      * @return Student The newly created student record.
      */
     public function processApprovedAdmission(Admission $admission): Student
@@ -40,7 +39,7 @@ class AdmissionService
             // MODIFIED: Eager load fee categories with the fee structure
             $feeStructure = FeeStructure::with('feeCategories')->where('course_id', $course->id)->first();
 
-            if (!$feeStructure) {
+            if (! $feeStructure) {
                 // Throw an exception to automatically roll back the transaction.
                 throw new \Exception("No fee structure found for the course '{$course->name}'. Please create one first.");
             }
@@ -63,7 +62,7 @@ class AdmissionService
 
             // 4. MODIFIED: Generate fee components based on the fee structure.
             $this->generateFeeComponentsForStudent($student, $feeStructure);
-            
+
             // Automatically generate Biometric ID
             $this->biometricService->assignBiometricCode($student);
 
@@ -77,20 +76,17 @@ class AdmissionService
 
     /**
      * Generates a unique enrollment number, preventing race conditions.
-     *
-     * @param Course $course
-     * @return string
      */
     private function generateSafeEnrollmentNumber(Course $course): string
     {
         $prefix = $course->enrollment_prefix ?? strtoupper(Str::limit($course->name, 4, ''));
         $year = date('y');
-        
+
         // Lock the students table to prevent other processes from creating a student simultaneously.
-        $latestStudent = Student::where('enrollment_number', 'LIKE', $prefix . '-' . $year . '%')
-                                ->lockForUpdate()
-                                ->orderBy('id', 'desc')
-                                ->first();
+        $latestStudent = Student::where('enrollment_number', 'LIKE', $prefix.'-'.$year.'%')
+            ->lockForUpdate()
+            ->orderBy('id', 'desc')
+            ->first();
 
         $nextId = 1;
         if ($latestStudent) {
@@ -98,22 +94,19 @@ class AdmissionService
             $lastNumber = (int) substr($latestStudent->enrollment_number, -4);
             $nextId = $lastNumber + 1;
         }
-        
+
         // Pad the number with leading zeros to ensure a consistent length (e.g., 0001, 0002).
-        return $prefix . '-' . $year . '-' . str_pad($nextId, 4, '0', STR_PAD_LEFT);
+        return $prefix.'-'.$year.'-'.str_pad($nextId, 4, '0', STR_PAD_LEFT);
     }
 
     /**
      * MODIFIED: Generates fee components for a student based on a fee structure.
      * This replaces the old invoice generation logic.
-     *
-     * @param Student $student
-     * @param FeeStructure $feeStructure
      */
     private function generateFeeComponentsForStudent(Student $student, FeeStructure $feeStructure): void
     {
         $paymentTerms = $feeStructure->payment_terms ?: 1; // Default to 1 term if not set
-        
+
         // Iterate over each fee category in the structure (e.g., Tuition, Lab, Library)
         foreach ($feeStructure->feeCategories as $category) {
             $totalCategoryAmount = $category->pivot->amount;
@@ -128,7 +121,7 @@ class AdmissionService
                     'student_id' => $student->id,
                     'fee_structure_id' => $feeStructure->id,
                     'fee_category_id' => $category->id,
-                    'academic_year' => now()->year . '-' . (now()->year + 1),
+                    'academic_year' => now()->year.'-'.(now()->year + 1),
                     'installment_number' => $i,
                     'total_installments' => $paymentTerms,
                     'amount' => $installmentAmount,
@@ -137,7 +130,7 @@ class AdmissionService
                 ]);
             }
         }
-        
+
         // NOTE: The women's discount logic could be applied here as a concession
         // using the ComponentPaymentService if a specific fee category is targeted for the discount.
         // For simplicity, this example creates the standard fees. A separate concession

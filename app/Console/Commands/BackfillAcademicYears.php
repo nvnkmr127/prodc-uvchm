@@ -2,14 +2,14 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
 use App\Models\AcademicYear;
+use App\Models\Admission;
+use App\Models\Attendance;
 use App\Models\Batch;
+use App\Models\Enquiry;
 use App\Models\Payment;
 use App\Models\StudentFee;
-use App\Models\Attendance;
-use App\Models\Admission;
-use App\Models\Enquiry;
+use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Schema;
 
 class BackfillAcademicYears extends Command
@@ -46,18 +46,20 @@ class BackfillAcademicYears extends Command
 
         if ($yearId) {
             $currentYear = AcademicYear::find($yearId);
-            if (!$currentYear) {
+            if (! $currentYear) {
                 $this->error("Academic year with ID {$yearId} not found.");
+
                 return 1;
             }
         } else {
             $currentYear = AcademicYear::where('is_current', true)->first();
         }
 
-        if (!$currentYear) {
+        if (! $currentYear) {
             $this->error('No current academic year found. Please create one first or specify --year-id');
             $this->info('You can create one using: php artisan tinker');
             $this->info('Then run: AcademicYear::create(["name" => "2024-2025", "start_date" => "2024-07-01", "end_date" => "2025-06-30", "is_current" => true])');
+
             return 1;
         }
 
@@ -86,7 +88,7 @@ class BackfillAcademicYears extends Command
 
             if ($count > 0) {
                 $this->line("  Found {$count} batches to update");
-                if (!$isDryRun) {
+                if (! $isDryRun) {
                     Batch::withoutGlobalScope('academic_year')->whereNull('academic_year_id')->update(['academic_year_id' => $currentYear->id]);
                     $this->info("  ✓ Updated {$count} batches");
                 } else {
@@ -106,7 +108,7 @@ class BackfillAcademicYears extends Command
 
             if ($count > 0) {
                 $this->line("  Found {$count} payments to update");
-                if (!$isDryRun) {
+                if (! $isDryRun) {
                     Payment::withoutGlobalScope('academic_year')->whereNull('academic_year_id')->update(['academic_year_id' => $currentYear->id]);
                     $this->info("  ✓ Updated {$count} payments");
                 } else {
@@ -126,7 +128,7 @@ class BackfillAcademicYears extends Command
 
             if ($count > 0) {
                 $this->line("  Found {$count} student fees to update");
-                if (!$isDryRun) {
+                if (! $isDryRun) {
                     StudentFee::withoutGlobalScope('academic_year')->whereNull('academic_year_id')->update(['academic_year_id' => $currentYear->id]);
                     $this->info("  ✓ Updated {$count} student fees");
                 } else {
@@ -146,7 +148,7 @@ class BackfillAcademicYears extends Command
 
             if ($count > 0) {
                 $this->line("  Found {$count} attendances to update");
-                if (!$isDryRun) {
+                if (! $isDryRun) {
                     Attendance::withoutGlobalScope('academic_year')->whereNull('academic_year_id')->update(['academic_year_id' => $currentYear->id]);
                     $this->info("  ✓ Updated {$count} attendances");
                 } else {
@@ -166,7 +168,7 @@ class BackfillAcademicYears extends Command
 
             if ($count > 0) {
                 $this->line("  Found {$count} admissions to update");
-                if (!$isDryRun) {
+                if (! $isDryRun) {
                     Admission::withoutGlobalScope('academic_year')->whereNull('academic_year_id')->update(['academic_year_id' => $currentYear->id]);
                     $this->info("  ✓ Updated {$count} admissions");
                 } else {
@@ -186,7 +188,7 @@ class BackfillAcademicYears extends Command
 
             if ($count > 0) {
                 $this->line("  Found {$count} enquiries to update");
-                if (!$isDryRun) {
+                if (! $isDryRun) {
                     Enquiry::withoutGlobalScope('academic_year')->whereNull('academic_year_id')->update(['academic_year_id' => $currentYear->id]);
                     $this->info("  ✓ Updated {$count} enquiries");
                 } else {
@@ -219,7 +221,7 @@ class BackfillAcademicYears extends Command
                 ]
             );
 
-            if (!$isDryRun) {
+            if (! $isDryRun) {
                 $this->newLine();
                 $this->info("✓ Backfill complete! {$totalRecords} records updated to {$currentYear->name}");
             } else {
@@ -232,6 +234,7 @@ class BackfillAcademicYears extends Command
         }
 
         $this->newLine();
+
         return 0;
     }
 }

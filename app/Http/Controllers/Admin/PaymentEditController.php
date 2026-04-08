@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\ComponentPaymentItem;
 use App\Models\Payment;
 use App\Models\PaymentEditLog;
-use App\Models\ComponentPaymentItem;
 use App\Models\StudentFee;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -22,7 +22,7 @@ class PaymentEditController extends Controller
         $this->authorize('edit payments');
 
         // Verify payment can be edited
-        if (!$payment->canBeEdited()) {
+        if (! $payment->canBeEdited()) {
             return redirect()->back()->with('error', 'This payment cannot be edited.');
         }
 
@@ -31,7 +31,7 @@ class PaymentEditController extends Controller
             'student.batch.course',
             'createdBy',
             'updatedBy',
-            'componentItems.studentFee.feeCategory'
+            'componentItems.studentFee.feeCategory',
         ]);
 
         // Get available fee categories for this student
@@ -51,7 +51,7 @@ class PaymentEditController extends Controller
         $this->authorize('edit payments');
 
         // Verify payment can be edited
-        if (!$payment->canBeEdited()) {
+        if (! $payment->canBeEdited()) {
             return redirect()->back()->with('error', 'This payment cannot be edited.');
         }
 
@@ -65,7 +65,7 @@ class PaymentEditController extends Controller
             'edit_reason' => 'required|string|max:500',
             'components' => 'required|array|min:1',
             'components.*.student_fee_id' => 'required|exists:student_fees,id',
-            'components.*.amount' => 'required|numeric|min:0.01'
+            'components.*.amount' => 'required|numeric|min:0.01',
         ]);
 
         try {
@@ -83,7 +83,7 @@ class PaymentEditController extends Controller
                 'notes' => $validated['notes'],
                 'academic_year' => $payment->student->batch->academicYear->name ?? $payment->academic_year,
                 'academic_year_id' => $payment->student->batch->academic_year_id ?? $payment->academic_year_id,
-                'updated_by' => auth()->id()
+                'updated_by' => auth()->id(),
             ]);
 
             // Update component items
@@ -108,15 +108,15 @@ class PaymentEditController extends Controller
 
         } catch (\Exception $e) {
             DB::rollback();
-            
+
             Log::error('Payment edit failed', [
                 'payment_id' => $payment->id,
                 'error' => $e->getMessage(),
-                'user_id' => auth()->id()
+                'user_id' => auth()->id(),
             ]);
 
             return back()->withInput()
-                ->with('error', 'Failed to update payment: ' . $e->getMessage());
+                ->with('error', 'Failed to update payment: '.$e->getMessage());
         }
     }
 
@@ -132,7 +132,7 @@ class PaymentEditController extends Controller
         $payment->load([
             'student',
             'createdBy',
-            'componentItems.studentFee.feeCategory'
+            'componentItems.studentFee.feeCategory',
         ]);
 
         // Get edit history
@@ -144,9 +144,6 @@ class PaymentEditController extends Controller
         return view('admin.payment-edit.history', compact('payment', 'editHistory'));
     }
 
-
-    
-
     /**
      * Revert payment to a previous state
      */
@@ -157,7 +154,7 @@ class PaymentEditController extends Controller
 
         $validated = $request->validate([
             'log_id' => 'required|exists:payment_edit_logs,id',
-            'revert_reason' => 'required|string|max:500'
+            'revert_reason' => 'required|string|max:500',
         ]);
 
         try {
@@ -165,7 +162,7 @@ class PaymentEditController extends Controller
 
             // Get the log entry to revert to
             $logEntry = PaymentEditLog::findOrFail($validated['log_id']);
-            
+
             if ($logEntry->payment_id !== $payment->id) {
                 throw new \Exception('Invalid log entry for this payment');
             }
@@ -175,14 +172,14 @@ class PaymentEditController extends Controller
 
             // Revert payment to old values
             $oldValues = $logEntry->old_values;
-            
+
             $payment->update([
                 'amount' => $oldValues['amount'] ?? $payment->amount,
                 'payment_method' => $oldValues['payment_method'] ?? $payment->payment_method,
                 'payment_date' => $oldValues['payment_date'] ?? $payment->payment_date,
                 'transaction_id' => $oldValues['transaction_id'] ?? $payment->transaction_id,
                 'notes' => $oldValues['notes'] ?? $payment->notes,
-                'updated_by' => auth()->id()
+                'updated_by' => auth()->id(),
             ]);
 
             // Revert component items if available
@@ -196,7 +193,7 @@ class PaymentEditController extends Controller
                 'revert',
                 $currentState,
                 $oldValues,
-                $validated['revert_reason'] . ' (Reverted to state from ' . $logEntry->created_at->format('Y-m-d H:i:s') . ')'
+                $validated['revert_reason'].' (Reverted to state from '.$logEntry->created_at->format('Y-m-d H:i:s').')'
             );
 
             DB::commit();
@@ -206,15 +203,15 @@ class PaymentEditController extends Controller
 
         } catch (\Exception $e) {
             DB::rollback();
-            
+
             Log::error('Payment revert failed', [
                 'payment_id' => $payment->id,
                 'log_id' => $validated['log_id'],
                 'error' => $e->getMessage(),
-                'user_id' => auth()->id()
+                'user_id' => auth()->id(),
             ]);
 
-            return back()->with('error', 'Failed to revert payment: ' . $e->getMessage());
+            return back()->with('error', 'Failed to revert payment: '.$e->getMessage());
         }
     }
 
@@ -231,87 +228,87 @@ class PaymentEditController extends Controller
             'transaction_id' => $payment->transaction_id,
             'notes' => $payment->notes,
             'status' => $payment->status,
-            'components' => $payment->componentItems->map(function($item) {
+            'components' => $payment->componentItems->map(function ($item) {
                 return [
                     'student_fee_id' => $item->student_fee_id,
                     'amount_paid' => $item->amount_paid,
-                    'fee_category_name' => $item->studentFee->feeCategory->name ?? 'Unknown'
+                    'fee_category_name' => $item->studentFee->feeCategory->name ?? 'Unknown',
                 ];
-            })->toArray()
+            })->toArray(),
         ];
     }
 
-/**
- * Update component items for the payment
- */
-private function updateComponentItems(Payment $payment, array $components, array $originalComponents)
-{
-    // Delete existing component items
-    $payment->componentItems()->delete();
-    
-    // Create new component items
-    foreach ($components as $component) {
-        if (isset($component['student_fee_id']) && isset($component['amount']) && $component['amount'] > 0) {
-            ComponentPaymentItem::create([
-                'payment_id' => $payment->id,
-                'student_fee_id' => $component['student_fee_id'],
-                'amount_paid' => $component['amount']
-            ]);
-            
-            // Update the student fee paid amount
-            $this->updateStudentFeePaidAmount($component['student_fee_id']);
+    /**
+     * Update component items for the payment
+     */
+    private function updateComponentItems(Payment $payment, array $components, array $originalComponents)
+    {
+        // Delete existing component items
+        $payment->componentItems()->delete();
+
+        // Create new component items
+        foreach ($components as $component) {
+            if (isset($component['student_fee_id']) && isset($component['amount']) && $component['amount'] > 0) {
+                ComponentPaymentItem::create([
+                    'payment_id' => $payment->id,
+                    'student_fee_id' => $component['student_fee_id'],
+                    'amount_paid' => $component['amount'],
+                ]);
+
+                // Update the student fee paid amount
+                $this->updateStudentFeePaidAmount($component['student_fee_id']);
+            }
         }
     }
-}
 
-/**
- * Update student fee paid amount
- */
-private function updateStudentFeePaidAmount($studentFeeId)
-{
-    $studentFee = StudentFee::find($studentFeeId);
-    if ($studentFee) {
-        $totalPaid = ComponentPaymentItem::where('student_fee_id', $studentFeeId)
-            ->sum('amount_paid');
-        
-        $studentFee->update(['paid_amount' => $totalPaid]);
-        
-        // Update status based on payment
-        $totalAmount = $studentFee->amount - ($studentFee->concession_amount ?? 0);
-        $paidAmount = $studentFee->paid_amount;
+    /**
+     * Update student fee paid amount
+     */
+    private function updateStudentFeePaidAmount($studentFeeId)
+    {
+        $studentFee = StudentFee::find($studentFeeId);
+        if ($studentFee) {
+            $totalPaid = ComponentPaymentItem::where('student_fee_id', $studentFeeId)
+                ->sum('amount_paid');
 
-        if ($paidAmount >= $totalAmount) {
-            $studentFee->update(['status' => 'paid']);
-        } elseif ($paidAmount > 0) {
-            $studentFee->update(['status' => 'partial']);
-        } else {
-            $studentFee->update(['status' => 'unpaid']);
+            $studentFee->update(['paid_amount' => $totalPaid]);
+
+            // Update status based on payment
+            $totalAmount = $studentFee->amount - ($studentFee->concession_amount ?? 0);
+            $paidAmount = $studentFee->paid_amount;
+
+            if ($paidAmount >= $totalAmount) {
+                $studentFee->update(['status' => 'paid']);
+            } elseif ($paidAmount > 0) {
+                $studentFee->update(['status' => 'partial']);
+            } else {
+                $studentFee->update(['status' => 'unpaid']);
+            }
         }
     }
-}
 
-/**
- * Revert component items to previous state
- */
-private function revertComponentItems(Payment $payment, array $oldComponents, array $currentComponents)
-{
-    // Delete current component items
-    $payment->componentItems()->delete();
-    
-    // Recreate old component items
-    foreach ($oldComponents as $component) {
-        if (isset($component['student_fee_id']) && isset($component['amount_paid'])) {
-            ComponentPaymentItem::create([
-                'payment_id' => $payment->id,
-                'student_fee_id' => $component['student_fee_id'],
-                'amount_paid' => $component['amount_paid']
-            ]);
-            
-            // Update the student fee paid amount
-            $this->updateStudentFeePaidAmount($component['student_fee_id']);
+    /**
+     * Revert component items to previous state
+     */
+    private function revertComponentItems(Payment $payment, array $oldComponents, array $currentComponents)
+    {
+        // Delete current component items
+        $payment->componentItems()->delete();
+
+        // Recreate old component items
+        foreach ($oldComponents as $component) {
+            if (isset($component['student_fee_id']) && isset($component['amount_paid'])) {
+                ComponentPaymentItem::create([
+                    'payment_id' => $payment->id,
+                    'student_fee_id' => $component['student_fee_id'],
+                    'amount_paid' => $component['amount_paid'],
+                ]);
+
+                // Update the student fee paid amount
+                $this->updateStudentFeePaidAmount($component['student_fee_id']);
+            }
         }
     }
-}
 
     /**
      * Update student fee status
@@ -319,7 +316,7 @@ private function revertComponentItems(Payment $payment, array $oldComponents, ar
     private function updateStudentFeeStatus(StudentFee $studentFee): void
     {
         $remainingAmount = $studentFee->amount - $studentFee->concession_amount - $studentFee->paid_amount;
-        
+
         if ($remainingAmount <= 0) {
             $studentFee->update(['status' => 'paid']);
         } elseif ($studentFee->paid_amount > 0) {

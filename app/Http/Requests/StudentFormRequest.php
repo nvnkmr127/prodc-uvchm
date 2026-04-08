@@ -29,13 +29,13 @@ class StudentFormRequest extends FormRequest
                 'string',
                 'email',
                 'max:255',
-                Rule::unique('students')->ignore($studentId)
+                Rule::unique('students')->ignore($studentId),
             ],
             'enrollment_number' => [
                 'required',
                 'string',
                 'max:255',
-                Rule::unique('students')->ignore($studentId)
+                Rule::unique('students')->ignore($studentId),
             ],
             'gender' => 'required|in:Male,Female,Other',
             'father_name' => 'nullable|string|max:255',
@@ -44,14 +44,14 @@ class StudentFormRequest extends FormRequest
                 'string',
                 'max:20',
                 'regex:/^[6-9]\d{9}$/',
-                Rule::unique('students')->ignore($studentId)
+                Rule::unique('students')->ignore($studentId),
             ],
             'father_mobile' => [
                 'nullable',
                 'string',
                 'max:20',
                 'regex:/^[6-9]\d{9}$/',
-                Rule::unique('students')->ignore($studentId)
+                Rule::unique('students')->ignore($studentId),
             ],
             'village' => 'nullable|string|max:255',
             'admission_date' => 'required|date_format:Y-m-d',
@@ -62,7 +62,7 @@ class StudentFormRequest extends FormRequest
                 'string',
                 'max:50',
                 'regex:/^[a-zA-Z0-9\-]+$/',
-                Rule::unique('students')->ignore($studentId)
+                Rule::unique('students')->ignore($studentId),
             ],
         ];
     }

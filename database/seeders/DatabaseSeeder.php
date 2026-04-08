@@ -14,7 +14,7 @@ class DatabaseSeeder extends Seeder
     {
         // Reset cached roles and permissions
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
-        
+
         // Call the seeder that creates all the permissions and roles
         $this->call([
             RolesAndPermissionsSeeder::class,
@@ -29,7 +29,7 @@ class DatabaseSeeder extends Seeder
                 'password' => Hash::make('password'),
             ]
         );
-        
+
         // Find the 'super-admin' role and assign it to the user
         $superAdminRole = Role::findByName('super-admin');
         if ($superAdminRole) {
@@ -38,11 +38,11 @@ class DatabaseSeeder extends Seeder
 
         // Create API token for the super admin using Sanctum
         $token = $superAdminUser->createToken('Admin Panel Access', ['*']);
-        
+
         $this->command->info('Super Admin created successfully!');
         $this->command->info('Email: admin@uvchm.com');
         $this->command->info('Password: password');
-        $this->command->info('API Token: ' . $token->plainTextToken);
+        $this->command->info('API Token: '.$token->plainTextToken);
 
         // Call additional seeders
         $this->call([

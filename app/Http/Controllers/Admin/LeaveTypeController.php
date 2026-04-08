@@ -12,6 +12,7 @@ class LeaveTypeController extends Controller
     public function index()
     {
         $leaveTypes = LeaveType::latest()->get();
+
         return view('admin.leave_types.index', compact('leaveTypes'));
     }
 
@@ -32,6 +33,7 @@ class LeaveTypeController extends Controller
             'days_per_year' => 'required|integer|min:0|max:365',
         ]);
         LeaveType::create($validated);
+
         return redirect()->route('admin.leave-types.index')->with('success', 'Leave type created successfully.');
     }
 
@@ -52,12 +54,14 @@ class LeaveTypeController extends Controller
             'days_per_year' => 'required|integer|min:0|max:365',
         ]);
         $leaveType->update($validated);
+
         return redirect()->route('admin.leave-types.index')->with('success', 'Leave type updated successfully.');
     }
 
     public function destroy(LeaveType $leaveType)
     {
         $leaveType->delete();
+
         return redirect()->route('admin.leave-types.index')->with('success', 'Leave type deleted successfully.');
     }
 }

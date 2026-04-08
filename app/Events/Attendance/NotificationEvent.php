@@ -3,11 +3,8 @@
 namespace App\Events\Attendance;
 
 use App\Models\Attendance\NotificationLog;
-use App\Models\Student;
-use App\Models\User;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
-use Illuminate\Broadcasting\PresenceChannel;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
@@ -18,7 +15,9 @@ class NotificationEvent implements ShouldBroadcast
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     public string $action;
+
     public ?NotificationLog $notification;
+
     public array $data;
 
     public function __construct(string $action, array $data = [], ?NotificationLog $notification = null)
@@ -37,11 +36,11 @@ class NotificationEvent implements ShouldBroadcast
 
         if ($this->notification) {
             if ($this->notification->student_id) {
-                $channels[] = new PrivateChannel('student.' . $this->notification->student_id);
+                $channels[] = new PrivateChannel('student.'.$this->notification->student_id);
             }
-            
+
             if ($this->notification->recipient_id) {
-                $channels[] = new PrivateChannel('user.' . $this->notification->recipient_id);
+                $channels[] = new PrivateChannel('user.'.$this->notification->recipient_id);
             }
         }
 
@@ -56,7 +55,7 @@ class NotificationEvent implements ShouldBroadcast
         $broadcastData = [
             'action' => $this->action,
             'data' => $this->data,
-            'timestamp' => now()->toISOString()
+            'timestamp' => now()->toISOString(),
         ];
 
         if ($this->notification) {
@@ -68,7 +67,7 @@ class NotificationEvent implements ShouldBroadcast
                 'status' => $this->notification->status,
                 'priority' => $this->notification->priority,
                 'channel' => $this->notification->channel,
-                'created_at' => $this->notification->created_at->toISOString()
+                'created_at' => $this->notification->created_at->toISOString(),
             ];
         }
 
@@ -80,6 +79,6 @@ class NotificationEvent implements ShouldBroadcast
      */
     public function broadcastAs(): string
     {
-        return 'notification.' . $this->action;
+        return 'notification.'.$this->action;
     }
 }

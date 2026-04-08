@@ -13,32 +13,32 @@ return new class extends Migration
     {
         Schema::table('payments', function (Blueprint $table) {
             // Add status column if it doesn't exist
-            if (!Schema::hasColumn('payments', 'status')) {
+            if (! Schema::hasColumn('payments', 'status')) {
                 $table->enum('status', ['pending', 'completed', 'failed', 'cancelled', 'refunded'])
-                      ->default('completed')
-                      ->after('notes');
+                    ->default('completed')
+                    ->after('notes');
             }
 
             // Add payment_type column if it doesn't exist
-            if (!Schema::hasColumn('payments', 'payment_type')) {
+            if (! Schema::hasColumn('payments', 'payment_type')) {
                 $table->enum('payment_type', ['tuition', 'component', 'miscellaneous', 'fine'])
-                      ->default('tuition')
-                      ->after('payment_method');
+                    ->default('tuition')
+                    ->after('payment_method');
             }
 
             // Add academic_year column if it doesn't exist
-            if (!Schema::hasColumn('payments', 'academic_year')) {
+            if (! Schema::hasColumn('payments', 'academic_year')) {
                 $table->string('academic_year')
-                      ->nullable()
-                      ->after('payment_type');
+                    ->nullable()
+                    ->after('payment_type');
             }
 
             // Add receipt_number column if it doesn't exist
-            if (!Schema::hasColumn('payments', 'receipt_number')) {
+            if (! Schema::hasColumn('payments', 'receipt_number')) {
                 $table->string('receipt_number')
-                      ->unique()
-                      ->nullable()
-                      ->after('academic_year');
+                    ->unique()
+                    ->nullable()
+                    ->after('academic_year');
             }
 
             // Add indexes for better performance

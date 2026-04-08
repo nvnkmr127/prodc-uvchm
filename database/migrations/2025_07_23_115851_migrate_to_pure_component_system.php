@@ -2,15 +2,15 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
     public function up(): void
     {
         // 1. Create student_concessions table for component-level concessions
-        if (!Schema::hasTable('student_concessions')) {
+        if (! Schema::hasTable('student_concessions')) {
             Schema::create('student_concessions', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('student_id')->constrained()->onDelete('cascade');
@@ -38,31 +38,31 @@ return new class extends Migration
             }
 
             // Add concession fields
-            if (!Schema::hasColumn('student_fees', 'concession_amount')) {
+            if (! Schema::hasColumn('student_fees', 'concession_amount')) {
                 $table->decimal('concession_amount', 10, 2)->default(0)->after('amount');
             }
-            if (!Schema::hasColumn('student_fees', 'concession_notes')) {
+            if (! Schema::hasColumn('student_fees', 'concession_notes')) {
                 $table->text('concession_notes')->nullable()->after('concession_amount');
             }
 
             // Add installment support
-            if (!Schema::hasColumn('student_fees', 'installment_number')) {
+            if (! Schema::hasColumn('student_fees', 'installment_number')) {
                 $table->integer('installment_number')->default(1)->after('fee_category_id');
             }
-            if (!Schema::hasColumn('student_fees', 'total_installments')) {
+            if (! Schema::hasColumn('student_fees', 'total_installments')) {
                 $table->integer('total_installments')->default(1)->after('installment_number');
             }
 
             // Add better tracking
-            if (!Schema::hasColumn('student_fees', 'original_amount')) {
+            if (! Schema::hasColumn('student_fees', 'original_amount')) {
                 $table->decimal('original_amount', 10, 2)->nullable()->after('amount');
             }
-            if (!Schema::hasColumn('student_fees', 'paid_amount')) {
+            if (! Schema::hasColumn('student_fees', 'paid_amount')) {
                 $table->decimal('paid_amount', 10, 2)->default(0)->after('original_amount');
             }
 
             // Add academic year tracking
-            if (!Schema::hasColumn('student_fees', 'academic_year')) {
+            if (! Schema::hasColumn('student_fees', 'academic_year')) {
                 $table->string('academic_year', 10)->nullable()->after('fee_structure_id');
             }
         });
@@ -75,28 +75,28 @@ return new class extends Migration
             }
 
             // Add student_id if not exists
-            if (!Schema::hasColumn('payments', 'student_id')) {
+            if (! Schema::hasColumn('payments', 'student_id')) {
                 $table->foreignId('student_id')->constrained()->onDelete('cascade')->after('id');
             }
 
             // Add component payment fields
-            if (!Schema::hasColumn('payments', 'payment_type')) {
+            if (! Schema::hasColumn('payments', 'payment_type')) {
                 $table->enum('payment_type', ['component', 'bulk', 'partial', 'full'])
                     ->default('component')->after('payment_method');
             }
 
-            if (!Schema::hasColumn('payments', 'component_details')) {
+            if (! Schema::hasColumn('payments', 'component_details')) {
                 $table->json('component_details')->nullable()->after('payment_type')
                     ->comment('JSON array of fee components paid');
             }
 
-            if (!Schema::hasColumn('payments', 'receipt_number')) {
+            if (! Schema::hasColumn('payments', 'receipt_number')) {
                 $table->string('receipt_number')->unique()->nullable()->after('transaction_id');
             }
         });
 
         // 4. Create component_payment_items for detailed tracking
-        if (!Schema::hasTable('component_payment_items')) {
+        if (! Schema::hasTable('component_payment_items')) {
             Schema::create('component_payment_items', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('payment_id')->constrained()->onDelete('cascade');
@@ -110,7 +110,7 @@ return new class extends Migration
         }
 
         // 5. Create fee_installments table for installment management
-        if (!Schema::hasTable('fee_installments')) {
+        if (! Schema::hasTable('fee_installments')) {
             Schema::create('fee_installments', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('student_id')->constrained()->onDelete('cascade');
@@ -163,35 +163,35 @@ return new class extends Migration
 
     public function down(): void
     {
-        DB::statement("DROP VIEW IF EXISTS student_financial_summary");
-        
+        DB::statement('DROP VIEW IF EXISTS student_financial_summary');
+
         Schema::dropIfExists('fee_installments');
         Schema::dropIfExists('component_payment_items');
         Schema::dropIfExists('student_concessions');
-        
+
         // Revert student_fees changes - with existence checks
         Schema::table('student_fees', function (Blueprint $table) {
             $existingColumns = Schema::getColumnListing('student_fees');
             $potentialColumns = [
-                'concession_amount', 'concession_notes', 'installment_number', 
-                'total_installments', 'original_amount', 'paid_amount', 'academic_year'
+                'concession_amount', 'concession_notes', 'installment_number',
+                'total_installments', 'original_amount', 'paid_amount', 'academic_year',
             ];
-            
+
             $columnsToDrop = array_intersect($potentialColumns, $existingColumns);
-            
-            if (!empty($columnsToDrop)) {
+
+            if (! empty($columnsToDrop)) {
                 $table->dropColumn($columnsToDrop);
             }
         });
-        
+
         // Revert payments changes - with existence checks
         Schema::table('payments', function (Blueprint $table) {
             $existingColumns = Schema::getColumnListing('payments');
             $potentialColumns = ['payment_type', 'component_details', 'receipt_number'];
-            
+
             $columnsToDrop = array_intersect($potentialColumns, $existingColumns);
-            
-            if (!empty($columnsToDrop)) {
+
+            if (! empty($columnsToDrop)) {
                 $table->dropColumn($columnsToDrop);
             }
         });

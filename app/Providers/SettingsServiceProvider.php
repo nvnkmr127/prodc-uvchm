@@ -2,10 +2,10 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Facades\View;
-use Illuminate\Support\Facades\Config;
 use App\Models\Setting;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\View;
+use Illuminate\Support\ServiceProvider;
 
 class SettingsServiceProvider extends ServiceProvider
 {
@@ -23,7 +23,7 @@ class SettingsServiceProvider extends ServiceProvider
     public function boot(): void
     {
         // Load settings after database is available
-        if ($this->app->runningInConsole() && !$this->app->runningUnitTests()) {
+        if ($this->app->runningInConsole() && ! $this->app->runningUnitTests()) {
             return;
         }
 
@@ -87,7 +87,7 @@ class SettingsServiceProvider extends ServiceProvider
             }
         } catch (\Throwable $e) {
             // Silently fail if DB is unavailable
-            \Log::warning('SettingsServiceProvider: Failed to load settings: ' . $e->getMessage());
+            \Log::warning('SettingsServiceProvider: Failed to load settings: '.$e->getMessage());
         }
     }
 
@@ -115,7 +115,7 @@ class SettingsServiceProvider extends ServiceProvider
                 'timezone' => setting('timezone', 'Asia/Kolkata'),
             ]);
         } catch (\Throwable $e) {
-            \Log::warning('SettingsServiceProvider: Failed to share settings with views: ' . $e->getMessage());
+            \Log::warning('SettingsServiceProvider: Failed to share settings with views: '.$e->getMessage());
         }
     }
 }

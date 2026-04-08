@@ -9,12 +9,12 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-   public function up(): void
-{
-    Schema::table('admissions', function (Blueprint $table) {
-        $table->foreignId('enquiry_id')->nullable()->after('id')->constrained()->onDelete('set null');
-    });
-}
+    public function up(): void
+    {
+        Schema::table('admissions', function (Blueprint $table) {
+            $table->foreignId('enquiry_id')->nullable()->after('id')->constrained()->onDelete('set null');
+        });
+    }
 
     /**
      * Reverse the migrations.

@@ -2,8 +2,8 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -13,7 +13,7 @@ return new class extends Migration
     public function up(): void
     {
         // Add indexes for better performance, checking for existence first
-        
+
         // Student fees indexes
         $this->addIndexIfNotExists('student_fees', 'idx_student_status_safe', ['student_id', 'status']);
         $this->addIndexIfNotExists('student_fees', 'idx_category_year_safe', ['fee_category_id', 'academic_year']);
@@ -62,27 +62,27 @@ return new class extends Migration
             'student_fees' => [
                 'idx_student_status_safe', 'idx_category_year_safe', 'idx_student_category_safe',
                 'idx_year_status_safe', 'idx_due_status_safe', 'idx_status_safe',
-                'idx_due_date_safe', 'idx_academic_year_safe'
+                'idx_due_date_safe', 'idx_academic_year_safe',
             ],
             'payments' => [
                 'idx_student_type_safe', 'idx_type_date_safe', 'idx_method_date_safe',
-                'idx_payment_type_safe', 'idx_payment_date_safe', 'idx_payment_method_safe'
+                'idx_payment_type_safe', 'idx_payment_date_safe', 'idx_payment_method_safe',
             ],
             'component_payment_items' => [
-                'idx_payment_fee_safe', 'idx_fee_created_safe', 'idx_created_at_safe'
+                'idx_payment_fee_safe', 'idx_fee_created_safe', 'idx_created_at_safe',
             ],
             'students' => [
-                'idx_enrollment_safe', 'idx_batch_safe', 'idx_email_safe', 'idx_mobile_safe'
+                'idx_enrollment_safe', 'idx_batch_safe', 'idx_email_safe', 'idx_mobile_safe',
             ],
             'fee_categories' => [
-                'idx_cat_type_safe', 'idx_cat_name_safe'
+                'idx_cat_type_safe', 'idx_cat_name_safe',
             ],
             'batches' => [
-                'idx_course_safe', 'idx_fee_struct_safe'
+                'idx_course_safe', 'idx_fee_struct_safe',
             ],
             'fee_structures' => [
-                'idx_batch_safe'
-            ]
+                'idx_batch_safe',
+            ],
         ];
 
         foreach ($indexes as $table => $tableIndexes) {
@@ -103,18 +103,18 @@ return new class extends Migration
      */
     private function addIndexIfNotExists(string $table, string $indexName, array $columns): void
     {
-        if (!Schema::hasTable($table)) {
+        if (! Schema::hasTable($table)) {
             return;
         }
 
-        if (!$this->indexExists($table, $indexName)) {
+        if (! $this->indexExists($table, $indexName)) {
             try {
                 Schema::table($table, function (Blueprint $table) use ($indexName, $columns) {
                     $table->index($columns, $indexName);
                 });
                 echo "✅ Created index: {$table}.{$indexName}\n";
             } catch (\Exception $e) {
-                echo "⚠️  Skipped index {$table}.{$indexName}: " . $e->getMessage() . "\n";
+                echo "⚠️  Skipped index {$table}.{$indexName}: ".$e->getMessage()."\n";
             }
         } else {
             echo "ℹ️  Index already exists: {$table}.{$indexName}\n";
@@ -130,7 +130,7 @@ return new class extends Migration
             $connection = DB::connection();
             $schemaManager = $connection->getDoctrineSchemaManager();
             $doctrineTable = $schemaManager->listTableDetails($table);
-            
+
             return $doctrineTable->hasIndex($index);
         } catch (\Exception $e) {
             // If we can't check, assume it doesn't exist

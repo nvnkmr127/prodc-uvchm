@@ -3,14 +3,13 @@
 namespace App\Traits\Attendance;
 
 use App\Models\Attendance\Attendance;
-use App\Models\Attendance\ParentContact;
 use App\Models\Attendance\NotificationLog;
+use App\Models\Attendance\ParentContact;
 use App\Models\Student;
 use App\Models\User;
 use App\Services\Attendance\NotificationService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
-use Carbon\Carbon;
 
 trait HandlesNotifications
 {
@@ -24,7 +23,7 @@ trait HandlesNotifications
         try {
             // Determine notification type based on attendance status
             $notificationType = $this->determineNotificationType($attendance);
-            
+
             // Send to parents if enabled
             if ($options['notify_parents'] ?? true) {
                 $parentResults = $this->sendParentNotification($attendance->student, $attendance, $notificationType);
@@ -47,24 +46,24 @@ trait HandlesNotifications
                 'attendance_id' => $attendance->id,
                 'student_id' => $attendance->student_id,
                 'notification_type' => $notificationType,
-                'results' => $results
+                'results' => $results,
             ]);
 
             return [
                 'success' => true,
                 'results' => $results,
-                'notification_type' => $notificationType
+                'notification_type' => $notificationType,
             ];
 
         } catch (\Exception $e) {
             Log::error('Failed to send attendance notification', [
                 'attendance_id' => $attendance->id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             return [
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ];
         }
     }
@@ -80,26 +79,26 @@ trait HandlesNotifications
             'summary' => [
                 'total_processed' => 0,
                 'notifications_sent' => 0,
-                'errors' => 0
-            ]
+                'errors' => 0,
+            ],
         ];
 
         foreach ($attendances as $attendance) {
             try {
                 $notificationResult = $this->sendAttendanceNotification($attendance, $options);
-                
+
                 if ($notificationResult['success']) {
                     $results['successful'][] = [
                         'attendance_id' => $attendance->id,
                         'student_id' => $attendance->student_id,
-                        'result' => $notificationResult
+                        'result' => $notificationResult,
                     ];
                     $results['summary']['notifications_sent']++;
                 } else {
                     $results['failed'][] = [
                         'attendance_id' => $attendance->id,
                         'student_id' => $attendance->student_id,
-                        'error' => $notificationResult['error']
+                        'error' => $notificationResult['error'],
                     ];
                     $results['summary']['errors']++;
                 }
@@ -108,7 +107,7 @@ trait HandlesNotifications
                 $results['failed'][] = [
                     'attendance_id' => $attendance->id,
                     'student_id' => $attendance->student_id,
-                    'error' => $e->getMessage()
+                    'error' => $e->getMessage(),
                 ];
                 $results['summary']['errors']++;
             }
@@ -119,7 +118,7 @@ trait HandlesNotifications
         Log::info('Bulk attendance notifications completed', [
             'total_processed' => $results['summary']['total_processed'],
             'successful' => $results['summary']['notifications_sent'],
-            'failed' => $results['summary']['errors']
+            'failed' => $results['summary']['errors'],
         ]);
 
         return $results;
@@ -135,19 +134,19 @@ trait HandlesNotifications
         try {
             // Get parent contacts for this student
             $parentContacts = ParentContact::getNotificationContactsForStudent(
-                $student->id, 
+                $student->id,
                 $notificationType
             );
 
             if ($parentContacts->isEmpty()) {
                 return [
                     'success' => false,
-                    'message' => 'No parent contacts found'
+                    'message' => 'No parent contacts found',
                 ];
             }
 
             foreach ($parentContacts as $contact) {
-                if (!$contact->canReceiveNotifications()) {
+                if (! $contact->canReceiveNotifications()) {
                     continue;
                 }
 
@@ -166,7 +165,7 @@ trait HandlesNotifications
                     $results[] = [
                         'contact_id' => $contact->id,
                         'channel' => $channel,
-                        'result' => $result
+                        'result' => $result,
                     ];
 
                     // Log the notification attempt
@@ -177,19 +176,19 @@ trait HandlesNotifications
             return [
                 'success' => true,
                 'contacts_notified' => count($parentContacts),
-                'results' => $results
+                'results' => $results,
             ];
 
         } catch (\Exception $e) {
             Log::error('Failed to send parent notification', [
                 'student_id' => $student->id,
                 'attendance_id' => $attendance->id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             return [
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ];
         }
     }
@@ -206,7 +205,7 @@ trait HandlesNotifications
             if ($faculty->isEmpty()) {
                 return [
                     'success' => false,
-                    'message' => 'No faculty to notify'
+                    'message' => 'No faculty to notify',
                 ];
             }
 
@@ -225,32 +224,32 @@ trait HandlesNotifications
                         'student_id' => $attendance->student_id,
                         'student_name' => $attendance->student->name,
                         'status' => $attendance->status,
-                        'attendance_date' => $attendance->attendance_date->format('Y-m-d')
-                    ]
+                        'attendance_date' => $attendance->attendance_date->format('Y-m-d'),
+                    ],
                 ];
 
                 $result = app(NotificationService::class)->send($notificationData);
                 $results[] = [
                     'faculty_id' => $facultyMember->id,
-                    'result' => $result
+                    'result' => $result,
                 ];
             }
 
             return [
                 'success' => true,
                 'faculty_notified' => count($faculty),
-                'results' => $results
+                'results' => $results,
             ];
 
         } catch (\Exception $e) {
             Log::error('Failed to send faculty notification', [
                 'attendance_id' => $attendance->id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             return [
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ];
         }
     }
@@ -275,26 +274,26 @@ trait HandlesNotifications
                     'batch_name' => $attendance->batch->name,
                     'status' => $attendance->status,
                     'attendance_date' => $attendance->attendance_date->format('Y-m-d'),
-                    'consecutive_absents' => $this->calculateConsecutiveAbsents($attendance->student_id)
-                ]
+                    'consecutive_absents' => $this->calculateConsecutiveAbsents($attendance->student_id),
+                ],
             ];
 
             $result = app(NotificationService::class)->send($notificationData);
 
             return [
                 'success' => true,
-                'result' => $result
+                'result' => $result,
             ];
 
         } catch (\Exception $e) {
             Log::error('Failed to send admin notification', [
                 'attendance_id' => $attendance->id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             return [
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ];
         }
     }
@@ -313,14 +312,14 @@ trait HandlesNotifications
             if ($parentContacts->isEmpty()) {
                 return [
                     'success' => false,
-                    'message' => 'No parent contacts found'
+                    'message' => 'No parent contacts found',
                 ];
             }
 
             $results = [];
 
             foreach ($parentContacts as $contact) {
-                if (!$contact->canReceiveNotifications()) {
+                if (! $contact->canReceiveNotifications()) {
                     continue;
                 }
 
@@ -340,15 +339,15 @@ trait HandlesNotifications
                             'student_id' => $student->id,
                             'student_name' => $student->name,
                             'attendance_percentage' => $attendanceStats['attendance_percentage'],
-                            'minimum_required' => config('attendance.minimum_percentage', 75)
-                        ]
+                            'minimum_required' => config('attendance.minimum_percentage', 75),
+                        ],
                     ];
 
                     $result = app(NotificationService::class)->send($notificationData);
                     $results[] = [
                         'contact_id' => $contact->id,
                         'channel' => $channel,
-                        'result' => $result
+                        'result' => $result,
                     ];
                 }
             }
@@ -356,18 +355,18 @@ trait HandlesNotifications
             return [
                 'success' => true,
                 'contacts_notified' => count($parentContacts),
-                'results' => $results
+                'results' => $results,
             ];
 
         } catch (\Exception $e) {
             Log::error('Failed to send low attendance warning', [
                 'student_id' => $student->id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             return [
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ];
         }
     }
@@ -395,6 +394,7 @@ trait HandlesNotifications
         // Notify admins for absences or if student has multiple consecutive absences
         if ($attendance->status === 'absent') {
             $consecutiveAbsents = $this->calculateConsecutiveAbsents($attendance->student_id);
+
             return $consecutiveAbsents >= 3;
         }
 
@@ -425,10 +425,10 @@ trait HandlesNotifications
         $message = $this->generateNotificationMessage($student, $attendance, $notificationType);
         $contactInfo = $contact->getContactInfoForChannel($channel);
 
-        if (!$contactInfo) {
+        if (! $contactInfo) {
             return [
                 'success' => false,
-                'error' => "No contact info for channel: {$channel}"
+                'error' => "No contact info for channel: {$channel}",
             ];
         }
 
@@ -445,8 +445,8 @@ trait HandlesNotifications
                 'student_name' => $student->name,
                 'attendance_id' => $attendance->id,
                 'status' => $attendance->status,
-                'attendance_date' => $attendance->attendance_date->format('Y-m-d')
-            ]
+                'attendance_date' => $attendance->attendance_date->format('Y-m-d'),
+            ],
         ];
 
         return app(NotificationService::class)->send($notificationData);
@@ -457,7 +457,7 @@ trait HandlesNotifications
         $templates = [
             'absence_alert' => "Dear Parent, {$student->name} was marked absent on {$attendance->attendance_date->format('M d, Y')}. Please contact the school if there are any concerns.",
             'late_arrival' => "Dear Parent, {$student->name} arrived late on {$attendance->attendance_date->format('M d, Y')}. Please ensure timely arrival to avoid missing important lessons.",
-            'attendance_marked' => "Dear Parent, {$student->name}'s attendance has been recorded as {$attendance->status} for {$attendance->attendance_date->format('M d, Y')}."
+            'attendance_marked' => "Dear Parent, {$student->name}'s attendance has been recorded as {$attendance->status} for {$attendance->attendance_date->format('M d, Y')}.",
         ];
 
         return $templates[$notificationType] ?? $templates['attendance_marked'];
@@ -468,8 +468,8 @@ trait HandlesNotifications
         $percentage = $stats['attendance_percentage'];
         $required = config('attendance.minimum_percentage', 75);
 
-        return "Dear Parent, {$student->name}'s attendance is currently {$percentage}%, which is below the required {$required}%. " .
-               "Please ensure regular attendance to avoid academic impact. Contact the school for support if needed.";
+        return "Dear Parent, {$student->name}'s attendance is currently {$percentage}%, which is below the required {$required}%. ".
+               'Please ensure regular attendance to avoid academic impact. Contact the school for support if needed.';
     }
 
     private function getNotificationTitle(string $type): string
@@ -478,7 +478,7 @@ trait HandlesNotifications
             'absence_alert' => 'Student Absent Alert',
             'late_arrival' => 'Late Arrival Notice',
             'attendance_marked' => 'Attendance Update',
-            'low_attendance_warning' => 'Low Attendance Warning'
+            'low_attendance_warning' => 'Low Attendance Warning',
         ];
 
         return $titles[$type] ?? 'Attendance Notification';
@@ -489,7 +489,7 @@ trait HandlesNotifications
         $titles = [
             'absence_alert' => 'Student Absence Report',
             'late_arrival' => 'Late Arrival Report',
-            'attendance_marked' => 'Attendance Recorded'
+            'attendance_marked' => 'Attendance Recorded',
         ];
 
         return $titles[$type] ?? 'Attendance Update';
@@ -508,7 +508,7 @@ trait HandlesNotifications
         $messages = [
             'absence_alert' => "Student {$student->name} was marked absent on {$date}.",
             'late_arrival' => "Student {$student->name} arrived late on {$date}.",
-            'attendance_marked' => "Attendance recorded for {$student->name} on {$date} as {$attendance->status}."
+            'attendance_marked' => "Attendance recorded for {$student->name} on {$date} as {$attendance->status}.",
         ];
 
         return $messages[$type] ?? $messages['attendance_marked'];
@@ -519,8 +519,8 @@ trait HandlesNotifications
         $student = $attendance->student;
         $consecutiveAbsents = $this->calculateConsecutiveAbsents($student->id);
 
-        return "Student {$student->name} from {$attendance->batch->name} has been absent for {$consecutiveAbsents} consecutive days. " .
-               "This requires immediate attention.";
+        return "Student {$student->name} from {$attendance->batch->name} has been absent for {$consecutiveAbsents} consecutive days. ".
+               'This requires immediate attention.';
     }
 
     private function getNotificationPriority(string $type): string
@@ -529,7 +529,7 @@ trait HandlesNotifications
             'absence_alert' => 'warning',
             'late_arrival' => 'info',
             'attendance_marked' => 'success',
-            'low_attendance_warning' => 'warning'
+            'low_attendance_warning' => 'warning',
         ];
 
         return $priorities[$type] ?? 'info';
@@ -585,13 +585,13 @@ trait HandlesNotifications
                 'message' => $this->generateNotificationMessage($student, $attendance, $this->determineNotificationType($attendance)),
                 'delivery_status' => $result['success'] ? 'sent' : 'failed',
                 'sent_at' => $result['success'] ? now() : null,
-                'failed_at' => !$result['success'] ? now() : null,
+                'failed_at' => ! $result['success'] ? now() : null,
                 'error_message' => $result['error'] ?? null,
                 'metadata' => [
                     'attendance_id' => $attendance->id,
                     'attendance_status' => $attendance->status,
-                    'attendance_date' => $attendance->attendance_date->format('Y-m-d')
-                ]
+                    'attendance_date' => $attendance->attendance_date->format('Y-m-d'),
+                ],
             ]);
 
             // Update contact success/failure counts
@@ -605,7 +605,7 @@ trait HandlesNotifications
             Log::error('Failed to log notification attempt', [
                 'contact_id' => $contact->id,
                 'student_id' => $student->id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
     }

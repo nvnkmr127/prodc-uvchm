@@ -5,13 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Carbon\Carbon;
 
 class PaymentReminder extends Model
 {
     protected $fillable = [
         'student_id',
-        'student_fee_id', 
+        'student_fee_id',
         'fee_category_id',
         'reminder_type',
         'status',
@@ -23,7 +22,7 @@ class PaymentReminder extends Model
         'response_received',
         'error_message',
         'retry_count',
-        'last_retry_at'
+        'last_retry_at',
     ];
 
     protected $casts = [
@@ -133,7 +132,7 @@ class PaymentReminder extends Model
     {
         $this->update([
             'status' => 'sent',
-            'sent_at' => now()
+            'sent_at' => now(),
         ]);
     }
 
@@ -143,7 +142,7 @@ class PaymentReminder extends Model
             'status' => 'failed',
             'error_message' => $errorMessage,
             'retry_count' => $this->retry_count + 1,
-            'last_retry_at' => now()
+            'last_retry_at' => now(),
         ]);
     }
 
@@ -153,7 +152,7 @@ class PaymentReminder extends Model
             'action' => $action,
             'details' => json_encode($details),
             'performed_by' => auth()->id(),
-            'action_timestamp' => now()
+            'action_timestamp' => now(),
         ]);
     }
 
@@ -163,7 +162,7 @@ class PaymentReminder extends Model
     public function getFormattedMessage(): string
     {
         $message = $this->message_content;
-        
+
         if ($this->student) {
             $message = str_replace('[STUDENT_NAME]', $this->student->name, $message);
             $message = str_replace('[ENROLLMENT_NUMBER]', $this->student->enrollment_number, $message);
@@ -171,8 +170,8 @@ class PaymentReminder extends Model
 
         if ($this->studentFee) {
             $remainingAmount = $this->studentFee->getRemainingAmount();
-            $message = str_replace('[AMOUNT]', '₹' . number_format($remainingAmount, 2), $message);
-            
+            $message = str_replace('[AMOUNT]', '₹'.number_format($remainingAmount, 2), $message);
+
             if ($this->studentFee->due_date) {
                 $message = str_replace('[DUE_DATE]', $this->studentFee->due_date->format('d/m/Y'), $message);
             }
@@ -193,7 +192,7 @@ class PaymentReminder extends Model
             'upcoming_due' => 1,
             'overdue' => 3,
             'escalation' => 5,
-            'final_notice' => 7
+            'final_notice' => 7,
         ];
 
         $score += $typeScores[$this->reminder_type] ?? 0;
@@ -201,9 +200,13 @@ class PaymentReminder extends Model
         // Add score based on overdue amount
         if ($this->studentFee) {
             $amount = $this->studentFee->getRemainingAmount();
-            if ($amount > 10000) $score += 3;
-            elseif ($amount > 5000) $score += 2;
-            elseif ($amount > 1000) $score += 1;
+            if ($amount > 10000) {
+                $score += 3;
+            } elseif ($amount > 5000) {
+                $score += 2;
+            } elseif ($amount > 1000) {
+                $score += 1;
+            }
         }
 
         // Add score for retry count
@@ -225,7 +228,7 @@ class PaymentReminder extends Model
                 'email' => $this->student->email,
                 'phone' => $this->student->student_mobile ?? $this->student->father_mobile,
                 'student_name' => $this->student->name,
-                'enrollment_number' => $this->student->enrollment_number
+                'enrollment_number' => $this->student->enrollment_number,
             ];
         }
 

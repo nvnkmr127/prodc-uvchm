@@ -2,11 +2,11 @@
 
 namespace App\Models\Attendance;
 
+use App\Models\Attendance;
+use App\Models\Student;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use App\Models\Student;
-use App\Models\Attendance;
 
 class BiometricLog extends Model
 {
@@ -25,7 +25,7 @@ class BiometricLog extends Model
         'device_manufacturer',
         'device_location',
         'sync_status',
-        'failure_reason'
+        'failure_reason',
     ];
 
     protected $casts = [
@@ -96,19 +96,19 @@ class BiometricLog extends Model
     public function scopeFailed($query)
     {
         return $query->where('processed', false)
-                    ->whereNotNull('failure_reason');
+            ->whereNotNull('failure_reason');
     }
 
     /**
      * Mark this log as processed
      */
-    public function markAsProcessed(Attendance $attendance = null, string $notes = null): void
+    public function markAsProcessed(?Attendance $attendance = null, ?string $notes = null): void
     {
         $this->update([
             'processed' => true,
             'attendance_id' => $attendance?->id,
             'processing_notes' => $notes,
-            'sync_status' => 'success'
+            'sync_status' => 'success',
         ]);
     }
 
@@ -120,7 +120,7 @@ class BiometricLog extends Model
         $this->update([
             'processed' => false,
             'failure_reason' => $reason,
-            'sync_status' => 'failed'
+            'sync_status' => 'failed',
         ]);
     }
 
@@ -162,9 +162,9 @@ class BiometricLog extends Model
     {
         if ($this->processed && $this->attendance_id) {
             return ['text' => 'Processed', 'class' => 'success'];
-        } elseif ($this->processed && !$this->attendance_id) {
+        } elseif ($this->processed && ! $this->attendance_id) {
             return ['text' => 'Ignored', 'class' => 'warning'];
-        } elseif (!$this->processed && $this->failure_reason) {
+        } elseif (! $this->processed && $this->failure_reason) {
             return ['text' => 'Failed', 'class' => 'danger'];
         } else {
             return ['text' => 'Pending', 'class' => 'info'];

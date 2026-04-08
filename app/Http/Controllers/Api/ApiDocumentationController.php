@@ -9,10 +9,12 @@ use App\Http\Controllers\Controller;
  *     title="School Management System API",
  *     version="1.0.0",
  *     description="API documentation for School Management System - Complete student management, attendance tracking, and administrative operations.",
+ *
  *     @OA\Contact(
  *         email="admin@uvchm.com",
  *         name="API Support"
  *     ),
+ *
  *     @OA\License(
  *         name="MIT",
  *         url="https://opensource.org/licenses/MIT"
@@ -23,7 +25,6 @@ use App\Http\Controllers\Controller;
  *     url="https://uvchm.digicloudify.com",
  *     description="Production Server"
  * )
- *
  * @OA\Server(
  *     url="http://localhost:8000",
  *     description="Development Server"
@@ -41,22 +42,18 @@ use App\Http\Controllers\Controller;
  *     name="Authentication",
  *     description="API authentication and testing endpoints"
  * )
- *
  * @OA\Tag(
  *     name="Students",
  *     description="Student management operations"
  * )
- *
  * @OA\Tag(
  *     name="Attendance",
  *     description="Attendance management operations"
  * )
- *
  * @OA\Tag(
  *     name="Dashboard",
  *     description="Dashboard and analytics endpoints"
  * )
- *
  * @OA\Tag(
  *     name="Admin",
  *     description="Administrative operations (admin only)"
@@ -82,20 +79,26 @@ class ApiDocumentationController extends Controller
      *     summary="Test API connection",
      *     description="Simple endpoint to test if API is working and authentication is successful",
      *     security={{"bearerAuth":{}}},
+     *
      *     @OA\Response(
      *         response=200,
      *         description="API is working correctly",
+     *
      *         @OA\JsonContent(
+     *
      *             @OA\Property(property="success", type="boolean", example=true),
      *             @OA\Property(property="message", type="string", example="API is working!"),
      *             @OA\Property(property="user", type="string", example="John Doe"),
      *             @OA\Property(property="timestamp", type="string", example="2025-01-01T12:00:00Z")
      *         )
      *     ),
+     *
      *     @OA\Response(
      *         response=401,
      *         description="Unauthenticated",
+     *
      *         @OA\JsonContent(
+     *
      *             @OA\Property(property="message", type="string", example="Unauthenticated.")
      *         )
      *     )
@@ -108,31 +111,36 @@ class ApiDocumentationController extends Controller
      *     tags={"Authentication"},
      *     summary="Login user",
      *     description="Login with email and password to get an access token",
+     *
      *     @OA\RequestBody(
      *         required=true,
+     *
      *         @OA\JsonContent(
      *             required={"email", "password"},
+     *
      *             @OA\Property(property="email", type="string", format="email", example="admin@example.com"),
      *             @OA\Property(property="password", type="string", format="password", example="password")
      *         )
      *     ),
+     *
      *     @OA\Response(
      *         response=200,
      *         description="Login successful",
+     *
      *         @OA\JsonContent(
+     *
      *             @OA\Property(property="token", type="string", example="1|AbCdEf123456"),
      *             @OA\Property(property="user", type="object")
      *         )
      *     ),
+     *
      *     @OA\Response(
      *         response=401,
      *         description="Invalid credentials"
      *     )
      * )
      */
-    public function login()
-    {
-    }
+    public function login() {}
 
     /**
      * @OA\Get(
@@ -142,10 +150,13 @@ class ApiDocumentationController extends Controller
      *     summary="Get user profile",
      *     description="Get the currently authenticated user",
      *     security={{"bearerAuth":{}}},
+     *
      *     @OA\Response(
      *         response=200,
      *         description="User profile retrieved",
+     *
      *         @OA\JsonContent(
+     *
      *             @OA\Property(property="id", type="integer", example=1),
      *             @OA\Property(property="name", type="string", example="John Doe"),
      *             @OA\Property(property="email", type="string", format="email", example="john@example.com")
@@ -153,10 +164,7 @@ class ApiDocumentationController extends Controller
      *     )
      * )
      */
-    public function user()
-    {
-    }
-
+    public function user() {}
 
     /**
      * @OA\Get(
@@ -166,21 +174,28 @@ class ApiDocumentationController extends Controller
      *     summary="Search for students",
      *     description="Search for students by name, enrollment number, or mobile number",
      *     security={{"bearerAuth":{}}},
+     *
      *     @OA\Parameter(
      *         name="q",
      *         in="query",
      *         required=true,
      *         description="Search query (name, enrollment number, or mobile)",
+     *
      *         @OA\Schema(type="string", example="john")
      *     ),
+     *
      *     @OA\Response(
      *         response=200,
      *         description="Students found successfully",
+     *
      *         @OA\JsonContent(
+     *
      *             @OA\Property(
      *                 property="data",
      *                 type="array",
+     *
      *                 @OA\Items(
+     *
      *                     @OA\Property(property="id", type="integer", example=1),
      *                     @OA\Property(property="name", type="string", example="John Doe"),
      *                     @OA\Property(property="enrollment_number", type="string", example="ENR-12345678"),
@@ -204,12 +219,11 @@ class ApiDocumentationController extends Controller
      *     tags={"Dashboard"},
      *     summary="Get payment data",
      *     security={{"bearerAuth":{}}},
+     *
      *     @OA\Response(response=200, description="Payment data retrieved")
      * )
      */
-    public function getMyPaymentData()
-    {
-    }
+    public function getMyPaymentData() {}
 
     /**
      * @OA\Get(
@@ -218,12 +232,11 @@ class ApiDocumentationController extends Controller
      *     tags={"Dashboard"},
      *     summary="Get user activities",
      *     security={{"bearerAuth":{}}},
+     *
      *     @OA\Response(response=200, description="Activities retrieved")
      * )
      */
-    public function getMyActivities()
-    {
-    }
+    public function getMyActivities() {}
 
     /**
      * @OA\Get(
@@ -232,12 +245,11 @@ class ApiDocumentationController extends Controller
      *     tags={"Dashboard"},
      *     summary="Get attendance data",
      *     security={{"bearerAuth":{}}},
+     *
      *     @OA\Response(response=200, description="Attendance data retrieved")
      * )
      */
-    public function getAttendanceData()
-    {
-    }
+    public function getAttendanceData() {}
 
     /**
      * @OA\Post(
@@ -247,30 +259,34 @@ class ApiDocumentationController extends Controller
      *     summary="Submit attendance record",
      *     description="Submit attendance record from biometric device or manual entry",
      *     security={{"bearerAuth":{}}},
+     *
      *     @OA\Parameter(
      *         name="X-API-KEY",
      *         in="header",
      *         required=true,
      *         description="Biometric device API key",
+     *
      *         @OA\Schema(type="string")
      *     ),
+     *
      *     @OA\RequestBody(
      *         required=true,
+     *
      *         @OA\JsonContent(
      *             required={"enrollment_number"},
+     *
      *             @OA\Property(property="enrollment_number", type="string", example="ENR-12345678"),
      *             @OA\Property(property="timestamp", type="integer", example=1672531200, description="Unix timestamp (optional)")
      *         )
      *     ),
+     *
      *     @OA\Response(
      *         response=200,
      *         description="Attendance recorded successfully"
      *     )
      * )
      */
-    public function submitAttendance()
-    {
-    }
+    public function submitAttendance() {}
 
     /**
      * @OA\Get(
@@ -279,19 +295,20 @@ class ApiDocumentationController extends Controller
      *     tags={"Students"},
      *     summary="Get student details",
      *     security={{"bearerAuth":{}}},
+     *
      *     @OA\Parameter(
      *         name="student",
      *         in="path",
      *         required=true,
      *         description="Student ID",
+     *
      *         @OA\Schema(type="integer")
      *     ),
+     *
      *     @OA\Response(response=200, description="Student details retrieved")
      * )
      */
-    public function getStudent()
-    {
-    }
+    public function getStudent() {}
 
     /**
      * @OA\Get(
@@ -300,19 +317,20 @@ class ApiDocumentationController extends Controller
      *     tags={"Search"},
      *     summary="Global search",
      *     security={{"bearerAuth":{}}},
+     *
      *     @OA\Parameter(
      *         name="q",
      *         in="query",
      *         required=true,
      *         description="Search term",
+     *
      *         @OA\Schema(type="string")
      *     ),
+     *
      *     @OA\Response(response=200, description="Search results")
      * )
      */
-    public function globalSearch()
-    {
-    }
+    public function globalSearch() {}
 
     /**
      * @OA\Get(
@@ -321,12 +339,11 @@ class ApiDocumentationController extends Controller
      *     tags={"Notifications"},
      *     summary="Get notifications",
      *     security={{"bearerAuth":{}}},
+     *
      *     @OA\Response(response=200, description="List of notifications")
      * )
      */
-    public function getNotifications()
-    {
-    }
+    public function getNotifications() {}
 
     /**
      * @OA\Get(
@@ -335,12 +352,11 @@ class ApiDocumentationController extends Controller
      *     tags={"Notifications"},
      *     summary="Get unread notification count",
      *     security={{"bearerAuth":{}}},
+     *
      *     @OA\Response(response=200, description="Unread count retrieved")
      * )
      */
-    public function getUnreadNotificationCount()
-    {
-    }
+    public function getUnreadNotificationCount() {}
 
     /**
      * @OA\Post(
@@ -349,19 +365,20 @@ class ApiDocumentationController extends Controller
      *     tags={"Notifications"},
      *     summary="Mark notification as read",
      *     security={{"bearerAuth":{}}},
+     *
      *     @OA\Parameter(
      *         name="notification",
      *         in="path",
      *         required=true,
      *         description="Notification ID",
+     *
      *         @OA\Schema(type="string")
      *     ),
+     *
      *     @OA\Response(response=200, description="Notification marked as read")
      * )
      */
-    public function markNotificationRead()
-    {
-    }
+    public function markNotificationRead() {}
 
     /**
      * @OA\Post(
@@ -370,16 +387,17 @@ class ApiDocumentationController extends Controller
      *     tags={"Webhooks"},
      *     summary="ETimeOffice Webhook",
      *     description="Handle biometric data from ETimeOffice",
+     *
      *     @OA\RequestBody(
      *         required=true,
+     *
      *         @OA\JsonContent(type="object")
      *     ),
+     *
      *     @OA\Response(response=200, description="Webhook processed")
      * )
      */
-    public function etimeofficeWebhook()
-    {
-    }
+    public function etimeofficeWebhook() {}
 
     /**
      * @OA\Get(
@@ -388,12 +406,11 @@ class ApiDocumentationController extends Controller
      *     tags={"Attendance"},
      *     summary="Get today's attendance",
      *     security={{"bearerAuth":{}}},
+     *
      *     @OA\Response(response=200, description="Attendance records retrieved")
      * )
      */
-    public function getTodayAttendance()
-    {
-    }
+    public function getTodayAttendance() {}
 
     /**
      * @OA\Get(
@@ -402,12 +419,9 @@ class ApiDocumentationController extends Controller
      *     tags={"Attendance"},
      *     summary="Get today's attendance stats",
      *     security={{"bearerAuth":{}}},
+     *
      *     @OA\Response(response=200, description="Statistics retrieved")
      * )
      */
-    public function getTodayStats()
-    {
-    }
-
-
+    public function getTodayStats() {}
 }

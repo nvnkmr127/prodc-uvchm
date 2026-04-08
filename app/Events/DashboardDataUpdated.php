@@ -1,11 +1,11 @@
 <?php
+
 // app/Events/DashboardDataUpdated.php
 
 namespace App\Events;
 
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
-use Illuminate\Broadcasting\PresenceChannel;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
@@ -16,7 +16,9 @@ class DashboardDataUpdated implements ShouldBroadcast
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     public $eventType;
+
     public $data;
+
     public $targetRoles;
 
     public function __construct(string $eventType, array $data, array $targetRoles = [])
@@ -32,7 +34,7 @@ class DashboardDataUpdated implements ShouldBroadcast
             return new Channel('dashboard');
         }
 
-        return collect($this->targetRoles)->map(function($role) {
+        return collect($this->targetRoles)->map(function ($role) {
             return new PrivateChannel("dashboard.{$role}");
         })->toArray();
     }
@@ -47,7 +49,7 @@ class DashboardDataUpdated implements ShouldBroadcast
         return [
             'event_type' => $this->eventType,
             'data' => $this->data,
-            'timestamp' => now()->toISOString()
+            'timestamp' => now()->toISOString(),
         ];
     }
 }
@@ -58,7 +60,6 @@ namespace App\Events;
 
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
-use Illuminate\Broadcasting\PresenceChannel;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
@@ -69,7 +70,9 @@ class WidgetDataUpdated implements ShouldBroadcast
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     public $widgetType;
+
     public $data;
+
     public $targetUsers;
 
     public function __construct(string $widgetType, array $data, array $targetUsers = [])
@@ -85,7 +88,7 @@ class WidgetDataUpdated implements ShouldBroadcast
             return new Channel('widgets');
         }
 
-        return collect($this->targetUsers)->map(function($role) {
+        return collect($this->targetUsers)->map(function ($role) {
             return new PrivateChannel("widgets.{$role}");
         })->toArray();
     }
@@ -100,7 +103,7 @@ class WidgetDataUpdated implements ShouldBroadcast
         return [
             'widget_type' => $this->widgetType,
             'data' => $this->data,
-            'timestamp' => now()->toISOString()
+            'timestamp' => now()->toISOString(),
         ];
     }
 }
@@ -109,9 +112,7 @@ class WidgetDataUpdated implements ShouldBroadcast
 
 namespace App\Events;
 
-use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
-use Illuminate\Broadcasting\PresenceChannel;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
@@ -122,6 +123,7 @@ class SystemAlertCreated implements ShouldBroadcast
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     public $alert;
+
     public $targetRoles;
 
     public function __construct(array $alert, array $targetRoles = ['super-admin'])
@@ -132,7 +134,7 @@ class SystemAlertCreated implements ShouldBroadcast
 
     public function broadcastOn()
     {
-        return collect($this->targetRoles)->map(function($role) {
+        return collect($this->targetRoles)->map(function ($role) {
             return new PrivateChannel("alerts.{$role}");
         })->toArray();
     }
@@ -145,7 +147,7 @@ class SystemAlertCreated implements ShouldBroadcast
     public function broadcastWith()
     {
         return [
-            'alert' => $this->alert
+            'alert' => $this->alert,
         ];
     }
 }
@@ -154,21 +156,21 @@ class SystemAlertCreated implements ShouldBroadcast
 
 namespace App\Events;
 
-use Illuminate\Broadcasting\Channel;
+use App\Models\User;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PresenceChannel;
-use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
-use App\Models\User;
 
 class UserDashboardActivity implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     public $user;
+
     public $activity;
+
     public $metadata;
 
     public function __construct(User $user, string $activity, array $metadata = [])
@@ -196,7 +198,7 @@ class UserDashboardActivity implements ShouldBroadcast
             'user_role' => $this->user->getRoleNames()->first(),
             'activity' => $this->activity,
             'metadata' => $this->metadata,
-            'timestamp' => now()->toISOString()
+            'timestamp' => now()->toISOString(),
         ];
     }
 }

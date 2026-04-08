@@ -2,19 +2,20 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Attendance;
+use App\Models\Setting;
+use App\Models\Webhook;
+use App\Models\WebhookCall;
+use App\Services\Attendance\AttendanceService;
+use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
-use App\Services\Attendance\AttendanceService;
-use App\Models\Webhook;
-use App\Models\Setting;
-use App\Models\Attendance;
-use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
-use App\Models\WebhookCall;
 
 class SendDailyAbsentAlerts extends Command
 {
     protected $signature = 'attendance:send-daily-absent-webhook {--force : Ignore time checks and sent flags}';
+
     protected $description = 'Send individual absent alerts (Excludes Internships & Holidays)';
 
     protected $attendanceService;
@@ -27,7 +28,7 @@ class SendDailyAbsentAlerts extends Command
 
     public function handle()
     {
-        Log::channel('attendance-webhook')->info("🏁 Starting SendDailyAbsentAlerts command.");
+        Log::channel('attendance-webhook')->info('🏁 Starting SendDailyAbsentAlerts command.');
 
         $this->info('⏳ Checking conditions for absent alerts...');
 
@@ -35,15 +36,17 @@ class SendDailyAbsentAlerts extends Command
         $cutoffTimeStr = Setting::where('key', 'attendance_student_present_cutoff_time')->value('value') ?? '11:00';
         $cutoffTime = Carbon::createFromTimeString($cutoffTimeStr);
 
-        if (!$this->option('force') && now()->lt($cutoffTime)) {
-            $this->info("⚠️  Current time (" . now()->format('H:i') . ") is before cutoff ($cutoffTimeStr). Skipping.");
+        if (! $this->option('force') && now()->lt($cutoffTime)) {
+            $this->info('⚠️  Current time ('.now()->format('H:i').") is before cutoff ($cutoffTimeStr). Skipping.");
+
             return 0;
         }
 
         // 2. Duplicate Check
-        $lockKey = "absent_webhook_sent_" . now()->format('Y-m-d');
-        if (!$this->option('force') && Setting::where('key', $lockKey)->exists()) {
-            $this->info("✅ Absent alerts already sent for today.");
+        $lockKey = 'absent_webhook_sent_'.now()->format('Y-m-d');
+        if (! $this->option('force') && Setting::where('key', $lockKey)->exists()) {
+            $this->info('✅ Absent alerts already sent for today.');
+
             return 0;
         }
 
@@ -56,24 +59,24 @@ class SendDailyAbsentAlerts extends Command
         $this->info("📊 Biometric Presence Count: $biometricCount");
         Log::channel('attendance-webhook')->info("Biometric Presence Count: $biometricCount");
 
-        if (!$this->option('force') && $biometricCount < 10) {
+        if (! $this->option('force') && $biometricCount < 10) {
             $msg = "⚠️  Only $biometricCount students marked present. Threshold is 10. Skipping.";
             $this->warn($msg);
             Log::channel('attendance-webhook')->warning($msg);
+
             return 0;
         }
 
         // 4. Fetch Absent Students
-        $this->info("🔍 Fetching absent students...");
+        $this->info('🔍 Fetching absent students...');
         $absentStudents = $this->attendanceService->getAbsentStudentsForDate(now());
 
-
-
         if ($absentStudents->isEmpty()) {
-            $msg = "✅ No absent students found (or all are on internship).";
+            $msg = '✅ No absent students found (or all are on internship).';
             $this->info($msg);
             Log::channel('attendance-webhook')->info($msg);
             Setting::updateOrCreate(['key' => $lockKey], ['value' => now()->toDateTimeString()]);
+
             return 0;
         }
 
@@ -88,12 +91,13 @@ class SendDailyAbsentAlerts extends Command
             $msg = "❌ No webhooks configured for 'attendance.daily_absent'.";
             $this->error($msg);
             Log::channel('attendance-webhook')->error($msg);
+
             return 0;
         }
 
         // 6. Send Webhooks
-        $this->info("🚀 Sending " . $absentStudents->count() . " alerts...");
-        Log::channel('attendance-webhook')->info("🚀 Processing " . $absentStudents->count() . " absent students.");
+        $this->info('🚀 Sending '.$absentStudents->count().' alerts...');
+        Log::channel('attendance-webhook')->info('🚀 Processing '.$absentStudents->count().' absent students.');
 
         $bar = $this->output->createProgressBar($absentStudents->count());
         $bar->start();
@@ -114,8 +118,8 @@ class SendDailyAbsentAlerts extends Command
                 'student' => $student,
                 'metadata' => [
                     'total_absent_today' => $absentStudents->count(),
-                    'biometric_present_count' => $biometricCount
-                ]
+                    'biometric_present_count' => $biometricCount,
+                ],
             ];
 
             foreach ($webhooks as $webhook) {
@@ -125,7 +129,7 @@ class SendDailyAbsentAlerts extends Command
                     Log::channel('attendance-webhook')->info("  -> Webhook sent successfully to: {$webhook->url}");
                 } catch (\Exception $e) {
                     $failedCount++;
-                    Log::channel('attendance-webhook')->error("  -> Webhook failed for student $studentName: " . $e->getMessage());
+                    Log::channel('attendance-webhook')->error("  -> Webhook failed for student $studentName: ".$e->getMessage());
                 }
             }
             $bar->advance();
@@ -149,7 +153,7 @@ class SendDailyAbsentAlerts extends Command
         $headers = ['Content-Type' => 'application/json', 'X-Webhook-Event' => 'attendance.daily_absent'];
 
         if ($webhook->signing_secret) {
-            $headers['X-Webhook-Signature'] = 'sha256=' . hash_hmac('sha256', json_encode($payload), $webhook->signing_secret);
+            $headers['X-Webhook-Signature'] = 'sha256='.hash_hmac('sha256', json_encode($payload), $webhook->signing_secret);
         }
 
         $startTime = microtime(true);
@@ -171,7 +175,7 @@ class SendDailyAbsentAlerts extends Command
             $success = false;
             $responseBody = $e->getMessage();
 
-            // If it's a generic connection error, status remains 0. 
+            // If it's a generic connection error, status remains 0.
             // If it's a request exception with response (from throw()), get status.
             if ($e instanceof \Illuminate\Http\Client\RequestException && $e->response) {
                 $status = $e->response->status();
@@ -188,7 +192,7 @@ class SendDailyAbsentAlerts extends Command
                 'status_code' => $status,
                 'payload' => $payload,
                 'response_body' => substr($responseBody, 0, 65535), // Limit size for text column
-                'execution_time_ms' => $duration
+                'execution_time_ms' => $duration,
             ]);
         }
     }

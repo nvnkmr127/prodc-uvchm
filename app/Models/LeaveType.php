@@ -2,12 +2,12 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use App\Traits\WebhookEnabled;
+use Illuminate\Database\Eloquent\Model;
 
 class LeaveType extends Model
 {
     use WebhookEnabled;
 
-   protected $fillable = ['name', 'days_per_year'];
+    protected $fillable = ['name', 'days_per_year'];
 }

@@ -3,19 +3,20 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Audit;
-use App\Models\AuditItem;
 use App\Models\Asset;
 use App\Models\AssetCategory;
+use App\Models\Audit;
+use App\Models\AuditItem;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Carbon\Carbon;
 
 class AuditController extends Controller
 {
     public function index()
     {
         $audits = Audit::with('user')->latest()->get();
+
         return view('admin.audits.index', compact('audits'));
     }
 
@@ -28,7 +29,7 @@ class AuditController extends Controller
         ]);
 
         return redirect()->route('admin.audits.show', $newAudit)
-                         ->with('success', 'New audit session #' . $newAudit->id . ' has been started!');
+            ->with('success', 'New audit session #'.$newAudit->id.' has been started!');
     }
 
     public function show(Request $request, Audit $audit)
@@ -42,7 +43,7 @@ class AuditController extends Controller
             $query->where('asset_category_id', $request->category_id);
         }
         if ($request->filled('location')) {
-            $query->where('location', 'LIKE', '%' . addcslashes($request->location, '%_\\') . '%');
+            $query->where('location', 'LIKE', '%'.addcslashes($request->location, '%_\\').'%');
         }
 
         $assets = $query->get();
@@ -94,6 +95,6 @@ class AuditController extends Controller
         $audit->status = 'Completed';
         $audit->save();
 
-        return redirect()->route('admin.audits.index')->with('success', 'Audit #' . $audit->id . ' has been completed.');
+        return redirect()->route('admin.audits.index')->with('success', 'Audit #'.$audit->id.' has been completed.');
     }
 }

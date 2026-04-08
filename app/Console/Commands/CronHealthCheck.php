@@ -3,8 +3,8 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Queue;
 
 class CronHealthCheck extends Command
@@ -30,7 +30,7 @@ class CronHealthCheck extends Command
     {
         $this->info('===========================================');
         $this->info('UVCHM Portal - Cron Job Health Check');
-        $this->info('Timestamp: ' . now()->format('Y-m-d H:i:s'));
+        $this->info('Timestamp: '.now()->format('Y-m-d H:i:s'));
         $this->info('===========================================');
         $this->newLine();
 
@@ -45,7 +45,7 @@ class CronHealthCheck extends Command
         }
 
         $this->newLine();
-        $this->info('Health check completed at ' . now()->format('Y-m-d H:i:s'));
+        $this->info('Health check completed at '.now()->format('Y-m-d H:i:s'));
     }
 
     private function checkSchedulerStatus()
@@ -73,7 +73,7 @@ class CronHealthCheck extends Command
 
         } catch (\Exception $e) {
             $this->line('✗ Laravel Scheduler: <fg=red>FAILED</fg=red>');
-            $this->line('  Error: ' . $e->getMessage());
+            $this->line('  Error: '.$e->getMessage());
         }
 
         $this->newLine();
@@ -100,12 +100,12 @@ class CronHealthCheck extends Command
             }
 
             // Try to check if queue worker is responding
-            $testJob = new \App\Jobs\TestCronHealthJob();
+            $testJob = new \App\Jobs\TestCronHealthJob;
             $this->line('✓ Queue Configuration: <fg=green>Available</fg=green>');
 
         } catch (\Exception $e) {
             $this->line('✗ Queue System: <fg=red>FAILED</fg=red>');
-            $this->line('  Error: ' . $e->getMessage());
+            $this->line('  Error: '.$e->getMessage());
         }
 
         $this->newLine();
@@ -120,7 +120,7 @@ class CronHealthCheck extends Command
         $logs = [
             'queue-worker.log' => 24,          // Should update within 24 hours
             'db-maintenance.log' => 48,        // Daily at 2 AM
-            'backup.log' => 48,                // Daily at 1 AM  
+            'backup.log' => 48,                // Daily at 1 AM
             'health-check.log' => 12,          // Every 6 hours
             'payment-reminders.log' => 48,     // Daily at 8 AM
             'settings-backup.log' => 48,       // Daily at 1:30 AM
@@ -130,16 +130,16 @@ class CronHealthCheck extends Command
         ];
 
         foreach ($logs as $logFile => $maxAgeHours) {
-            $fullPath = $logPath . '/' . $logFile;
+            $fullPath = $logPath.'/'.$logFile;
 
             if (File::exists($fullPath)) {
                 $lastModified = File::lastModified($fullPath);
                 $ageHours = (time() - $lastModified) / 3600;
 
                 if ($ageHours <= $maxAgeHours) {
-                    $this->line("✓ {$logFile}: <fg=green>Recent (" . round($ageHours, 1) . "h ago)</fg=green>");
+                    $this->line("✓ {$logFile}: <fg=green>Recent (".round($ageHours, 1).'h ago)</fg=green>');
                 } else {
-                    $this->line("⚠ {$logFile}: <fg=yellow>Old (" . round($ageHours, 1) . "h ago)</fg=yellow>");
+                    $this->line("⚠ {$logFile}: <fg=yellow>Old (".round($ageHours, 1).'h ago)</fg=yellow>');
                 }
             } else {
                 $this->line("✗ {$logFile}: <fg=red>Missing</fg=red>");
@@ -177,7 +177,7 @@ class CronHealthCheck extends Command
 
         } catch (\Exception $e) {
             $this->line('✗ Database: <fg=red>Connection Failed</fg=red>');
-            $this->line('  Error: ' . $e->getMessage());
+            $this->line('  Error: '.$e->getMessage());
         }
 
         $this->newLine();
@@ -200,12 +200,12 @@ class CronHealthCheck extends Command
             if (File::exists($path)) {
                 $permissions = substr(sprintf('%o', fileperms($path)), -3);
                 if ($permissions >= $expectedPerm) {
-                    $this->line("✓ " . basename($path) . ": <fg=green>{$permissions}</fg=green>");
+                    $this->line('✓ '.basename($path).": <fg=green>{$permissions}</fg=green>");
                 } else {
-                    $this->line("⚠ " . basename($path) . ": <fg=yellow>{$permissions} (needs {$expectedPerm})</fg=yellow>");
+                    $this->line('⚠ '.basename($path).": <fg=yellow>{$permissions} (needs {$expectedPerm})</fg=yellow>");
                 }
             } else {
-                $this->line("✗ " . basename($path) . ": <fg=red>Not Found</fg=red>");
+                $this->line('✗ '.basename($path).': <fg=red>Not Found</fg=red>');
             }
         }
 
@@ -218,22 +218,22 @@ class CronHealthCheck extends Command
         $this->info('========================');
 
         // PHP Version
-        $this->line('📋 PHP Version: ' . phpversion());
+        $this->line('📋 PHP Version: '.phpversion());
 
         // Laravel Version
-        $this->line('📋 Laravel Version: ' . app()->version());
+        $this->line('📋 Laravel Version: '.app()->version());
 
         // Environment
-        $this->line('📋 Environment: ' . app()->environment());
+        $this->line('📋 Environment: '.app()->environment());
 
         // Memory Usage
-        $this->line('📋 Memory Usage: ' . $this->formatBytes(memory_get_usage(true)));
+        $this->line('📋 Memory Usage: '.$this->formatBytes(memory_get_usage(true)));
 
         // Server time
-        $this->line('📋 Server Time: ' . now()->format('Y-m-d H:i:s T'));
+        $this->line('📋 Server Time: '.now()->format('Y-m-d H:i:s T'));
 
         // Timezone
-        $this->line('📋 Timezone: ' . config('app.timezone'));
+        $this->line('📋 Timezone: '.config('app.timezone'));
 
         // Cache status
         try {
@@ -255,11 +255,13 @@ class CronHealthCheck extends Command
     {
         $units = ['B', 'KB', 'MB', 'GB'];
         $factor = floor((strlen($size) - 1) / 3);
-        return sprintf("%.2f %s", $size / pow(1024, $factor), $units[$factor]);
+
+        return sprintf('%.2f %s', $size / pow(1024, $factor), $units[$factor]);
     }
 }
 
 // Job class for testing queue connectivity
+
 namespace App\Jobs;
 
 use Illuminate\Bus\Queueable;
@@ -275,6 +277,6 @@ class TestCronHealthJob implements ShouldQueue
     public function handle()
     {
         // Simple test job for health check
-        \Log::info('Cron health check test job executed at ' . now());
+        \Log::info('Cron health check test job executed at '.now());
     }
 }

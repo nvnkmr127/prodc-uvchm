@@ -3,8 +3,8 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class RunHealthCheck extends Command
 {
@@ -36,7 +36,7 @@ class RunHealthCheck extends Command
             'file_permissions' => $this->checkFilePermissions(),
         ];
 
-        $isHealthy = !in_array(false, array_column($checks, 'status'));
+        $isHealthy = ! in_array(false, array_column($checks, 'status'));
 
         if ($isHealthy) {
             $this->info('System health check passed.');
@@ -58,9 +58,10 @@ class RunHealthCheck extends Command
     {
         try {
             DB::connection()->getPdo();
+
             return ['status' => true, 'message' => 'Database connection successful.'];
         } catch (\Exception $e) {
-            return ['status' => false, 'message' => 'Database connection failed: ' . $e->getMessage()];
+            return ['status' => false, 'message' => 'Database connection failed: '.$e->getMessage()];
         }
     }
 
@@ -72,9 +73,10 @@ class RunHealthCheck extends Command
             if ($value === 'ok') {
                 return ['status' => true, 'message' => 'Cache is functioning correctly.'];
             }
+
             return ['status' => false, 'message' => 'Failed to retrieve value from cache.'];
         } catch (\Exception $e) {
-            return ['status' => false, 'message' => 'Cache system failed: ' . $e->getMessage()];
+            return ['status' => false, 'message' => 'Cache system failed: '.$e->getMessage()];
         }
     }
 
@@ -84,6 +86,7 @@ class RunHealthCheck extends Command
         if (is_writable($path)) {
             return ['status' => true, 'message' => 'Log directory is writable.'];
         }
+
         return ['status' => false, 'message' => 'Log directory is not writable.'];
     }
 }

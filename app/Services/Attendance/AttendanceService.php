@@ -4,23 +4,20 @@ namespace App\Services\Attendance;
 
 use App\Models\Attendance\Attendance;
 use App\Models\Attendance\AttendanceCache;
-use App\Models\Student;
 use App\Models\Batch;
-use App\Models\Timetable;
-use App\Services\Attendance\NotificationService;
-use App\Events\Attendance\AttendanceEvent;
-use App\Traits\Attendance\ManagesAttendance;
+use App\Models\Student;
 use App\Traits\Attendance\CalculatesMetrics;
-use App\Traits\Attendance\ValidatesData;
 use App\Traits\Attendance\HandlesNotifications;
+use App\Traits\Attendance\ManagesAttendance;
+use App\Traits\Attendance\ValidatesData;
 use Carbon\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Collection;
 
 class AttendanceService
 {
-    use ManagesAttendance, CalculatesMetrics, ValidatesData, HandlesNotifications;
+    use CalculatesMetrics, HandlesNotifications, ManagesAttendance, ValidatesData;
 
     protected NotificationService $notificationService;
 
@@ -116,8 +113,8 @@ class AttendanceService
             'performance_level' => $this->calculatePerformanceLevel($attendancePercentage),
             'risk_level' => $this->calculateRiskLevel([
                 'attendance_percentage' => $attendancePercentage,
-                'consecutive_absents' => $consecutiveAbsents
-            ])
+                'consecutive_absents' => $consecutiveAbsents,
+            ]),
         ];
 
         return $stats;
@@ -125,11 +122,7 @@ class AttendanceService
 
     /**
      * Get absent students for a specific date
-     *
-     * @param \Carbon\Carbon $date
-     * @return \Illuminate\Support\Collection
      */
-
     public function getAbsentStudentsForDate(\Carbon\Carbon $date): \Illuminate\Support\Collection
     {
         // 1. Get IDs of students who marked attendance (Present, Late, or Excused)
@@ -138,7 +131,6 @@ class AttendanceService
             ->pluck('student_id');
 
         // 2. [NEW] Get IDs of Batches currently marked as "On Internship"
-
 
         // 3. Get Active Students who are:
         //    - NOT Present
@@ -169,10 +161,11 @@ class AttendanceService
 
                     // [ADDED] Father details
                     'father_name' => $student->father_name,
-                    'parent_phone' => $student->father_mobile
+                    'parent_phone' => $student->father_mobile,
                 ];
             });
     }
+
     /**
      * Get today's attendance summary for faculty dashboard
      */
@@ -194,7 +187,7 @@ class AttendanceService
             'absent_count' => $todaysAttendance->where('status', 'absent')->count(),
             'late_count' => $todaysAttendance->where('status', 'late')->count(),
             'excused_count' => $todaysAttendance->where('status', 'excused')->count(),
-            'attendance_percentage' => $this->calculateAttendancePercentage($todaysAttendance)
+            'attendance_percentage' => $this->calculateAttendancePercentage($todaysAttendance),
         ];
     }
 
@@ -212,7 +205,7 @@ class AttendanceService
             // Try biometric code first, then fallback to enrollment number
             $student = Student::where('biometric_employee_code', $employeeCode)->first();
 
-            if (!$student) {
+            if (! $student) {
                 // Fallback to enrollment number lookup with multiple patterns
                 $student = $this->findStudentByEnrollmentPatterns($employeeCode);
 
@@ -223,30 +216,30 @@ class AttendanceService
                         Log::info('Auto-populated biometric code during attendance processing', [
                             'student_id' => $student->id,
                             'enrollment_number' => $student->enrollment_number,
-                            'biometric_code' => $employeeCode
+                            'biometric_code' => $employeeCode,
                         ]);
                     } catch (\Exception $e) {
                         Log::warning('Failed to auto-populate biometric code', [
                             'student_id' => $student->id,
-                            'error' => $e->getMessage()
+                            'error' => $e->getMessage(),
                         ]);
                     }
                 }
             }
 
-            if (!$student) {
+            if (! $student) {
                 $processingTime = round((microtime(true) - $startTime) * 1000, 2);
 
                 Log::warning('Student not found in biometric attendance processing', [
                     'employee_code' => $employeeCode,
-                    'processing_time_ms' => $processingTime
+                    'processing_time_ms' => $processingTime,
                 ]);
 
                 return [
                     'success' => false,
                     'error' => 'Student not found',
                     'employee_code' => $employeeCode,
-                    'processing_time_ms' => $processingTime
+                    'processing_time_ms' => $processingTime,
                 ];
             }
 
@@ -258,7 +251,7 @@ class AttendanceService
                 'status' => 'present',
                 'biometric_log_id' => $biometricData['log_id'] ?? null,
                 'device_id' => $biometricData['device_id'] ?? null,
-                'marked_at' => Carbon::parse($biometricData['scan_datetime'])
+                'marked_at' => Carbon::parse($biometricData['scan_datetime']),
             ];
 
             // Mark attendance using trait method
@@ -266,7 +259,7 @@ class AttendanceService
 
             // Send notifications using trait method
             $this->sendAttendanceNotification($attendance, [
-                'notify_parents' => config('attendance.biometric.notify_parents', false)
+                'notify_parents' => config('attendance.biometric.notify_parents', false),
             ]);
 
             $processingTime = round((microtime(true) - $startTime) * 1000, 2);
@@ -276,7 +269,7 @@ class AttendanceService
                 'student_name' => $student->name,
                 'biometric_code' => $student->biometric_employee_code,
                 'enrollment_number' => $student->enrollment_number,
-                'processing_time_ms' => $processingTime
+                'processing_time_ms' => $processingTime,
             ]);
 
             return [
@@ -287,7 +280,7 @@ class AttendanceService
                 'biometric_code' => $student->biometric_employee_code,
                 'enrollment_number' => $student->enrollment_number,
                 'status' => $attendance->status,
-                'processing_time_ms' => $processingTime
+                'processing_time_ms' => $processingTime,
             ];
 
         } catch (\Exception $e) {
@@ -296,13 +289,13 @@ class AttendanceService
             Log::error('Biometric attendance processing failed', [
                 'biometric_data' => $biometricData,
                 'error' => $e->getMessage(),
-                'processing_time_ms' => $processingTime
+                'processing_time_ms' => $processingTime,
             ]);
 
             return [
                 'success' => false,
                 'error' => $e->getMessage(),
-                'processing_time_ms' => $processingTime
+                'processing_time_ms' => $processingTime,
             ];
         }
     }
@@ -315,10 +308,10 @@ class AttendanceService
         // Try different enrollment number patterns
         $patterns = [
             $employeeCode,                    // Exact match
-            'UV-' . $employeeCode,           // UV prefix
-            'UVCHM-' . $employeeCode,        // UVCHM prefix
-            'STD-' . $employeeCode,          // STD prefix
-            'ENR-' . $employeeCode           // ENR prefix
+            'UV-'.$employeeCode,           // UV prefix
+            'UVCHM-'.$employeeCode,        // UVCHM prefix
+            'STD-'.$employeeCode,          // STD prefix
+            'ENR-'.$employeeCode,           // ENR prefix
         ];
 
         foreach ($patterns as $pattern) {
@@ -327,18 +320,19 @@ class AttendanceService
                 Log::debug('Student found via enrollment pattern', [
                     'employee_code' => $employeeCode,
                     'pattern_used' => $pattern,
-                    'enrollment_number' => $student->enrollment_number
+                    'enrollment_number' => $student->enrollment_number,
                 ]);
+
                 return $student;
             }
         }
 
         // Try partial match as last resort
-        $student = Student::where('enrollment_number', 'LIKE', '%' . $employeeCode)->first();
+        $student = Student::where('enrollment_number', 'LIKE', '%'.$employeeCode)->first();
         if ($student) {
             Log::debug('Student found via partial match', [
                 'employee_code' => $employeeCode,
-                'enrollment_number' => $student->enrollment_number
+                'enrollment_number' => $student->enrollment_number,
             ]);
         }
 
@@ -364,7 +358,7 @@ class AttendanceService
             'students_without_biometric' => $studentsWithoutBiometric,
             'mapping_percentage' => $totalStudents > 0 ? round(($studentsWithBiometric / $totalStudents) * 100, 2) : 0,
             'recent_biometric_attendance_count' => $recentBiometricAttendance,
-            'integration_health' => $this->calculateIntegrationHealth($studentsWithBiometric, $totalStudents, $recentBiometricAttendance)
+            'integration_health' => $this->calculateIntegrationHealth($studentsWithBiometric, $totalStudents, $recentBiometricAttendance),
         ];
     }
 
@@ -373,8 +367,9 @@ class AttendanceService
      */
     private function calculateIntegrationHealth(int $mappedStudents, int $totalStudents, int $recentActivity): string
     {
-        if ($totalStudents === 0)
+        if ($totalStudents === 0) {
             return 'no_data';
+        }
 
         $mappingPercentage = ($mappedStudents / $totalStudents) * 100;
 
@@ -406,7 +401,7 @@ class AttendanceService
                     'enrollment_number' => $student->enrollment_number,
                     'batch_name' => $student->batch->name ?? 'No Batch',
                     'course_name' => $student->batch->course->name ?? 'No Course',
-                    'suggested_biometric_code' => $this->generateBiometricCodeFromEnrollment($student->enrollment_number)
+                    'suggested_biometric_code' => $this->generateBiometricCodeFromEnrollment($student->enrollment_number),
                 ];
             });
     }
@@ -433,16 +428,17 @@ class AttendanceService
         $results = [
             'success_count' => 0,
             'error_count' => 0,
-            'errors' => []
+            'errors' => [],
         ];
 
         foreach ($mappings as $mapping) {
             try {
                 $student = Student::find($mapping['student_id']);
 
-                if (!$student) {
+                if (! $student) {
                     $results['error_count']++;
                     $results['errors'][] = "Student not found: ID {$mapping['student_id']}";
+
                     continue;
                 }
 
@@ -454,6 +450,7 @@ class AttendanceService
                 if ($existingStudent) {
                     $results['error_count']++;
                     $results['errors'][] = "Biometric code '{$mapping['biometric_code']}' already used by {$existingStudent->name}";
+
                     continue;
                 }
 
@@ -465,17 +462,17 @@ class AttendanceService
                     'student_id' => $student->id,
                     'student_name' => $student->name,
                     'enrollment_number' => $student->enrollment_number,
-                    'biometric_code' => $mapping['biometric_code']
+                    'biometric_code' => $mapping['biometric_code'],
                 ]);
 
             } catch (\Exception $e) {
                 $results['error_count']++;
-                $results['errors'][] = "Error updating student ID {$mapping['student_id']}: " . $e->getMessage();
+                $results['errors'][] = "Error updating student ID {$mapping['student_id']}: ".$e->getMessage();
 
                 Log::error('Bulk biometric code update failed', [
                     'student_id' => $mapping['student_id'],
                     'biometric_code' => $mapping['biometric_code'],
-                    'error' => $e->getMessage()
+                    'error' => $e->getMessage(),
                 ]);
             }
         }
@@ -495,7 +492,7 @@ class AttendanceService
         $results = [
             'success_count' => 0,
             'error_count' => 0,
-            'errors' => []
+            'errors' => [],
         ];
 
         foreach ($studentsWithoutCodes as $student) {
@@ -511,7 +508,7 @@ class AttendanceService
                         ->where('id', '!=', $student->id)
                         ->exists()
                 ) {
-                    $generatedCode = $originalCode . '-' . $counter;
+                    $generatedCode = $originalCode.'-'.$counter;
                     $counter++;
                 }
 
@@ -522,16 +519,16 @@ class AttendanceService
                     'student_id' => $student->id,
                     'student_name' => $student->name,
                     'enrollment_number' => $student->enrollment_number,
-                    'generated_code' => $generatedCode
+                    'generated_code' => $generatedCode,
                 ]);
 
             } catch (\Exception $e) {
                 $results['error_count']++;
-                $results['errors'][] = "Error generating code for {$student->name}: " . $e->getMessage();
+                $results['errors'][] = "Error generating code for {$student->name}: ".$e->getMessage();
 
                 Log::error('Auto-generation failed', [
                     'student_id' => $student->id,
-                    'error' => $e->getMessage()
+                    'error' => $e->getMessage(),
                 ]);
             }
         }
@@ -562,7 +559,7 @@ class AttendanceService
                     'stats' => $stats,
                     'attendance_percentage' => $stats['attendance_percentage'],
                     'consecutive_absents' => $stats['consecutive_absents'],
-                    'risk_level' => $stats['risk_level']
+                    'risk_level' => $stats['risk_level'],
                 ]);
             }
         }
@@ -582,7 +579,7 @@ class AttendanceService
             'total_students_checked' => $lowAttendanceStudents->count(),
             'warnings_sent' => 0,
             'failed_notifications' => 0,
-            'details' => []
+            'details' => [],
         ];
 
         foreach ($lowAttendanceStudents as $studentData) {
@@ -603,7 +600,7 @@ class AttendanceService
                     'student_id' => $student->id,
                     'student_name' => $student->name,
                     'attendance_percentage' => $stats['attendance_percentage'],
-                    'notification_result' => $warningResult
+                    'notification_result' => $warningResult,
                 ];
 
             } catch (\Exception $e) {
@@ -611,7 +608,7 @@ class AttendanceService
                 $results['details'][] = [
                     'student_id' => $student->id,
                     'student_name' => $student->name,
-                    'error' => $e->getMessage()
+                    'error' => $e->getMessage(),
                 ];
             }
         }
@@ -619,7 +616,7 @@ class AttendanceService
         Log::info('Low attendance warnings processed', [
             'total_checked' => $results['total_students_checked'],
             'warnings_sent' => $results['warnings_sent'],
-            'failed' => $results['failed_notifications']
+            'failed' => $results['failed_notifications'],
         ]);
 
         return $results;
@@ -638,7 +635,7 @@ class AttendanceService
                 'cache_type' => $options['cache_type'] ?? 'overall',
                 'period_type' => $options['period_type'] ?? 'academic_year',
                 'period_value' => $options['period_value'] ?? date('Y'),
-                'is_current' => true
+                'is_current' => true,
             ], [
                 'calculation_date' => now()->toDateString(),
                 'total_classes' => $stats['total_classes'],
@@ -654,15 +651,15 @@ class AttendanceService
                     'monthly_trends' => $stats['monthly_trends'],
                     'weekly_patterns' => $stats['weekly_patterns'],
                     'performance_level' => $stats['performance_level'],
-                    'risk_level' => $stats['risk_level']
+                    'risk_level' => $stats['risk_level'],
                 ],
-                'expires_at' => now()->addHours(6)
+                'expires_at' => now()->addHours(6),
             ]);
 
         } catch (\Exception $e) {
             Log::error('Failed to update attendance cache', [
                 'student_id' => $studentId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
     }
@@ -677,8 +674,9 @@ class AttendanceService
         foreach ($studentIds as $studentId) {
             try {
                 $student = Student::find($studentId);
-                if (!$student)
+                if (! $student) {
                     continue;
+                }
 
                 $stats = $this->calculateStudentStats($studentId, $filters);
 
@@ -688,13 +686,13 @@ class AttendanceService
                     'enrollment_number' => $student->enrollment_number,
                     'biometric_code' => $student->biometric_employee_code,
                     'batch_name' => $student->batch->name ?? 'Unknown',
-                    'statistics' => $stats
+                    'statistics' => $stats,
                 ];
 
             } catch (\Exception $e) {
                 Log::error('Failed to get student summary', [
                     'student_id' => $studentId,
-                    'error' => $e->getMessage()
+                    'error' => $e->getMessage(),
                 ]);
             }
         }
@@ -714,7 +712,7 @@ class AttendanceService
             $originalData = $attendance->toArray();
 
             // Validate correction permissions using trait
-            if (!$this->validateAttendancePermissions($correctionData)) {
+            if (! $this->validateAttendancePermissions($correctionData)) {
                 throw new \Exception('Insufficient permissions for attendance correction');
             }
 
@@ -725,8 +723,8 @@ class AttendanceService
                 ['attendance_record' => $attendance, 'admin_override' => $correctionData['admin_override'] ?? false]
             );
 
-            if (!empty($transitionErrors)) {
-                throw new \Exception('Invalid status transition: ' . implode(', ', $transitionErrors));
+            if (! empty($transitionErrors)) {
+                throw new \Exception('Invalid status transition: '.implode(', ', $transitionErrors));
             }
 
             // Update attendance using trait method
@@ -739,7 +737,7 @@ class AttendanceService
             if ($originalData['status'] !== $updatedAttendance->status) {
                 $this->sendAttendanceNotification($updatedAttendance, [
                     'notify_parents' => $correctionData['notify_parents'] ?? false,
-                    'notify_faculty' => true
+                    'notify_faculty' => true,
                 ]);
             }
 
@@ -749,7 +747,7 @@ class AttendanceService
                 'success' => true,
                 'attendance' => $updatedAttendance,
                 'changes' => $updatedAttendance->getChanges(),
-                'original_status' => $originalData['status']
+                'original_status' => $originalData['status'],
             ];
 
         } catch (\Exception $e) {
@@ -757,7 +755,7 @@ class AttendanceService
 
             return [
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ];
         }
     }
@@ -781,7 +779,7 @@ class AttendanceService
             'weekly_patterns' => [],
             'late_patterns' => [],
             'performance_level' => 'no_data',
-            'risk_level' => 'low'
+            'risk_level' => 'low',
         ];
     }
 

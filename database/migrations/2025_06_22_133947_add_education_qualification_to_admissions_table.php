@@ -9,12 +9,12 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-   public function up(): void
-{
-    Schema::table('admissions', function (Blueprint $table) {
-        $table->text('education_qualification')->nullable()->after('address');
-    });
-}
+    public function up(): void
+    {
+        Schema::table('admissions', function (Blueprint $table) {
+            $table->text('education_qualification')->nullable()->after('address');
+        });
+    }
 
     /**
      * Reverse the migrations.

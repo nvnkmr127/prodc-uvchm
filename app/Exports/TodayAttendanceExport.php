@@ -33,7 +33,7 @@ class TodayAttendanceExport implements FromCollection, WithHeadings, WithMapping
             'Time In',
             'Time Out',
             'Date',
-            'Remarks'
+            'Remarks',
         ];
     }
 

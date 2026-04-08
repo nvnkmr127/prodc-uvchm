@@ -2,23 +2,22 @@
 
 namespace App\Services;
 
-use App\Models\PaymentReminder;
-use App\Models\PaymentDefaulter;
+use App\Models\ComponentPaymentItem;
 use App\Models\FeeCategory;
-use App\Models\PaymentReminderTemplate;
+use App\Models\PaymentDefaulter;
+use App\Models\PaymentReminder;
 use App\Models\PaymentReminderLog;
+use App\Models\PaymentReminderTemplate;
+use App\Models\Setting;
 use App\Models\Student;
 use App\Models\StudentFee;
-use App\Models\Setting;
-use App\Models\ComponentPaymentItem;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\DB;
 
 class ComponentPaymentReminderService
 {
-
     /**
      * Get defaulter stats safely with correct column names
      */
@@ -37,7 +36,8 @@ class ComponentPaymentReminderService
                 'recovery_rate' => $this->calculateResolutionRate(),
             ];
         } catch (\Exception $e) {
-            \Log::error('Error getting defaulter stats: ' . $e->getMessage());
+            \Log::error('Error getting defaulter stats: '.$e->getMessage());
+
             return [
                 'total_defaulters' => 0,
                 'total_active' => 0,
@@ -71,6 +71,7 @@ class ComponentPaymentReminderService
                 return 0;
             }
             $resolved = PaymentDefaulter::where('current_status', 'resolved')->count();
+
             return round(($resolved / $total) * 100, 2);
         } catch (\Exception $e) {
             return 0;
@@ -83,7 +84,7 @@ class ComponentPaymentReminderService
     private function getDefaulterComponentBreakdown(): array
     {
         try {
-            // Since PaymentDefaulter doesn't have fee_category_id, 
+            // Since PaymentDefaulter doesn't have fee_category_id,
             // we need to build this from StudentFee data
             return FeeCategory::select('fee_categories.name', 'fee_categories.category_type')
                 ->selectRaw('
@@ -100,7 +101,8 @@ class ComponentPaymentReminderService
                 ->get()
                 ->toArray();
         } catch (\Exception $e) {
-            \Log::error('Error getting component breakdown: ' . $e->getMessage());
+            \Log::error('Error getting component breakdown: '.$e->getMessage());
+
             return [];
         }
     }
@@ -111,7 +113,7 @@ class ComponentPaymentReminderService
     public function getChannelPerformanceStats(): array
     {
         try {
-            if (!class_exists('\App\Models\PaymentReminder')) {
+            if (! class_exists('\App\Models\PaymentReminder')) {
                 return [];
             }
 
@@ -133,14 +135,15 @@ class ComponentPaymentReminderService
                         'failed' => $item->failed,
                         'success_rate' => $successRate,
                         'avg_delivery_time' => round($item->avg_delivery_time ?? 0, 2),
-                        'status' => $this->getChannelStatus($successRate)
+                        'status' => $this->getChannelStatus($successRate),
                     ];
                 })
                 ->keyBy('channel')
                 ->toArray();
 
         } catch (\Exception $e) {
-            \Log::error('Error getting channel performance stats: ' . $e->getMessage());
+            \Log::error('Error getting channel performance stats: '.$e->getMessage());
+
             return [];
         }
     }
@@ -150,14 +153,19 @@ class ComponentPaymentReminderService
      */
     private function getChannelStatus(float $successRate): string
     {
-        if ($successRate >= 90)
+        if ($successRate >= 90) {
             return 'excellent';
-        if ($successRate >= 75)
+        }
+        if ($successRate >= 75) {
             return 'good';
-        if ($successRate >= 60)
+        }
+        if ($successRate >= 60) {
             return 'average';
-        if ($successRate >= 40)
+        }
+        if ($successRate >= 40) {
             return 'poor';
+        }
+
         return 'critical';
     }
 
@@ -254,7 +262,7 @@ class ComponentPaymentReminderService
                         ->whereIn('status', ['unpaid', 'partial'])
                         ->whereRaw('amount - concession_amount - paid_amount > 0')
                         ->with('feeCategory');
-                }
+                },
             ])
             ->get();
     }
@@ -311,33 +319,33 @@ class ComponentPaymentReminderService
             [
                 'type' => 'upcoming_due',
                 'scheduled_date' => Carbon::parse($studentFee->due_date)->subDays($reminderDaysBefore),
-                'channel' => 'email'
+                'channel' => 'email',
             ],
             [
                 'type' => 'upcoming_due',
                 'scheduled_date' => Carbon::parse($studentFee->due_date)->subDays(3),
-                'channel' => 'sms'
+                'channel' => 'sms',
             ],
             [
                 'type' => 'overdue',
                 'scheduled_date' => Carbon::parse($studentFee->due_date)->addDays(1),
-                'channel' => 'email'
+                'channel' => 'email',
             ],
             [
                 'type' => 'overdue',
                 'scheduled_date' => Carbon::parse($studentFee->due_date)->addDays(7),
-                'channel' => 'sms'
+                'channel' => 'sms',
             ],
             [
                 'type' => 'escalation',
                 'scheduled_date' => Carbon::parse($studentFee->due_date)->addDays($escalationDaysAfter),
-                'channel' => 'phone_call'
+                'channel' => 'phone_call',
             ],
             [
                 'type' => 'final_notice',
                 'scheduled_date' => Carbon::parse($studentFee->due_date)->addDays(30),
-                'channel' => 'physical_notice'
-            ]
+                'channel' => 'physical_notice',
+            ],
         ];
 
         foreach ($reminders as $reminder) {
@@ -355,7 +363,7 @@ class ComponentPaymentReminderService
                         'phone' => $student->student_mobile ?? $student->father_mobile,
                         'student_name' => $student->name,
                         'enrollment_number' => $student->enrollment_number,
-                    ]
+                    ],
                 ]);
             }
         }
@@ -383,14 +391,14 @@ class ComponentPaymentReminderService
                     ->whereIn('status', ['unpaid', 'partial'])
                     ->whereRaw('amount - concession_amount - paid_amount > 0');
             })->with([
-                        'batch.course',
-                        'studentFees' => function ($query) {
-                            $query->where('due_date', '<', now())
-                                ->whereIn('status', ['unpaid', 'partial'])
-                                ->whereRaw('amount - concession_amount - paid_amount > 0')
-                                ->with('feeCategory');
-                        }
-                    ])->get();
+                'batch.course',
+                'studentFees' => function ($query) {
+                    $query->where('due_date', '<', now())
+                        ->whereIn('status', ['unpaid', 'partial'])
+                        ->whereRaw('amount - concession_amount - paid_amount > 0')
+                        ->with('feeCategory');
+                },
+            ])->get();
 
             $defaulters = [];
 
@@ -472,7 +480,8 @@ class ComponentPaymentReminderService
             return $defaulters;
 
         } catch (\Exception $e) {
-            Log::error('Failed to generate component defaulters list: ' . $e->getMessage());
+            Log::error('Failed to generate component defaulters list: '.$e->getMessage());
+
             return [];
         }
     }
@@ -519,10 +528,10 @@ class ComponentPaymentReminderService
                 );
             }
 
-            Log::info('Updated component defaulter records: ' . count($defaulters) . ' defaulters processed');
+            Log::info('Updated component defaulter records: '.count($defaulters).' defaulters processed');
 
         } catch (\Exception $e) {
-            Log::error('Failed to update component defaulter records: ' . $e->getMessage());
+            Log::error('Failed to update component defaulter records: '.$e->getMessage());
         }
     }
 
@@ -536,10 +545,10 @@ class ComponentPaymentReminderService
         $collegeName = Setting::where('key', 'app_name')->value('value') ?? 'College';
 
         $templates = [
-            'upcoming_due' => "Dear {student_name}, this is a friendly reminder that your {fee_type} payment of ₹{amount} is due on {due_date}. Please make the payment to avoid any late fees. - {college_name}",
-            'overdue' => "Dear {student_name}, your {fee_type} payment of ₹{amount} was due on {due_date} and is now overdue. Please make the payment immediately to avoid further action. - {college_name}",
-            'escalation' => "URGENT: Dear {student_name}, your overdue {fee_type} payment of ₹{amount} requires immediate attention. Please contact the accounts office or make payment today. - {college_name}",
-            'final_notice' => "FINAL NOTICE: Dear {student_name}, this is your final notice for the overdue {fee_type} payment of ₹{amount}. Immediate action is required to avoid suspension. - {college_name}"
+            'upcoming_due' => 'Dear {student_name}, this is a friendly reminder that your {fee_type} payment of ₹{amount} is due on {due_date}. Please make the payment to avoid any late fees. - {college_name}',
+            'overdue' => 'Dear {student_name}, your {fee_type} payment of ₹{amount} was due on {due_date} and is now overdue. Please make the payment immediately to avoid further action. - {college_name}',
+            'escalation' => 'URGENT: Dear {student_name}, your overdue {fee_type} payment of ₹{amount} requires immediate attention. Please contact the accounts office or make payment today. - {college_name}',
+            'final_notice' => 'FINAL NOTICE: Dear {student_name}, this is your final notice for the overdue {fee_type} payment of ₹{amount}. Immediate action is required to avoid suspension. - {college_name}',
         ];
 
         $template = $templates[$reminder->reminder_type] ?? $templates['overdue'];
@@ -574,30 +583,34 @@ class ComponentPaymentReminderService
         $score = 0;
 
         // Amount factor
-        if ($amount > 50000)
+        if ($amount > 50000) {
             $score += 3;
-        elseif ($amount > 25000)
+        } elseif ($amount > 25000) {
             $score += 2;
-        elseif ($amount > 10000)
+        } elseif ($amount > 10000) {
             $score += 1;
+        }
 
         // Days overdue factor
-        if ($days > $chronicDays)
+        if ($days > $chronicDays) {
             $score += 3;
-        elseif ($days > $severeDays)
+        } elseif ($days > $severeDays) {
             $score += 2;
-        elseif ($days > $moderateDays)
+        } elseif ($days > $moderateDays) {
             $score += 1;
+        }
 
         // Multiple fees factor
-        if ($feeCount > 5)
+        if ($feeCount > 5) {
             $score += 2;
-        elseif ($feeCount > 3)
+        } elseif ($feeCount > 3) {
             $score += 1;
+        }
 
         // Multiple categories factor (indicates widespread non-payment)
-        if ($categoriesCount > 3)
+        if ($categoriesCount > 3) {
             $score += 1;
+        }
 
         return match (true) {
             $score >= 6 => 'chronic',
@@ -649,6 +662,7 @@ class ComponentPaymentReminderService
                     round(($category->collected_amount / $category->net_amount) * 100, 2) : 0;
                 $category->overdue_rate = $category->total_fees > 0 ?
                     round(($category->overdue_fees / $category->total_fees) * 100, 2) : 0;
+
                 return $category;
             })
             ->toArray();
@@ -665,17 +679,20 @@ class ComponentPaymentReminderService
 
             if ($result['success']) {
                 $reminder->markAsSent();
+
                 return ['success' => true, 'message' => 'Component reminder sent successfully'];
             } else {
-                $reminder->markAsFailed($result['error'] ?? 'Failed to send via ' . $reminder->channel);
+                $reminder->markAsFailed($result['error'] ?? 'Failed to send via '.$reminder->channel);
+
                 return ['success' => false, 'error' => $result['error'] ?? 'Failed to send reminder'];
             }
         } catch (\Exception $e) {
             $reminder->markAsFailed($e->getMessage());
             Log::error('Single component reminder failed', [
                 'reminder_id' => $reminder->id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
+
             return ['success' => false, 'error' => $e->getMessage()];
         }
     }
@@ -698,11 +715,11 @@ class ComponentPaymentReminderService
             'sent_today' => PaymentReminder::whereDate('sent_at', today())->count(),
             'sent_this_week' => PaymentReminder::whereBetween('sent_at', [
                 Carbon::now()->startOfWeek(),
-                Carbon::now()->endOfWeek()
+                Carbon::now()->endOfWeek(),
             ])->count(),
             'sent_this_month' => PaymentReminder::whereBetween('sent_at', [
                 Carbon::now()->startOfMonth(),
-                Carbon::now()->endOfMonth()
+                Carbon::now()->endOfMonth(),
             ])->count(),
             'failed_reminders' => PaymentReminder::where('status', 'failed')->count(),
             'overdue_reminders' => PaymentReminder::where('scheduled_date', '<', now())
@@ -757,25 +774,25 @@ class ComponentPaymentReminderService
         try {
             // Validate reminder before sending
             $validation = $this->validateReminder($reminder);
-            if (!$validation['valid']) {
+            if (! $validation['valid']) {
                 return [
                     'success' => false,
                     'error' => $validation['message'],
-                    'code' => 'VALIDATION_FAILED'
+                    'code' => 'VALIDATION_FAILED',
                 ];
             }
 
             // Get message content
-            if (!$message) {
+            if (! $message) {
                 $message = $reminder->message_content;
 
                 if (empty($message)) {
                     $template = $this->getTemplate($reminder->reminder_type, $reminder->channel);
-                    if (!$template) {
+                    if (! $template) {
                         return [
                             'success' => false,
                             'error' => 'No template found for reminder type and channel',
-                            'code' => 'TEMPLATE_NOT_FOUND'
+                            'code' => 'TEMPLATE_NOT_FOUND',
                         ];
                     }
 
@@ -793,8 +810,8 @@ class ComponentPaymentReminderService
                 'physical_notice' => $this->generatePhysicalNotice($reminder),
                 default => [
                     'success' => false,
-                    'error' => 'Unsupported channel: ' . $reminder->channel,
-                    'code' => 'UNSUPPORTED_CHANNEL'
+                    'error' => 'Unsupported channel: '.$reminder->channel,
+                    'code' => 'UNSUPPORTED_CHANNEL',
                 ]
             };
 
@@ -810,22 +827,22 @@ class ComponentPaymentReminderService
             return $result;
 
         } catch (\Exception $e) {
-            Log::error('Failed to send component payment reminder: ' . $e->getMessage(), [
+            Log::error('Failed to send component payment reminder: '.$e->getMessage(), [
                 'reminder_id' => $reminder->id,
                 'student_id' => $reminder->student_id,
                 'fee_category_id' => $reminder->fee_category_id,
                 'channel' => $reminder->channel,
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
-            $reminder->markAsFailed('System error: ' . $e->getMessage());
-            $this->logReminderAction($reminder, 'failed', 'System error: ' . $e->getMessage());
+            $reminder->markAsFailed('System error: '.$e->getMessage());
+            $this->logReminderAction($reminder, 'failed', 'System error: '.$e->getMessage());
 
             return [
                 'success' => false,
                 'error' => 'System error occurred while sending reminder',
                 'code' => 'SYSTEM_ERROR',
-                'details' => config('app.debug') ? $e->getMessage() : null
+                'details' => config('app.debug') ? $e->getMessage() : null,
             ];
         }
     }
@@ -839,7 +856,7 @@ class ComponentPaymentReminderService
             switch ($channel) {
                 case 'email':
                     // Send raw email
-                    if (!filter_var($recipient, FILTER_VALIDATE_EMAIL)) {
+                    if (! filter_var($recipient, FILTER_VALIDATE_EMAIL)) {
                         return ['success' => false, 'error' => 'Invalid email address'];
                     }
 
@@ -848,6 +865,7 @@ class ComponentPaymentReminderService
                             $mail->to($recipient)
                                 ->subject('Test Payment Reminder - System Check');
                         });
+
                         return ['success' => true, 'message' => 'Test email sent successfully'];
                     } catch (\Exception $e) {
                         // Attempt to use fallback or report specific mail error
@@ -858,11 +876,13 @@ class ComponentPaymentReminderService
                     // Log SMS attempt (simulated)
                     // In a real scenario, you would call the SMS provider API here
                     \Log::info("TEST SMS to {$recipient}: {$message}");
+
                     return ['success' => true, 'message' => 'Test SMS logged (Simulated)'];
 
                 case 'whatsapp':
                     // Log WhatsApp attempt (simulated)
                     \Log::info("TEST WhatsApp to {$recipient}: {$message}");
+
                     return ['success' => true, 'message' => 'Test WhatsApp logged (Simulated)'];
 
                 default:
@@ -870,6 +890,7 @@ class ComponentPaymentReminderService
             }
         } catch (\Exception $e) {
             \Log::error('Test reminder failed', ['error' => $e->getMessage()]);
+
             return ['success' => false, 'error' => $e->getMessage()];
         }
     }
@@ -882,7 +903,7 @@ class ComponentPaymentReminderService
         try {
             $student = $reminder->student;
 
-            if (!$student->email) {
+            if (! $student->email) {
                 throw new \Exception('Student email not found');
             }
 
@@ -899,6 +920,7 @@ class ComponentPaymentReminderService
             return true;
         } catch (\Exception $e) {
             Log::error('Failed to send email reminder', ['error' => $e->getMessage()]);
+
             return false;
         }
     }
@@ -913,16 +935,17 @@ class ComponentPaymentReminderService
                 'reminder_id' => $reminder->id,
                 'phone' => $reminder->recipient_details['phone'] ?? 'N/A',
                 'fee_category' => $reminder->feeCategory->name ?? 'N/A',
-                'message' => $message
+                'message' => $message,
             ]);
 
             return ['success' => true, 'message' => 'SMS logged successfully'];
         } catch (\Exception $e) {
             Log::error('SMS reminder failed', [
                 'reminder_id' => $reminder->id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
-            return ['success' => false, 'error' => 'SMS sending failed: ' . $e->getMessage()];
+
+            return ['success' => false, 'error' => 'SMS sending failed: '.$e->getMessage()];
         }
     }
 
@@ -936,16 +959,17 @@ class ComponentPaymentReminderService
                 'reminder_id' => $reminder->id,
                 'phone' => $reminder->recipient_details['phone'] ?? 'N/A',
                 'fee_category' => $reminder->feeCategory->name ?? 'N/A',
-                'message' => $message
+                'message' => $message,
             ]);
 
             return ['success' => true, 'message' => 'WhatsApp logged successfully'];
         } catch (\Exception $e) {
             Log::error('WhatsApp reminder failed', [
                 'reminder_id' => $reminder->id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
-            return ['success' => false, 'error' => 'WhatsApp sending failed: ' . $e->getMessage()];
+
+            return ['success' => false, 'error' => 'WhatsApp sending failed: '.$e->getMessage()];
         }
     }
 
@@ -961,7 +985,6 @@ class ComponentPaymentReminderService
         Log::info('Reminder queued', ['reminder_id' => $reminder->id]);
     }
 
-
     /**
      * Schedule phone call task
      */
@@ -972,16 +995,17 @@ class ComponentPaymentReminderService
                 'reminder_id' => $reminder->id,
                 'student' => $reminder->student->name,
                 'fee_category' => $reminder->feeCategory->name ?? 'N/A',
-                'phone' => $reminder->recipient_details['phone'] ?? 'N/A'
+                'phone' => $reminder->recipient_details['phone'] ?? 'N/A',
             ]);
 
             return ['success' => true, 'message' => 'Phone call scheduled successfully'];
         } catch (\Exception $e) {
             Log::error('Phone call scheduling failed', [
                 'reminder_id' => $reminder->id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
-            return ['success' => false, 'error' => 'Phone call scheduling failed: ' . $e->getMessage()];
+
+            return ['success' => false, 'error' => 'Phone call scheduling failed: '.$e->getMessage()];
         }
     }
 
@@ -994,16 +1018,17 @@ class ComponentPaymentReminderService
             Log::info('Component fee physical notice generated', [
                 'reminder_id' => $reminder->id,
                 'student' => $reminder->student->name,
-                'fee_category' => $reminder->feeCategory->name ?? 'N/A'
+                'fee_category' => $reminder->feeCategory->name ?? 'N/A',
             ]);
 
             return ['success' => true, 'message' => 'Physical notice generated successfully'];
         } catch (\Exception $e) {
             Log::error('Physical notice generation failed', [
                 'reminder_id' => $reminder->id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
-            return ['success' => false, 'error' => 'Physical notice generation failed: ' . $e->getMessage()];
+
+            return ['success' => false, 'error' => 'Physical notice generation failed: '.$e->getMessage()];
         }
     }
 
@@ -1015,9 +1040,9 @@ class ComponentPaymentReminderService
         $errors = [];
 
         // Check if student exists and is active
-        if (!$reminder->student) {
+        if (! $reminder->student) {
             $errors[] = 'Student not found';
-        } elseif (isset($reminder->student->is_active) && !$reminder->student->is_active) {
+        } elseif (isset($reminder->student->is_active) && ! $reminder->student->is_active) {
             $errors[] = 'Student is not active';
         }
 
@@ -1033,7 +1058,7 @@ class ComponentPaymentReminderService
         $contactInfo = $reminder->getRecipientInfo();
         switch ($reminder->channel) {
             case 'email':
-                if (empty($contactInfo['email']) || !filter_var($contactInfo['email'], FILTER_VALIDATE_EMAIL)) {
+                if (empty($contactInfo['email']) || ! filter_var($contactInfo['email'], FILTER_VALIDATE_EMAIL)) {
                     $errors[] = 'Invalid or missing email address';
                 }
                 break;
@@ -1043,7 +1068,7 @@ class ComponentPaymentReminderService
             case 'phone_call':
                 if (empty($contactInfo['phone'])) {
                     $errors[] = 'Missing phone number';
-                } elseif (!preg_match('/^[\+]?[\d\s\-\(\)]+$/', $contactInfo['phone'])) {
+                } elseif (! preg_match('/^[\+]?[\d\s\-\(\)]+$/', $contactInfo['phone'])) {
                     $errors[] = 'Invalid phone number format';
                 }
                 break;
@@ -1062,7 +1087,7 @@ class ComponentPaymentReminderService
         return [
             'valid' => empty($errors),
             'errors' => $errors,
-            'message' => implode('. ', $errors)
+            'message' => implode('. ', $errors),
         ];
     }
 
@@ -1075,11 +1100,11 @@ class ComponentPaymentReminderService
             'email' => ['count' => 5, 'period' => 24], // 5 emails per day
             'sms' => ['count' => 3, 'period' => 24],   // 3 SMS per day
             'whatsapp' => ['count' => 3, 'period' => 24], // 3 WhatsApp per day
-            'phone_call' => ['count' => 2, 'period' => 24] // 2 calls per day
+            'phone_call' => ['count' => 2, 'period' => 24], // 2 calls per day
         ];
 
         $limit = $limits[$channel] ?? null;
-        if (!$limit) {
+        if (! $limit) {
             return false;
         }
 
@@ -1104,7 +1129,7 @@ class ComponentPaymentReminderService
             ->first();
 
         // Fallback to default template for the type
-        if (!$template) {
+        if (! $template) {
             $template = PaymentReminderTemplate::where('is_active', true)
                 ->where('reminder_type', $reminderType)
                 ->where('is_default', true)
@@ -1112,7 +1137,7 @@ class ComponentPaymentReminderService
         }
 
         // Last resort: get any active template for the channel
-        if (!$template) {
+        if (! $template) {
             $template = PaymentReminderTemplate::where('is_active', true)
                 ->where('channel', $channel)
                 ->where('is_default', true)
@@ -1147,7 +1172,7 @@ class ComponentPaymentReminderService
             'contact_number' => Setting::where('key', 'contact_phone')->value('value') ?? '',
             'contact_email' => Setting::where('key', 'contact_email')->value('value') ?? '',
             'final_deadline' => now()->addDays(3)->format('d M Y'),
-            'academic_year' => $studentFee?->academic_year ?? date('Y') . '-' . (date('Y') + 1),
+            'academic_year' => $studentFee?->academic_year ?? date('Y').'-'.(date('Y') + 1),
             'installment_number' => $studentFee?->installment_number ?? 1,
             'original_amount' => $studentFee ? number_format($studentFee->amount, 2) : '0.00',
             'concession_amount' => $studentFee ? number_format($studentFee->concession_amount, 2) : '0.00',
@@ -1171,12 +1196,12 @@ class ComponentPaymentReminderService
                     'student_id' => $reminder->student_id,
                     'fee_category_id' => $reminder->fee_category_id,
                     'student_fee_id' => $reminder->student_fee_id,
-                    'timestamp' => now()->toDateTimeString()
+                    'timestamp' => now()->toDateTimeString(),
                 ]),
-                'performed_by' => auth()->id()
+                'performed_by' => auth()->id(),
             ]);
         } catch (\Exception $e) {
-            Log::error('Failed to log component reminder action: ' . $e->getMessage());
+            Log::error('Failed to log component reminder action: '.$e->getMessage());
         }
     }
 
@@ -1191,13 +1216,13 @@ class ComponentPaymentReminderService
                 ->with(['student', 'feeCategory', 'studentFee']);
 
             // Apply filters if provided
-            if (!empty($filters['channel'])) {
+            if (! empty($filters['channel'])) {
                 $query->where('channel', $filters['channel']);
             }
-            if (!empty($filters['reminder_type'])) {
+            if (! empty($filters['reminder_type'])) {
                 $query->where('reminder_type', $filters['reminder_type']);
             }
-            if (!empty($filters['fee_category_id'])) {
+            if (! empty($filters['fee_category_id'])) {
                 $query->where('fee_category_id', $filters['fee_category_id']);
             }
 
@@ -1207,7 +1232,7 @@ class ComponentPaymentReminderService
                 'processed' => 0,
                 'sent' => 0,
                 'failed' => 0,
-                'errors' => []
+                'errors' => [],
             ];
 
             foreach ($pendingReminders as $reminder) {
@@ -1223,7 +1248,7 @@ class ComponentPaymentReminderService
                         'reminder_id' => $reminder->id,
                         'student' => $reminder->student->name ?? 'Unknown',
                         'fee_category' => $reminder->feeCategory->name ?? 'Unknown',
-                        'error' => $result['error']
+                        'error' => $result['error'],
                     ];
                 }
             }
@@ -1231,13 +1256,13 @@ class ComponentPaymentReminderService
             return $results;
 
         } catch (\Exception $e) {
-            Log::error('Failed to process pending component reminders: ' . $e->getMessage());
+            Log::error('Failed to process pending component reminders: '.$e->getMessage());
 
             return [
                 'processed' => 0,
                 'sent' => 0,
                 'failed' => 0,
-                'errors' => ['System error: ' . $e->getMessage()]
+                'errors' => ['System error: '.$e->getMessage()],
             ];
         }
     }
@@ -1256,7 +1281,7 @@ class ComponentPaymentReminderService
             foreach ($students as $student) {
                 $studentFees = $student->studentFees()
                     ->whereIn('status', ['unpaid', 'partial'])
-                    ->when(!empty($feeCategories), function ($q) use ($feeCategories) {
+                    ->when(! empty($feeCategories), function ($q) use ($feeCategories) {
                         $q->whereIn('fee_category_id', $feeCategories);
                     })
                     ->get();
@@ -1266,7 +1291,7 @@ class ComponentPaymentReminderService
                         $this->setupComponentReminderSchedule($student, $studentFee);
                         $setupCount++;
                     } catch (\Exception $e) {
-                        $errors[] = "Failed to setup reminders for {$student->name} - {$studentFee->feeCategory->name}: " . $e->getMessage();
+                        $errors[] = "Failed to setup reminders for {$student->name} - {$studentFee->feeCategory->name}: ".$e->getMessage();
                     }
                 }
             }
@@ -1281,7 +1306,7 @@ class ComponentPaymentReminderService
             return [
                 'success' => false,
                 'setup_count' => $setupCount,
-                'errors' => array_merge($errors, ['System error: ' . $e->getMessage()]),
+                'errors' => array_merge($errors, ['System error: '.$e->getMessage()]),
             ];
         }
     }
@@ -1323,6 +1348,7 @@ class ComponentPaymentReminderService
             ->map(function ($category) {
                 $category->effectiveness_rate = $category->sent_reminders > 0 ?
                     round(($category->resulted_in_payment / $category->sent_reminders) * 100, 2) : 0;
+
                 return $category;
             })
             ->toArray();
@@ -1353,7 +1379,7 @@ class ComponentPaymentReminderService
                                 round(($data->successful_sends / $data->total_sent) * 100, 2) : 0,
                             'avg_send_delay_hours' => round($data->avg_send_delay_hours ?? 0, 2),
                         ];
-                    })->values()
+                    })->values(),
                 ];
             })
             ->values()
@@ -1378,6 +1404,7 @@ class ComponentPaymentReminderService
             ->map(function ($data) {
                 $data->on_time_rate = $data->total_reminders > 0 ?
                     round(($data->on_time_sends / $data->total_reminders) * 100, 2) : 0;
+
                 return $data;
             })
             ->toArray();
@@ -1396,8 +1423,9 @@ class ComponentPaymentReminderService
         $responseData = [];
 
         foreach ($remindersSent as $reminder) {
-            if (!$reminder->studentFee)
+            if (! $reminder->studentFee) {
                 continue;
+            }
 
             // Check if payment was made within 7 days of reminder
             $paymentMade = ComponentPaymentItem::where('student_fee_id', $reminder->student_fee_id)
@@ -1409,7 +1437,7 @@ class ComponentPaymentReminderService
 
             $categoryName = $reminder->feeCategory->name ?? 'Unknown';
 
-            if (!isset($responseData[$categoryName])) {
+            if (! isset($responseData[$categoryName])) {
                 $responseData[$categoryName] = [
                     'total_reminders' => 0,
                     'responses' => 0,

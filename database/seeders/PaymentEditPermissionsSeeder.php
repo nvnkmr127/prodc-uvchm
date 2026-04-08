@@ -51,11 +51,11 @@ class PaymentEditPermissionsSeeder extends Seeder
             $adminRole->givePermissionTo([
                 'manage financials',
                 'edit payments',
-                'reverse payments', 
+                'reverse payments',
                 'view payment history',
                 'revert payments',
                 'delete payments',
-                'export payment data'
+                'export payment data',
             ]);
         }
 
@@ -67,7 +67,7 @@ class PaymentEditPermissionsSeeder extends Seeder
                 'edit payments',
                 'view payment history',
                 'revert payments',
-                'export payment data'
+                'export payment data',
             ]);
         }
 
@@ -78,7 +78,7 @@ class PaymentEditPermissionsSeeder extends Seeder
                 'manage financials',
                 'edit payments',
                 'view payment history',
-                'export payment data'
+                'export payment data',
             ]);
         }
 
@@ -87,7 +87,7 @@ class PaymentEditPermissionsSeeder extends Seeder
         if ($cashierRole) {
             $cashierRole->givePermissionTo([
                 'manage financials',
-                'view payment history'
+                'view payment history',
             ]);
         }
 
@@ -95,7 +95,7 @@ class PaymentEditPermissionsSeeder extends Seeder
         $facultyRole = Role::where('name', 'faculty')->first();
         if ($facultyRole) {
             $facultyRole->givePermissionTo([
-                'view payment history'
+                'view payment history',
             ]);
         }
 

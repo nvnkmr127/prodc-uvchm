@@ -2,17 +2,14 @@
 
 namespace Tests;
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Foundation\Testing\WithFaker;
-use Tests\TestCase;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Spatie\Permission\Models\Role;
-use Spatie\Permission\Models\Permission;
 
 class ApplicationHealthTest extends TestCase
 {
     // Use this trait to reset the database for each test, but we'll disable it for a simple health check.
-    // use RefreshDatabase; 
+    // use RefreshDatabase;
 
     /**
      * A basic test to check that all key admin routes are accessible.
@@ -25,10 +22,10 @@ class ApplicationHealthTest extends TestCase
         $adminRole = Role::firstOrCreate(['name' => 'super-admin']);
         $adminUser = User::role('super-admin')->first();
 
-        if (!$adminUser) {
+        if (! $adminUser) {
             $this->fail("A 'super-admin' user is required to run the health check.");
         }
-        
+
         // An array of all the key routes to test
         $routes = [
             '/admin/dashboard',
@@ -55,7 +52,7 @@ class ApplicationHealthTest extends TestCase
 
             // Assert that the page returns a successful status code (not a 404 or 500)
             $response->assertStatus(200);
-            
+
             echo "✅  Successfully accessed: {$route}\n";
         }
 

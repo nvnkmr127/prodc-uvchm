@@ -5,11 +5,11 @@ namespace App\Console\Commands;
 use App\Models\Student;
 use App\Services\NotificationService; // Assuming you have this service
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\DB;
 
 class SendLowAttendanceAlerts extends Command
 {
     protected $signature = 'attendance:send-low-attendance-alerts';
+
     protected $description = 'Find students with low attendance and send notification alerts.';
 
     public function handle(NotificationService $notificationService): int
@@ -25,7 +25,7 @@ class SendLowAttendanceAlerts extends Command
                 'attendances as total_classes',
                 'attendances as present_classes' => function ($query) {
                     $query->whereIn('status', ['present', 'late']);
-                }
+                },
             ])
             ->get()
             // After getting the counts, filter in PHP to find the ones below the threshold.
@@ -34,11 +34,13 @@ class SendLowAttendanceAlerts extends Command
                     return false; // Skip students with no attendance records.
                 }
                 $student->attendance_percentage = ($student->present_classes / $student->total_classes) * 100;
+
                 return $student->attendance_percentage < $minimumAttendance;
             });
 
         if ($studentsWithLowAttendance->isEmpty()) {
             $this->info('No students with low attendance found. All good!');
+
             return self::SUCCESS;
         }
 
@@ -49,12 +51,13 @@ class SendLowAttendanceAlerts extends Command
                 'student_id' => $student->id,
                 'student_name' => $student->name,
                 'attendance_percentage' => round($student->attendance_percentage, 2),
-                'check_type' => 'weekly_review'
+                'check_type' => 'weekly_review',
             ]);
             $this->line("Alert sent for: {$student->name} ({$student->attendance_percentage}%)");
         }
 
         $this->info('Low attendance alerts sent successfully.');
+
         return self::SUCCESS;
     }
 }

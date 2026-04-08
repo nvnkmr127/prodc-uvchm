@@ -2,53 +2,54 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
 use App\Models\FeeCategory;
-use App\Models\StudentFee;
 use App\Models\Student;
-use Illuminate\Support\Facades\DB;
+use App\Models\StudentFee;
+use Illuminate\Console\Command;
 
 class AnalyzeFeeCategories extends Command
 {
     protected $signature = 'fees:analyze-categories {--category-id= : Analyze specific category} {--export : Export results to file}';
+
     protected $description = 'Analyze fee categories and show payment statistics';
 
     public function handle()
     {
         $this->info('🔍 Analyzing Fee Categories...');
-        
+
         $categoryId = $this->option('category-id');
         $export = $this->option('export');
-        
+
         if ($categoryId) {
             $this->analyzeSingleCategory($categoryId);
         } else {
             $this->analyzeAllCategories();
         }
-        
+
         if ($export) {
             $this->exportAnalysis();
         }
-        
+
         return 0;
     }
 
     private function analyzeSingleCategory($categoryId)
     {
         $category = FeeCategory::find($categoryId);
-        
-        if (!$category) {
+
+        if (! $category) {
             $this->error("❌ Fee category with ID {$categoryId} not found!");
+
             return;
         }
-        
+
         $this->info("📊 Analyzing Category: {$category->name}");
         $this->newLine();
-        
+
         $stats = $this->getCategoryStats($category);
-        
+
         // Display category info
-        $this->line("📋 Category Information:");
+        $this->line('📋 Category Information:');
         $this->table(
             ['Property', 'Value'],
             [
@@ -59,26 +60,26 @@ class AnalyzeFeeCategories extends Command
                 ['Recurring', $category->is_recurring ? 'Yes' : 'No'],
             ]
         );
-        
+
         $this->newLine();
-        
+
         // Display statistics
-        $this->line("📈 Payment Statistics:");
+        $this->line('📈 Payment Statistics:');
         $this->table(
             ['Metric', 'Value'],
             [
                 ['Total Students', number_format($stats['total_students'])],
-                ['Students Paid', number_format($stats['paid_students']) . ' (' . round($stats['paid_students_percentage'], 2) . '%)'],
-                ['Students Pending', number_format($stats['pending_students']) . ' (' . round($stats['pending_students_percentage'], 2) . '%)'],
-                ['Total Billed', '₹' . number_format($stats['total_billed'])],
-                ['Total Collected', '₹' . number_format($stats['total_collected'])],
-                ['Total Pending', '₹' . number_format($stats['total_pending'])],
-                ['Total Overdue', '₹' . number_format($stats['total_overdue'])],
-                ['Collection Rate', round($stats['collection_rate'], 2) . '%'],
-                ['Average Fee Amount', '₹' . number_format($stats['avg_fee_amount'])],
+                ['Students Paid', number_format($stats['paid_students']).' ('.round($stats['paid_students_percentage'], 2).'%)'],
+                ['Students Pending', number_format($stats['pending_students']).' ('.round($stats['pending_students_percentage'], 2).'%)'],
+                ['Total Billed', '₹'.number_format($stats['total_billed'])],
+                ['Total Collected', '₹'.number_format($stats['total_collected'])],
+                ['Total Pending', '₹'.number_format($stats['total_pending'])],
+                ['Total Overdue', '₹'.number_format($stats['total_overdue'])],
+                ['Collection Rate', round($stats['collection_rate'], 2).'%'],
+                ['Average Fee Amount', '₹'.number_format($stats['avg_fee_amount'])],
             ]
         );
-        
+
         // Show top defaulters for this category
         $this->newLine();
         $this->showTopDefaulters($category);
@@ -86,9 +87,9 @@ class AnalyzeFeeCategories extends Command
 
     private function analyzeAllCategories()
     {
-        $this->info("📊 Analyzing All Fee Categories");
+        $this->info('📊 Analyzing All Fee Categories');
         $this->newLine();
-        
+
         $categories = FeeCategory::select('fee_categories.*')
             ->selectRaw('
                 COUNT(DISTINCT student_fees.student_id) as total_students,
@@ -106,37 +107,38 @@ class AnalyzeFeeCategories extends Command
 
         if ($categories->isEmpty()) {
             $this->warn('⚠️  No fee categories found!');
+
             return;
         }
-        
+
         // Summary table
-        $this->line("📋 Category Overview:");
+        $this->line('📋 Category Overview:');
         $this->table(
             ['Category', 'Type', 'Students', 'Billed', 'Collected', 'Pending', 'Collection %', 'Status'],
-            $categories->map(function($category) {
-                $collectionRate = $category->total_billed > 0 ? 
+            $categories->map(function ($category) {
+                $collectionRate = $category->total_billed > 0 ?
                     ($category->total_collected / $category->total_billed) * 100 : 0;
-                
-                $status = $collectionRate >= 80 ? '✅ Good' : 
+
+                $status = $collectionRate >= 80 ? '✅ Good' :
                          ($collectionRate >= 60 ? '⚠️  Warning' : '❌ Critical');
-                
+
                 return [
                     $category->name,
                     ucfirst($category->category_type ?? 'General'),
                     number_format($category->total_students ?? 0),
-                    '₹' . number_format($category->total_billed ?? 0),
-                    '₹' . number_format($category->total_collected ?? 0),
-                    '₹' . number_format($category->total_pending ?? 0),
-                    round($collectionRate, 1) . '%',
-                    $status
+                    '₹'.number_format($category->total_billed ?? 0),
+                    '₹'.number_format($category->total_collected ?? 0),
+                    '₹'.number_format($category->total_pending ?? 0),
+                    round($collectionRate, 1).'%',
+                    $status,
                 ];
             })->toArray()
         );
-        
+
         // Overall statistics
         $this->newLine();
         $this->showOverallStats($categories);
-        
+
         // Show problematic categories
         $this->newLine();
         $this->showProblematicCategories($categories);
@@ -198,19 +200,20 @@ class AnalyzeFeeCategories extends Command
 
         if ($defaulters->isEmpty()) {
             $this->info('✅ No students with pending payments in this category!');
+
             return;
         }
 
-        $this->line("🔥 Top 10 Students with Pending Payments:");
+        $this->line('🔥 Top 10 Students with Pending Payments:');
         $this->table(
             ['Student', 'Course', 'Pending Amount', 'Pending Fees', 'Earliest Due'],
-            $defaulters->map(function($student) {
+            $defaulters->map(function ($student) {
                 return [
                     $student->name,
                     $student->batch?->course?->name ?? 'N/A',
-                    '₹' . number_format($student->pending_amount),
+                    '₹'.number_format($student->pending_amount),
                     $student->pending_fees,
-                    $student->earliest_due_date ? \Carbon\Carbon::parse($student->earliest_due_date)->format('M d, Y') : 'N/A'
+                    $student->earliest_due_date ? \Carbon\Carbon::parse($student->earliest_due_date)->format('M d, Y') : 'N/A',
                 ];
             })->toArray()
         );
@@ -226,50 +229,52 @@ class AnalyzeFeeCategories extends Command
 
         $overallCollectionRate = $totalBilled > 0 ? ($totalCollected / $totalBilled) * 100 : 0;
 
-        $this->line("🌟 Overall Statistics:");
+        $this->line('🌟 Overall Statistics:');
         $this->table(
             ['Metric', 'Value'],
             [
                 ['Total Categories', number_format($categories->count())],
                 ['Total Students', number_format($totalStudents)],
-                ['Total Billed', '₹' . number_format($totalBilled)],
-                ['Total Collected', '₹' . number_format($totalCollected)],
-                ['Total Pending', '₹' . number_format($totalPending)],
-                ['Total Overdue', '₹' . number_format($totalOverdue)],
-                ['Overall Collection Rate', round($overallCollectionRate, 2) . '%'],
-                ['Average per Student', $totalStudents > 0 ? '₹' . number_format($totalBilled / $totalStudents) : '₹0'],
+                ['Total Billed', '₹'.number_format($totalBilled)],
+                ['Total Collected', '₹'.number_format($totalCollected)],
+                ['Total Pending', '₹'.number_format($totalPending)],
+                ['Total Overdue', '₹'.number_format($totalOverdue)],
+                ['Overall Collection Rate', round($overallCollectionRate, 2).'%'],
+                ['Average per Student', $totalStudents > 0 ? '₹'.number_format($totalBilled / $totalStudents) : '₹0'],
             ]
         );
     }
 
     private function showProblematicCategories($categories)
     {
-        $problematic = $categories->filter(function($category) {
-            $collectionRate = $category->total_billed > 0 ? 
+        $problematic = $categories->filter(function ($category) {
+            $collectionRate = $category->total_billed > 0 ?
                 ($category->total_collected / $category->total_billed) * 100 : 0;
+
             return $collectionRate < 70 && $category->total_pending > 50000; // Categories with <70% collection and >50k pending
         });
 
         if ($problematic->isEmpty()) {
             $this->info('✅ No problematic categories found!');
+
             return;
         }
 
-        $this->line("⚠️  Categories Requiring Attention:");
+        $this->line('⚠️  Categories Requiring Attention:');
         $this->table(
             ['Category', 'Collection Rate', 'Pending Amount', 'Students Affected', 'Recommendation'],
-            $problematic->map(function($category) {
-                $collectionRate = $category->total_billed > 0 ? 
+            $problematic->map(function ($category) {
+                $collectionRate = $category->total_billed > 0 ?
                     ($category->total_collected / $category->total_billed) * 100 : 0;
-                
+
                 $recommendation = $collectionRate < 50 ? 'Urgent Action Required' : 'Increase Follow-ups';
-                
+
                 return [
                     $category->name,
-                    round($collectionRate, 1) . '%',
-                    '₹' . number_format($category->total_pending ?? 0),
+                    round($collectionRate, 1).'%',
+                    '₹'.number_format($category->total_pending ?? 0),
                     number_format($category->pending_students ?? 0),
-                    $recommendation
+                    $recommendation,
                 ];
             })->toArray()
         );
@@ -278,13 +283,14 @@ class AnalyzeFeeCategories extends Command
     private function exportAnalysis()
     {
         $this->info('📁 Exporting analysis to file...');
-        
+
         // This would generate a detailed export file
-        $filename = storage_path('app/fee-category-analysis-' . now()->format('Y-m-d-H-i-s') . '.json');
-        
+        $filename = storage_path('app/fee-category-analysis-'.now()->format('Y-m-d-H-i-s').'.json');
+
         $categories = FeeCategory::with(['studentFees.student.batch.course'])->get();
-        $analysisData = $categories->map(function($category) {
+        $analysisData = $categories->map(function ($category) {
             $stats = $this->getCategoryStats($category);
+
             return [
                 'category' => [
                     'id' => $category->id,
@@ -295,12 +301,12 @@ class AnalyzeFeeCategories extends Command
                     'is_recurring' => $category->is_recurring,
                 ],
                 'statistics' => $stats,
-                'generated_at' => now()->toDateTimeString()
+                'generated_at' => now()->toDateTimeString(),
             ];
         });
-        
+
         file_put_contents($filename, json_encode($analysisData, JSON_PRETTY_PRINT));
-        
+
         $this->info("✅ Analysis exported to: {$filename}");
     }
 }

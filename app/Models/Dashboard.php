@@ -18,20 +18,20 @@ class Dashboard extends Model
         'layout',
         'config',
         'is_active',
-        'is_default'
+        'is_default',
     ];
 
     protected $casts = [
         'layout' => 'array',
         'config' => 'array',
         'is_active' => 'boolean',
-        'is_default' => 'boolean'
+        'is_default' => 'boolean',
     ];
 
     protected static function boot()
     {
         parent::boot();
-        
+
         static::creating(function ($dashboard) {
             if (empty($dashboard->slug)) {
                 $dashboard->slug = Str::slug($dashboard->name);
@@ -47,7 +47,7 @@ class Dashboard extends Model
 
     public function widgets()
     {
-        if (!class_exists('App\\Models\\DashboardWidget')) {
+        if (! class_exists('App\\Models\\DashboardWidget')) {
             return $this->hasMany(UserDashboardPreference::class)->whereRaw('1 = 0');
         }
 
@@ -56,7 +56,7 @@ class Dashboard extends Model
 
     public function activeWidgets()
     {
-        if (!class_exists('App\\Models\\DashboardWidget')) {
+        if (! class_exists('App\\Models\\DashboardWidget')) {
             return $this->hasMany(UserDashboardPreference::class)->whereRaw('1 = 0');
         }
 

@@ -4,8 +4,8 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
-use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\Cache;
+use Symfony\Component\HttpFoundation\Response;
 
 class DashboardCacheMiddleware
 {
@@ -15,41 +15,41 @@ class DashboardCacheMiddleware
     public function handle(Request $request, Closure $next, $cacheTime = 300): Response
     {
         $user = auth()->user();
-        
-        if (!$user) {
+
+        if (! $user) {
             return $next($request);
         }
-        
+
         // Skip caching for certain requests
         if ($this->shouldSkipCache($request)) {
             return $next($request);
         }
-        
+
         $cacheKey = $this->generateCacheKey($request, $user);
-        
+
         // Check if we have cached response
         if ($request->isMethod('GET') && Cache::has($cacheKey)) {
             $cachedData = Cache::get($cacheKey);
-            
+
             return response()->json(array_merge($cachedData, [
                 'cached' => true,
-                'cache_time' => $cachedData['cached_at'] ?? null
+                'cache_time' => $cachedData['cached_at'] ?? null,
             ]));
         }
-        
+
         $response = $next($request);
-        
+
         // Cache successful responses
         if ($response->isSuccessful() && $request->isMethod('GET')) {
             $data = $response->getData(true);
             $data['cached_at'] = now()->toISOString();
-            
-            Cache::put($cacheKey, $data, (int)$cacheTime);
+
+            Cache::put($cacheKey, $data, (int) $cacheTime);
         }
-        
+
         return $response;
     }
-    
+
     /**
      * Determine if caching should be skipped
      */
@@ -64,7 +64,7 @@ class DashboardCacheMiddleware
                str_contains($request->path(), 'export') ||
                str_contains($request->path(), 'realtime');
     }
-    
+
     /**
      * Generate cache key for request
      */
@@ -75,9 +75,9 @@ class DashboardCacheMiddleware
             $user->id,
             $user->getRoleNames()->first(),
             md5($request->getRequestUri()),
-            md5(serialize($request->query->all()))
+            md5(serialize($request->query->all())),
         ];
-        
+
         return implode('_', array_filter($keyParts));
     }
 }

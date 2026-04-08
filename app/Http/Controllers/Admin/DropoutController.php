@@ -10,12 +10,12 @@ use Illuminate\Http\Request;
 class DropoutController extends Controller
 {
     protected $dropoutService;
-    
+
     public function __construct(DropoutManagementService $dropoutService)
     {
         $this->dropoutService = $dropoutService;
     }
-    
+
     /**
      * Show dropout confirmation page
      */
@@ -25,12 +25,12 @@ class DropoutController extends Controller
             return redirect()->route('admin.students.show', $student)
                 ->with('error', 'Student is already marked as dropout');
         }
-        
+
         $financialSummary = $student->getFinancialSummary();
-        
+
         return view('admin.students.confirm-dropout', compact('student', 'financialSummary'));
     }
-    
+
     /**
      * Process the dropout
      */
@@ -39,11 +39,11 @@ class DropoutController extends Controller
         $request->validate([
             'dropout_date' => 'required|date|before_or_equal:today',
             'reason' => 'required|string|max:500',
-            'confirm_preservation' => 'required|accepted'
+            'confirm_preservation' => 'required|accepted',
         ]);
-        
+
         $result = $this->dropoutService->processDropout($student, $request->only('dropout_date', 'reason'));
-        
+
         if ($result['success']) {
             return redirect()->route('admin.students.show', $student)
                 ->with('success', $result['message'])
@@ -53,7 +53,7 @@ class DropoutController extends Controller
                 ->with('error', $result['message']);
         }
     }
-    
+
     /**
      * Show all dropout students
      */
@@ -63,12 +63,12 @@ class DropoutController extends Controller
             ->with(['batch.course'])
             ->orderBy('dropout_date', 'desc')
             ->paginate(50);
-            
+
         $statistics = $this->dropoutService->getDropoutStatistics();
-        
+
         return view('admin.dropouts.index', compact('dropouts', 'statistics'));
     }
-    
+
     /**
      * Show dropout details
      */
@@ -77,21 +77,21 @@ class DropoutController extends Controller
         if ($student->status !== 'dropout') {
             return redirect()->route('admin.students.show', $student);
         }
-        
+
         return view('admin.dropouts.show', compact('student'));
     }
-    
+
     /**
      * Reactivate a dropout student
      */
     public function reactivate(Request $request, Student $student)
     {
         $request->validate([
-            'reason' => 'required|string|max:500'
+            'reason' => 'required|string|max:500',
         ]);
-        
+
         $result = $this->dropoutService->reactivateStudent($student, $request->reason);
-        
+
         if ($result['success']) {
             return redirect()->route('admin.students.show', $student)
                 ->with('success', $result['message']);

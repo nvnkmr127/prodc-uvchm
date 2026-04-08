@@ -2,23 +2,25 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
+use App\Models\FeeCategory;
 use App\Models\Invoice;
+use App\Models\Payment;
 use App\Models\Student;
 use App\Models\StudentFee;
-use App\Models\Payment;
-use App\Models\FeeCategory;
+use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
 class MigrateToComponentSystem extends Command
 {
     protected $signature = 'migrate:component-system {--dry-run : Run without making changes} {--batch-size=100 : Number of records to process at once}';
+
     protected $description = 'Migrate from invoice system to component-based payment system';
 
     public function handle()
     {
-        if (!class_exists('App\\Models\\Invoice')) {
+        if (! class_exists('App\\Models\\Invoice')) {
             $this->error('Invoice model is not available. This project is running on the component-based payment system.');
+
             return self::FAILURE;
         }
 
@@ -58,12 +60,13 @@ class MigrateToComponentSystem extends Command
         Invoice::with(['student', 'items.feeCategory'])
             ->chunk($batchSize, function ($invoices) use ($isDryRun, &$migratedCount, $generalFeeCategory) {
                 foreach ($invoices as $invoice) {
-                    if (!$invoice->student) {
+                    if (! $invoice->student) {
                         $this->warn("Skipping invoice {$invoice->id} - no student found");
+
                         continue;
                     }
 
-                    if (!$isDryRun) {
+                    if (! $isDryRun) {
                         // Create student fees from invoice items
                         if ($invoice->items->count() > 0) {
                             foreach ($invoice->items as $item) {
@@ -76,7 +79,7 @@ class MigrateToComponentSystem extends Command
                                     'due_date' => $invoice->due_date,
                                     'status' => $this->mapInvoiceStatusToFeeStatus($invoice->status),
                                     'installment_number' => $invoice->term_number ?? 1,
-                                    'total_installments' => 1
+                                    'total_installments' => 1,
                                 ]);
                             }
                         } else {
@@ -91,7 +94,7 @@ class MigrateToComponentSystem extends Command
                                 'due_date' => $invoice->due_date,
                                 'status' => $this->mapInvoiceStatusToFeeStatus($invoice->status),
                                 'installment_number' => $invoice->term_number ?? 1,
-                                'total_installments' => 1
+                                'total_installments' => 1,
                             ]);
                         }
                     }
@@ -116,20 +119,20 @@ class MigrateToComponentSystem extends Command
             ->whereNotNull('invoice_id')
             ->chunk($batchSize, function ($payments) use ($isDryRun, &$migratedCount) {
                 foreach ($payments as $payment) {
-                    if (!$payment->invoice || !$payment->invoice->student) {
+                    if (! $payment->invoice || ! $payment->invoice->student) {
                         continue;
                     }
 
-                    if (!$isDryRun) {
+                    if (! $isDryRun) {
                         // Update payment with component details
                         $componentDetails = $this->buildComponentDetailsFromInvoice($payment->invoice);
-                        
+
                         $payment->update([
                             'student_id' => $payment->invoice->student_id,
                             'payment_type' => 'component',
                             'component_details' => $componentDetails,
                             'receipt_number' => $this->generateReceiptNumber($payment),
-                            'academic_year' => $this->getAcademicYearFromDate($payment->payment_date)
+                            'academic_year' => $this->getAcademicYearFromDate($payment->payment_date),
                         ]);
 
                         // Create component payment items
@@ -152,7 +155,7 @@ class MigrateToComponentSystem extends Command
         $currentAcademicYear = $this->getCurrentAcademicYear();
 
         foreach ($students as $student) {
-            if (!$student->batch || !$student->batch->feeStructure) {
+            if (! $student->batch || ! $student->batch->feeStructure) {
                 continue;
             }
 
@@ -160,10 +163,10 @@ class MigrateToComponentSystem extends Command
                 $existingFee = StudentFee::where([
                     'student_id' => $student->id,
                     'fee_category_id' => $category->id,
-                    'academic_year' => $currentAcademicYear
+                    'academic_year' => $currentAcademicYear,
                 ])->first();
 
-                if (!$existingFee && !$isDryRun) {
+                if (! $existingFee && ! $isDryRun) {
                     StudentFee::create([
                         'student_id' => $student->id,
                         'fee_structure_id' => $student->batch->feeStructure->id,
@@ -173,7 +176,7 @@ class MigrateToComponentSystem extends Command
                         'due_date' => now()->addDays(30),
                         'status' => 'unpaid',
                         'installment_number' => 1,
-                        'total_installments' => 1
+                        'total_installments' => 1,
                     ]);
 
                     $createdCount++;
@@ -217,11 +220,11 @@ class MigrateToComponentSystem extends Command
     {
         $year = date('Y', strtotime($date));
         $month = date('n', strtotime($date));
-        
+
         if ($month >= 4) {
-            return $year . '-' . ($year + 1);
+            return $year.'-'.($year + 1);
         } else {
-            return ($year - 1) . '-' . $year;
+            return ($year - 1).'-'.$year;
         }
     }
 
@@ -232,7 +235,7 @@ class MigrateToComponentSystem extends Command
 
     private function mapInvoiceStatusToFeeStatus($invoiceStatus): string
     {
-        return match($invoiceStatus) {
+        return match ($invoiceStatus) {
             'paid' => 'paid',
             'partially_paid', 'partial' => 'partial',
             'unpaid' => 'unpaid',
@@ -250,26 +253,26 @@ class MigrateToComponentSystem extends Command
         // Proportional distribution for multiple items
         $totalInvoiceAmount = $invoice->items->sum('amount');
         $itemProportion = $item->amount / $totalInvoiceAmount;
-        
+
         return ($invoice->paid_amount ?? 0) * $itemProportion;
     }
 
     private function buildComponentDetailsFromInvoice($invoice): array
     {
         $components = [];
-        
+
         if ($invoice->items->count() > 0) {
             foreach ($invoice->items as $item) {
                 $components[] = [
                     'fee_category_id' => $item->fee_category_id,
-                    'amount' => $this->calculatePaidAmountForItem($invoice, $item)
+                    'amount' => $this->calculatePaidAmountForItem($invoice, $item),
                 ];
             }
         } else {
             $generalFeeCategory = FeeCategory::firstOrCreate(['name' => 'General Fee']);
             $components[] = [
                 'fee_category_id' => $generalFeeCategory->id,
-                'amount' => $invoice->paid_amount ?? 0
+                'amount' => $invoice->paid_amount ?? 0,
             ];
         }
 
@@ -282,7 +285,7 @@ class MigrateToComponentSystem extends Command
             $studentFee = StudentFee::where([
                 'student_id' => $payment->student_id,
                 'fee_category_id' => $component['fee_category_id'],
-                'academic_year' => $payment->academic_year
+                'academic_year' => $payment->academic_year,
             ])->first();
 
             if ($studentFee) {
@@ -291,7 +294,7 @@ class MigrateToComponentSystem extends Command
                     'student_fee_id' => $studentFee->id,
                     'amount_paid' => $component['amount'],
                     'created_at' => $payment->created_at,
-                    'updated_at' => $payment->updated_at
+                    'updated_at' => $payment->updated_at,
                 ]);
             }
         }
@@ -299,7 +302,7 @@ class MigrateToComponentSystem extends Command
 
     private function generateReceiptNumber($payment): string
     {
-        return 'RCP' . date('Y', strtotime($payment->payment_date)) . 
+        return 'RCP'.date('Y', strtotime($payment->payment_date)).
                str_pad($payment->id, 6, '0', STR_PAD_LEFT);
     }
 }

@@ -7,7 +7,9 @@ use Illuminate\Support\Facades\Log;
 class MockSMSService
 {
     protected $mockResponses;
+
     protected $failureRate;
+
     protected $delaySimulation;
 
     public function __construct()
@@ -32,8 +34,9 @@ class MockSMSService
             if (rand(1, 100) <= ($this->failureRate * 100)) {
                 Log::warning('Mock SMS failure simulation', [
                     'phone' => $phoneNumber,
-                    'reason' => 'Simulated network error'
+                    'reason' => 'Simulated network error',
                 ]);
+
                 return false;
             }
 
@@ -41,9 +44,9 @@ class MockSMSService
             Log::info('Mock SMS sent successfully', [
                 'phone' => $this->formatPhoneNumber($phoneNumber),
                 'message_length' => strlen($message),
-                'message_preview' => substr($message, 0, 50) . '...',
-                'mock_message_id' => 'MOCK_' . uniqid(),
-                'timestamp' => now()->toISOString()
+                'message_preview' => substr($message, 0, 50).'...',
+                'mock_message_id' => 'MOCK_'.uniqid(),
+                'timestamp' => now()->toISOString(),
             ]);
 
             return true;
@@ -51,8 +54,9 @@ class MockSMSService
         } catch (\Exception $e) {
             Log::error('Mock SMS service error', [
                 'phone' => $phoneNumber,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
+
             return false;
         }
     }
@@ -63,7 +67,7 @@ class MockSMSService
     public function sendBulkSMS(array $recipients, string $message): array
     {
         $results = [];
-        
+
         foreach ($recipients as $recipient) {
             $phoneNumber = is_array($recipient) ? $recipient['phone'] : $recipient;
             $results[$phoneNumber] = $this->sendPaymentReminder($phoneNumber, $message);
@@ -72,7 +76,7 @@ class MockSMSService
         Log::info('Mock bulk SMS completed', [
             'total_recipients' => count($recipients),
             'successful' => count(array_filter($results)),
-            'failed' => count($recipients) - count(array_filter($results))
+            'failed' => count($recipients) - count(array_filter($results)),
         ]);
 
         return $results;
@@ -91,7 +95,7 @@ class MockSMSService
             'message_id' => $messageId,
             'status' => $status,
             'delivered_at' => $status === 'delivered' ? now()->subMinutes(rand(1, 30))->toISOString() : null,
-            'error_message' => $status === 'failed' ? 'Mock delivery failure' : null
+            'error_message' => $status === 'failed' ? 'Mock delivery failure' : null,
         ];
     }
 
@@ -103,7 +107,7 @@ class MockSMSService
         return [
             'balance' => rand(100, 1000),
             'currency' => 'INR',
-            'last_updated' => now()->toISOString()
+            'last_updated' => now()->toISOString(),
         ];
     }
 
@@ -113,7 +117,8 @@ class MockSMSService
     public function validatePhoneNumber(string $phone): bool
     {
         $formatted = $this->formatPhoneNumber($phone);
-        return !is_null($formatted) && strlen($formatted) === 10;
+
+        return ! is_null($formatted) && strlen($formatted) === 10;
     }
 
     /**
@@ -123,11 +128,11 @@ class MockSMSService
     {
         // Remove all non-numeric characters
         $phone = preg_replace('/[^0-9]/', '', $phone);
-        
+
         if (strlen($phone) === 11 && substr($phone, 0, 1) === '0') {
             $phone = substr($phone, 1); // Remove leading 0
         }
-        
+
         return strlen($phone) === 10 ? $phone : null;
     }
 
@@ -140,8 +145,8 @@ class MockSMSService
             'service_type' => 'mock',
             'total_sent' => rand(1000, 5000),
             'success_rate' => (1 - $this->failureRate) * 100,
-            'average_delivery_time' => rand(30, 120) . ' seconds',
-            'last_activity' => now()->subMinutes(rand(1, 60))->toISOString()
+            'average_delivery_time' => rand(30, 120).' seconds',
+            'last_activity' => now()->subMinutes(rand(1, 60))->toISOString(),
         ];
     }
 }

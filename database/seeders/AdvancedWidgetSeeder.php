@@ -2,8 +2,8 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\Widget;
+use Illuminate\Database\Seeder;
 
 class AdvancedWidgetSeeder extends Seeder
 {
@@ -25,13 +25,13 @@ class AdvancedWidgetSeeder extends Seeder
                     'showGridLines' => true,
                     'showStats' => true,
                     'smooth' => true,
-                    'fillArea' => false
+                    'fillArea' => false,
                 ],
                 'data_source' => 'App\\Services\\DataProviders\\ChartDataService',
                 'default_width' => 6,
                 'default_height' => 4,
                 'is_resizable' => true,
-                'is_active' => true
+                'is_active' => true,
             ],
             [
                 'name' => 'Calendar Widget',
@@ -44,13 +44,13 @@ class AdvancedWidgetSeeder extends Seeder
                 'default_config' => [
                     'title' => 'Academic Calendar',
                     'view' => 'month',
-                    'showWeekends' => true
+                    'showWeekends' => true,
                 ],
                 'data_source' => 'App\\Services\\DataProviders\\CalendarDataService',
                 'default_width' => 8,
                 'default_height' => 6,
                 'is_resizable' => true,
-                'is_active' => true
+                'is_active' => true,
             ],
             [
                 'name' => 'Campus Map Widget',
@@ -63,13 +63,13 @@ class AdvancedWidgetSeeder extends Seeder
                 'default_config' => [
                     'title' => 'Campus Map',
                     'defaultView' => 'street',
-                    'showControls' => true
+                    'showControls' => true,
                 ],
                 'data_source' => 'App\\Services\\DataProviders\\MapDataService',
                 'default_width' => 6,
                 'default_height' => 5,
                 'is_resizable' => true,
-                'is_active' => true
+                'is_active' => true,
             ],
             [
                 'name' => 'File Manager Widget',
@@ -82,25 +82,25 @@ class AdvancedWidgetSeeder extends Seeder
                 'default_config' => [
                     'title' => 'File Manager',
                     'allowUpload' => true,
-                    'maxFileSize' => '10MB'
+                    'maxFileSize' => '10MB',
                 ],
                 'data_source' => 'App\\Services\\DataProviders\\FileDataService',
                 'default_width' => 8,
                 'default_height' => 6,
                 'is_resizable' => true,
-                'is_active' => true
-            ]
+                'is_active' => true,
+            ],
         ];
 
         foreach ($widgets as $widget) {
             // Check if widget already exists
             $existingWidget = Widget::where('type', $widget['type'])->first();
-            
-            if (!$existingWidget) {
+
+            if (! $existingWidget) {
                 Widget::create($widget);
-                echo "Created widget: " . $widget['name'] . "\n";
+                echo 'Created widget: '.$widget['name']."\n";
             } else {
-                echo "Widget already exists: " . $widget['name'] . "\n";
+                echo 'Widget already exists: '.$widget['name']."\n";
             }
         }
     }

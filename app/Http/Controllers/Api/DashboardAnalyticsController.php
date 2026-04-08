@@ -3,15 +3,17 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\{Student, User, Payment, Attendance};
-use Illuminate\Http\Request;
+use App\Models\Attendance;
+use App\Models\Payment;
+use App\Models\Student;
+use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 
 class DashboardAnalyticsController extends Controller
 {
     public function overview()
     {
-        $overview = Cache::remember('dashboard_overview', 300, function() {
+        $overview = Cache::remember('dashboard_overview', 300, function () {
             return [
                 'total_users' => User::count(),
                 'total_students' => Student::count(),
@@ -20,10 +22,10 @@ class DashboardAnalyticsController extends Controller
                 'system_health' => 'Good', // You can implement actual health checks
             ];
         });
-        
+
         return response()->json($overview);
     }
-    
+
     public function usage()
     {
         $usage = [
@@ -32,10 +34,10 @@ class DashboardAnalyticsController extends Controller
             'monthly_active_users' => User::whereMonth('last_login_at', now()->month)->count(),
             'feature_usage' => $this->getFeatureUsage(),
         ];
-        
+
         return response()->json($usage);
     }
-    
+
     public function performance()
     {
         $performance = [
@@ -44,56 +46,59 @@ class DashboardAnalyticsController extends Controller
             'cache_hit_rate' => $this->getCacheHitRate(),
             'error_rate' => $this->getErrorRate(),
         ];
-        
+
         return response()->json($performance);
     }
-    
+
     private function getTodayAttendanceRate()
     {
         $totalClasses = Attendance::whereDate('date', today())->count();
-        if ($totalClasses === 0) return 0;
-        
+        if ($totalClasses === 0) {
+            return 0;
+        }
+
         $presentClasses = Attendance::whereDate('date', today())->where('status', 'present')->count();
+
         return round(($presentClasses / $totalClasses) * 100, 2);
     }
-    
+
     private function getFeatureUsage()
     {
         return [
-            'student_management' => User::whereHas('permissions', function($query) {
+            'student_management' => User::whereHas('permissions', function ($query) {
                 $query->where('name', 'manage students');
             })->count(),
-            'financial_management' => User::whereHas('permissions', function($query) {
+            'financial_management' => User::whereHas('permissions', function ($query) {
                 $query->where('name', 'manage payments');
             })->count(),
-            'attendance_management' => User::whereHas('permissions', function($query) {
+            'attendance_management' => User::whereHas('permissions', function ($query) {
                 $query->where('name', 'manage attendance');
             })->count(),
         ];
     }
-    
+
     private function getAverageResponseTime()
     {
         // This would require implementing actual response time tracking
         return '250ms';
     }
-    
+
     private function getDatabaseQueryStats()
     {
         // This would require implementing query tracking
         return [
             'total_queries' => 1250,
             'slow_queries' => 15,
-            'average_query_time' => '12ms'
+            'average_query_time' => '12ms',
         ];
     }
-    
+
     private function getCacheHitRate()
     {
         // This would require implementing cache statistics
         return '85%';
     }
-    
+
     private function getErrorRate()
     {
         // This would require implementing error tracking

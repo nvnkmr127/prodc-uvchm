@@ -20,7 +20,7 @@ class PermissionsSeeder extends Seeder
         $permissions = [
             // Backend Access
             'view backend',
-            
+
             // Settings Management
             'manage settings',
             'view settings',
@@ -28,14 +28,14 @@ class PermissionsSeeder extends Seeder
             'reset settings',
             'backup settings',
             'restore settings',
-            
+
             // User Management
             'manage users',
             'view users',
             'create users',
             'update users',
             'delete users',
-            
+
             // Student Management
             'manage students',
             'view students',
@@ -44,35 +44,35 @@ class PermissionsSeeder extends Seeder
             'delete students',
             'import students',
             'export students',
-            
+
             // Course Management
             'manage courses',
             'view courses',
             'create courses',
             'update courses',
             'delete courses',
-            
+
             // Subject Management
             'manage subjects',
             'view subjects',
             'create subjects',
             'update subjects',
             'delete subjects',
-            
+
             // Batch Management
             'manage batches',
             'view batches',
             'create batches',
             'update batches',
             'delete batches',
-            
+
             // Faculty Management
             'manage faculty',
             'view faculty',
             'create faculty',
             'update faculty',
             'delete faculty',
-            
+
             // Attendance Management
             'manage attendance',
             'view attendance',
@@ -80,14 +80,14 @@ class PermissionsSeeder extends Seeder
             'edit attendance',
             'import attendance',
             'export attendance',
-            
+
             // Timetable Management
             'manage timetable',
             'view timetable',
             'create timetable',
             'update timetable',
             'delete timetable',
-            
+
             // Financial Management
             'manage financials',
             'view financials',
@@ -101,7 +101,7 @@ class PermissionsSeeder extends Seeder
             'delete payments',
             'manage fee structures',
             'view fee structures',
-            
+
             // HR Management
             'manage hr',
             'view hr',
@@ -111,7 +111,7 @@ class PermissionsSeeder extends Seeder
             'manage salaries',
             'view salaries',
             'generate payslips',
-            
+
             // Inventory Management
             'manage inventory',
             'view inventory',
@@ -119,14 +119,14 @@ class PermissionsSeeder extends Seeder
             'update assets',
             'delete assets',
             'audit assets',
-            
+
             // Document Management
             'manage documents',
             'view documents',
             'generate certificates',
             'generate id cards',
             'manage templates',
-            
+
             // Admission Management
             'manage admissions',
             'view admissions',
@@ -136,7 +136,7 @@ class PermissionsSeeder extends Seeder
             'reject admissions',
             'manage enquiries',
             'view enquiries',
-            
+
             // Report Management
             'manage reports',
             'view reports',
@@ -146,7 +146,7 @@ class PermissionsSeeder extends Seeder
             'view financial reports',
             'view admission reports',
             'view asset reports',
-            
+
             // System Management
             'manage system',
             'view system info',
@@ -155,7 +155,7 @@ class PermissionsSeeder extends Seeder
             'toggle maintenance',
             'manage api tokens',
             'view logs',
-            
+
             // Dashboard & Analytics
             'view dashboard',
             'view analytics',
@@ -171,7 +171,7 @@ class PermissionsSeeder extends Seeder
         // Define roles and their permissions
         $roles = [
             'super-admin' => $permissions, // All permissions
-            
+
             'admin' => [
                 'view backend',
                 'manage settings',
@@ -254,7 +254,7 @@ class PermissionsSeeder extends Seeder
                 'view analytics',
                 'manage widgets',
             ],
-            
+
             'college-admin' => [
                 'view backend',
                 'view settings',
@@ -314,7 +314,7 @@ class PermissionsSeeder extends Seeder
                 'view dashboard',
                 'view analytics',
             ],
-            
+
             'staff' => [
                 'view backend',
                 'view students',
@@ -332,7 +332,7 @@ class PermissionsSeeder extends Seeder
                 'view documents',
                 'view dashboard',
             ],
-            
+
             'accountant' => [
                 'view backend',
                 'view students',
@@ -351,7 +351,7 @@ class PermissionsSeeder extends Seeder
                 'export reports',
                 'view dashboard',
             ],
-            
+
             'librarian' => [
                 'view backend',
                 'view students',
@@ -363,7 +363,7 @@ class PermissionsSeeder extends Seeder
                 'view asset reports',
                 'view dashboard',
             ],
-            
+
             'admission-officer' => [
                 'view backend',
                 'manage admissions',
@@ -377,30 +377,30 @@ class PermissionsSeeder extends Seeder
                 'generate reports',
                 'view dashboard',
             ],
-            
+
             'manage biometric mapping' => [
-    'display_name' => 'Manage Biometric Mapping',
-    'description' => 'Access biometric mapping interface',
-    'group' => 'Student Management'
-],
+                'display_name' => 'Manage Biometric Mapping',
+                'description' => 'Access biometric mapping interface',
+                'group' => 'Student Management',
+            ],
 
-'import biometric data' => [
-    'display_name' => 'Import Biometric Data',
-    'description' => 'Import biometric mappings from Excel/CSV',
-    'group' => 'Student Management'
-],
+            'import biometric data' => [
+                'display_name' => 'Import Biometric Data',
+                'description' => 'Import biometric mappings from Excel/CSV',
+                'group' => 'Student Management',
+            ],
 
-'export biometric data' => [
-    'display_name' => 'Export Biometric Data',
-    'description' => 'Export biometric mapping reports',
-    'group' => 'Student Management'
-],
+            'export biometric data' => [
+                'display_name' => 'Export Biometric Data',
+                'description' => 'Export biometric mapping reports',
+                'group' => 'Student Management',
+            ],
 
-'auto generate biometric codes' => [
-    'display_name' => 'Auto Generate Biometric Codes',
-    'description' => 'Auto-generate biometric codes for students',
-    'group' => 'Student Management'
-],
+            'auto generate biometric codes' => [
+                'display_name' => 'Auto Generate Biometric Codes',
+                'description' => 'Auto-generate biometric codes for students',
+                'group' => 'Student Management',
+            ],
         ];
 
         // Create roles and assign permissions

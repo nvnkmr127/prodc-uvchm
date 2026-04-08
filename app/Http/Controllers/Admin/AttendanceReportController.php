@@ -2,20 +2,19 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Exports\StudentAttendanceSummaryExport;
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
 use App\Models\Batch;
 use App\Models\Course;
 use App\Models\Holiday;
 use App\Models\Student;
-use Illuminate\Http\Request;
-use Illuminate\Support\Carbon;
 use Carbon\CarbonPeriod;
+use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
-use App\Exports\StudentAttendanceSummaryExport;
 
 class AttendanceReportController extends Controller
 {
@@ -36,14 +35,14 @@ class AttendanceReportController extends Controller
             ->when($courseId, function ($query) use ($courseId) {
                 return $query->where('course_id', $courseId);
             })
-            ->when($currentYear, function ($query) use ($currentYear) {
+            ->when($currentYear, function ($query) {
                 // If no course/batch selected, maybe still show current year batches by default?
                 // But generally, for reports, we might want to see all or specific.
                 // Let's at least allow all batches to show up if sorted by date.
             })->get();
 
         // Initial Load without filters (Default to today to satisfy user request)
-        if (!$request->ajax() && !$request->has('start_date')) {
+        if (! $request->ajax() && ! $request->has('start_date')) {
             $todayStr = Carbon::now()->format('Y-m-d');
             $startDate = $todayStr;
             $endDate = $todayStr;
@@ -52,10 +51,10 @@ class AttendanceReportController extends Controller
         }
 
         // Default dates if somehow triggered without them
-        if (!$startDate) {
+        if (! $startDate) {
             $startDate = $currentYear ? $currentYear->start_date : Carbon::now()->startOfMonth()->format('Y-m-d');
         }
-        if (!$endDate) {
+        if (! $endDate) {
             $endDate = Carbon::now()->format('Y-m-d');
         }
 
@@ -84,7 +83,7 @@ class AttendanceReportController extends Controller
             // (Though usually batch implies a course, if batch is internship, apply rule)
             // For now, let's rely on Course check if course selected, or we can check relation.
             // If only batch is selected, we can check its course.
-            if (!$courseId) {
+            if (! $courseId) {
                 $batch = Batch::withoutGlobalScope('academic_year')->with('course')->find($batchId);
                 if ($batch && $batch->course && stripos($batch->course->name, 'Internship') !== false) {
                     $studentsQuery->where('status', 'active');
@@ -98,13 +97,13 @@ class AttendanceReportController extends Controller
                 'batch' => function ($q) {
                     $q->withoutGlobalScope('academic_year');
                 },
-                'batch.course'
+                'batch.course',
             ])->get();
 
         // 2. Fetch Holidays (Global) - Ensure consistent date format
         $holidays = Holiday::whereBetween('date', [$startDate, $endDate])
             ->get()
-            ->map(fn($h) => (is_string($h->date) ? substr($h->date, 0, 10) : $h->date->format('Y-m-d')))
+            ->map(fn ($h) => (is_string($h->date) ? substr($h->date, 0, 10) : $h->date->format('Y-m-d')))
             ->toArray();
 
         // 3. Fetch Attendance Data Efficiently - Bypass Global Scope
@@ -124,6 +123,7 @@ class AttendanceReportController extends Controller
             ->mapWithKeys(function ($item) {
                 // Ensure date is string Y-m-d
                 $d = is_string($item->date) ? substr($item->date, 0, 10) : Carbon::parse($item->date)->format('Y-m-d');
+
                 return [$d => $item->count];
             })
             ->toArray();
@@ -141,6 +141,7 @@ class AttendanceReportController extends Controller
             // Get Student Records indexed by date
             $studentRecords = $attendanceRecords->get($student->id, collect())->mapWithKeys(function ($item) {
                 $d = Carbon::parse($item->attendance_date)->format('Y-m-d');
+
                 return [$d => $item];
             });
 
@@ -151,10 +152,12 @@ class AttendanceReportController extends Controller
                 $monthEnd = $monthDt->copy()->endOfMonth();
 
                 // Cap month dates to select range
-                if ($monthStart->lt(Carbon::parse($startDate)))
+                if ($monthStart->lt(Carbon::parse($startDate))) {
                     $monthStart = Carbon::parse($startDate);
-                if ($monthEnd->gt(Carbon::parse($endDate)))
+                }
+                if ($monthEnd->gt(Carbon::parse($endDate))) {
                     $monthEnd = Carbon::parse($endDate);
+                }
 
                 $monthlyStats[$monthDt->format('M_Y')] = $this->calculateStudentStats($student, $monthStart, $monthEnd, $holidays, $dailyCounts, $studentRecords);
             }
@@ -175,7 +178,7 @@ class AttendanceReportController extends Controller
                 'excused_days' => $overall['excused'],
                 'holidays' => $overall['holidays'],
                 'attendance_percentage' => round($overall['percentage'], 1),
-                'monthly_stats' => $monthlyStats
+                'monthly_stats' => $monthlyStats,
             ];
         });
 
@@ -192,7 +195,7 @@ class AttendanceReportController extends Controller
             '< 50%' => 0,
             '50% - 74%' => 0,
             '75% - 89%' => 0,
-            '90% +' => 0
+            '90% +' => 0,
         ];
 
         // Overall Present vs Absent Breakdown for Pie Chart
@@ -201,14 +204,15 @@ class AttendanceReportController extends Controller
 
         foreach ($processedStudents as $s) {
             $p = $s->attendance_percentage;
-            if ($p < 50)
+            if ($p < 50) {
                 $distribution['< 50%']++;
-            elseif ($p < 75)
+            } elseif ($p < 75) {
                 $distribution['50% - 74%']++;
-            elseif ($p < 90)
+            } elseif ($p < 90) {
                 $distribution['75% - 89%']++;
-            else
+            } else {
                 $distribution['90% +']++;
+            }
         }
 
         // 6. Sorting
@@ -242,7 +246,7 @@ class AttendanceReportController extends Controller
             'avg_absent' => number_format($avgAbsent, 1),
             'distribution' => $distribution,
             'total_present' => $overallPresent,
-            'total_absent' => $overallAbsent
+            'total_absent' => $overallAbsent,
         ];
 
         if ($request->ajax()) {
@@ -252,9 +256,9 @@ class AttendanceReportController extends Controller
                     'pagination' => $paginatedStudents,
                     'sortBy' => $sortBy,
                     'sortOrder' => $sortOrder,
-                    'months' => $months
+                    'months' => $months,
                 ])->render(),
-                'stats' => $stats
+                'stats' => $stats,
             ]);
         }
 
@@ -266,11 +270,11 @@ class AttendanceReportController extends Controller
             'sortBy',
             'sortOrder'
         ))->with([
-                    'students' => $paginatedStudents,
-                    'pagination' => $paginatedStudents,
-                    'stats' => $stats,
-                    'months' => $months
-                ]);
+            'students' => $paginatedStudents,
+            'pagination' => $paginatedStudents,
+            'stats' => $stats,
+            'months' => $months,
+        ]);
     }
 
     /**
@@ -303,7 +307,7 @@ class AttendanceReportController extends Controller
             $isExplicitHoliday = in_array($dateStr, $holidays);
 
             $isLowAttendanceHoliday = false;
-            if ($current->lte($today) && !$isSunday && !$isExplicitHoliday) {
+            if ($current->lte($today) && ! $isSunday && ! $isExplicitHoliday) {
                 $dayPunchCount = $dailyCounts[$dateStr] ?? 0;
                 if ($dayPunchCount < 10) {
                     $isLowAttendanceHoliday = true;
@@ -341,7 +345,7 @@ class AttendanceReportController extends Controller
             $isExplicitHoliday = in_array($dateStr, $holidays);
 
             $isLowAttendanceHoliday = false;
-            if ($current->lte($today) && !$isSunday && !$isExplicitHoliday) {
+            if ($current->lte($today) && ! $isSunday && ! $isExplicitHoliday) {
                 $dayPunchCount = $dailyCounts[$dateStr] ?? 0;
                 if ($dayPunchCount < 10) {
                     $isLowAttendanceHoliday = true;
@@ -350,7 +354,7 @@ class AttendanceReportController extends Controller
 
             $isHoliday = $isSunday || $isExplicitHoliday || $isLowAttendanceHoliday;
 
-            if (!$isHoliday) {
+            if (! $isHoliday) {
                 $hasStarted = $student->admission_date
                     ? $current->gte(Carbon::parse($student->admission_date)->startOfDay())
                     : ($firstBiometricUse ? $current->gte(Carbon::parse($firstBiometricUse)->startOfDay()) : false);
@@ -388,8 +392,9 @@ class AttendanceReportController extends Controller
 
         $totalAttended = $presentCount + $internshipCount + $excusedCount;
         $percentage = ($workingDays > 0) ? ($totalAttended / $workingDays) * 100 : 0;
-        if ($percentage > 100)
+        if ($percentage > 100) {
             $percentage = 100;
+        }
 
         return [
             'working_days' => $workingDays,
@@ -398,7 +403,7 @@ class AttendanceReportController extends Controller
             'internship' => $internshipCount,
             'excused' => $excusedCount,
             'holidays' => $holidaysCount,
-            'percentage' => $percentage
+            'percentage' => $percentage,
         ];
     }
 
@@ -411,7 +416,7 @@ class AttendanceReportController extends Controller
 
         return Excel::download(
             new StudentAttendanceSummaryExport($courseId, $batchId, $startDate, $endDate),
-            'attendance_summary_' . now()->format('Y_m_d_H_i') . '.xlsx'
+            'attendance_summary_'.now()->format('Y_m_d_H_i').'.xlsx'
         );
     }
 }

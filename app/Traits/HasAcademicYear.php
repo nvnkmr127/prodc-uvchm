@@ -20,13 +20,13 @@ trait HasAcademicYear
         // 1. Not running in console (to avoid issues with migrations/seeds)
         // 2. Not in API context (API should explicitly pass year)
         // 3. Explicitly enabled via config (disabled by default)
-        if (config('app.enable_academic_year_global_scope', true) && !app()->runningInConsole() && !request()->is('api/*')) {
+        if (config('app.enable_academic_year_global_scope', true) && ! app()->runningInConsole() && ! request()->is('api/*')) {
 
             static::addGlobalScope('academic_year', function (Builder $builder) {
                 // Get selected year from session, or default to current year
                 $selectedYearId = session('selected_academic_year_id');
 
-                if (!$selectedYearId) {
+                if (! $selectedYearId) {
                     $currentYear = AcademicYear::where('is_current', true)->first();
                     $selectedYearId = $currentYear?->id;
                 }
@@ -42,7 +42,7 @@ trait HasAcademicYear
 
                     if ($columnName !== 'academic_year_id') {
                         // Attempt to find the year name
-                        // Cache this query to avoid hitting DB on every model boot if possible, 
+                        // Cache this query to avoid hitting DB on every model boot if possible,
                         // but here strict correctness is key.
                         $yearModel = AcademicYear::find($selectedYearId);
                         if ($yearModel) {
@@ -51,7 +51,7 @@ trait HasAcademicYear
                     }
 
                     $builder->where(
-                        $builder->getModel()->getTable() . '.' . $columnName,
+                        $builder->getModel()->getTable().'.'.$columnName,
                         $valueToFilter
                     );
                 }
@@ -77,8 +77,9 @@ trait HasAcademicYear
         $value = $academicYearId;
         if ($columnName !== 'academic_year_id' && is_numeric($academicYearId)) {
             $year = AcademicYear::find($academicYearId);
-            if ($year)
+            if ($year) {
                 $value = $year->name;
+            }
         }
 
         return $query->where($columnName, $value);
@@ -94,8 +95,10 @@ trait HasAcademicYear
 
         if ($currentYear) {
             $value = ($columnName === 'academic_year_id') ? $currentYear->id : $currentYear->name;
+
             return $query->where($columnName, $value);
         }
+
         return $query;
     }
 

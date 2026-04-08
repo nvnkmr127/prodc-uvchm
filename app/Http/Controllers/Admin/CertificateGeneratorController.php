@@ -1,10 +1,12 @@
 <?php
+
 namespace App\Http\Controllers\Admin;
-use Illuminate\Support\Str;
+
 use App\Http\Controllers\Controller;
-use App\Models\Student;
 use App\Models\CertificateTemplate;
+use App\Models\Student;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use PDF; // Make sure to use the PDF facade
 
 class CertificateGeneratorController extends Controller
@@ -14,6 +16,7 @@ class CertificateGeneratorController extends Controller
     {
         $students = Student::orderBy('name')->get();
         $templates = CertificateTemplate::orderBy('name')->get();
+
         return view('admin.certificate_generator.show', compact('students', 'templates'));
     }
 
@@ -31,7 +34,8 @@ class CertificateGeneratorController extends Controller
         $pdf = self::generatePdfInstance($student, $template);
 
         // Offer the PDF as a download
-        $fileName = Str::slug($student->name . '-' . $template->name) . '.pdf';
+        $fileName = Str::slug($student->name.'-'.$template->name).'.pdf';
+
         return $pdf->stream($fileName);
     }
 
@@ -42,6 +46,7 @@ class CertificateGeneratorController extends Controller
     {
         $batches = \App\Models\Batch::with('course')->where('status', 'active')->get();
         $templates = CertificateTemplate::orderBy('name')->get();
+
         return view('admin.certificate_generator.bulk', compact('batches', 'templates'));
     }
 
@@ -64,11 +69,11 @@ class CertificateGeneratorController extends Controller
         }
 
         // Create a temporary ZIP file
-        $zipFileName = 'certificates-' . Str::slug($batch->name) . '-' . time() . '.zip';
-        $zipFilePath = storage_path('app/public/' . $zipFileName);
+        $zipFileName = 'certificates-'.Str::slug($batch->name).'-'.time().'.zip';
+        $zipFilePath = storage_path('app/public/'.$zipFileName);
 
         $zip = new \ZipArchive;
-        if ($zip->open($zipFilePath, \ZipArchive::CREATE) !== TRUE) {
+        if ($zip->open($zipFilePath, \ZipArchive::CREATE) !== true) {
             return back()->with('error', 'Could not create ZIP file.');
         }
 
@@ -81,7 +86,7 @@ class CertificateGeneratorController extends Controller
             // Default: [student_name]-[template_name]
             $format = $template->filename_format ?? '[student_name]-[template_name]';
             $filename = self::renderCertificate($student, $format); // Reuse render logic for filename
-            $filename = Str::slug($filename) . '.pdf';
+            $filename = Str::slug($filename).'.pdf';
 
             // Add to ZIP
             $zip->addFromString($filename, $content);
@@ -107,15 +112,15 @@ class CertificateGeneratorController extends Controller
         // However, DOMPDF allows set_option or rendering with styles.
         // Easiest: Use a wrapper view or inline styles.
 
-        $bgStyle = "";
+        $bgStyle = '';
         if ($template->content_type === 'full' && $template->background_image) {
-            $bgPath = public_path('storage/' . $template->background_image);
+            $bgPath = public_path('storage/'.$template->background_image);
             // Ensure file exists
             if (file_exists($bgPath)) {
                 // Convert to base64 to ensure it loads in PDF
                 $type = pathinfo($bgPath, PATHINFO_EXTENSION);
                 $data = file_get_contents($bgPath);
-                $base64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+                $base64 = 'data:image/'.$type.';base64,'.base64_encode($data);
 
                 $bgStyle = "
                     background-image: url('{$base64}');
@@ -178,11 +183,11 @@ class CertificateGeneratorController extends Controller
             '[dob]' => $student->dob ? $student->dob->format('d-m-Y') : '',
             '[issue_date]' => now()->format('F j, Y'),
             '[college_name]' => setting('college_name', 'My College'),
-            '[college_logo_url]' => setting('college_logo') ? asset('storage/' . setting('college_logo')) : '',
+            '[college_logo_url]' => setting('college_logo') ? asset('storage/'.setting('college_logo')) : '',
 
             // New dynamic fields
             '[attendance_percentage]' => $attendance,
-            '[grade]' => 'A', // Placeholder logic 
+            '[grade]' => 'A', // Placeholder logic
         ];
 
         return str_replace(array_keys($replacements), array_values($replacements), $content);

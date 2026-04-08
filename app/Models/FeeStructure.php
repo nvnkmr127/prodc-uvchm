@@ -2,17 +2,17 @@
 
 namespace App\Models;
 
+use App\Traits\HasAcademicYear;
+use App\Traits\WebhookEnabled;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Traits\HasAcademicYear;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use App\Traits\WebhookEnabled;
 
 class FeeStructure extends Model
 {
+    use HasAcademicYear, HasFactory;
     use WebhookEnabled;
-    use HasFactory, HasAcademicYear;
 
     /**
      * The attributes that are mass assignable.
@@ -26,7 +26,7 @@ class FeeStructure extends Model
         'batch_id',
         'total_amount',
         'amount', // Your existing workaround field
-        'payment_terms' // <-- Add this
+        'payment_terms', // <-- Add this
     ];
 
     /**

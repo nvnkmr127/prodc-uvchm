@@ -2,8 +2,9 @@
 
 namespace Database\Seeders;
 
+use App\Models\Widget;
+use App\Models\WidgetCategory;
 use Illuminate\Database\Seeder;
-use App\Models\{Widget, WidgetCategory};
 
 class WidgetSeeder extends Seeder
 {
@@ -30,7 +31,7 @@ class WidgetSeeder extends Seeder
                 'allowed_roles' => ['super-admin', 'college-admin', 'accountant'],
                 'default_width' => 8,
                 'default_height' => 400,
-                'cache_duration' => 300
+                'cache_duration' => 300,
             ],
             [
                 'name' => 'Attendance Analytics',
@@ -44,7 +45,7 @@ class WidgetSeeder extends Seeder
                 'allowed_roles' => ['super-admin', 'college-admin', 'staff'],
                 'default_width' => 6,
                 'default_height' => 350,
-                'cache_duration' => 600
+                'cache_duration' => 600,
             ],
             [
                 'name' => 'Student Performance Chart',
@@ -58,7 +59,7 @@ class WidgetSeeder extends Seeder
                 'allowed_roles' => ['super-admin', 'college-admin', 'staff'],
                 'default_width' => 6,
                 'default_height' => 350,
-                'cache_duration' => 600
+                'cache_duration' => 600,
             ],
             [
                 'name' => 'Fee Collection Chart',
@@ -72,7 +73,7 @@ class WidgetSeeder extends Seeder
                 'allowed_roles' => ['super-admin', 'college-admin', 'accountant'],
                 'default_width' => 8,
                 'default_height' => 400,
-                'cache_duration' => 300
+                'cache_duration' => 300,
             ],
 
             // Academic Widgets
@@ -88,7 +89,7 @@ class WidgetSeeder extends Seeder
                 'allowed_roles' => ['super-admin', 'college-admin', 'staff'],
                 'default_width' => 4,
                 'default_height' => 200,
-                'cache_duration' => 1800
+                'cache_duration' => 1800,
             ],
             [
                 'name' => 'Course Progress Tracker',
@@ -102,7 +103,7 @@ class WidgetSeeder extends Seeder
                 'allowed_roles' => ['super-admin', 'college-admin', 'staff'],
                 'default_width' => 6,
                 'default_height' => 300,
-                'cache_duration' => 900
+                'cache_duration' => 900,
             ],
             [
                 'name' => 'Recent Admissions',
@@ -116,7 +117,7 @@ class WidgetSeeder extends Seeder
                 'allowed_roles' => ['super-admin', 'college-admin'],
                 'default_width' => 6,
                 'default_height' => 350,
-                'cache_duration' => 600
+                'cache_duration' => 600,
             ],
 
             // Financial Widgets
@@ -132,7 +133,7 @@ class WidgetSeeder extends Seeder
                 'allowed_roles' => ['super-admin', 'college-admin', 'accountant'],
                 'default_width' => 4,
                 'default_height' => 200,
-                'cache_duration' => 300
+                'cache_duration' => 300,
             ],
             [
                 'name' => 'Outstanding Fees',
@@ -146,7 +147,7 @@ class WidgetSeeder extends Seeder
                 'allowed_roles' => ['super-admin', 'college-admin', 'accountant'],
                 'default_width' => 8,
                 'default_height' => 400,
-                'cache_duration' => 600
+                'cache_duration' => 600,
             ],
             [
                 'name' => 'Daily Revenue',
@@ -160,7 +161,7 @@ class WidgetSeeder extends Seeder
                 'allowed_roles' => ['super-admin', 'college-admin', 'accountant'],
                 'default_width' => 3,
                 'default_height' => 150,
-                'cache_duration' => 300
+                'cache_duration' => 300,
             ],
 
             // User Management Widgets
@@ -176,7 +177,7 @@ class WidgetSeeder extends Seeder
                 'allowed_roles' => ['super-admin', 'college-admin'],
                 'default_width' => 6,
                 'default_height' => 350,
-                'cache_duration' => 1800
+                'cache_duration' => 1800,
             ],
             [
                 'name' => 'User Activity Log',
@@ -190,7 +191,7 @@ class WidgetSeeder extends Seeder
                 'allowed_roles' => ['super-admin'],
                 'default_width' => 8,
                 'default_height' => 400,
-                'cache_duration' => 300
+                'cache_duration' => 300,
             ],
 
             // Quick Actions
@@ -206,7 +207,7 @@ class WidgetSeeder extends Seeder
                 'allowed_roles' => ['super-admin', 'college-admin'],
                 'default_width' => 4,
                 'default_height' => 250,
-                'cache_duration' => 0
+                'cache_duration' => 0,
             ],
             [
                 'name' => 'Quick Fee Collection',
@@ -220,7 +221,7 @@ class WidgetSeeder extends Seeder
                 'allowed_roles' => ['super-admin', 'college-admin', 'accountant'],
                 'default_width' => 4,
                 'default_height' => 250,
-                'cache_duration' => 0
+                'cache_duration' => 0,
             ],
 
             // System Widgets
@@ -236,7 +237,7 @@ class WidgetSeeder extends Seeder
                 'allowed_roles' => ['super-admin'],
                 'default_width' => 6,
                 'default_height' => 300,
-                'cache_duration' => 60
+                'cache_duration' => 60,
             ],
             [
                 'name' => 'Backup Status',
@@ -250,19 +251,19 @@ class WidgetSeeder extends Seeder
                 'allowed_roles' => ['super-admin'],
                 'default_width' => 4,
                 'default_height' => 200,
-                'cache_duration' => 300
-            ]
+                'cache_duration' => 300,
+            ],
         ];
 
         foreach ($widgets as $widget) {
             // Check if widget already exists by slug
             $existingWidget = Widget::where('slug', $widget['slug'])->first();
-            
-            if (!$existingWidget) {
+
+            if (! $existingWidget) {
                 Widget::create($widget);
-                echo "✅ Created widget: " . $widget['name'] . "\n";
+                echo '✅ Created widget: '.$widget['name']."\n";
             } else {
-                echo "⚠️  Widget already exists: " . $widget['name'] . "\n";
+                echo '⚠️  Widget already exists: '.$widget['name']."\n";
             }
         }
     }

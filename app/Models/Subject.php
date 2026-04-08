@@ -2,18 +2,18 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany; // <-- This import is crucial
-use Illuminate\Database\Eloquent\Relations\HasMany;      // <-- This is for the marks relationship
-use Spatie\Activitylog\Traits\LogsActivity;
-use Spatie\Activitylog\LogOptions;
 use App\Traits\WebhookEnabled;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model; // <-- This import is crucial
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;      // <-- This is for the marks relationship
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class Subject extends Model
 {
-    use WebhookEnabled;
     use HasFactory, LogsActivity;
+    use WebhookEnabled;
 
     protected $fillable = [
         'name',
@@ -26,7 +26,7 @@ class Subject extends Model
         return LogOptions::defaults()
             ->logOnly(['name', 'code', 'requires_lab'])
             ->logOnlyDirty()
-            ->setDescriptionForEvent(fn(string $eventName) => "The subject '{$this->name}' has been {$eventName}");
+            ->setDescriptionForEvent(fn (string $eventName) => "The subject '{$this->name}' has been {$eventName}");
     }
 
     // Correctly defines the many-to-many relationship with Course
@@ -37,20 +37,19 @@ class Subject extends Model
 
     // Correctly defines the many-to-many relationship with User (Faculty)
     public function faculty()
-{
-    return $this->belongsToMany(User::class, 'subject_user', 'subject_id', 'user_id')
-                ->withTimestamps()
-                ->whereHas('roles', function($query) {
-                    $query->where('name', 'staff');
-                });
-}
-    
-public function users()
-{
-    return $this->belongsToMany(User::class, 'subject_user', 'subject_id', 'user_id')
-                ->withTimestamps();
-}
+    {
+        return $this->belongsToMany(User::class, 'subject_user', 'subject_id', 'user_id')
+            ->withTimestamps()
+            ->whereHas('roles', function ($query) {
+                $query->where('name', 'staff');
+            });
+    }
 
+    public function users()
+    {
+        return $this->belongsToMany(User::class, 'subject_user', 'subject_id', 'user_id')
+            ->withTimestamps();
+    }
 
     // Correctly defines the one-to-many relationship with Mark
     public function marks(): HasMany

@@ -18,7 +18,7 @@ class RolesAndPermissionsSeeder extends Seeder
             // Basic Access
             'view backend',
             'access dashboard',
-            
+
             // Student Management
             'view students',
             'create students',
@@ -31,7 +31,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'edit student academic records',
             'bulk import students',
             'export students',
-            
+
             // User Management
             'view users',
             'create users',
@@ -45,7 +45,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'activate users',
             'export users',
             'bulk operations users',
-            
+
             // Role and Permission Management
             'view roles',
             'create roles',
@@ -57,7 +57,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'create custom roles',
             'edit system roles',
             'manage permissions',
-            
+
             // Attendance Management
             'view attendance',
             'take attendance',
@@ -67,7 +67,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'manage attendance settings',
             'view attendance reports',
             'export attendance',
-            
+
             // Financial Management
             'view financials',
             'create invoices',
@@ -86,28 +86,28 @@ class RolesAndPermissionsSeeder extends Seeder
             'export financials',
             'manage payment defaulters',
             'send payment reminders',
-            
+
             // Course Management
             'view courses',
             'create courses',
             'edit courses',
             'delete courses',
             'manage courses',
-            
+
             // Batch Management
             'view batches',
             'create batches',
             'edit batches',
             'delete batches',
             'manage batches',
-            
+
             // Timetable Management
             'view timetable',
             'create timetable',
             'edit timetable',
             'delete timetable',
             'manage timetable',
-            
+
             // Leave Management
             'view leaves',
             'create leaves',
@@ -115,39 +115,39 @@ class RolesAndPermissionsSeeder extends Seeder
             'delete leaves',
             'manage leaves',
             'approve leaves',
-            
+
             // Event Management
             'view events',
             'create events',
             'edit events',
             'delete events',
             'manage events',
-            
+
             // Calendar Management
             'view calendar',
             'manage calendar',
-            
+
             // Asset Management
             'view assets',
             'create assets',
             'edit assets',
             'delete assets',
             'manage assets',
-            
+
             // Enquiry Management
             'view enquiries',
             'create enquiries',
             'edit enquiries',
             'delete enquiries',
             'manage enquiries',
-            
+
             // Settings Management
             'view settings',
             'edit settings',
             'manage settings',
             'view system settings',
             'edit system settings',
-            
+
             // Notification Management
             'view notifications',
             'create notifications',
@@ -156,7 +156,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'manage notifications',
             'send notifications',
             'manage communications',
-            
+
             // Advanced Features
             'view analytics',
             'manage integrations',
@@ -179,9 +179,9 @@ class RolesAndPermissionsSeeder extends Seeder
         // Super Admin Role - Full access
         $superAdminRole = Role::firstOrCreate([
             'name' => 'super-admin',
-            'guard_name' => 'web'
+            'guard_name' => 'web',
         ], [
-            'description' => 'Super Administrator with full system access'
+            'description' => 'Super Administrator with full system access',
         ]);
         // Give super admin all permissions
         $superAdminRole->syncPermissions(Permission::all());
@@ -189,9 +189,9 @@ class RolesAndPermissionsSeeder extends Seeder
         // Admin Role - High level management
         $adminRole = Role::firstOrCreate([
             'name' => 'admin',
-            'guard_name' => 'web'
+            'guard_name' => 'web',
         ], [
-            'description' => 'Administrator with high-level management access'
+            'description' => 'Administrator with high-level management access',
         ]);
         $adminRole->syncPermissions([
             'view backend',
@@ -250,9 +250,9 @@ class RolesAndPermissionsSeeder extends Seeder
         // Staff Role - Faculty members
         $staffRole = Role::firstOrCreate([
             'name' => 'staff',
-            'guard_name' => 'web'
+            'guard_name' => 'web',
         ], [
-            'description' => 'Faculty members who can take attendance and manage their classes'
+            'description' => 'Faculty members who can take attendance and manage their classes',
         ]);
         $staffRole->syncPermissions([
             'view backend',
@@ -269,9 +269,9 @@ class RolesAndPermissionsSeeder extends Seeder
         // Faculty Role - Alternative name for staff (for compatibility)
         $facultyRole = Role::firstOrCreate([
             'name' => 'faculty',
-            'guard_name' => 'web'
+            'guard_name' => 'web',
         ], [
-            'description' => 'Faculty members (alternative name for staff role)'
+            'description' => 'Faculty members (alternative name for staff role)',
         ]);
         $facultyRole->syncPermissions([
             'view backend',
@@ -288,9 +288,9 @@ class RolesAndPermissionsSeeder extends Seeder
         // Accountant Role - Financial management
         $accountantRole = Role::firstOrCreate([
             'name' => 'accountant',
-            'guard_name' => 'web'
+            'guard_name' => 'web',
         ], [
-            'description' => 'Handles all financial operations and reporting'
+            'description' => 'Handles all financial operations and reporting',
         ]);
         $accountantRole->syncPermissions([
             'view backend',
@@ -318,9 +318,9 @@ class RolesAndPermissionsSeeder extends Seeder
         // Student Role - Very limited access
         $studentRole = Role::firstOrCreate([
             'name' => 'student',
-            'guard_name' => 'web'
+            'guard_name' => 'web',
         ], [
-            'description' => 'Student with limited access to their own data'
+            'description' => 'Student with limited access to their own data',
         ]);
         $studentRole->syncPermissions([
             'view backend',
@@ -330,9 +330,9 @@ class RolesAndPermissionsSeeder extends Seeder
         // Academic Coordinator Role
         $academicRole = Role::firstOrCreate([
             'name' => 'academic-coordinator',
-            'guard_name' => 'web'
+            'guard_name' => 'web',
         ], [
-            'description' => 'Academic coordinator for managing courses and timetables'
+            'description' => 'Academic coordinator for managing courses and timetables',
         ]);
         $academicRole->syncPermissions([
             'view backend',
@@ -365,9 +365,9 @@ class RolesAndPermissionsSeeder extends Seeder
         // Office Staff Role
         $officeRole = Role::firstOrCreate([
             'name' => 'office-staff',
-            'guard_name' => 'web'
+            'guard_name' => 'web',
         ], [
-            'description' => 'Office staff for general administrative tasks'
+            'description' => 'Office staff for general administrative tasks',
         ]);
         $officeRole->syncPermissions([
             'view backend',
@@ -393,9 +393,9 @@ class RolesAndPermissionsSeeder extends Seeder
         // ADDED: Counselor Role
         $counselorRole = Role::firstOrCreate([
             'name' => 'counselor',
-            'guard_name' => 'web'
+            'guard_name' => 'web',
         ], [
-            'description' => 'Counselor for managing student enquiries and admissions'
+            'description' => 'Counselor for managing student enquiries and admissions',
         ]);
         $counselorRole->syncPermissions([
             'view backend',

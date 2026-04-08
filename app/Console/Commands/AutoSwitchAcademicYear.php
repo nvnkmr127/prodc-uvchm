@@ -2,8 +2,8 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
 use App\Models\AcademicYear;
+use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -38,9 +38,10 @@ class AutoSwitchAcademicYear extends Command
                 ->orderBy('start_date', 'desc')
                 ->first();
 
-            if (!$yearToActivate) {
+            if (! $yearToActivate) {
                 $this->info('No academic year needs to be switched today.');
                 Log::info('Auto-switch check: No academic year needs switching.');
+
                 return 0;
             }
 
@@ -65,11 +66,12 @@ class AutoSwitchAcademicYear extends Command
             return 0;
 
         } catch (\Exception $e) {
-            $this->error('Failed to auto-switch academic year: ' . $e->getMessage());
+            $this->error('Failed to auto-switch academic year: '.$e->getMessage());
             Log::error('Academic year auto-switch failed', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
+
             return 1;
         }
     }
@@ -91,7 +93,7 @@ class AutoSwitchAcademicYear extends Command
             ]);
         } catch (\Exception $e) {
             Log::warning('Failed to send admin notification for academic year switch', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
     }

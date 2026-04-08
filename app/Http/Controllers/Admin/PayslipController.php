@@ -1,8 +1,10 @@
 <?php
+
 namespace App\Http\Controllers\Admin;
+
 use App\Http\Controllers\Controller;
-use App\Models\User;
 use App\Models\Payslip;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class PayslipController extends Controller
@@ -10,6 +12,7 @@ class PayslipController extends Controller
     public function index()
     {
         $payslips = Payslip::with('user')->latest()->get();
+
         return view('admin.payslips.index', compact('payslips'));
     }
 
@@ -26,7 +29,9 @@ class PayslipController extends Controller
         $payslipCount = 0;
 
         foreach ($staff as $user) {
-            if ($user->salaryStructure->isEmpty()) continue; // Skip staff with no salary defined
+            if ($user->salaryStructure->isEmpty()) {
+                continue;
+            } // Skip staff with no salary defined
 
             $gross = $user->salaryStructure->where('salaryComponent.type', 'Earning')->sum('amount');
             $deductions = $user->salaryStructure->where('salaryComponent.type', 'Deduction')->sum('amount');
@@ -38,6 +43,7 @@ class PayslipController extends Controller
             );
             $payslipCount++;
         }
+
         return redirect()->route('admin.payslips.index')->with('success', "Generated {$payslipCount} payslips for {$request->month}, {$request->year}.");
     }
 
@@ -46,6 +52,7 @@ class PayslipController extends Controller
         $structure = $payslip->user->salaryStructure()->with('salaryComponent')->get();
         $earnings = $structure->where('salaryComponent.type', 'Earning');
         $deductions = $structure->where('salaryComponent.type', 'Deduction');
+
         return view('admin.payslips.show', compact('payslip', 'earnings', 'deductions'));
     }
 }

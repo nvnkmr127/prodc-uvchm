@@ -2,8 +2,8 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -14,12 +14,12 @@ return new class extends Migration
     {
         Schema::table('enquiries', function (Blueprint $table) {
             // Add gender column to enquiries table if it doesn't exist
-            if (!Schema::hasColumn('enquiries', 'gender')) {
+            if (! Schema::hasColumn('enquiries', 'gender')) {
                 $table->enum('gender', ['Male', 'Female', 'Other'])->nullable()->after('student_name');
             }
-            
+
             // Add education_qualification if missing (often captured during enquiry)
-            if (!Schema::hasColumn('enquiries', 'education_qualification')) {
+            if (! Schema::hasColumn('enquiries', 'education_qualification')) {
                 $table->string('education_qualification')->nullable()->after('address');
             }
         });

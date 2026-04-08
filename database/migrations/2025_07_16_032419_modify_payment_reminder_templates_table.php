@@ -18,7 +18,7 @@ return new class extends Migration
             $table->json('template_settings')->nullable()->after('character_limit');
             $table->unsignedBigInteger('created_by')->nullable()->after('template_settings');
             $table->unsignedBigInteger('updated_by')->nullable()->after('created_by');
-            
+
             // Rename subject to subject_template if it exists
             if (Schema::hasColumn('payment_reminder_templates', 'subject')) {
                 $table->renameColumn('subject', 'subject_template');
@@ -30,7 +30,7 @@ return new class extends Migration
             // Add indexes
             $table->index(['reminder_type', 'channel']);
             $table->index(['is_active', 'is_default']);
-            
+
             // Add foreign keys (only if users table exists)
             if (Schema::hasTable('users')) {
                 $table->foreign('created_by')->references('id')->on('users')->onDelete('set null');
@@ -61,27 +61,27 @@ return new class extends Migration
             if (Schema::hasColumn('payment_reminder_templates', 'updated_by')) {
                 $table->dropForeign(['updated_by']);
             }
-            
+
             // Drop indexes
             $table->dropIndex(['reminder_type', 'channel']);
             $table->dropIndex(['is_active', 'is_default']);
-            
+
             // Drop unique constraint
             try {
                 $table->dropUnique('unique_default_template');
             } catch (\Exception $e) {
                 // Ignore if doesn't exist
             }
-            
+
             // Drop added columns
             $table->dropColumn([
                 'description',
                 'character_limit',
                 'template_settings',
                 'created_by',
-                'updated_by'
+                'updated_by',
             ]);
-            
+
             // Rename back to subject
             if (Schema::hasColumn('payment_reminder_templates', 'subject_template')) {
                 $table->renameColumn('subject_template', 'subject');

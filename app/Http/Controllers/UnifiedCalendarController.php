@@ -2,13 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Enquiry;
+use App\Models\Event;
+use App\Models\Holiday;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use App\Models\Holiday;
-use App\Models\Event;
-use App\Models\Enquiry;
-use App\Models\Timetable;
-use Carbon\Carbon;
 
 class UnifiedCalendarController extends Controller
 {
@@ -25,13 +24,13 @@ class UnifiedCalendarController extends Controller
             $holidays = Holiday::all();
             foreach ($holidays as $holiday) {
                 $events[] = [
-                    'id' => 'holiday-' . $holiday->id,
-                    'title' => 'Holiday: ' . $holiday->name,
+                    'id' => 'holiday-'.$holiday->id,
+                    'title' => 'Holiday: '.$holiday->name,
                     'start' => $holiday->date,
                     'allDay' => true,
                     'backgroundColor' => '#e74a3b', // Red
                     'borderColor' => '#e74a3b',
-                    'editable' => false // Holidays cannot be dragged
+                    'editable' => false, // Holidays cannot be dragged
                 ];
             }
 
@@ -57,13 +56,13 @@ class UnifiedCalendarController extends Controller
             $holidays = Holiday::all();
             foreach ($holidays as $holiday) {
                 $events[] = [
-                    'id' => 'holiday-' . $holiday->id,
-                    'title' => 'Holiday: ' . $holiday->name,
+                    'id' => 'holiday-'.$holiday->id,
+                    'title' => 'Holiday: '.$holiday->name,
                     'start' => $holiday->date,
                     'allDay' => true,
                     'backgroundColor' => '#e74a3b', // Red
                     'borderColor' => '#e74a3b',
-                    'editable' => false
+                    'editable' => false,
                 ];
             }
         }
@@ -75,7 +74,7 @@ class UnifiedCalendarController extends Controller
             'Interested' => '#f6c23e',    // Yellow
             'Follow-up' => '#fd7e14',     // Orange
             'Admitted' => '#1cc88a',      // Green
-            'Not Interested' => '#858796' // Grey
+            'Not Interested' => '#858796', // Grey
         ];
 
         foreach ($enquiries as $enquiry) {
@@ -97,14 +96,14 @@ class UnifiedCalendarController extends Controller
                 'extendedProps' => [
                     'phone' => $enquiry->phone_number,
                     'status' => $enquiry->status,
-                    'type' => 'enquiry' // Marker to identify type in JS
-                ]
+                    'type' => 'enquiry', // Marker to identify type in JS
+                ],
             ];
         }
 
         return view('calendar.index', [
             'events' => $events,
-            'enquiries' => $enquiries
+            'enquiries' => $enquiries,
         ]);
     }
 
@@ -121,7 +120,7 @@ class UnifiedCalendarController extends Controller
 
         $enquiry = Enquiry::find($request->id);
 
-        if (!$enquiry) {
+        if (! $enquiry) {
             return response()->json(['success' => false, 'message' => 'Enquiry not found'], 404);
         }
 
@@ -129,7 +128,7 @@ class UnifiedCalendarController extends Controller
         $user = Auth::user();
         $isAdmin = $user->hasAnyRole(['admin', 'super-admin', 'Admin', 'Super-admin']);
 
-        if (!$isAdmin && $enquiry->assigned_to_user_id != $user->id) {
+        if (! $isAdmin && $enquiry->assigned_to_user_id != $user->id) {
             return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
         }
 
@@ -143,7 +142,7 @@ class UnifiedCalendarController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Follow-up rescheduled to ' . $request->start
+            'message' => 'Follow-up rescheduled to '.$request->start,
         ]);
     }
 }

@@ -9,15 +9,15 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-   public function up(): void
-{
-    Schema::create('subject_user', function (Blueprint $table) {
-        $table->id();
-        $table->foreignId('subject_id')->constrained()->onDelete('cascade');
-        $table->foreignId('user_id')->constrained()->onDelete('cascade'); // This will be the faculty/staff member
-        $table->timestamps();
-    });
-}
+    public function up(): void
+    {
+        Schema::create('subject_user', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('subject_id')->constrained()->onDelete('cascade');
+            $table->foreignId('user_id')->constrained()->onDelete('cascade'); // This will be the faculty/staff member
+            $table->timestamps();
+        });
+    }
 
     /**
      * Reverse the migrations.

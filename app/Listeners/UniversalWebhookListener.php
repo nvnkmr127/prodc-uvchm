@@ -3,7 +3,6 @@
 namespace App\Listeners;
 
 use App\Models\Webhook;
-use App\Models\WebhookCall;
 use App\Services\WebhookPayloadBuilder;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -27,6 +26,7 @@ class UniversalWebhookListener
     protected static int $maxRecursionDepth = 1;
 
     protected int $maxRetries = 3;
+
     protected int $retryDelay = 10;
 
     /**
@@ -51,14 +51,15 @@ class UniversalWebhookListener
             Log::channel('webhook-events')->warning('Webhook infinite loop prevented in UniversalWebhookListener (Recursion detected)', [
                 'event_class' => get_class($event),
                 'event_hash' => $eventHash,
-                'stack_depth' => count(static::$processingStack)
+                'stack_depth' => count(static::$processingStack),
             ]);
+
             return;
         }
 
         // Add to stack before processing
         static::$processingStack[] = $eventHash;
-        
+
         // Track overall processing count for this hash in this request
         static::$processedEvents[$eventHash] = (static::$processedEvents[$eventHash] ?? 0) + 1;
 
@@ -66,14 +67,16 @@ class UniversalWebhookListener
             $eventName = $this->determineEventName($event);
             Log::channel('webhook-events')->debug('Determined event name', ['event_name' => $eventName]);
 
-            if (!$eventName) {
+            if (! $eventName) {
                 Log::channel('webhook-events')->warning('Could not determine event name, skipping');
+
                 return;
             }
 
             // Skip internal Laravel events that might cause loops
             if ($this->shouldSkipEvent($eventName, $event)) {
                 Log::channel('webhook-events')->debug('Skipping event due to shouldSkipEvent', ['event_name' => $eventName]);
+
                 return;
             }
 
@@ -85,7 +88,7 @@ class UniversalWebhookListener
             if ($payload) {
                 Log::channel('webhook-events')->debug('Sending webhooks', [
                     'event_name' => $eventName,
-                    'payload_size' => strlen(json_encode($payload)) . ' bytes'
+                    'payload_size' => strlen(json_encode($payload)).' bytes',
                 ]);
                 $this->sendWebhooks($eventName, $payload);
             } else {
@@ -96,12 +99,12 @@ class UniversalWebhookListener
             Log::channel('webhook-events')->error('Exception in UniversalWebhookListener::handle()', [
                 'error' => $e->getMessage(),
                 'event_class' => get_class($event),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
         } finally {
             // Remove from stack after processing
             static::$processingStack = array_values(array_diff(static::$processingStack, [$eventHash]));
-            
+
             // Cleanup the processed count after a delay (if running in a long-lived process)
             $this->scheduleCleanup($eventHash);
         }
@@ -114,7 +117,7 @@ class UniversalWebhookListener
     {
         // For EloquentWebhookEvent, we want to hash the specific model and event combination
         if (get_class($event) === 'App\Events\EloquentWebhookEvent') {
-            return md5(get_class($event) . ':' . get_class($event->model) . ':' . $event->model->getKey() . ':' . $event->eventType);
+            return md5(get_class($event).':'.get_class($event->model).':'.$event->model->getKey().':'.$event->eventType);
         }
 
         // Fallback for other events
@@ -204,6 +207,7 @@ class UniversalWebhookListener
         if (Str::endsWith($eventName, 'Event')) {
             $eventName = substr($eventName, 0, -5);
         }
+
         return Str::snake($eventName);
     }
 
@@ -229,14 +233,14 @@ class UniversalWebhookListener
                     Log::channel('webhook-events')->error('Failed to send individual webhook', [
                         'webhook_id' => $webhook->id,
                         'webhook_url' => $webhook->url,
-                        'error' => $e->getMessage()
+                        'error' => $e->getMessage(),
                     ]);
                 }
             }
         } catch (\Exception $e) {
             Log::channel('webhook-events')->error('Failed to send webhooks', [
                 'event_name' => $eventName,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
     }
@@ -257,7 +261,7 @@ class UniversalWebhookListener
                 'X-Event-Type' => $payload['event'],
                 'X-Event-ID' => $payload['event_id'],
                 'X-Webhook-Source' => config('app.name', 'UVCHM'),
-                'User-Agent' => config('app.name') . ' Webhook/2.0',
+                'User-Agent' => config('app.name').' Webhook/2.0',
                 'Content-Type' => 'application/json',
             ];
 
@@ -282,22 +286,22 @@ class UniversalWebhookListener
             // Update webhook health status and pulse the 'last_called_at' timestamp
             if ($response->successful()) {
                 $webhook->markAsSuccessful();
-                
+
                 Log::channel('webhook-events')->debug('Optimized webhook sent successfully', [
                     'webhook_id' => $webhook->id,
                     'event' => $payload['event'],
                     'status_code' => $response->status(),
-                    'payload_size' => strlen(json_encode($payload)) . ' bytes',
-                    'execution_time' => round((microtime(true) - $startTime) * 1000) . 'ms'
+                    'payload_size' => strlen(json_encode($payload)).' bytes',
+                    'execution_time' => round((microtime(true) - $startTime) * 1000).'ms',
                 ]);
             } else {
                 $webhook->markAsFailed();
-                
+
                 Log::channel('webhook-events')->warning('Webhook call failed', [
                     'webhook_id' => $webhook->id,
                     'event' => $payload['event'],
                     'status_code' => $response->status(),
-                    'response' => $response->body()
+                    'response' => $response->body(),
                 ]);
             }
 
@@ -305,7 +309,7 @@ class UniversalWebhookListener
             // Update fail status on model
             if ($webhook->exists) {
                 $webhook->markAsFailed();
-                
+
                 // Log failed webhook call
                 $webhook->calls()->create([
                     'success' => false,
@@ -319,7 +323,7 @@ class UniversalWebhookListener
             Log::channel('webhook-events')->error('Webhook call exception', [
                 'webhook_id' => $webhook->id,
                 'event' => $payload['event'],
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
     }

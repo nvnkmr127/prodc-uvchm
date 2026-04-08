@@ -13,12 +13,12 @@ return new class extends Migration
     {
         Schema::table('courses', function (Blueprint $table) {
             // Add enrollment_prefix after name
-            if (!Schema::hasColumn('courses', 'enrollment_prefix')) {
+            if (! Schema::hasColumn('courses', 'enrollment_prefix')) {
                 $table->string('enrollment_prefix', 10)->nullable()->after('name');
             }
-            
+
             // Add max_batch_size after description
-            if (!Schema::hasColumn('courses', 'max_batch_size')) {
+            if (! Schema::hasColumn('courses', 'max_batch_size')) {
                 $table->integer('max_batch_size')->default(30)->after('description');
             }
         });

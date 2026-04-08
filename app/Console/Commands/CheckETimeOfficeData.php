@@ -2,17 +2,16 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Attendance;
+use App\Models\Setting;
+use App\Models\Student;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
-use App\Models\Setting;
-use App\Models\Attendance;
-use App\Models\Student;
-use Carbon\Carbon;
 
 class CheckETimeOfficeData extends Command
 {
     protected $signature = 'etimeoffice:check {--live} {--test-webhook} {--pull-data} {--details}';
+
     protected $description = 'Check if ETimeOffice is sending data to your application';
 
     public function handle()
@@ -32,7 +31,7 @@ class CheckETimeOfficeData extends Command
             $this->pullDataFromETimeOffice();
         }
 
-        if (!$this->hasOptions()) {
+        if (! $this->hasOptions()) {
             $this->showAllChecks();
         }
 
@@ -56,7 +55,7 @@ class CheckETimeOfficeData extends Command
         $this->info('  php artisan etimeoffice:check --test-webhook');
         $this->info('  php artisan etimeoffice:check --pull-data --details');
         $this->info('');
-        
+
         // Quick status check
         $this->quickStatusCheck();
     }
@@ -119,25 +118,25 @@ class CheckETimeOfficeData extends Command
             if (file_exists($logFile)) {
                 clearstatcache(false, $logFile);
                 $currentSize = filesize($logFile);
-                
+
                 if ($currentSize > $lastSize) {
                     $newContent = file_get_contents($logFile, false, null, $lastSize);
                     $lines = explode("\n", $newContent);
-                    
+
                     foreach ($lines as $line) {
-                        if (stripos($line, 'etimeoffice') !== false || 
+                        if (stripos($line, 'etimeoffice') !== false ||
                             stripos($line, 'webhook') !== false ||
                             stripos($line, 'biometric') !== false) {
-                            
+
                             $timestamp = now()->format('H:i:s');
-                            $this->info("[$timestamp] " . trim($line));
+                            $this->info("[$timestamp] ".trim($line));
                         }
                     }
-                    
+
                     $lastSize = $currentSize;
                 }
             }
-            
+
             sleep(1); // Check every second
         }
     }
@@ -161,40 +160,40 @@ class CheckETimeOfficeData extends Command
                     'Empcode' => 'TEST123',
                     'PunchDate' => now()->format('d/m/Y_H:i'),
                     'Direction' => 'IN',
-                    'DeviceId' => 'TEST_DEVICE'
-                ]
+                    'DeviceId' => 'TEST_DEVICE',
+                ],
             ],
             [
                 'name' => 'Alternative Format',
                 'data' => [
                     'EmployeeCode' => 'TEST456',
                     'LogDateTime' => now()->format('Y-m-d H:i:s'),
-                    'Direction' => 'OUT'
-                ]
-            ]
+                    'Direction' => 'OUT',
+                ],
+            ],
         ];
 
         foreach ($testCases as $testCase) {
             $this->info("Testing: {$testCase['name']}");
-            
+
             try {
                 $response = Http::timeout(10)->post($webhookUrl, $testCase['data']);
-                
+
                 if ($response->successful()) {
                     $this->info("  ✅ Status: {$response->status()}");
                 } else {
                     $this->error("  ❌ Status: {$response->status()}");
                 }
-                
+
                 if ($this->option('details')) {
-                    $this->line("  Response: " . $response->body());
+                    $this->line('  Response: '.$response->body());
                 }
-                
-                $this->info('  ' . str_repeat('─', 50));
-                
+
+                $this->info('  '.str_repeat('─', 50));
+
             } catch (\Exception $e) {
-                $this->error("  ❌ Error: " . $e->getMessage());
-                $this->info('  ' . str_repeat('─', 50));
+                $this->error('  ❌ Error: '.$e->getMessage());
+                $this->info('  '.str_repeat('─', 50));
             }
         }
     }
@@ -213,13 +212,22 @@ class CheckETimeOfficeData extends Command
         $username = Setting::where('key', 'etimeoffice_username')->value('value');
         $password = Setting::where('key', 'etimeoffice_password')->value('value');
 
-        if (!$apiUrl || !$corporateId || !$username || !$password) {
+        if (! $apiUrl || ! $corporateId || ! $username || ! $password) {
             $this->error('❌ ETimeOffice configuration is incomplete');
             $this->info('Missing fields:');
-            if (!$apiUrl) $this->info('  - API URL');
-            if (!$corporateId) $this->info('  - Corporate ID');
-            if (!$username) $this->info('  - Username');
-            if (!$password) $this->info('  - Password');
+            if (! $apiUrl) {
+                $this->info('  - API URL');
+            }
+            if (! $corporateId) {
+                $this->info('  - Corporate ID');
+            }
+            if (! $username) {
+                $this->info('  - Username');
+            }
+            if (! $password) {
+                $this->info('  - Password');
+            }
+
             return;
         }
 
@@ -236,30 +244,30 @@ class CheckETimeOfficeData extends Command
             $timeRanges = [
                 'Last 2 hours' => [
                     'FromDate' => now()->subHours(2)->format('d/m/Y_H:i'),
-                    'ToDate' => now()->format('d/m/Y_H:i')
+                    'ToDate' => now()->format('d/m/Y_H:i'),
                 ],
                 'Today' => [
                     'FromDate' => now()->startOfDay()->format('d/m/Y_H:i'),
-                    'ToDate' => now()->format('d/m/Y_H:i')
+                    'ToDate' => now()->format('d/m/Y_H:i'),
                 ],
                 'Yesterday' => [
                     'FromDate' => now()->subDay()->startOfDay()->format('d/m/Y_H:i'),
-                    'ToDate' => now()->subDay()->endOfDay()->format('d/m/Y_H:i')
-                ]
+                    'ToDate' => now()->subDay()->endOfDay()->format('d/m/Y_H:i'),
+                ],
             ];
 
             foreach ($timeRanges as $rangeName => $dateRange) {
                 $this->info("Testing range: {$rangeName}");
-                
+
                 $params = [
                     'Empcode' => 'ALL',
                     'FromDate' => $dateRange['FromDate'],
-                    'ToDate' => $dateRange['ToDate']
+                    'ToDate' => $dateRange['ToDate'],
                 ];
-                
+
                 $queryString = http_build_query($params);
-                $testUrl = rtrim($apiUrl, '/') . '/DownloadPunchData?' . $queryString;
-                
+                $testUrl = rtrim($apiUrl, '/').'/DownloadPunchData?'.$queryString;
+
                 if ($this->option('details')) {
                     $this->info("  URL: {$testUrl}");
                 }
@@ -267,61 +275,61 @@ class CheckETimeOfficeData extends Command
                 try {
                     $response = Http::timeout(30)
                         ->withHeaders([
-                            'Authorization' => 'Basic ' . $authToken,
+                            'Authorization' => 'Basic '.$authToken,
                             'Accept' => 'application/json',
                         ])
                         ->get($testUrl);
 
                     if ($response->successful()) {
                         $this->info("  ✅ Success: {$response->status()}");
-                        
+
                         // Try to decode as JSON first
                         $data = $response->json();
-                        
+
                         if (is_array($data) && count($data) > 0) {
-                            $this->info("  📊 Records found: " . count($data));
-                            
+                            $this->info('  📊 Records found: '.count($data));
+
                             // Show sample records safely
                             if ($this->option('details')) {
-                                $this->info("  Sample records:");
+                                $this->info('  Sample records:');
                                 $sampleCount = min(3, count($data));
                                 for ($i = 0; $i < $sampleCount; $i++) {
                                     if (isset($data[$i])) {
-                                        $this->line("    Record " . ($i + 1) . ": " . json_encode($data[$i], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+                                        $this->line('    Record '.($i + 1).': '.json_encode($data[$i], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
                                     }
                                 }
                             } else {
                                 // Show just the first record structure without details
                                 if (isset($data[0])) {
                                     $firstRecord = $data[0];
-                                    $this->info("  Sample record fields: " . implode(', ', array_keys($firstRecord)));
+                                    $this->info('  Sample record fields: '.implode(', ', array_keys($firstRecord)));
                                 }
                             }
-                            
+
                             // Check if any of these employee codes match our students
                             $this->checkEmployeeCodeMatching($data);
-                            
+
                             break; // Found data, no need to check other ranges
-                            
+
                         } else {
-                            $this->info("  📄 No records found in this time range");
+                            $this->info('  📄 No records found in this time range');
                         }
                     } else {
                         $this->error("  ❌ Failed: {$response->status()}");
                         if ($this->option('details')) {
                             $responseBody = $response->body();
-                            $this->error("  Error: " . (strlen($responseBody) > 200 ? substr($responseBody, 0, 200) . '...' : $responseBody));
+                            $this->error('  Error: '.(strlen($responseBody) > 200 ? substr($responseBody, 0, 200).'...' : $responseBody));
                         }
                     }
                 } catch (\Exception $e) {
-                    $this->error("  ❌ Request failed: " . $e->getMessage());
+                    $this->error('  ❌ Request failed: '.$e->getMessage());
                 }
-                
-                $this->info('  ' . str_repeat('─', 50));
+
+                $this->info('  '.str_repeat('─', 50));
             }
 
         } catch (\Exception $e) {
-            $this->error("❌ API Setup Error: " . $e->getMessage());
+            $this->error('❌ API Setup Error: '.$e->getMessage());
         }
     }
 
@@ -330,12 +338,12 @@ class CheckETimeOfficeData extends Command
      */
     private function checkEmployeeCodeMatching($apiData)
     {
-        if (!is_array($apiData) || count($apiData) === 0) {
+        if (! is_array($apiData) || count($apiData) === 0) {
             return;
         }
 
-        $this->info("  🔍 Checking employee code matching:");
-        
+        $this->info('  🔍 Checking employee code matching:');
+
         $employeeCodes = [];
         foreach ($apiData as $record) {
             if (isset($record['Empcode'])) {
@@ -344,37 +352,37 @@ class CheckETimeOfficeData extends Command
                 $employeeCodes[] = $record['EmployeeCode'];
             }
         }
-        
+
         $uniqueCodes = array_unique($employeeCodes);
-        $this->info("    Unique employee codes found: " . count($uniqueCodes));
-        
+        $this->info('    Unique employee codes found: '.count($uniqueCodes));
+
         if ($this->option('details') && count($uniqueCodes) > 0) {
-            $this->info("    Codes: " . implode(', ', array_slice($uniqueCodes, 0, 10)) . (count($uniqueCodes) > 10 ? '...' : ''));
+            $this->info('    Codes: '.implode(', ', array_slice($uniqueCodes, 0, 10)).(count($uniqueCodes) > 10 ? '...' : ''));
         }
-        
+
         // Check how many match our students
         $matchedCount = 0;
         $unmatchedCodes = [];
-        
+
         foreach ($uniqueCodes as $code) {
             $student = Student::where('biometric_employee_code', $code)
-                             ->orWhere('enrollment_number', $code)
-                             ->orWhere('enrollment_number', 'LIKE', "%{$code}%")
-                             ->first();
-            
+                ->orWhere('enrollment_number', $code)
+                ->orWhere('enrollment_number', 'LIKE', "%{$code}%")
+                ->first();
+
             if ($student) {
                 $matchedCount++;
             } else {
                 $unmatchedCodes[] = $code;
             }
         }
-        
-        $this->info("    ✅ Matched to students: {$matchedCount}/" . count($uniqueCodes));
-        
+
+        $this->info("    ✅ Matched to students: {$matchedCount}/".count($uniqueCodes));
+
         if (count($unmatchedCodes) > 0) {
-            $this->warn("    ⚠️  Unmatched codes: " . count($unmatchedCodes));
+            $this->warn('    ⚠️  Unmatched codes: '.count($unmatchedCodes));
             if ($this->option('details')) {
-                $this->info("    Unmatched: " . implode(', ', array_slice($unmatchedCodes, 0, 5)) . (count($unmatchedCodes) > 5 ? '...' : ''));
+                $this->info('    Unmatched: '.implode(', ', array_slice($unmatchedCodes, 0, 5)).(count($unmatchedCodes) > 5 ? '...' : ''));
             }
         }
     }
@@ -384,8 +392,8 @@ class CheckETimeOfficeData extends Command
      */
     private function hasOptions()
     {
-        return $this->option('live') || 
-               $this->option('test-webhook') || 
+        return $this->option('live') ||
+               $this->option('test-webhook') ||
                $this->option('pull-data');
     }
 }

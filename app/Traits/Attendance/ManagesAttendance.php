@@ -2,14 +2,13 @@
 
 namespace App\Traits\Attendance;
 
-use App\Models\Attendance\Attendance;
-use App\Models\Student;
-use App\Models\Batch;
 use App\Events\Attendance\AttendanceEvent;
-use Illuminate\Support\Collection;
+use App\Models\Attendance\Attendance;
+use App\Models\Batch;
+use App\Models\Student;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Carbon\Carbon;
 
 trait ManagesAttendance
 {
@@ -43,7 +42,7 @@ trait ManagesAttendance
             Log::info("Attendance {$action}", [
                 'attendance_id' => $attendance->id,
                 'student_id' => $attendance->student_id,
-                'status' => $attendance->status
+                'status' => $attendance->status,
             ]);
 
             return $attendance;
@@ -52,7 +51,7 @@ trait ManagesAttendance
             DB::rollBack();
             Log::error('Failed to mark attendance', [
                 'data' => $data,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
             throw $e;
         }
@@ -66,7 +65,7 @@ trait ManagesAttendance
         $results = [
             'successful' => [],
             'failed' => [],
-            'skipped' => []
+            'skipped' => [],
         ];
 
         DB::beginTransaction();
@@ -74,11 +73,12 @@ trait ManagesAttendance
             foreach ($records as $record) {
                 try {
                     // Validate individual record
-                    if (!$this->validateSingleRecord($record)) {
+                    if (! $this->validateSingleRecord($record)) {
                         $results['skipped'][] = [
                             'record' => $record,
-                            'reason' => 'Invalid data'
+                            'reason' => 'Invalid data',
                         ];
+
                         continue;
                     }
 
@@ -89,11 +89,12 @@ trait ManagesAttendance
                         $record['batch_id'] ?? null
                     );
 
-                    if ($existing && !($record['allow_update'] ?? false)) {
+                    if ($existing && ! ($record['allow_update'] ?? false)) {
                         $results['skipped'][] = [
                             'record' => $record,
-                            'reason' => 'Already exists'
+                            'reason' => 'Already exists',
                         ];
+
                         continue;
                     }
 
@@ -109,7 +110,7 @@ trait ManagesAttendance
                 } catch (\Exception $e) {
                     $results['failed'][] = [
                         'record' => $record,
-                        'error' => $e->getMessage()
+                        'error' => $e->getMessage(),
                     ];
                 }
             }
@@ -123,7 +124,7 @@ trait ManagesAttendance
                 'total_records' => count($records),
                 'successful' => count($results['successful']),
                 'failed' => count($results['failed']),
-                'skipped' => count($results['skipped'])
+                'skipped' => count($results['skipped']),
             ]);
 
             return $results;
@@ -132,7 +133,7 @@ trait ManagesAttendance
             DB::rollBack();
             Log::error('Bulk attendance marking failed', [
                 'error' => $e->getMessage(),
-                'records_count' => count($records)
+                'records_count' => count($records),
             ]);
             throw $e;
         }
@@ -146,7 +147,7 @@ trait ManagesAttendance
         DB::beginTransaction();
         try {
             $attendance = Attendance::findOrFail($attendanceId);
-            
+
             // Store original values for comparison
             $originalStatus = $attendance->status;
             $originalData = $attendance->toArray();
@@ -157,7 +158,7 @@ trait ManagesAttendance
                 'notes' => $data['notes'] ?? $attendance->notes,
                 'late_minutes' => $data['late_minutes'] ?? $attendance->late_minutes,
                 'marked_by' => auth()->id(),
-                'marked_at' => now()
+                'marked_at' => now(),
             ]);
 
             // Log the change if status changed
@@ -167,7 +168,7 @@ trait ManagesAttendance
                     'student_id' => $attendance->student_id,
                     'old_status' => $originalStatus,
                     'new_status' => $attendance->status,
-                    'changed_by' => auth()->id()
+                    'changed_by' => auth()->id(),
                 ]);
             }
 
@@ -176,7 +177,7 @@ trait ManagesAttendance
             // Fire event
             event(new AttendanceEvent('updated', $attendance, [
                 'previous_data' => $originalData,
-                'changes' => $attendance->getChanges()
+                'changes' => $attendance->getChanges(),
             ]));
 
             return $attendance->fresh();
@@ -186,7 +187,7 @@ trait ManagesAttendance
             Log::error('Failed to update attendance', [
                 'attendance_id' => $attendanceId,
                 'data' => $data,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
             throw $e;
         }
@@ -209,13 +210,13 @@ trait ManagesAttendance
             // Fire event
             event(new AttendanceEvent('deleted', null, [
                 'deleted_attendance' => $attendanceData,
-                'deleted_by' => auth()->id()
+                'deleted_by' => auth()->id(),
             ]));
 
             Log::info('Attendance deleted', [
                 'attendance_id' => $attendanceId,
                 'student_id' => $attendanceData['student_id'],
-                'deleted_by' => auth()->id()
+                'deleted_by' => auth()->id(),
             ]);
 
             return true;
@@ -224,7 +225,7 @@ trait ManagesAttendance
             DB::rollBack();
             Log::error('Failed to delete attendance', [
                 'attendance_id' => $attendanceId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
             throw $e;
         }
@@ -237,7 +238,7 @@ trait ManagesAttendance
     {
         $results = [
             'deleted' => [],
-            'failed' => []
+            'failed' => [],
         ];
 
         DB::beginTransaction();
@@ -246,14 +247,14 @@ trait ManagesAttendance
                 try {
                     $attendance = Attendance::findOrFail($attendanceId);
                     $attendanceData = $attendance->toArray();
-                    
+
                     $attendance->delete();
                     $results['deleted'][] = $attendanceData;
 
                 } catch (\Exception $e) {
                     $results['failed'][] = [
                         'attendance_id' => $attendanceId,
-                        'error' => $e->getMessage()
+                        'error' => $e->getMessage(),
                     ];
                 }
             }
@@ -266,7 +267,7 @@ trait ManagesAttendance
             Log::info('Bulk attendance deletion completed', [
                 'total_ids' => count($attendanceIds),
                 'deleted' => count($results['deleted']),
-                'failed' => count($results['failed'])
+                'failed' => count($results['failed']),
             ]);
 
             return $results;
@@ -275,7 +276,7 @@ trait ManagesAttendance
             DB::rollBack();
             Log::error('Bulk attendance deletion failed', [
                 'error' => $e->getMessage(),
-                'ids_count' => count($attendanceIds)
+                'ids_count' => count($attendanceIds),
             ]);
             throw $e;
         }
@@ -313,20 +314,20 @@ trait ManagesAttendance
                 'from_batch_id' => $fromBatchId,
                 'to_batch_id' => $toBatchId,
                 'transferred_count' => $transferredCount,
-                'filters' => $filters
+                'filters' => $filters,
             ]));
 
             Log::info('Attendance transferred between batches', [
                 'from_batch_id' => $fromBatchId,
                 'to_batch_id' => $toBatchId,
-                'transferred_count' => $transferredCount
+                'transferred_count' => $transferredCount,
             ]);
 
             return [
                 'success' => true,
                 'transferred_count' => $transferredCount,
                 'from_batch_id' => $fromBatchId,
-                'to_batch_id' => $toBatchId
+                'to_batch_id' => $toBatchId,
             ];
 
         } catch (\Exception $e) {
@@ -334,7 +335,7 @@ trait ManagesAttendance
             Log::error('Attendance transfer failed', [
                 'from_batch_id' => $fromBatchId,
                 'to_batch_id' => $toBatchId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
             throw $e;
         }
@@ -346,7 +347,7 @@ trait ManagesAttendance
     private function findExistingAttendance(int $studentId, string $date, ?int $batchId = null): ?Attendance
     {
         $query = Attendance::where('student_id', $studentId)
-                          ->where('attendance_date', $date);
+            ->where('attendance_date', $date);
 
         if ($batchId) {
             $query->where('batch_id', $batchId);
@@ -370,7 +371,7 @@ trait ManagesAttendance
             'marked_at' => now(),
             'biometric_log_id' => $data['biometric_log_id'] ?? null,
             'location' => $data['location'] ?? null,
-            'device_id' => $data['device_id'] ?? null
+            'device_id' => $data['device_id'] ?? null,
         ]);
     }
 
@@ -384,7 +385,7 @@ trait ManagesAttendance
             'marked_at' => now(),
             'biometric_log_id' => $data['biometric_log_id'] ?? $attendance->biometric_log_id,
             'location' => $data['location'] ?? $attendance->location,
-            'device_id' => $data['device_id'] ?? $attendance->device_id
+            'device_id' => $data['device_id'] ?? $attendance->device_id,
         ]);
 
         return $attendance;
@@ -393,16 +394,16 @@ trait ManagesAttendance
     private function validateSingleRecord(array $record): bool
     {
         $required = ['student_id', 'attendance_date', 'status'];
-        
+
         foreach ($required as $field) {
-            if (!isset($record[$field]) || empty($record[$field])) {
+            if (! isset($record[$field]) || empty($record[$field])) {
                 return false;
             }
         }
 
         // Validate status
         $validStatuses = ['present', 'absent', 'late', 'excused'];
-        if (!in_array($record['status'], $validStatuses)) {
+        if (! in_array($record['status'], $validStatuses)) {
             return false;
         }
 
@@ -414,7 +415,7 @@ trait ManagesAttendance
         }
 
         // Validate student exists
-        if (!Student::find($record['student_id'])) {
+        if (! Student::find($record['student_id'])) {
             return false;
         }
 

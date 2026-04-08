@@ -9,16 +9,16 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-public function up(): void
-{
-    Schema::table('attendances', function (Blueprint $table) {
-        // We must drop the foreign key before the column
-        $table->dropForeign(['subject_id']);
-        $table->dropForeign(['time_slot_id']);
+    public function up(): void
+    {
+        Schema::table('attendances', function (Blueprint $table) {
+            // We must drop the foreign key before the column
+            $table->dropForeign(['subject_id']);
+            $table->dropForeign(['time_slot_id']);
 
-        $table->dropColumn(['subject_id', 'time_slot_id']);
-    });
-}
+            $table->dropColumn(['subject_id', 'time_slot_id']);
+        });
+    }
 
     /**
      * Reverse the migrations.

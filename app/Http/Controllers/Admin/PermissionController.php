@@ -6,8 +6,6 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
-use Illuminate\Support\Str;
-use Illuminate\Support\Facades\DB;
 
 class PermissionController extends Controller
 {
@@ -43,13 +41,14 @@ class PermissionController extends Controller
     public function edit(Permission $permission)
     {
         $roles = Role::all();
+
         return view('admin.permissions.edit', compact('permission', 'roles'));
     }
 
     public function update(Request $request, Permission $permission)
     {
         $request->validate([
-            'name' => 'required|string|unique:permissions,name,' . $permission->id,
+            'name' => 'required|string|unique:permissions,name,'.$permission->id,
         ]);
 
         $permission->update(['name' => $request->name]);
@@ -60,6 +59,7 @@ class PermissionController extends Controller
     public function destroy(Permission $permission)
     {
         $permission->delete();
+
         return redirect()->route('admin.permissions.index')->with('success', 'Permission deleted successfully.');
     }
 
@@ -70,6 +70,7 @@ class PermissionController extends Controller
         }
 
         $permission->assignRole($request->role);
+
         return back()->with('message', 'Role assigned.');
     }
 
@@ -77,6 +78,7 @@ class PermissionController extends Controller
     {
         if ($permission->hasRole($role)) {
             $permission->removeRole($role);
+
             return back()->with('message', 'Role removed.');
         }
 
@@ -94,15 +96,16 @@ class PermissionController extends Controller
             'unassigned_permissions' => Permission::whereDoesntHave('roles')->count(),
             'system_permissions' => Permission::where('name', 'like', 'manage %')->count(),
         ];
-        
-        $groupedPermissions = Permission::all()->groupBy(function($permission) {
+
+        $groupedPermissions = Permission::all()->groupBy(function ($permission) {
             // Extract module from permission name (e.g., 'manage students' -> 'students')
             $parts = explode(' ', $permission->name);
+
             return $parts[1] ?? 'general';
         });
-        
+
         $roles = Role::withCount('permissions')->get();
-        
+
         return view('admin.permissions.permission-management', compact('stats', 'groupedPermissions', 'roles'));
     }
 
@@ -127,9 +130,9 @@ class PermissionController extends Controller
 
             // Create basic action permissions
             foreach ($request->actions as $action) {
-                $permissionName = $action . ' ' . $module;
-                
-                if (!Permission::where('name', $permissionName)->exists()) {
+                $permissionName = $action.' '.$module;
+
+                if (! Permission::where('name', $permissionName)->exists()) {
                     Permission::create(['name' => $permissionName]);
                     $created++;
                 }
@@ -138,10 +141,10 @@ class PermissionController extends Controller
             // Create additional sub-permissions
             if ($request->sub_permissions) {
                 foreach ($request->sub_permissions as $subPerm) {
-                    if (!empty($subPerm['name'])) {
+                    if (! empty($subPerm['name'])) {
                         $permissionName = strtolower($subPerm['name']);
-                        
-                        if (!Permission::where('name', $permissionName)->exists()) {
+
+                        if (! Permission::where('name', $permissionName)->exists()) {
                             Permission::create(['name' => $permissionName]);
                             $created++;
                         }
@@ -151,13 +154,13 @@ class PermissionController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => "Successfully created {$created} permissions for {$module} module."
+                'message' => "Successfully created {$created} permissions for {$module} module.",
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to create permissions: ' . $e->getMessage()
+                'message' => 'Failed to create permissions: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -185,17 +188,17 @@ class PermissionController extends Controller
                             Permission::where('name', 'like', "view {$module}%")->get()
                         );
                         break;
-                    
+
                     case 'editor':
                         $permissions = $permissions->merge(
                             Permission::whereIn('name', [
                                 "view {$module}",
                                 "create {$module}",
-                                "edit {$module}"
+                                "edit {$module}",
                             ])->get()
                         );
                         break;
-                    
+
                     case 'manager':
                         $permissions = $permissions->merge(
                             Permission::where('name', 'like', "%{$module}%")
@@ -203,7 +206,7 @@ class PermissionController extends Controller
                                 ->get()
                         );
                         break;
-                    
+
                     case 'admin':
                         $permissions = $permissions->merge(
                             Permission::where('name', 'like', "%{$module}%")->get()
@@ -216,13 +219,13 @@ class PermissionController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => "Successfully applied {$request->template} template to {$role->name} role with " . $permissions->count() . " permissions."
+                'message' => "Successfully applied {$request->template} template to {$role->name} role with ".$permissions->count().' permissions.',
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to apply template: ' . $e->getMessage()
+                'message' => 'Failed to apply template: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -255,16 +258,16 @@ class PermissionController extends Controller
             }
 
             $action = $request->merge ? 'merged with' : 'replaced';
-            
+
             return response()->json([
                 'success' => true,
-                'message' => "Successfully {$action} permissions from {$sourceRole->name} to {$targetRole->name}."
+                'message' => "Successfully {$action} permissions from {$sourceRole->name} to {$targetRole->name}.",
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to copy permissions: ' . $e->getMessage()
+                'message' => 'Failed to copy permissions: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -282,13 +285,13 @@ class PermissionController extends Controller
             return response()->json([
                 'success' => true,
                 'orphaned_count' => count($orphanedPermissions),
-                'orphaned_permissions' => $orphanedPermissions
+                'orphaned_permissions' => $orphanedPermissions,
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to fetch orphaned permissions: ' . $e->getMessage()
+                'message' => 'Failed to fetch orphaned permissions: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -310,13 +313,13 @@ class PermissionController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => "Successfully cleaned up {$deleted} orphaned permissions."
+                'message' => "Successfully cleaned up {$deleted} orphaned permissions.",
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to cleanup orphaned permissions: ' . $e->getMessage()
+                'message' => 'Failed to cleanup orphaned permissions: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -342,7 +345,7 @@ class PermissionController extends Controller
             // Check for malformed permission names
             $permissions = Permission::all();
             foreach ($permissions as $permission) {
-                if (!preg_match('/^[a-z\s]+$/', $permission->name)) {
+                if (! preg_match('/^[a-z\s]+$/', $permission->name)) {
                     $issues[] = ['issue' => "Malformed permission name: {$permission->name}"];
                 }
             }
@@ -356,13 +359,13 @@ class PermissionController extends Controller
             return response()->json([
                 'success' => true,
                 'issues_found' => count($issues),
-                'issues' => $issues
+                'issues' => $issues,
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to validate permission structure: ' . $e->getMessage()
+                'message' => 'Failed to validate permission structure: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -397,7 +400,7 @@ class PermissionController extends Controller
 
             if ($request->create_missing) {
                 foreach ($standardPermissions as $permission) {
-                    if (!Permission::where('name', $permission)->exists()) {
+                    if (! Permission::where('name', $permission)->exists()) {
                         Permission::create(['name' => $permission]);
                         $created++;
                     }
@@ -409,14 +412,14 @@ class PermissionController extends Controller
                 'message' => 'Permissions synced successfully.',
                 'results' => [
                     'created' => $created,
-                    'removed' => $removed
-                ]
+                    'removed' => $removed,
+                ],
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to sync permissions: ' . $e->getMessage()
+                'message' => 'Failed to sync permissions: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -434,31 +437,32 @@ class PermissionController extends Controller
 
             // Permission distribution by module
             $permissionDistribution = Permission::all()
-                ->groupBy(function($permission) {
+                ->groupBy(function ($permission) {
                     $parts = explode(' ', $permission->name);
+
                     return $parts[1] ?? 'general';
                 })
-                ->map(function($permissions, $module) {
+                ->map(function ($permissions, $module) {
                     $total = $permissions->count();
-                    $assigned = $permissions->filter(function($permission) {
+                    $assigned = $permissions->filter(function ($permission) {
                         return $permission->roles->count() > 0;
                     })->count();
-                    
+
                     return [
                         'count' => $total,
                         'assigned' => $assigned,
-                        'percentage' => $total > 0 ? round(($assigned / $total) * 100, 1) : 0
+                        'percentage' => $total > 0 ? round(($assigned / $total) * 100, 1) : 0,
                     ];
                 });
 
             // Role complexity
             $roleComplexity = Role::withCount(['permissions', 'users'])
                 ->get()
-                ->map(function($role) {
+                ->map(function ($role) {
                     return [
                         'role' => $role->name,
                         'permissions_count' => $role->permissions_count,
-                        'users_count' => $role->users_count
+                        'users_count' => $role->users_count,
                     ];
                 });
 
@@ -466,15 +470,15 @@ class PermissionController extends Controller
             $topPermissions = Permission::withCount(['roles as roles_count'])
                 ->with(['roles.users'])
                 ->get()
-                ->map(function($permission) {
-                    $usersCount = $permission->roles->sum(function($role) {
+                ->map(function ($permission) {
+                    $usersCount = $permission->roles->sum(function ($role) {
                         return $role->users->count();
                     });
-                    
+
                     return [
                         'permission' => $permission->name,
                         'roles_count' => $permission->roles_count,
-                        'users_count' => $usersCount
+                        'users_count' => $usersCount,
                     ];
                 })
                 ->sortByDesc('users_count')
@@ -483,19 +487,20 @@ class PermissionController extends Controller
 
             // Permission usage by action type
             $permissionUsage = Permission::all()
-                ->groupBy(function($permission) {
+                ->groupBy(function ($permission) {
                     $parts = explode(' ', $permission->name);
+
                     return $parts[0] ?? 'other';
                 })
-                ->map(function($permissions, $action) {
+                ->map(function ($permissions, $action) {
                     $total = $permissions->count();
-                    $assigned = $permissions->filter(function($permission) {
+                    $assigned = $permissions->filter(function ($permission) {
                         return $permission->roles->count() > 0;
                     })->count();
-                    
+
                     return [
                         'count' => $total,
-                        'assigned' => $assigned
+                        'assigned' => $assigned,
                     ];
                 });
 
@@ -506,19 +511,19 @@ class PermissionController extends Controller
                         'total_permissions' => $totalPermissions,
                         'total_roles' => $totalRoles,
                         'orphaned_permissions' => $orphanedPermissions,
-                        'unused_roles' => $unusedRoles
+                        'unused_roles' => $unusedRoles,
                     ],
                     'permission_distribution' => $permissionDistribution,
                     'role_complexity' => $roleComplexity,
                     'top_permissions' => $topPermissions,
-                    'permission_usage' => $permissionUsage
-                ]
+                    'permission_usage' => $permissionUsage,
+                ],
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to generate analytics: ' . $e->getMessage()
+                'message' => 'Failed to generate analytics: '.$e->getMessage(),
             ], 500);
         }
     }

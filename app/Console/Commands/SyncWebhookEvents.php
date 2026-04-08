@@ -2,10 +2,9 @@
 
 namespace App\Console\Commands;
 
-use App\Services\WebhookEventDiscoveryService;
 use App\Models\Webhook;
+use App\Services\WebhookEventDiscoveryService;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\DB;
 
 class SyncWebhookEvents extends Command
 {
@@ -54,7 +53,7 @@ class SyncWebhookEvents extends Command
         $this->info('📡 Discovering events in your application...');
         $discovered = $this->eventDiscovery->discoverAllEvents();
 
-        $this->info("✅ Found {$discovered['total_count']} events across " . count($discovered['categories']) . " categories");
+        $this->info("✅ Found {$discovered['total_count']} events across ".count($discovered['categories']).' categories');
         $this->newLine();
 
         // Show discovered events summary
@@ -64,6 +63,7 @@ class SyncWebhookEvents extends Command
         if ($this->option('dry-run')) {
             $this->warn('🔍 DRY RUN MODE - No changes will be made');
             $this->showWhatWouldBeChanged($discovered);
+
             return self::SUCCESS;
         }
 
@@ -105,14 +105,14 @@ class SyncWebhookEvents extends Command
 
             $this->table([
                 'Metric',
-                'Value'
+                'Value',
             ], [
                 ['Total Webhooks', $totalWebhooks],
                 ['Active Webhooks', $activeWebhooks],
                 ['Failing Webhooks', $failingWebhooks],
             ]);
         } catch (\Exception $e) {
-            $this->warn('Could not fetch webhook statistics: ' . $e->getMessage());
+            $this->warn('Could not fetch webhook statistics: '.$e->getMessage());
         }
 
         $this->newLine();
@@ -128,16 +128,16 @@ class SyncWebhookEvents extends Command
         $tableData = [];
         foreach ($discovered['categories'] as $categoryName => $categoryData) {
             $tableData[] = [
-                ($categoryData['emoji'] ?? '📋') . ' ' . $categoryName,
+                ($categoryData['emoji'] ?? '📋').' '.$categoryName,
                 count($categoryData['events']),
-                $this->getEventTypes($categoryData['events'])
+                $this->getEventTypes($categoryData['events']),
             ];
         }
 
         $this->table([
             'Category',
             'Count',
-            'Sample Events'
+            'Sample Events',
         ], $tableData);
 
         $this->newLine();
@@ -171,26 +171,26 @@ class SyncWebhookEvents extends Command
         $removedEvents = array_diff_key($previousEvents, $discovered['events']);
         $updatedEvents = $this->findUpdatedEvents($discovered['events'], $previousEvents);
 
-        if (!empty($newEvents)) {
-            $this->info('➕ New Events (' . count($newEvents) . '):');
+        if (! empty($newEvents)) {
+            $this->info('➕ New Events ('.count($newEvents).'):');
             foreach ($newEvents as $eventKey => $eventData) {
                 $this->line("   • {$eventData['name']} ({$eventKey})");
             }
             $this->newLine();
         }
 
-        if (!empty($removedEvents)) {
-            $this->warn('➖ Removed Events (' . count($removedEvents) . '):');
+        if (! empty($removedEvents)) {
+            $this->warn('➖ Removed Events ('.count($removedEvents).'):');
             foreach ($removedEvents as $eventKey => $eventData) {
                 $this->line("   • {$eventData['name']} ({$eventKey})");
             }
             $this->newLine();
         }
 
-        if (!empty($updatedEvents)) {
-            $this->info('🔄 Updated Events (' . count($updatedEvents) . '):');
+        if (! empty($updatedEvents)) {
+            $this->info('🔄 Updated Events ('.count($updatedEvents).'):');
             foreach ($updatedEvents as $eventKey => $changes) {
-                $this->line("   • {$eventKey}: " . implode(', ', $changes));
+                $this->line("   • {$eventKey}: ".implode(', ', $changes));
             }
             $this->newLine();
         }
@@ -220,7 +220,7 @@ class SyncWebhookEvents extends Command
                     $changes[] = 'category';
                 }
 
-                if (!empty($changes)) {
+                if (! empty($changes)) {
                     $updated[$eventKey] = $changes;
                 }
             }
@@ -237,7 +237,7 @@ class SyncWebhookEvents extends Command
         $this->info("✅ Synced {$result['synced_events']} events across {$result['categories']} categories");
 
         if (count($result['new_events']) > 0) {
-            $this->info("🆕 Found " . count($result['new_events']) . " new events:");
+            $this->info('🆕 Found '.count($result['new_events']).' new events:');
             foreach ($result['new_events'] as $eventKey => $eventData) {
                 $categoryEmoji = $eventData['category']['emoji'] ?? '📋';
                 $this->line("   {$categoryEmoji} {$eventData['name']} ({$eventKey})");
@@ -245,7 +245,7 @@ class SyncWebhookEvents extends Command
             }
             $this->newLine();
         } else {
-            $this->info("ℹ️  No new events discovered");
+            $this->info('ℹ️  No new events discovered');
         }
     }
 
@@ -278,10 +278,10 @@ class SyncWebhookEvents extends Command
                     $this->info("✅ Disabled {$obsoleteWebhooks->count()} obsolete webhooks");
                 }
             } else {
-                $this->info("✅ No obsolete webhook references found");
+                $this->info('✅ No obsolete webhook references found');
             }
         } catch (\Exception $e) {
-            $this->warn('Could not clean obsolete references: ' . $e->getMessage());
+            $this->warn('Could not clean obsolete references: '.$e->getMessage());
         }
 
         $this->newLine();
@@ -298,14 +298,14 @@ class SyncWebhookEvents extends Command
             'discovered_events',
             'webhook_available_events',
             'webhook_events_by_category',
-            'event_discovery_stats'
+            'event_discovery_stats',
         ];
 
         foreach ($cacheKeys as $key) {
             cache()->forget($key);
         }
 
-        $this->info("✅ Cleared " . count($cacheKeys) . " cache keys");
+        $this->info('✅ Cleared '.count($cacheKeys).' cache keys');
     }
 
     /**
@@ -321,7 +321,7 @@ class SyncWebhookEvents extends Command
             $this->line("   📊 Total Webhooks: {$totalWebhooks}");
             $this->line("   ✅ Active Webhooks: {$activeWebhooks}");
         } catch (\Exception $e) {
-            $this->warn('Could not display final statistics: ' . $e->getMessage());
+            $this->warn('Could not display final statistics: '.$e->getMessage());
         }
     }
 }

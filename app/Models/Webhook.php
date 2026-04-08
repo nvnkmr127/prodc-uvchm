@@ -1,18 +1,19 @@
 <?php
 
 // App/Models/Webhook.php - Updated with universal event discovery
+
 namespace App\Models;
 
 use App\Services\WebhookEventDiscoveryService;
+use App\Traits\WebhookEnabled;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use App\Traits\WebhookEnabled;
 
 class Webhook extends Model
 {
-    use WebhookEnabled;
     use HasFactory;
+    use WebhookEnabled;
 
     protected $fillable = [
         'event_name',
@@ -29,7 +30,7 @@ class Webhook extends Model
         'consecutive_failures',
         'auto_disable_after_failures',
         'signing_secret',
-        'max_failures_before_disable'
+        'max_failures_before_disable',
     ];
 
     protected $casts = [
@@ -80,7 +81,7 @@ class Webhook extends Model
             'name' => 'All Events (Wildcard)',
             'description' => 'Listen to all events in the application',
             'category' => ['name' => 'Universal', 'icon' => 'fas fa-globe', 'emoji' => '🌐'],
-            'icon' => 'fas fa-globe'
+            'icon' => 'fas fa-globe',
         ];
 
         // Add categorized events
@@ -99,6 +100,7 @@ class Webhook extends Model
     public static function syncAvailableEvents(): array
     {
         $service = app(WebhookEventDiscoveryService::class);
+
         return $service->syncWithWebhookSystem();
     }
 
@@ -191,7 +193,7 @@ class Webhook extends Model
     {
         $this->update([
             'consecutive_failures' => 0,
-            'is_active' => true
+            'is_active' => true,
         ]);
     }
 
@@ -210,7 +212,7 @@ class Webhook extends Model
         if ($this->consecutive_failures >= 5) {
             $status = 'warning';
         }
-        if (!$this->is_active || $this->consecutive_failures >= $this->max_failures_before_disable) {
+        if (! $this->is_active || $this->consecutive_failures >= $this->max_failures_before_disable) {
             $status = 'critical';
         }
 
@@ -238,7 +240,7 @@ class Webhook extends Model
                 'name' => 'All Events (Wildcard)',
                 'description' => 'Listens to all events in the application',
                 'category' => 'Universal',
-                'icon' => 'fas fa-globe'
+                'icon' => 'fas fa-globe',
             ];
         }
 
@@ -246,7 +248,7 @@ class Webhook extends Model
             'name' => $this->formatEventName($this->event_name),
             'description' => 'Auto-discovered event',
             'category' => 'Unknown',
-            'icon' => 'fas fa-question'
+            'icon' => 'fas fa-question',
         ];
     }
 
@@ -264,8 +266,9 @@ class Webhook extends Model
     public function getDisplayUrlAttribute(): string
     {
         if (strlen($this->url) > 50) {
-            return substr($this->url, 0, 47) . '...';
+            return substr($this->url, 0, 47).'...';
         }
+
         return $this->url;
     }
 
@@ -322,6 +325,7 @@ class Webhook extends Model
         try {
             $response = \Illuminate\Support\Facades\Http::timeout(5)
                 ->get($this->url);
+
             return $response->status() < 500;
         } catch (\Exception $e) {
             return false;
@@ -333,7 +337,7 @@ class Webhook extends Model
      */
     public static function generateSecretKey(): string
     {
-        return 'whsec_' . bin2hex(random_bytes(32));
+        return 'whsec_'.bin2hex(random_bytes(32));
     }
 
     /**
@@ -346,6 +350,7 @@ class Webhook extends Model
         }
 
         $events = self::getAvailableEvents();
+
         return isset($events[$this->event_name]);
     }
 
@@ -382,13 +387,13 @@ class Webhook extends Model
                 $suggestions[$eventKey] = [
                     'event' => $eventData,
                     'score' => $score,
-                    'match_reason' => $this->getMatchReason($keywords, $eventKey, $eventData)
+                    'match_reason' => $this->getMatchReason($keywords, $eventKey, $eventData),
                 ];
             }
         }
 
         // Sort by score and return top 5
-        uasort($suggestions, fn($a, $b) => $b['score'] <=> $a['score']);
+        uasort($suggestions, fn ($a, $b) => $b['score'] <=> $a['score']);
 
         return array_slice($suggestions, 0, 5, true);
     }
@@ -410,7 +415,7 @@ class Webhook extends Model
             }
         }
 
-        return "Keyword match";
+        return 'Keyword match';
     }
 
     /**
@@ -457,23 +462,23 @@ class Webhook extends Model
             [
                 'name' => 'Payment Notifications',
                 'events' => ['payment.created', 'student_fee.created'],
-                'description' => 'Get notified when payments are made or fee components are generated'
+                'description' => 'Get notified when payments are made or fee components are generated',
             ],
             [
                 'name' => 'Student Management',
                 'events' => ['student.created', 'admission.approved'],
-                'description' => 'Track new students and approved admissions'
+                'description' => 'Track new students and approved admissions',
             ],
             [
                 'name' => 'Lead Management',
                 'events' => ['enquiry.created'],
-                'description' => 'Capture new leads from enquiry forms'
+                'description' => 'Capture new leads from enquiry forms',
             ],
             [
                 'name' => 'Complete Monitoring',
                 'events' => ['*'],
-                'description' => 'Listen to all events in the system'
-            ]
+                'description' => 'Listen to all events in the system',
+            ],
         ];
 
         return $commonIntegrations;
@@ -485,7 +490,7 @@ class Webhook extends Model
 
         static::creating(function ($webhook) {
             if (empty($webhook->secret_key)) {
-                $webhook->secret_key = 'whsec_' . bin2hex(random_bytes(32));
+                $webhook->secret_key = 'whsec_'.bin2hex(random_bytes(32));
             }
 
             if (is_null($webhook->timeout_seconds)) {

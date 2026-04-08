@@ -2,36 +2,34 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Exports\StudentsExport;
+use App\Exports\StudentsSampleExport;
 use App\Http\Controllers\Controller;
-use App\Models\Student;
+use App\Models\Attendance;
 use App\Models\Batch;
 use App\Models\Course;
-use App\Models\Attendance;
 use App\Models\Holiday;
-use App\Models\Setting;
-use App\Services\ComponentPaymentService;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Validation\Rule;
-use Carbon\Carbon;
-use Maatwebsite\Excel\Validators\ValidationException;
-use App\Imports\StudentsImport;
-use App\Exports\StudentsSampleExport;
-use Maatwebsite\Excel\Facades\Excel;
-use App\Exports\StudentsExport;
-use Spatie\Activitylog\Models\Activity;
-use App\Http\Requests\StudentFormRequest;
-use App\Models\StudentFee;
 use App\Models\Payment;
+use App\Models\Setting;
+use App\Models\Student;
+use App\Models\StudentFee;
 use App\Services\BiometricMappingService;
+use App\Services\ComponentPaymentService;
 use App\Services\SecureFileValidator;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
+use Maatwebsite\Excel\Facades\Excel;
+use Spatie\Activitylog\Models\Activity;
 
 class StudentController extends Controller
 {
     protected $componentPaymentService;
+
     protected $biometricMappingService;
 
     public function __construct(ComponentPaymentService $componentPaymentService, BiometricMappingService $biometricMappingService)
@@ -43,8 +41,9 @@ class StudentController extends Controller
     private function generateFeeComponentsForStudentUsingService(Student $student, Batch $batch): void
     {
         try {
-            if (!$batch->feeStructure) {
+            if (! $batch->feeStructure) {
                 Log::warning("No fee structure found for batch: {$batch->name}");
+
                 return;
             }
 
@@ -61,10 +60,9 @@ class StudentController extends Controller
                 Log::error("Failed to create fee components for student: {$student->name}");
             }
         } catch (\Exception $e) {
-            Log::error("Service error creating fee components: " . $e->getMessage());
+            Log::error('Service error creating fee components: '.$e->getMessage());
         }
     }
-
 
     public function index(Request $request)
     {
@@ -72,7 +70,7 @@ class StudentController extends Controller
         $query = Student::query()->with('batch.course');
 
         // 1. apply academic year filter (Global context)
-        if ($request->filled('academic_year_id') || !$request->has('show_all')) {
+        if ($request->filled('academic_year_id') || ! $request->has('show_all')) {
             if (\Schema::hasTable('academic_years') && \Schema::hasColumn('batches', 'academic_year_id')) {
                 $selectedAcademicYearId = $request->get(
                     'academic_year_id',
@@ -131,7 +129,7 @@ class StudentController extends Controller
         ];
 
         // 4. Apply Status Filter to main query (Default to active, unless searching)
-        if (!$request->has('status') && !$request->has('show_all') && !$request->filled('search')) {
+        if (! $request->has('status') && ! $request->has('show_all') && ! $request->filled('search')) {
             $query->where('status', 'active');
         } elseif ($request->filled('status')) {
             $query->where('status', $request->status);
@@ -147,7 +145,7 @@ class StudentController extends Controller
                 'html' => view('admin.students._table_body', compact('students'))->render(),
                 'pagination' => (string) $students->links('pagination::bootstrap-5'), // Use Bootstrap 5 pagination
                 'stats' => $stats,
-                'count' => $students->total() // Use total() for paginated result
+                'count' => $students->total(), // Use total() for paginated result
             ]);
         }
 
@@ -173,13 +171,13 @@ class StudentController extends Controller
         // Additional validation based on action
         if ($request->action === 'assign_batch') {
             $request->validate([
-                'batch_id' => 'required|exists:batches,id'
+                'batch_id' => 'required|exists:batches,id',
             ]);
         }
 
         if ($request->action === 'change_status') {
             $request->validate([
-                'status' => 'required|in:active,inactive,graduated,dropout'
+                'status' => 'required|in:active,inactive,graduated,dropout',
             ]);
         }
 
@@ -214,7 +212,7 @@ class StudentController extends Controller
                     }
                 } catch (\Exception $e) {
                     $errorCount++;
-                    $errors[] = "Error processing {$student->name}: " . $e->getMessage();
+                    $errors[] = "Error processing {$student->name}: ".$e->getMessage();
                 }
             }
 
@@ -226,20 +224,21 @@ class StudentController extends Controller
                 return response()->json([
                     'success' => false,
                     'message' => $message,
-                    'errors' => $errors
+                    'errors' => $errors,
                 ], 422);
             }
 
             return response()->json([
                 'success' => true,
-                'message' => $message
+                'message' => $message,
             ]);
 
         } catch (\Exception $e) {
             DB::rollback();
+
             return response()->json([
                 'success' => false,
-                'message' => 'Bulk action failed: ' . $e->getMessage()
+                'message' => 'Bulk action failed: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -247,6 +246,7 @@ class StudentController extends Controller
     public function create()
     {
         $batches = Batch::with('course')->get();
+
         return view('admin.students.create', compact('batches'));
     }
 
@@ -255,12 +255,9 @@ class StudentController extends Controller
      */
     private function getCurrentAcademicYear(): string
     {
-        return \App\Models\AcademicYear::where('is_current', true)->value('name') 
-            ?? (date('n') >= 4 ? date('Y') . '-' . (date('Y') + 1) : (date('Y') - 1) . '-' . date('Y'));
+        return \App\Models\AcademicYear::where('is_current', true)->value('name')
+            ?? (date('n') >= 4 ? date('Y').'-'.(date('Y') + 1) : (date('Y') - 1).'-'.date('Y'));
     }
-
-
-
 
     /**
      * Store a newly created student and automatically generate fee structure
@@ -276,14 +273,14 @@ class StudentController extends Controller
                 'string',
                 'max:20',
                 'unique:students,student_mobile',
-                'regex:/^[6-9]\d{9}$/'
+                'regex:/^[6-9]\d{9}$/',
             ],
             'father_mobile' => [
                 'nullable',
                 'string',
                 'max:20',
                 'unique:students,father_mobile',
-                'regex:/^[6-9]\d{9}$/'
+                'regex:/^[6-9]\d{9}$/',
             ],
             'village' => 'nullable|string|max:255',
             'admission_date' => 'required|date_format:Y-m-d',
@@ -308,7 +305,7 @@ class StudentController extends Controller
             $validated['student_mobile'] === $validated['father_mobile']
         ) {
             return back()->withErrors([
-                'father_mobile' => 'Father mobile cannot be the same as student mobile.'
+                'father_mobile' => 'Father mobile cannot be the same as student mobile.',
             ])->withInput();
         }
 
@@ -359,10 +356,10 @@ class StudentController extends Controller
 
         } catch (\Exception $e) {
             DB::rollback();
-            Log::error('Student creation failed: ' . $e->getMessage());
+            Log::error('Student creation failed: '.$e->getMessage());
 
             return back()->withInput()
-                ->with('error', 'Failed to create student: ' . $e->getMessage());
+                ->with('error', 'Failed to create student: '.$e->getMessage());
         }
     }
 
@@ -372,8 +369,9 @@ class StudentController extends Controller
     private function generateFeeComponentsForStudent(Student $student, Batch $batch): void
     {
         // Check if batch has a fee structure
-        if (!$batch->feeStructure) {
+        if (! $batch->feeStructure) {
             Log::warning("No fee structure found for batch: {$batch->name}");
+
             return;
         }
 
@@ -415,7 +413,7 @@ class StudentController extends Controller
                 'componentItems.studentFee.feeCategory:id,name',
                 'componentItems' => function ($query) {
                     $query->orderBy('created_at', 'desc');
-                }
+                },
             ])
             ->orderBy('payment_date', 'desc')
             ->orderBy('created_at', 'desc')
@@ -433,8 +431,8 @@ class StudentController extends Controller
 
         // ✨ Calculate attendance data for current month (internal summary)
         $attendanceDataFull = $this->fetchMonthlyAttendanceData($student, now()->format('Y-m'));
-        $attendanceData = $attendanceDataFull['monthly']; 
-        
+        $attendanceData = $attendanceDataFull['monthly'];
+
         // Use Overall stats for the header cards
         $attendanceData['attendance_percentage'] = $attendancePercentage;
         $attendanceData['month_name'] = 'Overall';
@@ -457,7 +455,7 @@ class StudentController extends Controller
             'paid_amount' => $totalPaid,
             'concession_amount' => $totalConcessions,
             'remaining_amount' => max(0, $pendingAmount),
-            'payment_percentage' => $paymentPercentage
+            'payment_percentage' => $paymentPercentage,
         ];
 
         return view('admin.students.show', compact(
@@ -504,7 +502,7 @@ class StudentController extends Controller
                     'user' => $activity->causer ? $activity->causer->name : 'System',
                     'timestamp' => $activity->created_at,
                     'properties' => $activity->properties->toArray(),
-                    'color' => 'primary'
+                    'color' => 'primary',
                 ];
             });
 
@@ -524,16 +522,16 @@ class StudentController extends Controller
                     'type' => 'payment',
                     'icon' => 'fa-money-bill-wave',
                     'title' => 'Payment Received',
-                    'description' => 'Payment of ₹' . number_format($amount, 2) . ' received via ' . ucfirst($method),
+                    'description' => 'Payment of ₹'.number_format($amount, 2).' received via '.ucfirst($method),
                     'user' => optional($payment->createdBy)->name ?? 'System',
                     'timestamp' => $payment->created_at,
                     'properties' => [
                         'amount' => $amount,
                         'method' => $method,
                         'receipt' => $payment->receipt_number ?? 'N/A',
-                        'components' => $payment->componentItems ? $payment->componentItems->count() : 0
+                        'components' => $payment->componentItems ? $payment->componentItems->count() : 0,
                     ],
-                    'color' => 'success'
+                    'color' => 'success',
                 ];
             });
 
@@ -554,7 +552,7 @@ class StudentController extends Controller
                         'type' => 'concession',
                         'icon' => 'fa-tag',
                         'title' => 'Discount / Concession Applied',
-                        'description' => 'Concession of ₹' . number_format($concession->concession_amount ?? 0, 2) . ' applied to ' . $categoryName,
+                        'description' => 'Concession of ₹'.number_format($concession->concession_amount ?? 0, 2).' applied to '.$categoryName,
                         'user' => optional($concession->appliedBy)->name ?? 'System',
                         'timestamp' => $concession->applied_at ?? $concession->created_at,
                         'properties' => [
@@ -562,11 +560,10 @@ class StudentController extends Controller
                             'reason' => $concession->notes ?? 'N/A',
                             'status' => 'applied',
                         ],
-                        'color' => 'warning'
+                        'color' => 'warning',
                     ];
                 });
         }
-
 
         // Get attendance activities
         $attendanceActivities = Attendance::withoutGlobalScope('academic_year')
@@ -580,18 +577,17 @@ class StudentController extends Controller
                     'type' => 'attendance',
                     'icon' => 'fa-user-check',
                     'title' => 'Attendance Marked',
-                    'description' => 'Marked as ' . ucfirst($attendance->status) . ($attendance->batch ? ' for ' . $attendance->batch->name : ''),
+                    'description' => 'Marked as '.ucfirst($attendance->status).($attendance->batch ? ' for '.$attendance->batch->name : ''),
                     'user' => optional($attendance->markedBy)->name ?? 'System',
                     'timestamp' => $attendance->created_at,
                     'properties' => [
                         'status' => $attendance->status,
                         'date' => $attendance->attendance_date?->format('Y-m-d'),
-                        'notes' => $attendance->notes ?? 'N/A'
+                        'notes' => $attendance->notes ?? 'N/A',
                     ],
-                    'color' => $attendance->status === 'present' ? 'success' : ($attendance->status === 'absent' ? 'danger' : 'warning')
+                    'color' => $attendance->status === 'present' ? 'success' : ($attendance->status === 'absent' ? 'danger' : 'warning'),
                 ];
             });
-
 
         // Get fee generation activities from student fees - FIXED with global scope bypass
         $feeActivities = collect();
@@ -606,14 +602,14 @@ class StudentController extends Controller
                 'type' => 'fee_generation',
                 'icon' => 'fa-file-invoice-dollar',
                 'title' => 'Fee Component Generated',
-                'description' => 'Fee component created: ' . optional($fee->feeCategory)->name ?? 'Unknown',
+                'description' => 'Fee component created: '.optional($fee->feeCategory)->name ?? 'Unknown',
                 'user' => 'System',
                 'timestamp' => $fee->created_at,
                 'properties' => [
                     'amount' => $fee->amount ?? 0,
-                    'due_date' => $fee->due_date ?? 'N/A'
+                    'due_date' => $fee->due_date ?? 'N/A',
                 ],
-                'color' => 'info'
+                'color' => 'info',
             ]);
         }
 
@@ -637,20 +633,27 @@ class StudentController extends Controller
     {
         $description = strtolower($description);
 
-        if (strpos($description, 'payment') !== false)
+        if (strpos($description, 'payment') !== false) {
             return 'fa-money-bill-wave';
-        if (strpos($description, 'concession') !== false)
+        }
+        if (strpos($description, 'concession') !== false) {
             return 'fa-percent';
-        if (strpos($description, 'created') !== false)
+        }
+        if (strpos($description, 'created') !== false) {
             return 'fa-plus-circle';
-        if (strpos($description, 'updated') !== false)
+        }
+        if (strpos($description, 'updated') !== false) {
             return 'fa-edit';
-        if (strpos($description, 'deleted') !== false)
+        }
+        if (strpos($description, 'deleted') !== false) {
             return 'fa-trash';
-        if (strpos($description, 'login') !== false)
+        }
+        if (strpos($description, 'login') !== false) {
             return 'fa-sign-in-alt';
-        if (strpos($description, 'fee') !== false)
+        }
+        if (strpos($description, 'fee') !== false) {
             return 'fa-file-invoice-dollar';
+        }
 
         return 'fa-info-circle';
     }
@@ -672,7 +675,7 @@ class StudentController extends Controller
         $request->validate([
             'dropout_date' => 'required|date|before_or_equal:today',
             'reason' => 'required|string|max:500',
-            'confirm_preservation' => 'required|accepted'
+            'confirm_preservation' => 'required|accepted',
         ]);
 
         $dropoutService = app(\App\Services\DropoutManagementService::class);
@@ -690,7 +693,7 @@ class StudentController extends Controller
     public function reactivateStudent(Request $request, Student $student)
     {
         $request->validate([
-            'reason' => 'nullable|string|max:500'
+            'reason' => 'nullable|string|max:500',
         ]);
 
         $dropoutService = app(\App\Services\DropoutManagementService::class);
@@ -706,18 +709,24 @@ class StudentController extends Controller
     {
         $description = strtolower($description);
 
-        if (strpos($description, 'payment') !== false)
+        if (strpos($description, 'payment') !== false) {
             return 'success';
-        if (strpos($description, 'concession') !== false)
+        }
+        if (strpos($description, 'concession') !== false) {
             return 'warning';
-        if (strpos($description, 'created') !== false)
+        }
+        if (strpos($description, 'created') !== false) {
             return 'primary';
-        if (strpos($description, 'updated') !== false)
+        }
+        if (strpos($description, 'updated') !== false) {
             return 'info';
-        if (strpos($description, 'deleted') !== false)
+        }
+        if (strpos($description, 'deleted') !== false) {
             return 'danger';
-        if (strpos($description, 'error') !== false)
+        }
+        if (strpos($description, 'error') !== false) {
             return 'danger';
+        }
 
         return 'secondary';
     }
@@ -756,17 +765,17 @@ class StudentController extends Controller
                     'spatie_activities' => $spatieCount,
                     'payments' => $paymentCount,
                     'concessions' => $concessionCount,
-                    'fee_generations' => $feeGenerationCount
-                ]
+                    'fee_generations' => $feeGenerationCount,
+                ],
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error getting activity logs count for student ' . $student->id . ': ' . $e->getMessage());
+            Log::error('Error getting activity logs count for student '.$student->id.': '.$e->getMessage());
 
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to get activity logs count',
-                'total_count' => 0
+                'total_count' => 0,
             ], 500);
         }
     }
@@ -782,11 +791,11 @@ class StudentController extends Controller
             $changes = [];
             foreach ($properties['attributes'] as $key => $newValue) {
                 if (isset($properties['old'][$key]) && $properties['old'][$key] !== $newValue) {
-                    $changes[] = ucfirst(str_replace('_', ' ', $key)) . " changed from '{$properties['old'][$key]}' to '{$newValue}'";
+                    $changes[] = ucfirst(str_replace('_', ' ', $key))." changed from '{$properties['old'][$key]}' to '{$newValue}'";
                 }
             }
 
-            if (!empty($changes)) {
+            if (! empty($changes)) {
                 return implode(', ', $changes);
             }
         }
@@ -802,19 +811,20 @@ class StudentController extends Controller
         try {
             $month = $request->input('month', now()->format('Y-m'));
             $data = $this->fetchMonthlyAttendanceData($student, $month);
-            
+
             // Add overall percentage to the response for the header card
             $overall = $this->calculateOverallSummary($student);
             $data['overall_percentage'] = $overall['overall_percentage'];
 
             return response()->json([
                 'success' => true,
-                'data' => $data
+                'data' => $data,
             ]);
 
         } catch (\Exception $e) {
-            \Log::error('Attendance data error: ' . $e->getMessage());
-            return response()->json(['success' => false, 'message' => 'Error: ' . $e->getMessage()], 500);
+            \Log::error('Attendance data error: '.$e->getMessage());
+
+            return response()->json(['success' => false, 'message' => 'Error: '.$e->getMessage()], 500);
         }
     }
 
@@ -835,7 +845,7 @@ class StudentController extends Controller
             'late_arrivals' => $stats['late_arrivals'],
             'early_departures' => $stats['early_departures'],
             'average_check_in' => '-',
-            'average_check_out' => '-'
+            'average_check_out' => '-',
         ];
 
         return [
@@ -848,13 +858,13 @@ class StudentController extends Controller
                 'late_days' => $stats['late'],
                 'excused_days' => $stats['excused'],
                 'internship_days' => $stats['internship'],
-                'month_name' => $startDate->format('F Y')
+                'month_name' => $startDate->format('F Y'),
             ],
             'summary' => [
                 'overall_percentage' => $stats['percentage'],
-                'status' => $stats['percentage'] >= 75 ? 'good' : 'needs_improvement'
+                'status' => $stats['percentage'] >= 75 ? 'good' : 'needs_improvement',
             ],
-            'overall_percentage' => $stats['percentage'] // for AJAX consistency
+            'overall_percentage' => $stats['percentage'], // for AJAX consistency
         ];
     }
 
@@ -874,6 +884,7 @@ class StudentController extends Controller
                 $d = is_string($item->attendance_date)
                     ? substr($item->attendance_date, 0, 10)
                     : $item->attendance_date->format('Y-m-d');
+
                 return [$d => $item];
             });
 
@@ -900,8 +911,14 @@ class StudentController extends Controller
         $internshipStartDate = $isOnInternship ? $student->batch->internship_start_date : null;
 
         // 6. Counters
-        $present = 0; $absent = 0; $late = 0; $excused = 0; $internship = 0;
-        $totalWorkHours = 0; $lateArrivals = 0; $earlyDepartures = 0;
+        $present = 0;
+        $absent = 0;
+        $late = 0;
+        $excused = 0;
+        $internship = 0;
+        $totalWorkHours = 0;
+        $lateArrivals = 0;
+        $earlyDepartures = 0;
         $calendar = [];
 
         // 7. Iterate
@@ -912,49 +929,75 @@ class StudentController extends Controller
             $isPast = ($dateStr < $todayStr);
             $isWeekend = $current->isSunday();
             $isExplicitHoliday = isset($holidays[$dateStr]);
-            
+
             $isLowAttendanceHoliday = false;
-            if (!$isFuture && !$isWeekend && !$isExplicitHoliday) {
+            if (! $isFuture && ! $isWeekend && ! $isExplicitHoliday) {
                 $dayPunchCount = $dailyCounts[$dateStr] ?? 0;
-                if ($dayPunchCount < 10) $isLowAttendanceHoliday = true;
+                if ($dayPunchCount < 10) {
+                    $isLowAttendanceHoliday = true;
+                }
             }
             $isEffectiveHoliday = $isExplicitHoliday || $isLowAttendanceHoliday;
-            
+
             $isBeforeProfile = $current->lt($profileStartDate);
             $shouldIgnoreForAbsent = $isBeforeProfile || is_null($firstBiometricUse);
 
-            $status = 'none'; $checkIn = '-'; $checkOut = '-'; $remarks = ''; $workHours = 0;
+            $status = 'none';
+            $checkIn = '-';
+            $checkOut = '-';
+            $remarks = '';
+            $workHours = 0;
 
             if (isset($attendances[$dateStr])) {
                 $att = $attendances[$dateStr];
                 $status = strtolower(trim($att->status));
-                if (!$isFuture && $status != 'none') {
-                    if ($status == 'present') $present++;
-                    elseif ($status == 'late') { $late++; $lateArrivals++; }
-                    elseif ($status == 'absent') $absent++;
-                    elseif ($status == 'excused') $excused++;
+                if (! $isFuture && $status != 'none') {
+                    if ($status == 'present') {
+                        $present++;
+                    } elseif ($status == 'late') {
+                        $late++;
+                        $lateArrivals++;
+                    } elseif ($status == 'absent') {
+                        $absent++;
+                    } elseif ($status == 'excused') {
+                        $excused++;
+                    }
                 }
                 $checkIn = $att->check_in_time ? \Carbon\Carbon::parse($att->check_in_time)->format('h:i A') : '-';
                 $checkOut = $att->check_out_time ? \Carbon\Carbon::parse($att->check_out_time)->format('h:i A') : '-';
                 $remarks = $att->remarks;
-                if ($isLowAttendanceHoliday) $remarks = $remarks ? $remarks . ' (Holiday Declared)' : 'Holiday Declared';
+                if ($isLowAttendanceHoliday) {
+                    $remarks = $remarks ? $remarks.' (Holiday Declared)' : 'Holiday Declared';
+                }
                 if ($att->check_in_time && $att->check_out_time) {
                     $diff = \Carbon\Carbon::parse($att->check_in_time)->diffInHours(\Carbon\Carbon::parse($att->check_out_time));
                     $workHours = number_format($diff, 1);
                     $totalWorkHours += $diff;
                 }
             } else {
-                if ($shouldIgnoreForAbsent || $isFuture) $status = 'none';
-                elseif ($isWeekend) $status = 'weekend';
-                elseif ($isEffectiveHoliday) {
+                if ($shouldIgnoreForAbsent || $isFuture) {
+                    $status = 'none';
+                } elseif ($isWeekend) {
+                    $status = 'weekend';
+                } elseif ($isEffectiveHoliday) {
                     $status = 'holiday';
                     $remarks = $isExplicitHoliday ? $holidays[$dateStr] : 'Holiday';
                 } else {
                     if ($isPast) {
-                        $isInternshipDay = $isOnInternship && (!$internshipStartDate || $current->gte(\Carbon\Carbon::parse($internshipStartDate)));
-                        if ($isInternshipDay) { $internship++; $status = 'internship'; $checkIn = 'OJT'; $remarks = 'On Internship'; }
-                        else { $absent++; $status = 'absent'; $remarks = 'Absent'; }
-                    } else $status = 'none';
+                        $isInternshipDay = $isOnInternship && (! $internshipStartDate || $current->gte(\Carbon\Carbon::parse($internshipStartDate)));
+                        if ($isInternshipDay) {
+                            $internship++;
+                            $status = 'internship';
+                            $checkIn = 'OJT';
+                            $remarks = 'On Internship';
+                        } else {
+                            $absent++;
+                            $status = 'absent';
+                            $remarks = 'Absent';
+                        }
+                    } else {
+                        $status = 'none';
+                    }
                 }
             }
 
@@ -965,7 +1008,7 @@ class StudentController extends Controller
                 'working_hours' => $workHours,
                 'remarks' => $remarks,
                 'is_late_arrival' => ($status == 'late'),
-                'is_early_departure' => false
+                'is_early_departure' => false,
             ];
             $current->addDay();
         }
@@ -985,7 +1028,7 @@ class StudentController extends Controller
             'total_work_hours' => $totalWorkHours,
             'late_arrivals' => $lateArrivals,
             'early_departures' => $earlyDepartures,
-            'attendances' => $attendances
+            'attendances' => $attendances,
         ];
     }
 
@@ -999,7 +1042,7 @@ class StudentController extends Controller
         return [
             'most_late_day' => 'Monday', // Example
             'best_attendance_day' => 'Wednesday', // Example
-            'trend' => 'improving' // Example
+            'trend' => 'improving', // Example
         ];
     }
 
@@ -1031,12 +1074,11 @@ class StudentController extends Controller
                     'check_out_time' => $record->check_out_time ? (is_string($record->check_out_time) ? $record->check_out_time : $record->check_out_time->format('H:i:s')) : null,
                     'late_minutes' => $record->late_minutes ?? 0,
                     'subject' => $record->subject ?? null,
-                    'remarks' => $record->notes ?? null
+                    'remarks' => $record->notes ?? null,
                 ];
-            })
+            }),
         ];
     }
-
 
     /**
      * Get working days in a month (excluding weekends)
@@ -1059,7 +1101,6 @@ class StudentController extends Controller
         return $workingDays;
     }
 
-
     /**
      * Calculate overall summary across all months
      */
@@ -1070,7 +1111,7 @@ class StudentController extends Controller
     {
         // 1. Determine Start Date (Join Date)
         $startDate = $student->admission_date ? \Carbon\Carbon::parse($student->admission_date)->startOfDay() : $student->created_at->startOfDay();
-        
+
         // 2. Determine End Date (Today)
         $endDate = now();
 
@@ -1094,7 +1135,7 @@ class StudentController extends Controller
             'total_days' => $stats['total_working_days'],
             'present_days' => $stats['present'] + $stats['late'] + $stats['internship'],
             'absent_days' => $stats['absent'],
-            'status' => $status
+            'status' => $status,
         ];
     }
 
@@ -1142,7 +1183,6 @@ class StudentController extends Controller
         ];
     }
 
-
     private function generateCalendarData($attendanceRecords, $monthDate)
     {
         $calendarData = [];
@@ -1180,20 +1220,21 @@ class StudentController extends Controller
                     'is_early_departure' => false,
                     'subject' => $record->subject ?? null,
                     'remarks' => $record->notes ?? null,
-                    'device_id' => $record->device_id ?? null
+                    'device_id' => $record->device_id ?? null,
                 ];
             } catch (\Exception $e) {
                 \Log::error('Error formatting attendance record', [
                     'record_id' => $record->id ?? 'unknown',
-                    'error' => $e->getMessage()
+                    'error' => $e->getMessage(),
                 ]);
+
                 continue;
             }
         }
 
         \Log::info('Calendar data generated', [
             'total_records' => count($calendarData),
-            'dates' => array_keys($calendarData)
+            'dates' => array_keys($calendarData),
         ]);
 
         return $calendarData;
@@ -1233,7 +1274,7 @@ class StudentController extends Controller
                 'is_early_departure' => $isEarlyDeparture,
                 'subject' => $record->subject ? $record->subject->name : null,
                 'remarks' => $record->remarks,
-                'source' => $record->source
+                'source' => $record->source,
             ];
         });
 
@@ -1249,20 +1290,21 @@ class StudentController extends Controller
             case 'current_month':
                 return [
                     'start' => $monthDate->copy()->startOfMonth(),
-                    'end' => $monthDate->copy()->endOfMonth()
+                    'end' => $monthDate->copy()->endOfMonth(),
                 ];
 
             case 'last_month':
                 $lastMonth = $monthDate->copy()->subMonth();
+
                 return [
                     'start' => $lastMonth->copy()->startOfMonth(),
-                    'end' => $lastMonth->copy()->endOfMonth()
+                    'end' => $lastMonth->copy()->endOfMonth(),
                 ];
 
             case 'last_3_months':
                 return [
                     'start' => $monthDate->copy()->subMonths(2)->startOfMonth(),
-                    'end' => $monthDate->copy()->endOfMonth()
+                    'end' => $monthDate->copy()->endOfMonth(),
                 ];
 
             case 'current_semester':
@@ -1270,27 +1312,25 @@ class StudentController extends Controller
                 $semesterStart = now()->month >= 7 ?
                     now()->startOfYear()->addMonths(6) : // July if current year
                     now()->subYear()->startOfYear()->addMonths(6); // July of previous year
+
                 return [
                     'start' => $semesterStart,
-                    'end' => now()->endOfMonth()
+                    'end' => now()->endOfMonth(),
                 ];
 
             case 'custom':
                 return [
                     'start' => \Carbon\Carbon::parse($request->get('start_date', $monthDate->startOfMonth())),
-                    'end' => \Carbon\Carbon::parse($request->get('end_date', $monthDate->endOfMonth()))
+                    'end' => \Carbon\Carbon::parse($request->get('end_date', $monthDate->endOfMonth())),
                 ];
 
             default:
                 return [
                     'start' => $monthDate->copy()->startOfMonth(),
-                    'end' => $monthDate->copy()->endOfMonth()
+                    'end' => $monthDate->copy()->endOfMonth(),
                 ];
         }
     }
-
-
-
 
     /**
      * Get overall attendance summary for student
@@ -1308,7 +1348,7 @@ class StudentController extends Controller
 
         return [
             'overall_percentage' => $overallPercentage,
-            'status' => $this->getAttendanceStatus($overallPercentage)
+            'status' => $this->getAttendanceStatus($overallPercentage),
         ];
     }
 
@@ -1317,12 +1357,16 @@ class StudentController extends Controller
      */
     private function getAttendanceStatus($percentage)
     {
-        if ($percentage >= 90)
+        if ($percentage >= 90) {
             return 'excellent';
-        if ($percentage >= 80)
+        }
+        if ($percentage >= 80) {
             return 'good';
-        if ($percentage >= 75)
+        }
+        if ($percentage >= 75) {
             return 'satisfactory';
+        }
+
         return 'needs_improvement';
     }
 
@@ -1368,7 +1412,7 @@ class StudentController extends Controller
             'late_arrivals' => $lateArrivals,
             'early_departures' => $earlyDepartures,
             'average_check_in' => $this->calculateAverageTime($averageCheckInTime),
-            'average_check_out' => $this->calculateAverageTime($averageCheckOutTime)
+            'average_check_out' => $this->calculateAverageTime($averageCheckOutTime),
         ];
     }
 
@@ -1384,7 +1428,7 @@ class StudentController extends Controller
             $dayOfWeek = $record->attendance_date->format('l');
             $week = $record->attendance_date->format('W');
 
-            if (!isset($weeklyPattern[$dayOfWeek])) {
+            if (! isset($weeklyPattern[$dayOfWeek])) {
                 $weeklyPattern[$dayOfWeek] = ['total' => 0, 'present' => 0];
             }
 
@@ -1393,7 +1437,7 @@ class StudentController extends Controller
                 $weeklyPattern[$dayOfWeek]['present']++;
             }
 
-            if (!isset($monthlyTrend[$week])) {
+            if (! isset($monthlyTrend[$week])) {
                 $monthlyTrend[$week] = ['total' => 0, 'present' => 0];
             }
 
@@ -1414,7 +1458,7 @@ class StudentController extends Controller
 
         return [
             'weekly_pattern' => $weeklyPattern,
-            'monthly_trend' => $monthlyTrend
+            'monthly_trend' => $monthlyTrend,
         ];
     }
 
@@ -1423,7 +1467,7 @@ class StudentController extends Controller
      */
     private function calculateWorkingHours($checkInTime, $checkOutTime)
     {
-        if (!$checkInTime || !$checkOutTime) {
+        if (! $checkInTime || ! $checkOutTime) {
             return null;
         }
 
@@ -1447,6 +1491,7 @@ class StudentController extends Controller
             }
 
             $diffInHours = $checkOut->diffInMinutes($checkIn) / 60;
+
             return round($diffInHours, 1);
 
         } catch (\Exception $e) {
@@ -1459,7 +1504,7 @@ class StudentController extends Controller
      */
     private function isLateArrival($checkInTime)
     {
-        if (!$checkInTime) {
+        if (! $checkInTime) {
             return false;
         }
 
@@ -1474,7 +1519,7 @@ class StudentController extends Controller
      */
     private function isEarlyDeparture($checkOutTime)
     {
-        if (!$checkOutTime) {
+        if (! $checkOutTime) {
             return false;
         }
 
@@ -1535,6 +1580,7 @@ class StudentController extends Controller
     public function edit(Student $student)
     {
         $batches = Batch::with('course')->get();
+
         return view('admin.students.edit', compact('student', 'batches'));
     }
 
@@ -1552,14 +1598,14 @@ class StudentController extends Controller
                 'string',
                 'max:20',
                 Rule::unique('students')->ignore($student->id),
-                'regex:/^[6-9]\d{9}$/'
+                'regex:/^[6-9]\d{9}$/',
             ],
             'father_mobile' => [
                 'nullable',
                 'string',
                 'max:20',
                 Rule::unique('students')->ignore($student->id),
-                'regex:/^[6-9]\d{9}$/'
+                'regex:/^[6-9]\d{9}$/',
             ],
             'village' => 'nullable|string|max:255',
             'admission_date' => 'required|date_format:Y-m-d',
@@ -1583,7 +1629,7 @@ class StudentController extends Controller
             $validated['student_mobile'] === $validated['father_mobile']
         ) {
             return back()->withErrors([
-                'father_mobile' => 'Father mobile number cannot be the same as student mobile number.'
+                'father_mobile' => 'Father mobile number cannot be the same as student mobile number.',
             ])->withInput();
         }
 
@@ -1594,7 +1640,7 @@ class StudentController extends Controller
                 ->exists();
             if ($existsAsFatherMobile) {
                 return back()->withErrors([
-                    'student_mobile' => 'This mobile number is already registered as a father mobile number for another student.'
+                    'student_mobile' => 'This mobile number is already registered as a father mobile number for another student.',
                 ])->withInput();
             }
         }
@@ -1605,7 +1651,7 @@ class StudentController extends Controller
                 ->exists();
             if ($existsAsStudentMobile) {
                 return back()->withErrors([
-                    'father_mobile' => 'This mobile number is already registered as a student mobile number for another student.'
+                    'father_mobile' => 'This mobile number is already registered as a student mobile number for another student.',
                 ])->withInput();
             }
         }
@@ -1646,14 +1692,14 @@ class StudentController extends Controller
         try {
             $batch = Batch::with('students')->find($batchId);
 
-            if (!$batch) {
+            if (! $batch) {
                 throw new \Exception('Batch not found');
             }
 
             $currentAcademicYear = $this->getCurrentAcademicYear();
 
             // Check if fee structure exists
-            if (!$batch->feeStructure) {
+            if (! $batch->feeStructure) {
                 throw new \Exception('No fee structure assigned to this batch');
             }
 
@@ -1669,9 +1715,10 @@ class StudentController extends Controller
 
         } catch (\Exception $e) {
             DB::rollback();
+
             return [
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ];
         }
     }
@@ -1683,6 +1730,7 @@ class StudentController extends Controller
         }
 
         $student->delete();
+
         return redirect()->route('admin.students.index')->with('success', 'Student deleted successfully.');
     }
 
@@ -1737,7 +1785,7 @@ class StudentController extends Controller
 
         // Fallback for extreme cases (if 10 consecutive collisions happen)
         if ($attempt >= $maxAttempts) {
-            $enrollmentNumber = "{$collegePrefix}-{$coursePrefix}-{$batchYear}" . substr(time(), -3);
+            $enrollmentNumber = "{$collegePrefix}-{$coursePrefix}-{$batchYear}".substr(time(), -3);
         }
 
         return $enrollmentNumber;
@@ -1749,7 +1797,7 @@ class StudentController extends Controller
     public function updateStatus(Request $request, Student $student)
     {
         $request->validate([
-            'status' => 'required|in:active,graduated,dropout'
+            'status' => 'required|in:active,graduated,dropout',
         ]);
 
         $student->update(['status' => $request->status]);
@@ -1788,7 +1836,7 @@ class StudentController extends Controller
             'total_students' => $totalStudents,
             'mapped_students' => $mappedStudents,
             'unmapped_students' => $unmappedStudents,
-            'mapping_percentage' => $mappingPercentage
+            'mapping_percentage' => $mappingPercentage,
         ];
 
         // Get all students with current biometric codes and suggestions
@@ -1803,7 +1851,7 @@ class StudentController extends Controller
                     'biometric_code' => $student->biometric_employee_code,
                     'batch_name' => $student->batch->name ?? 'No Batch',
                     'course_name' => $student->batch->course->name ?? 'No Course',
-                    'suggested_code' => $this->generateBiometricCodeSuggestion($student->enrollment_number)
+                    'suggested_code' => $this->generateBiometricCodeSuggestion($student->enrollment_number),
                 ];
             });
 
@@ -1850,7 +1898,7 @@ class StudentController extends Controller
             }
 
             // MODIFICATION 2: Combine in the order: Course Code + Student Number
-            $biometricCode = $courseCode . $studentNumber;
+            $biometricCode = $courseCode.$studentNumber;
 
             return $biometricCode;
 
@@ -1859,7 +1907,7 @@ class StudentController extends Controller
             $numbers = preg_replace('/[^0-9]/', '', $enrollmentNumber);
             $numbers = empty($numbers) ? '0001' : $numbers;
 
-            return '25' . $numbers;
+            return '25'.$numbers;
         }
     }
 
@@ -1873,7 +1921,7 @@ class StudentController extends Controller
             'request_data' => $request->all(),
             'mappings_count' => count($request->input('mappings', [])),
             'user_id' => auth()->id(),
-            'ip' => $request->ip()
+            'ip' => $request->ip(),
         ]);
 
         $request->validate([
@@ -1884,7 +1932,7 @@ class StudentController extends Controller
 
         try {
             Log::info('Validation passed, calling biometric mapping service', [
-                'mappings' => $request->mappings
+                'mappings' => $request->mappings,
             ]);
 
             $results = $this->biometricMappingService->bulkUpdateCodes($request->mappings);
@@ -1892,26 +1940,26 @@ class StudentController extends Controller
             Log::info('Bulk biometric update completed', [
                 'results' => $results,
                 'success_count' => $results['success_count'],
-                'error_count' => $results['error_count']
+                'error_count' => $results['error_count'],
             ]);
 
             return response()->json([
                 'success' => true,
-                'message' => "Updated {$results['success_count']} students successfully" .
-                    ($results['error_count'] > 0 ? " with {$results['error_count']} errors" : ""),
-                'results' => $results
+                'message' => "Updated {$results['success_count']} students successfully".
+                    ($results['error_count'] > 0 ? " with {$results['error_count']} errors" : ''),
+                'results' => $results,
             ]);
 
         } catch (\Exception $e) {
             Log::error('Bulk biometric update failed', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
-                'request_data' => $request->all()
+                'request_data' => $request->all(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to update biometric codes: ' . $e->getMessage()
+                'message' => 'Failed to update biometric codes: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -1922,14 +1970,14 @@ class StudentController extends Controller
     public function importBiometricMapping(Request $request)
     {
         $request->validate([
-            'file' => 'required|file|max:5120'
+            'file' => 'required|file|max:5120',
         ]);
 
         // Enhanced file validation using SecureFileValidator
-        $fileValidator = new SecureFileValidator();
+        $fileValidator = new SecureFileValidator;
         $validationResult = $fileValidator->validateFile($request->file('file'), ['xlsx', 'xls', 'csv']);
 
-        if (!$validationResult['valid']) {
+        if (! $validationResult['valid']) {
             return back()->with('error', $validationResult['error']);
         }
 
@@ -1938,19 +1986,20 @@ class StudentController extends Controller
 
             if ($results['success']) {
                 $message = "Successfully imported {$results['imported_count']} biometric codes";
-                if (!empty($results['errors'])) {
-                    $message .= " with " . count($results['errors']) . " errors";
+                if (! empty($results['errors'])) {
+                    $message .= ' with '.count($results['errors']).' errors';
                 }
 
                 return back()->with('success', $message)
                     ->with('import_errors', $results['errors'] ?? []);
             } else {
-                return back()->with('error', 'Import failed: ' . $results['error']);
+                return back()->with('error', 'Import failed: '.$results['error']);
             }
 
         } catch (\Exception $e) {
             Log::error('Biometric import failed', ['error' => $e->getMessage()]);
-            return back()->with('error', 'Import failed: ' . $e->getMessage());
+
+            return back()->with('error', 'Import failed: '.$e->getMessage());
         }
     }
 
@@ -1963,7 +2012,8 @@ class StudentController extends Controller
             return $this->biometricMappingService->exportUnmappedStudents();
         } catch (\Exception $e) {
             Log::error('Export unmapped students failed', ['error' => $e->getMessage()]);
-            return back()->with('error', 'Export failed: ' . $e->getMessage());
+
+            return back()->with('error', 'Export failed: '.$e->getMessage());
         }
     }
 
@@ -1991,7 +2041,7 @@ class StudentController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => $message,
-                'results' => $results
+                'results' => $results,
             ]);
 
         } catch (\Exception $e) {
@@ -1999,11 +2049,10 @@ class StudentController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to auto-generate codes: ' . $e->getMessage()
+                'message' => 'Failed to auto-generate codes: '.$e->getMessage(),
             ], 500);
         }
     }
-
 
     /**
      * Download sample Excel file for bulk import
@@ -2034,7 +2083,7 @@ class StudentController extends Controller
 
         $students = $query->get();
 
-        return Excel::download(new StudentsExport($students), 'students_export_' . now()->format('Y-m-d') . '.xlsx');
+        return Excel::download(new StudentsExport($students), 'students_export_'.now()->format('Y-m-d').'.xlsx');
     }
 
     /**
@@ -2043,7 +2092,7 @@ class StudentController extends Controller
     public static function getStudentPhotoUrl(Student $student, $size = 100): string
     {
         if ($student->photo && Storage::disk('public')->exists($student->photo)) {
-            return asset('storage/' . $student->photo);
+            return asset('storage/'.$student->photo);
         }
 
         // Generate dummy avatar using UI Avatars service
@@ -2077,7 +2126,6 @@ class StudentController extends Controller
         return response()->json($studentsWithPhotos);
     }
 
-
     /**
      * Get unpaid fees for a student (API endpoint)
      */
@@ -2100,8 +2148,8 @@ class StudentController extends Controller
                     'status' => $fee->status,
                     'fee_category' => [
                         'id' => $fee->feeCategory->id,
-                        'name' => $fee->feeCategory->name
-                    ]
+                        'name' => $fee->feeCategory->name,
+                    ],
                 ];
             });
 
@@ -2113,10 +2161,10 @@ class StudentController extends Controller
         try {
             $student = Student::with('batch')->findOrFail($studentId);
 
-            if (!$student->batch_id) {
+            if (! $student->batch_id) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Student is not assigned to any batch'
+                    'message' => 'Student is not assigned to any batch',
                 ]);
             }
 
@@ -2130,16 +2178,16 @@ class StudentController extends Controller
                 ->where('id', $student->batch_id)
                 ->first();
 
-            // Since batches table doesn't have fee_structure_id, 
+            // Since batches table doesn't have fee_structure_id,
             // we need to get it from fee_structures table using batch_id
             $feeStructure = DB::table('fee_structures')
                 ->where('batch_id', $student->batch_id)
                 ->first();
 
-            if (!$feeStructure) {
+            if (! $feeStructure) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'No fee structure found for this batch'
+                    'message' => 'No fee structure found for this batch',
                 ]);
             }
 
@@ -2169,7 +2217,7 @@ class StudentController extends Controller
                 'debug' => [
                     'batch_id' => $student->batch_id,
                     'fee_structure_id' => $feeStructure->id,
-                    'assigned_ids' => $assignedIds
+                    'assigned_ids' => $assignedIds,
                 ],
                 'components' => $unassignedCategories->map(function ($category) {
                     $amount = $category->amount ?? 0;
@@ -2179,21 +2227,21 @@ class StudentController extends Controller
                         'name' => $category->name,
                         'description' => $category->description ?? '',
                         'amount' => (float) $amount,
-                        'warning' => $amount > 0 ? null : 'Amount not set - please specify when assigning'
+                        'warning' => $amount > 0 ? null : 'Amount not set - please specify when assigning',
                     ];
-                })
+                }),
             ]);
 
         } catch (\Exception $e) {
             \Log::error('Error getting unassigned fee components', [
                 'student_id' => $studentId,
                 'error' => $e->getMessage(),
-                'line' => $e->getLine()
+                'line' => $e->getLine(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ], 500);
         }
     }
@@ -2203,7 +2251,7 @@ class StudentController extends Controller
         try {
             $request->validate([
                 'fee_category_id' => 'required|exists:fee_categories,id',
-                'amount' => 'required|numeric|min:0'
+                'amount' => 'required|numeric|min:0',
             ]);
 
             $student = Student::findOrFail($studentId);
@@ -2217,7 +2265,7 @@ class StudentController extends Controller
             if ($exists) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'This fee component is already assigned to the student'
+                    'message' => 'This fee component is already assigned to the student',
                 ]);
             }
 
@@ -2226,10 +2274,10 @@ class StudentController extends Controller
                 ->where('batch_id', $student->batch_id)
                 ->first();
 
-            if (!$feeStructure) {
+            if (! $feeStructure) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'No fee structure found for this student\'s batch'
+                    'message' => 'No fee structure found for this student\'s batch',
                 ]);
             }
 
@@ -2239,10 +2287,10 @@ class StudentController extends Controller
 
             if ($currentMonth >= 4) {
                 // April to December = current year to next year
-                $academicYear = $currentYear . '-' . ($currentYear + 1);
+                $academicYear = $currentYear.'-'.($currentYear + 1);
             } else {
                 // January to March = previous year to current year
-                $academicYear = ($currentYear - 1) . '-' . $currentYear;
+                $academicYear = ($currentYear - 1).'-'.$currentYear;
             }
 
             // Insert into student_fees with all required fields
@@ -2257,24 +2305,24 @@ class StudentController extends Controller
                 'due_date' => now()->addDays(30),
                 'academic_year' => $academicYear, // ← ADD THIS
                 'created_at' => now(),
-                'updated_at' => now()
+                'updated_at' => now(),
             ]);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Fee component assigned successfully'
+                'message' => 'Fee component assigned successfully',
             ]);
 
         } catch (\Exception $e) {
             \Log::error('Error assigning fee component', [
                 'student_id' => $studentId,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ], 500);
         }
     }
@@ -2289,7 +2337,7 @@ class StudentController extends Controller
             $attendanceDataResponse = $this->getAttendanceData($request, $student);
             $attendanceData = json_decode($attendanceDataResponse->getContent(), true);
 
-            if (!$attendanceData['success']) {
+            if (! $attendanceData['success']) {
                 return back()->with('error', 'Failed to export attendance data');
             }
 
@@ -2297,7 +2345,7 @@ class StudentController extends Controller
 
             if ($format === 'pdf') {
                 return $this->exportAttendanceToPDF($student, $data);
-            } else if ($format === 'excel') {
+            } elseif ($format === 'excel') {
                 return $this->exportAttendanceToExcel($student, $data);
             }
 
@@ -2307,10 +2355,10 @@ class StudentController extends Controller
             \Log::error('Export attendance failed', [
                 'student_id' => $student->id,
                 'format' => $format,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
-            return back()->with('error', 'Export failed: ' . $e->getMessage());
+            return back()->with('error', 'Export failed: '.$e->getMessage());
         }
     }
 
@@ -2322,10 +2370,10 @@ class StudentController extends Controller
         $pdf = Pdf::loadView('admin.students.attendance-export-pdf', [
             'student' => $student,
             'data' => $data,
-            'generated_at' => now()
+            'generated_at' => now(),
         ]);
 
-        $filename = "attendance_{$student->enrollment_number}_" . now()->format('Y-m-d') . ".pdf";
+        $filename = "attendance_{$student->enrollment_number}_".now()->format('Y-m-d').'.pdf';
 
         return $pdf->download($filename);
     }
@@ -2338,7 +2386,7 @@ class StudentController extends Controller
         $request->validate([
             'mappings' => 'required|array',
             'mappings.*.student_id' => 'required|exists:students,id',
-            'mappings.*.biometric_code' => 'required|string|distinct'
+            'mappings.*.biometric_code' => 'required|string|distinct',
         ]);
 
         try {
@@ -2350,19 +2398,16 @@ class StudentController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => "Updated {$result['success_count']} students. Failed: {$result['error_count']}",
-                'details' => $result
+                'details' => $result,
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Bulk update failed: ' . $e->getMessage()
+                'message' => 'Bulk update failed: '.$e->getMessage(),
             ], 500);
         }
     }
-
-
-
 
     /**
      * Auto-generate biometric codes for students without them
@@ -2376,31 +2421,29 @@ class StudentController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => "Auto-generated codes for {$result['success_count']} students. Failed: {$result['error_count']}",
-                'details' => $result
+                'details' => $result,
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Auto-generation failed: ' . $e->getMessage()
+                'message' => 'Auto-generation failed: '.$e->getMessage(),
             ], 500);
         }
     }
 
     /**
-     * Export to Excel  
+     * Export to Excel
      */
     private function exportAttendanceToExcel($student, $data)
     {
         // You can use Maatwebsite\Excel for this
         // This is a placeholder implementation
-        $filename = "attendance_{$student->enrollment_number}_" . now()->format('Y-m-d') . ".xlsx";
+        $filename = "attendance_{$student->enrollment_number}_".now()->format('Y-m-d').'.xlsx';
 
         // Wrap data because AttendanceExport expects array with 'data' key
         return Excel::download(new \App\Exports\AttendanceExport(['data' => $data]), $filename);
     }
-
-
 
     /**
      * Get suggestions for student source fields (AJAX)
@@ -2427,7 +2470,7 @@ class StudentController extends Controller
                     return [
                         'value' => $student->name,
                         'label' => $student->name,
-                        'extra' => $student->enrollment_number . ' (' . ($student->batch->name ?? 'No Batch') . ')'
+                        'extra' => $student->enrollment_number.' ('.($student->batch->name ?? 'No Batch').')',
                     ];
                 });
         } elseif (in_array($source, ['Agent', 'Referrals', 'pro', 'list', 'Other'])) {
@@ -2445,7 +2488,7 @@ class StudentController extends Controller
                     return [
                         'value' => $item->referral_name,
                         'label' => $item->referral_name,
-                        'extra' => $item->total . ' Referral' . ($item->total !== 1 ? 's' : '')
+                        'extra' => $item->total.' Referral'.($item->total !== 1 ? 's' : ''),
                     ];
                 });
         }

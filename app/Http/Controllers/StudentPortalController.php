@@ -2,18 +2,17 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\Student;
-use App\Models\Admission;
-use Illuminate\Support\Facades\Session;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Validator;
-use Carbon\Carbon;
-use App\Models\Payment;
-use Illuminate\Support\Facades\Log;
 use App\Models\Holiday;
+use App\Models\Payment;
+use App\Models\Student;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 
 class StudentPortalController extends Controller
 {
@@ -49,7 +48,7 @@ class StudentPortalController extends Controller
         }
 
         // Rate limiting (simple session based for now, ideally Redis)
-        $key = 'login_attempts_' . $request->ip();
+        $key = 'login_attempts_'.$request->ip();
         if (session()->get($key, 0) > 5) {
             return back()->withErrors(['error' => 'Too many login attempts. Please try again later.']);
         }
@@ -58,19 +57,20 @@ class StudentPortalController extends Controller
         $student = Student::where('enrollment_number', $request->enrollment_number)
             ->where(function ($query) use ($request) {
                 $query->where('student_mobile', $request->mobile_number)
-                    ->orWhere('student_mobile', 'LIKE', '%' . substr($request->mobile_number, -10))
+                    ->orWhere('student_mobile', 'LIKE', '%'.substr($request->mobile_number, -10))
                     ->orWhere('father_mobile', $request->mobile_number)
-                    ->orWhere('father_mobile', 'LIKE', '%' . substr($request->mobile_number, -10));
+                    ->orWhere('father_mobile', 'LIKE', '%'.substr($request->mobile_number, -10));
             })
             ->first();
 
-        if (!$student) {
+        if (! $student) {
             // Log failed login attempt
             \App\Models\StudentPortalActivityLog::logActivity(null, 'login_failed', [
                 'enrollment_number' => $request->enrollment_number,
                 'mobile_number' => $request->mobile_number,
-                'reason' => 'Invalid credentials'
+                'reason' => 'Invalid credentials',
             ]);
+
             return back()->withErrors(['error' => 'Invalid Enrollment Number or Mobile Number.']);
         }
 
@@ -82,7 +82,7 @@ class StudentPortalController extends Controller
 
         // Log successful login
         \App\Models\StudentPortalActivityLog::logActivity($student->id, 'login_success', [
-            'enrollment_number' => $request->enrollment_number
+            'enrollment_number' => $request->enrollment_number,
         ]);
 
         return redirect()->route('student.dashboard');
@@ -93,15 +93,16 @@ class StudentPortalController extends Controller
      */
     public function dashboard()
     {
-        if (!session()->has('student_portal_auth')) {
+        if (! session()->has('student_portal_auth')) {
             return redirect()->route('student.login');
         }
 
         $studentId = session('student_portal_auth');
         $student = Student::with(['admission', 'batch.course'])->find($studentId);
 
-        if (!$student) {
+        if (! $student) {
             session()->forget('student_portal_auth');
+
             return redirect()->route('student.login')->withErrors(['error' => 'Student record not found.']);
         }
 
@@ -126,7 +127,7 @@ class StudentPortalController extends Controller
      */
     public function requestUpdate(Request $request)
     {
-        if (!session()->has('student_portal_auth')) {
+        if (! session()->has('student_portal_auth')) {
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
@@ -155,7 +156,7 @@ class StudentPortalController extends Controller
         }
 
         // Rate Limiting for Updates
-        $updateKey = 'update_requests_' . $studentId;
+        $updateKey = 'update_requests_'.$studentId;
         if (session()->get($updateKey, 0) > 3) {
             return response()->json(['error' => 'You have submitted too many requests recently. Please wait.'], 429);
         }
@@ -172,17 +173,17 @@ class StudentPortalController extends Controller
                 try {
                     // Compress Image to < 500KB
                     $compressedImage = $this->compressImage($file, 500);
-                    $filename = 'temp_' . \Illuminate\Support\Str::random(40) . '.jpg'; // Convert to JPG
+                    $filename = 'temp_'.\Illuminate\Support\Str::random(40).'.jpg'; // Convert to JPG
 
                     // Store in private/temp_uploads
-                    Storage::put('private/temp_uploads/' . $filename, $compressedImage);
+                    Storage::put('private/temp_uploads/'.$filename, $compressedImage);
 
-                    $path = 'private/temp_uploads/' . $filename;
+                    $path = 'private/temp_uploads/'.$filename;
                     $newData = ['photo_preview' => $filename];
                     $proofFile = $path;
 
                 } catch (\Exception $e) {
-                    return response()->json(['error' => 'Image compression failed: ' . $e->getMessage()], 500);
+                    return response()->json(['error' => 'Image compression failed: '.$e->getMessage()], 500);
                 }
 
             } elseif ($fieldGroup === 'address') {
@@ -190,7 +191,7 @@ class StudentPortalController extends Controller
             } elseif ($fieldGroup === 'personal') {
                 $newData = [
                     'type' => $request->mobile_type, // 'student' or 'father'
-                    'mobile' => $request->mobile_number
+                    'mobile' => $request->mobile_number,
                 ];
             } elseif ($fieldGroup === 'dob') {
                 $newData = ['dob' => $request->dob];
@@ -209,13 +210,14 @@ class StudentPortalController extends Controller
 
             // Log profile update request
             \App\Models\StudentPortalActivityLog::logActivity($studentId, 'profile_update_request', [
-                'field_group' => $fieldGroup
+                'field_group' => $fieldGroup,
             ]);
 
             return response()->json(['message' => 'Request submitted for approval.']);
 
         } catch (\Exception $e) {
-            Log::error("Student Profile Update Request Error: " . $e->getMessage());
+            Log::error('Student Profile Update Request Error: '.$e->getMessage());
+
             return response()->json(['error' => 'An unexpected error occurred. Please try again later.'], 500);
         }
     }
@@ -226,16 +228,18 @@ class StudentPortalController extends Controller
     private function compressImage($file, $maxSizeKb)
     {
         $sourcePath = $file->getPathname();
-        list($width, $height, $type) = getimagesize($sourcePath);
+        [$width, $height, $type] = getimagesize($sourcePath);
 
         $image = null;
-        if ($type == IMAGETYPE_JPEG)
+        if ($type == IMAGETYPE_JPEG) {
             $image = imagecreatefromjpeg($sourcePath);
-        elseif ($type == IMAGETYPE_PNG)
+        } elseif ($type == IMAGETYPE_PNG) {
             $image = imagecreatefrompng($sourcePath);
+        }
 
-        if (!$image)
-            throw new \Exception("Unsupported image type");
+        if (! $image) {
+            throw new \Exception('Unsupported image type');
+        }
 
         // Start compression loop
         $quality = 90;
@@ -253,6 +257,7 @@ class StudentPortalController extends Controller
         }
 
         imagedestroy($image);
+
         return $output;
     }
 
@@ -261,8 +266,9 @@ class StudentPortalController extends Controller
      */
     public function getPaymentData()
     {
-        if (!session()->has('student_portal_auth'))
+        if (! session()->has('student_portal_auth')) {
             return response()->json(['error' => 'Unauthorized'], 401);
+        }
 
         $student = Student::find(session('student_portal_auth'));
 
@@ -273,7 +279,7 @@ class StudentPortalController extends Controller
                 'componentItems.studentFee' => function ($q) {
                     $q->withoutGlobalScope('academic_year');
                 },
-                'componentItems.studentFee.feeCategory'
+                'componentItems.studentFee.feeCategory',
             ])
             ->orderBy('payment_date', 'desc')
             ->get();
@@ -292,7 +298,7 @@ class StudentPortalController extends Controller
 
             foreach ($payment->componentItems as $item) {
                 $catName = $item->studentFee->feeCategory->name ?? 'Unknown Category';
-                if (!$item->studentFee) {
+                if (! $item->studentFee) {
                     if (app()->environment('local')) {
                         Log::debug("Payment Item ID {$item->id} has no StudentFee linked!");
                     }
@@ -304,7 +310,7 @@ class StudentPortalController extends Controller
                     'amount' => $item->amount_paid,
                     'payment_date' => $payment->payment_date ? \Carbon\Carbon::parse($payment->payment_date)->format('d M, Y') : '-',
                     'receipt_number' => $payment->receipt_number,
-                    'status' => 'Paid'
+                    'status' => 'Paid',
                 ];
             }
         }
@@ -323,13 +329,13 @@ class StudentPortalController extends Controller
                 'amount' => $fee->amount,
                 'status' => ucfirst($fee->status),
                 'paid_amount' => $fee->paid_amount,
-                'balance' => $fee->amount - $fee->paid_amount - $fee->concession_amount
+                'balance' => $fee->amount - $fee->paid_amount - $fee->concession_amount,
             ];
         }
 
         return response()->json([
             'pending' => $pending,
-            'history' => $history
+            'history' => $history,
         ]);
     }
 
@@ -338,8 +344,9 @@ class StudentPortalController extends Controller
      */
     public function getAttendanceData(Request $request)
     {
-        if (!session()->has('student_portal_auth'))
+        if (! session()->has('student_portal_auth')) {
             return response()->json(['error' => 'Unauthorized'], 401);
+        }
         $student = Student::find(session('student_portal_auth'));
 
         // Determine Month & Year
@@ -390,7 +397,7 @@ class StudentPortalController extends Controller
         // 1. Calculate Daily Punch Counts for "Low Attendance" logic (Institution-wide)
         // We count distinct students per day to check if attendance is < 10
         $dailyCounts = Cache::remember(
-            'attendance_daily_counts_' . $startOfMonth->format('Y-m'),
+            'attendance_daily_counts_'.$startOfMonth->format('Y-m'),
             300,
             function () use ($startOfMonth, $endOfMonth) {
                 return DB::table('attendances')
@@ -442,7 +449,7 @@ class StudentPortalController extends Controller
             // "Low Attendance" Holiday Logic
             $isLowAttendanceHoliday = false;
             // If it is a working day (not weekend, not declared holiday) and punches < 10, mark as holiday
-            if (!$isFuture && !$isWeekend && !$isExplicitHoliday) {
+            if (! $isFuture && ! $isWeekend && ! $isExplicitHoliday) {
                 $dayPunchCount = $dailyCounts[$dateStr] ?? 0;
                 if ($dayPunchCount < 10) {
                     $isLowAttendanceHoliday = true;
@@ -504,10 +511,10 @@ class StudentPortalController extends Controller
 
         // Recalculate Stats based on the final calendar map
         $finalStatuses = collect($calendarData);
-        $presentDays = $finalStatuses->filter(fn($s) => in_array($s, ['present', 'late', 'internship']))->count();
-        $absentDays = $finalStatuses->filter(fn($s) => $s === 'absent')->count();
-        $lateDays = $finalStatuses->filter(fn($s) => $s === 'late')->count();
-        $totalHolidays = $finalStatuses->filter(fn($s) => in_array($s, ['holiday', 'weekend']))->count();
+        $presentDays = $finalStatuses->filter(fn ($s) => in_array($s, ['present', 'late', 'internship']))->count();
+        $absentDays = $finalStatuses->filter(fn ($s) => $s === 'absent')->count();
+        $lateDays = $finalStatuses->filter(fn ($s) => $s === 'late')->count();
+        $totalHolidays = $finalStatuses->filter(fn ($s) => in_array($s, ['holiday', 'weekend']))->count();
 
         // Working Days (effective)
         $workingDays = $presentDays + $absentDays;
@@ -529,7 +536,7 @@ class StudentPortalController extends Controller
             ->map(function ($item) {
                 return [
                     'label' => Carbon::createFromDate($item->year, $item->month, 1)->format('F Y'),
-                    'value' => $item->month_str // YYYY-MM
+                    'value' => $item->month_str, // YYYY-MM
                 ];
             });
 
@@ -539,14 +546,14 @@ class StudentPortalController extends Controller
                 'present_days' => $presentDays,
                 'absent_days' => $absentDays,
                 'holidays' => $totalHolidays,
-                'percentage' => $percentage
+                'percentage' => $percentage,
             ],
             'calendar' => $calendarData,
             'month_name' => $startOfMonth->format('F Y'),
             'first_date' => $startOfMonth->format('Y-m-d'),
             'current_month' => $startOfMonth->month,
             'current_year' => $startOfMonth->year,
-            'available_months' => $availableMonths
+            'available_months' => $availableMonths,
         ]);
     }
 
@@ -561,6 +568,7 @@ class StudentPortalController extends Controller
 
         session()->forget('student_portal_auth');
         session()->forget('student_portal_mobile');
+
         return redirect()->route('student.login');
     }
 
@@ -572,7 +580,7 @@ class StudentPortalController extends Controller
             'father_mobile' => ['points' => 20, 'label' => "Father's Mobile"],
             'photo' => ['points' => 20, 'label' => 'Profile Photo'],
             'dob' => ['points' => 10, 'label' => 'Date of Birth'],
-            'gender' => ['points' => 5, 'label' => 'Gender']
+            'gender' => ['points' => 5, 'label' => 'Gender'],
         ];
 
         $score = 0;
@@ -584,7 +592,7 @@ class StudentPortalController extends Controller
             if ($field === 'address') {
                 $hasValue = $student->admission && $student->admission->address;
             } else {
-                $hasValue = !empty($student->$field);
+                $hasValue = ! empty($student->$field);
             }
 
             if ($hasValue) {
@@ -596,7 +604,7 @@ class StudentPortalController extends Controller
 
         return [
             'percentage' => $score,
-            'missing' => $missing
+            'missing' => $missing,
         ];
     }
 }

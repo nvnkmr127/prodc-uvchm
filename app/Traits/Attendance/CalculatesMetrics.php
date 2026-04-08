@@ -3,9 +3,8 @@
 namespace App\Traits\Attendance;
 
 use App\Models\Attendance\Attendance;
-use App\Models\Student;
-use Illuminate\Support\Collection;
 use Carbon\Carbon;
+use Illuminate\Support\Collection;
 
 trait CalculatesMetrics
 {
@@ -86,7 +85,7 @@ trait CalculatesMetrics
                 'absent_count' => $absent,
                 'late_count' => $late,
                 'attendance_percentage' => $total > 0 ? round(($present / $total) * 100, 2) : 0,
-                'punctuality_percentage' => $total > 0 ? round((($present - $late) / $total) * 100, 2) : 0
+                'punctuality_percentage' => $total > 0 ? round((($present - $late) / $total) * 100, 2) : 0,
             ];
         })->values()->toArray();
     }
@@ -111,7 +110,7 @@ trait CalculatesMetrics
                 'day_name' => Carbon::create()->dayOfWeek($dayOfWeek)->format('l'),
                 'total_classes' => $total,
                 'present_count' => $present,
-                'attendance_percentage' => $total > 0 ? round(($present / $total) * 100, 2) : 0
+                'attendance_percentage' => $total > 0 ? round(($present / $total) * 100, 2) : 0,
             ];
         });
 
@@ -216,7 +215,7 @@ trait CalculatesMetrics
             'late_count' => $late,
             'excused_count' => $excused,
             'attendance_percentage' => $total > 0 ? round((($present + $late + $excused) / $total) * 100, 2) : 0,
-            'punctuality_percentage' => $total > 0 ? round(($present / $total) * 100, 2) : 0
+            'punctuality_percentage' => $total > 0 ? round(($present / $total) * 100, 2) : 0,
         ];
     }
 
@@ -230,10 +229,10 @@ trait CalculatesMetrics
         foreach ($batchIds as $batchId) {
             $query = Attendance::where('batch_id', $batchId);
 
-            if (!empty($dateRange['from'])) {
+            if (! empty($dateRange['from'])) {
                 $query->where('attendance_date', '>=', $dateRange['from']);
             }
-            if (!empty($dateRange['to'])) {
+            if (! empty($dateRange['to'])) {
                 $query->where('attendance_date', '<=', $dateRange['to']);
             }
 
@@ -249,7 +248,7 @@ trait CalculatesMetrics
                 'total_classes' => $total,
                 'present_count' => $present,
                 'attendance_percentage' => $total > 0 ? round(($present / $total) * 100, 2) : 0,
-                'student_count' => $batchInfo->students()->count() ?? 0
+                'student_count' => $batchInfo->students()->count() ?? 0,
             ];
         }
 
@@ -270,7 +269,7 @@ trait CalculatesMetrics
         $previousPercentage = $this->calculateAttendancePercentage($previousPeriod);
 
         $improvement = $currentPercentage - $previousPercentage;
-        $improvementPercentage = $previousPercentage > 0 ? 
+        $improvementPercentage = $previousPercentage > 0 ?
             round(($improvement / $previousPercentage) * 100, 2) : 0;
 
         return [
@@ -278,7 +277,7 @@ trait CalculatesMetrics
             'previous_percentage' => $previousPercentage,
             'improvement' => $improvement,
             'improvement_percentage' => $improvementPercentage,
-            'trend' => $improvement > 0 ? 'improving' : ($improvement < 0 ? 'declining' : 'stable')
+            'trend' => $improvement > 0 ? 'improving' : ($improvement < 0 ? 'declining' : 'stable'),
         ];
     }
 
@@ -289,10 +288,10 @@ trait CalculatesMetrics
     {
         $query = Attendance::where('student_id', $studentId)->whereNotNull('subject_id');
 
-        if (!empty($dateRange['from'])) {
+        if (! empty($dateRange['from'])) {
             $query->where('attendance_date', '>=', $dateRange['from']);
         }
-        if (!empty($dateRange['to'])) {
+        if (! empty($dateRange['to'])) {
             $query->where('attendance_date', '<=', $dateRange['to']);
         }
 
@@ -308,7 +307,7 @@ trait CalculatesMetrics
                 'subject_name' => $subject->name ?? 'Unknown',
                 'total_classes' => $total,
                 'present_count' => $present,
-                'attendance_percentage' => $total > 0 ? round(($present / $total) * 100, 2) : 0
+                'attendance_percentage' => $total > 0 ? round(($present / $total) * 100, 2) : 0,
             ];
         })->values()->toArray();
     }
@@ -325,7 +324,7 @@ trait CalculatesMetrics
                 'total_late_days' => 0,
                 'average_late_minutes' => 0,
                 'max_late_minutes' => 0,
-                'late_frequency_by_day' => []
+                'late_frequency_by_day' => [],
             ];
         }
 
@@ -341,7 +340,7 @@ trait CalculatesMetrics
             return [
                 'day' => $day,
                 'count' => $dayLates->count(),
-                'average_minutes' => round($dayLates->avg('late_minutes'), 2)
+                'average_minutes' => round($dayLates->avg('late_minutes'), 2),
             ];
         })->values()->toArray();
 
@@ -349,7 +348,7 @@ trait CalculatesMetrics
             'total_late_days' => $totalLateDays,
             'average_late_minutes' => $averageLateMinutes,
             'max_late_minutes' => $maxLateMinutes,
-            'late_frequency_by_day' => $lateByDay
+            'late_frequency_by_day' => $lateByDay,
         ];
     }
 }

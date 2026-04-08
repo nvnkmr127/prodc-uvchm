@@ -2,22 +2,20 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\ServiceProvider;
+use App\Models\StudentFee;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\View;
-use Illuminate\Pagination\Paginator;
-use App\Models\StudentFee;
-use Illuminate\Support\Facades\DB;
-use Spatie\Health\Facades\Health;
-use Spatie\Health\Checks\Checks\UsedDiskSpaceCheck;
+use Illuminate\Support\ServiceProvider;
+use Spatie\Health\Checks\Checks\CacheCheck;
 use Spatie\Health\Checks\Checks\DatabaseCheck;
 use Spatie\Health\Checks\Checks\DebugModeCheck;
 use Spatie\Health\Checks\Checks\PingCheck;
-use Spatie\Health\Checks\Checks\CacheCheck;
-
-
+use Spatie\Health\Checks\Checks\UsedDiskSpaceCheck;
+use Spatie\Health\Facades\Health;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -31,14 +29,14 @@ class AppServiceProvider extends ServiceProvider
         // Register ComponentPaymentService if it exists
         if (class_exists('\App\Services\ComponentPaymentService')) {
             $this->app->singleton(\App\Services\ComponentPaymentService::class, function ($app) {
-                return new \App\Services\ComponentPaymentService();
+                return new \App\Services\ComponentPaymentService;
             });
         }
 
         // Register DashboardService if it exists
         if (class_exists('\App\Services\DashboardService')) {
             $this->app->singleton(\App\Services\DashboardService::class, function ($app) {
-                return new \App\Services\DashboardService();
+                return new \App\Services\DashboardService;
             });
         }
 
@@ -56,34 +54,34 @@ class AppServiceProvider extends ServiceProvider
         // Register ComponentPaymentReminderService if it exists
         if (class_exists('\App\Services\ComponentPaymentReminderService')) {
             $this->app->singleton(\App\Services\ComponentPaymentReminderService::class, function ($app) {
-                return new \App\Services\ComponentPaymentReminderService();
+                return new \App\Services\ComponentPaymentReminderService;
             });
         }
 
         // Register ComponentPaymentAnalyticsService if it exists
         if (class_exists('\App\Services\ComponentPaymentAnalyticsService')) {
             $this->app->singleton(\App\Services\ComponentPaymentAnalyticsService::class, function ($app) {
-                return new \App\Services\ComponentPaymentAnalyticsService();
+                return new \App\Services\ComponentPaymentAnalyticsService;
             });
         }
 
         // Register SMS and WhatsApp services if they exist
         if (class_exists('\App\Services\SMSService')) {
             $this->app->singleton(\App\Services\SMSService::class, function ($app) {
-                return new \App\Services\SMSService();
+                return new \App\Services\SMSService;
             });
         }
 
         if (class_exists('\App\Services\WhatsAppService')) {
             $this->app->singleton(\App\Services\WhatsAppService::class, function ($app) {
-                return new \App\Services\WhatsAppService();
+                return new \App\Services\WhatsAppService;
             });
         }
 
         // Register helper if it exists
         if (class_exists('\App\Helpers\PaymentHelper')) {
             $this->app->singleton('payment.helper', function ($app) {
-                return new \App\Helpers\PaymentHelper();
+                return new \App\Helpers\PaymentHelper;
             });
         }
 
@@ -106,7 +104,7 @@ class AppServiceProvider extends ServiceProvider
         // Register ValidationService (no dependencies)
         if (class_exists('\App\Services\Attendance\ValidationService')) {
             $this->app->singleton(\App\Services\Attendance\ValidationService::class, function ($app) {
-                return new \App\Services\Attendance\ValidationService();
+                return new \App\Services\Attendance\ValidationService;
             });
         }
 
@@ -114,6 +112,7 @@ class AppServiceProvider extends ServiceProvider
         if (class_exists('\App\Services\Attendance\AttendanceService')) {
             $this->app->singleton(\App\Services\Attendance\AttendanceService::class, function ($app) {
                 $notificationService = $app->make(\App\Services\Attendance\NotificationService::class);
+
                 return new \App\Services\Attendance\AttendanceService($notificationService);
             });
         }
@@ -121,7 +120,7 @@ class AppServiceProvider extends ServiceProvider
         // Register AnalyticsService for Attendance (no dependencies)
         if (class_exists('\App\Services\Attendance\AnalyticsService')) {
             $this->app->singleton(\App\Services\Attendance\AnalyticsService::class, function ($app) {
-                return new \App\Services\Attendance\AnalyticsService();
+                return new \App\Services\Attendance\AnalyticsService;
             });
         }
     }
@@ -195,8 +194,6 @@ class AppServiceProvider extends ServiceProvider
         Blade::directive('paymentStatus', function ($status) {
             return "<?php echo function_exists('get_payment_status_badge') ? get_payment_status_badge($status) : '<span class=\"badge badge-secondary\">N/A</span>'; ?>";
         });
-
-
 
         // Format currency directive
         Blade::directive('currency', function ($amount) {
@@ -396,7 +393,6 @@ class AppServiceProvider extends ServiceProvider
     private function registerViewComposers(): void
     {
 
-
         // Share fee categories with payment views (with safety checks)
         View::composer('admin.payment*', function ($view) {
             try {
@@ -410,7 +406,6 @@ class AppServiceProvider extends ServiceProvider
                 $view->with('feeCategories', collect([]));
             }
         });
-
 
     }
 
@@ -449,7 +444,7 @@ class AppServiceProvider extends ServiceProvider
             View::share('appTagline', $appTagline);
         } catch (\Exception $e) {
             // Suppress error during boot if DB is unavailable
-            \Log::warning('AppServiceProvider: Failed to share global data (DB might be offline): ' . $e->getMessage());
+            \Log::warning('AppServiceProvider: Failed to share global data (DB might be offline): '.$e->getMessage());
         }
     }
 
@@ -500,14 +495,14 @@ class AppServiceProvider extends ServiceProvider
         // Validate reminder channel
         \Validator::extend('valid_reminder_channel', function ($attribute, $value, $parameters, $validator) {
             $validChannels = ['email', 'sms', 'whatsapp', 'phone_call', 'physical_notice'];
+
             return in_array($value, $validChannels);
         });
-
-
 
         // Validate payment status
         \Validator::extend('valid_payment_status', function ($attribute, $value, $parameters, $validator) {
             $validStatuses = ['paid', 'unpaid', 'partial', 'overdue', 'waived'];
+
             return in_array($value, $validStatuses);
         });
 
@@ -540,7 +535,7 @@ class AppServiceProvider extends ServiceProvider
                         }
                     } catch (\Exception $e) {
                         // Log error but don't break the application
-                        \Log::error('Error canceling reminders for paid fee: ' . $e->getMessage());
+                        \Log::error('Error canceling reminders for paid fee: '.$e->getMessage());
                     }
                 }
             });
@@ -557,7 +552,7 @@ class AppServiceProvider extends ServiceProvider
                         }
                     } catch (\Exception $e) {
                         // Log error but don't break the application
-                        \Log::error('Error setting up reminder schedule: ' . $e->getMessage());
+                        \Log::error('Error setting up reminder schedule: '.$e->getMessage());
                     }
                 }
             });
@@ -574,7 +569,7 @@ class AppServiceProvider extends ServiceProvider
                                 ->update(['status' => 'cancelled']);
                         }
                     } catch (\Exception $e) {
-                        \Log::error('Error canceling reminders for status change: ' . $e->getMessage());
+                        \Log::error('Error canceling reminders for status change: '.$e->getMessage());
                     }
                 }
             });
@@ -592,7 +587,7 @@ class AppServiceProvider extends ServiceProvider
                             ->update(['last_reminder_sent_at' => now()]);
                     }
                 } catch (\Exception $e) {
-                    \Log::error('Error updating reminder count: ' . $e->getMessage());
+                    \Log::error('Error updating reminder count: '.$e->getMessage());
                 }
             });
         }
@@ -628,6 +623,7 @@ class AppServiceProvider extends ServiceProvider
         // Collection macro for overdue analysis
         \Illuminate\Support\Collection::macro('overdueAnalysis', function () {
             $now = now();
+
             return [
                 'total' => $this->count(),
                 'overdue' => $this->filter(function ($item) use ($now) {
@@ -677,8 +673,8 @@ class AppServiceProvider extends ServiceProvider
             if (class_exists('\App\Services\SMSService')) {
                 $this->app->singleton(\App\Services\SMSService::class, function ($app) {
                     return class_exists('\App\Services\MockSMSService') ?
-                        new \App\Services\MockSMSService() :
-                        new \App\Services\SMSService();
+                        new \App\Services\MockSMSService :
+                        new \App\Services\SMSService;
                 });
             }
         }
@@ -688,8 +684,8 @@ class AppServiceProvider extends ServiceProvider
             if (class_exists('\App\Services\WhatsAppService')) {
                 $this->app->singleton(\App\Services\WhatsAppService::class, function ($app) {
                     return class_exists('\App\Services\MockWhatsAppService') ?
-                        new \App\Services\MockWhatsAppService() :
-                        new \App\Services\WhatsAppService();
+                        new \App\Services\MockWhatsAppService :
+                        new \App\Services\WhatsAppService;
                 });
             }
         }

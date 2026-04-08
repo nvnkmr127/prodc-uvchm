@@ -2,8 +2,8 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -14,8 +14,8 @@ return new class extends Migration
     {
         // First, let's check what the current column looks like
         $columns = DB::select("SHOW COLUMNS FROM invoices WHERE Field = 'status'");
-        
-        if (!empty($columns)) {
+
+        if (! empty($columns)) {
             $currentType = $columns[0]->Type;
             echo "Current status column type: {$currentType}\n";
         }
@@ -31,8 +31,8 @@ return new class extends Migration
 
         Schema::table('invoices', function (Blueprint $table) {
             $table->enum('status', ['unpaid', 'partially_paid', 'paid', 'cancelled'])
-                  ->default('unpaid')
-                  ->after('due_amount');
+                ->default('unpaid')
+                ->after('due_amount');
         });
 
         echo "Status column recreated with proper ENUM values.\n";
@@ -50,8 +50,8 @@ return new class extends Migration
 
         Schema::table('invoices', function (Blueprint $table) {
             $table->enum('status', ['unpaid', 'partially_paid', 'paid', 'cancelled'])
-                  ->default('unpaid')
-                  ->after('due_amount');
+                ->default('unpaid')
+                ->after('due_amount');
         });
     }
 };

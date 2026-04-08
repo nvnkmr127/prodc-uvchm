@@ -2,9 +2,9 @@
 
 namespace App\Services;
 
+use App\Models\Attendance;
 use App\Models\Setting;
 use App\Models\Student;
-use App\Models\Attendance;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -13,9 +13,13 @@ use Illuminate\Support\Facades\Schema;
 class ETimeOfficeService
 {
     protected string $apiUrl;
+
     protected string $corporateId;
+
     protected string $username;
+
     protected string $password;
+
     protected string $authToken;
 
     public function __construct()
@@ -30,8 +34,9 @@ class ETimeOfficeService
     {
         try {
             // Check if settings table exists before querying
-            if (!\Illuminate\Support\Facades\Schema::hasTable('settings')) {
+            if (! \Illuminate\Support\Facades\Schema::hasTable('settings')) {
                 $this->setDefaultConfiguration();
+
                 return;
             }
 
@@ -65,7 +70,7 @@ class ETimeOfficeService
      */
     private function ensureConfigurationLoaded(): void
     {
-        if (!isset($this->apiUrl)) {
+        if (! isset($this->apiUrl)) {
             $this->loadConfiguration();
         }
     }
@@ -81,26 +86,26 @@ class ETimeOfficeService
             $response = $this->makeApiCall('DownloadPunchData', [
                 'Empcode' => 'ALL',
                 'FromDate' => now()->format('d/m/Y_H:i'),
-                'ToDate' => now()->format('d/m/Y_H:i')
+                'ToDate' => now()->format('d/m/Y_H:i'),
             ]);
 
             if ($response['success']) {
                 return [
                     'success' => true,
                     'message' => 'API connection successful',
-                    'data_count' => count($response['data']['PunchData'] ?? [])
+                    'data_count' => count($response['data']['PunchData'] ?? []),
                 ];
             } else {
                 return [
                     'success' => false,
-                    'message' => 'API connection failed: ' . $response['error']
+                    'message' => 'API connection failed: '.$response['error'],
                 ];
             }
 
         } catch (\Exception $e) {
             return [
                 'success' => false,
-                'message' => 'Connection error: ' . $e->getMessage()
+                'message' => 'Connection error: '.$e->getMessage(),
             ];
         }
     }
@@ -116,20 +121,20 @@ class ETimeOfficeService
             Log::info('Fetching eTimeOffice punch data', [
                 'from_date' => $fromDate->format('d/m/Y_H:i'),
                 'to_date' => $toDate->format('d/m/Y_H:i'),
-                'empcode' => $empcode
+                'empcode' => $empcode,
             ]);
 
             $response = $this->makeApiCall('DownloadPunchData', [
                 'Empcode' => $empcode,
                 'FromDate' => $fromDate->format('d/m/Y_H:i'),
-                'ToDate' => $toDate->format('d/m/Y_H:i')
+                'ToDate' => $toDate->format('d/m/Y_H:i'),
             ]);
 
-            if (!$response['success']) {
+            if (! $response['success']) {
                 return [
                     'success' => false,
                     'error' => $response['error'],
-                    'data' => []
+                    'data' => [],
                 ];
             }
 
@@ -138,26 +143,26 @@ class ETimeOfficeService
             Log::info('eTimeOffice data fetched successfully', [
                 'records_count' => count($punchData),
                 'from_date' => $fromDate->format('Y-m-d H:i'),
-                'to_date' => $toDate->format('Y-m-d H:i')
+                'to_date' => $toDate->format('Y-m-d H:i'),
             ]);
 
             return [
                 'success' => true,
                 'data' => $punchData,
-                'count' => count($punchData)
+                'count' => count($punchData),
             ];
 
         } catch (\Exception $e) {
             Log::error('eTimeOffice fetch error', [
                 'error' => $e->getMessage(),
                 'from_date' => $fromDate->format('Y-m-d H:i'),
-                'to_date' => $toDate->format('Y-m-d H:i')
+                'to_date' => $toDate->format('Y-m-d H:i'),
             ]);
 
             return [
                 'success' => false,
                 'error' => $e->getMessage(),
-                'data' => []
+                'data' => [],
             ];
         }
     }
@@ -173,14 +178,14 @@ class ETimeOfficeService
             $response = $this->makeApiCall('DownloadInOutPunchData', [
                 'Empcode' => $empcode,
                 'FromDate' => $fromDate->format('d/m/Y'),
-                'ToDate' => $toDate->format('d/m/Y')
+                'ToDate' => $toDate->format('d/m/Y'),
             ]);
 
-            if (!$response['success']) {
+            if (! $response['success']) {
                 return [
                     'success' => false,
                     'error' => $response['error'],
-                    'data' => []
+                    'data' => [],
                 ];
             }
 
@@ -188,24 +193,24 @@ class ETimeOfficeService
 
             Log::info('eTimeOffice IN/OUT data fetched', [
                 'records_count' => count($inOutData),
-                'date_range' => $fromDate->format('Y-m-d') . ' to ' . $toDate->format('Y-m-d')
+                'date_range' => $fromDate->format('Y-m-d').' to '.$toDate->format('Y-m-d'),
             ]);
 
             return [
                 'success' => true,
                 'data' => $inOutData,
-                'count' => count($inOutData)
+                'count' => count($inOutData),
             ];
 
         } catch (\Exception $e) {
             Log::error('eTimeOffice IN/OUT fetch error', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             return [
                 'success' => false,
                 'error' => $e->getMessage(),
-                'data' => []
+                'data' => [],
             ];
         }
     }
@@ -222,19 +227,19 @@ class ETimeOfficeService
 
             // If no last record, start with current month
             if (empty($lastRecord)) {
-                $lastRecord = now()->format('mY') . '$0';
+                $lastRecord = now()->format('mY').'$0';
             }
 
             $response = $this->makeApiCall('DownloadLastPunchData', [
                 'Empcode' => 'ALL',
-                'LastRecord' => $lastRecord
+                'LastRecord' => $lastRecord,
             ]);
 
-            if (!$response['success']) {
+            if (! $response['success']) {
                 return [
                     'success' => false,
                     'error' => $response['error'],
-                    'data' => []
+                    'data' => [],
                 ];
             }
 
@@ -252,7 +257,7 @@ class ETimeOfficeService
             Log::info('eTimeOffice incremental sync completed', [
                 'records_count' => count($punchData),
                 'last_record' => $lastRecord,
-                'new_max_record' => $maxRecord
+                'new_max_record' => $maxRecord,
             ]);
 
             return [
@@ -260,18 +265,18 @@ class ETimeOfficeService
                 'data' => $punchData,
                 'count' => count($punchData),
                 'last_record' => $lastRecord,
-                'new_max_record' => $maxRecord
+                'new_max_record' => $maxRecord,
             ];
 
         } catch (\Exception $e) {
             Log::error('eTimeOffice incremental sync error', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             return [
                 'success' => false,
                 'error' => $e->getMessage(),
-                'data' => []
+                'data' => [],
             ];
         }
     }
@@ -286,7 +291,7 @@ class ETimeOfficeService
             'created' => 0,
             'updated' => 0,
             'skipped' => 0,
-            'errors' => []
+            'errors' => [],
         ];
 
         foreach ($punchData as $punch) {
@@ -297,18 +302,20 @@ class ETimeOfficeService
                 $punchDate = $punch['PunchDate'] ?? $punch['LogDateTime'] ?? null;
                 $name = $punch['Name'] ?? 'Unknown';
 
-                if (!$empcode || !$punchDate) {
+                if (! $empcode || ! $punchDate) {
                     $results['skipped']++;
                     $results['errors'][] = "Missing empcode or punch date for: {$name}";
+
                     continue;
                 }
 
                 // Find student using optimized lookup
                 $student = $this->findStudentByBiometricCode($empcode);
 
-                if (!$student) {
+                if (! $student) {
                     $results['skipped']++;
                     $results['errors'][] = "Student not found for empcode: {$empcode} (Name: {$name})";
+
                     continue;
                 }
 
@@ -326,7 +333,7 @@ class ETimeOfficeService
                     $existingAttendance->update([
                         'marked_at' => $carbonDate,
                         'notes' => "Updated via eTimeOffice API - {$name}",
-                        'device_id' => 'etimeoffice-api'
+                        'device_id' => 'etimeoffice-api',
                     ]);
                     $results['updated']++;
                 } else {
@@ -339,7 +346,7 @@ class ETimeOfficeService
                         'status' => 'present',
                         'marked_at' => $carbonDate,
                         'notes' => "Marked via eTimeOffice API - {$name}",
-                        'device_id' => 'etimeoffice-api'
+                        'device_id' => 'etimeoffice-api',
                     ]);
                     $results['created']++;
                 }
@@ -348,15 +355,15 @@ class ETimeOfficeService
                     'empcode' => $empcode,
                     'student_name' => $student->name,
                     'punch_date' => $punchDate,
-                    'action' => $existingAttendance ? 'updated' : 'created'
+                    'action' => $existingAttendance ? 'updated' : 'created',
                 ]);
 
             } catch (\Exception $e) {
-                $results['errors'][] = "Error processing punch for {$empcode}: " . $e->getMessage();
+                $results['errors'][] = "Error processing punch for {$empcode}: ".$e->getMessage();
                 Log::error('Error processing eTimeOffice punch data', [
                     'empcode' => $empcode ?? 'unknown',
                     'punch' => $punch,
-                    'error' => $e->getMessage()
+                    'error' => $e->getMessage(),
                 ]);
             }
         }
@@ -372,25 +379,25 @@ class ETimeOfficeService
         $this->ensureConfigurationLoaded();
 
         try {
-            $url = $this->apiUrl . '/' . $endpoint;
+            $url = $this->apiUrl.'/'.$endpoint;
             $queryString = http_build_query($params);
-            $fullUrl = $url . '?' . $queryString;
+            $fullUrl = $url.'?'.$queryString;
 
             Log::info('Making eTimeOffice API call', [
                 'endpoint' => $endpoint,
                 'url' => $fullUrl,
-                'params' => $params
+                'params' => $params,
             ]);
 
             $response = Http::timeout(10)
                 ->withHeaders([
-                    'Authorization' => 'Basic ' . $this->authToken,
+                    'Authorization' => 'Basic '.$this->authToken,
                     'Accept' => 'application/json',
-                    'Content-Type' => 'application/json'
+                    'Content-Type' => 'application/json',
                 ])
                 ->get($fullUrl);
 
-            if (!$response->successful()) {
+            if (! $response->successful()) {
                 throw new \Exception("API request failed with status: {$response->status()}");
             }
 
@@ -404,24 +411,24 @@ class ETimeOfficeService
             Log::info('eTimeOffice API call successful', [
                 'endpoint' => $endpoint,
                 'response_size' => strlen($response->body()),
-                'has_data' => isset($data['PunchData'])
+                'has_data' => isset($data['PunchData']),
             ]);
 
             return [
                 'success' => true,
-                'data' => $data
+                'data' => $data,
             ];
 
         } catch (\Exception $e) {
             Log::error('eTimeOffice API call failed', [
                 'endpoint' => $endpoint,
                 'error' => $e->getMessage(),
-                'url' => $fullUrl ?? $url
+                'url' => $fullUrl ?? $url,
             ]);
 
             return [
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ];
         }
     }
@@ -441,8 +448,8 @@ class ETimeOfficeService
         // Fallback to enrollment number patterns
         $patterns = [
             $biometricCode,
-            'UV-' . $biometricCode,
-            'UVCHM-' . $biometricCode
+            'UV-'.$biometricCode,
+            'UVCHM-'.$biometricCode,
         ];
 
         foreach ($patterns as $pattern) {
@@ -452,6 +459,7 @@ class ETimeOfficeService
                 if (empty($student->biometric_employee_code)) {
                     $student->update(['biometric_employee_code' => $biometricCode]);
                 }
+
                 return $student;
             }
         }
@@ -470,8 +478,8 @@ class ETimeOfficeService
         return [
             'last_sync_record' => $lastSyncRecord,
             'last_sync_time' => $lastSyncTime ? Carbon::parse($lastSyncTime)->format('Y-m-d H:i:s') : 'Never',
-            'api_configured' => !empty($this->corporateId) && !empty($this->username) && !empty($this->password),
-            'api_url' => $this->apiUrl
+            'api_configured' => ! empty($this->corporateId) && ! empty($this->username) && ! empty($this->password),
+            'api_url' => $this->apiUrl,
         ];
     }
 
@@ -488,7 +496,7 @@ class ETimeOfficeService
             Log::info('Fetching ETimeOffice data for range', [
                 'range_type' => $rangeType,
                 'start' => $dateRange['start']->format('Y-m-d H:i'),
-                'end' => $dateRange['end']->format('Y-m-d H:i')
+                'end' => $dateRange['end']->format('Y-m-d H:i'),
             ]);
 
             return $this->fetchPunchData($dateRange['start'], $dateRange['end']);
@@ -496,13 +504,13 @@ class ETimeOfficeService
         } catch (\Exception $e) {
             Log::error('Error fetching data for date range', [
                 'range_type' => $rangeType,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             return [
                 'success' => false,
                 'error' => $e->getMessage(),
-                'data' => []
+                'data' => [],
             ];
         }
     }
@@ -518,67 +526,71 @@ class ETimeOfficeService
             case 'today':
                 return [
                     'start' => $now->copy()->startOfDay(),
-                    'end' => $now->copy()->endOfDay()
+                    'end' => $now->copy()->endOfDay(),
                 ];
 
             case 'yesterday':
                 $yesterday = $now->copy()->subDay();
+
                 return [
                     'start' => $yesterday->copy()->startOfDay(),
-                    'end' => $yesterday->copy()->endOfDay()
+                    'end' => $yesterday->copy()->endOfDay(),
                 ];
 
             case 'last_3_days':
                 return [
                     'start' => $now->copy()->subDays(2)->startOfDay(),
-                    'end' => $now->copy()->endOfDay()
+                    'end' => $now->copy()->endOfDay(),
                 ];
 
             case 'last_7_days':
                 return [
                     'start' => $now->copy()->subDays(6)->startOfDay(),
-                    'end' => $now->copy()->endOfDay()
+                    'end' => $now->copy()->endOfDay(),
                 ];
 
             case 'last_30_days':
                 return [
                     'start' => $now->copy()->subDays(29)->startOfDay(),
-                    'end' => $now->copy()->endOfDay()
+                    'end' => $now->copy()->endOfDay(),
                 ];
 
             case 'this_week':
                 return [
                     'start' => $now->copy()->startOfWeek(),
-                    'end' => $now->copy()->endOfWeek()
+                    'end' => $now->copy()->endOfWeek(),
                 ];
 
             case 'last_week':
                 $lastWeek = $now->copy()->subWeek();
+
                 return [
                     'start' => $lastWeek->copy()->startOfWeek(),
-                    'end' => $lastWeek->copy()->endOfWeek()
+                    'end' => $lastWeek->copy()->endOfWeek(),
                 ];
 
             case 'this_month':
                 return [
                     'start' => $now->copy()->startOfMonth(),
-                    'end' => $now->copy()->endOfMonth()
+                    'end' => $now->copy()->endOfMonth(),
                 ];
 
             case 'last_month':
                 $lastMonth = $now->copy()->subMonth();
+
                 return [
                     'start' => $lastMonth->copy()->startOfMonth(),
-                    'end' => $lastMonth->copy()->endOfMonth()
+                    'end' => $lastMonth->copy()->endOfMonth(),
                 ];
 
             case 'custom':
-                if (!$customStart || !$customEnd) {
+                if (! $customStart || ! $customEnd) {
                     throw new \InvalidArgumentException('Custom date range requires both start and end dates');
                 }
+
                 return [
                     'start' => $customStart->copy()->startOfDay(),
-                    'end' => $customEnd->copy()->endOfDay()
+                    'end' => $customEnd->copy()->endOfDay(),
                 ];
 
             default:
@@ -612,13 +624,13 @@ class ETimeOfficeService
         }
 
         // Test URL format
-        if (!empty($this->apiUrl) && !filter_var($this->apiUrl, FILTER_VALIDATE_URL)) {
+        if (! empty($this->apiUrl) && ! filter_var($this->apiUrl, FILTER_VALIDATE_URL)) {
             $issues[] = 'API URL format is invalid';
         }
 
         return [
             'valid' => empty($issues),
-            'issues' => $issues
+            'issues' => $issues,
         ];
     }
 
@@ -635,14 +647,14 @@ class ETimeOfficeService
                     'valid' => $validation['valid'],
                     'issues' => $validation['issues'],
                     'api_url' => $this->apiUrl ?? 'Not configured',
-                    'corporate_id' => !empty($this->corporateId) ? substr($this->corporateId, 0, 3) . '***' : 'Not configured',
-                    'username' => !empty($this->username) ? substr($this->username, 0, 3) . '***' : 'Not configured',
-                    'password_set' => !empty($this->password)
+                    'corporate_id' => ! empty($this->corporateId) ? substr($this->corporateId, 0, 3).'***' : 'Not configured',
+                    'username' => ! empty($this->username) ? substr($this->username, 0, 3).'***' : 'Not configured',
+                    'password_set' => ! empty($this->password),
                 ],
                 'sync_stats' => $this->getSyncStats(),
                 'last_24h_records' => $this->getRecordCount(now()->subDay(), now()),
                 'today_records' => $this->getRecordCount(now()->startOfDay(), now()),
-                'this_week_records' => $this->getRecordCount(now()->startOfWeek(), now())
+                'this_week_records' => $this->getRecordCount(now()->startOfWeek(), now()),
             ];
         } catch (\Exception $e) {
             Log::error('Error getting comprehensive stats', ['error' => $e->getMessage()]);
@@ -652,7 +664,7 @@ class ETimeOfficeService
                 'sync_stats' => ['error' => $e->getMessage()],
                 'last_24h_records' => 0,
                 'today_records' => 0,
-                'this_week_records' => 0
+                'this_week_records' => 0,
             ];
         }
     }
@@ -663,18 +675,19 @@ class ETimeOfficeService
     private function getRecordCount(Carbon $start, Carbon $end): int
     {
         try {
-            if (!Schema::hasTable('attendances')) {
+            if (! Schema::hasTable('attendances')) {
                 return 0;
             }
 
             return \App\Models\Attendance::whereBetween('attendance_date', [
                 $start->format('Y-m-d'),
-                $end->format('Y-m-d')
+                $end->format('Y-m-d'),
             ])
                 ->where('device_id', 'etimeoffice-api')
                 ->count();
         } catch (\Exception $e) {
             Log::error('Error getting record count', ['error' => $e->getMessage()]);
+
             return 0;
         }
     }
@@ -701,7 +714,7 @@ class ETimeOfficeService
             $userMessage = 'ETimeOffice server error. Please try again later or contact support.';
             $category = 'server';
         } else {
-            $userMessage = 'Connection failed: ' . $errorMessage;
+            $userMessage = 'Connection failed: '.$errorMessage;
             $category = 'unknown';
         }
 
@@ -709,14 +722,14 @@ class ETimeOfficeService
             'error' => $errorMessage,
             'code' => $errorCode,
             'category' => $category,
-            'context' => $context
+            'context' => $context,
         ]);
 
         return [
             'success' => false,
             'error' => $userMessage,
             'error_category' => $category,
-            'technical_error' => $errorMessage
+            'technical_error' => $errorMessage,
         ];
     }
 
@@ -734,9 +747,10 @@ class ETimeOfficeService
                 if ($result['success']) {
                     if ($attempt > 1) {
                         Log::info("API call succeeded on attempt {$attempt}", [
-                            'endpoint' => $endpoint
+                            'endpoint' => $endpoint,
                         ]);
                     }
+
                     return $result;
                 }
 
@@ -754,7 +768,7 @@ class ETimeOfficeService
 
                     Log::info("Retrying API call in {$waitTime}s (attempt {$attempt}/{$maxRetries})", [
                         'endpoint' => $endpoint,
-                        'error' => $lastError
+                        'error' => $lastError,
                     ]);
                 }
 
@@ -775,7 +789,7 @@ class ETimeOfficeService
 
         return [
             'success' => false,
-            'error' => $lastError ?? 'Unknown error after ' . $maxRetries . ' attempts'
+            'error' => $lastError ?? 'Unknown error after '.$maxRetries.' attempts',
         ];
     }
 }

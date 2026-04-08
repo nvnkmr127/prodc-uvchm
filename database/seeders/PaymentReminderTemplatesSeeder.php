@@ -29,7 +29,7 @@ class PaymentReminderTemplatesSeeder extends Seeder
                 'description' => 'SMS reminder for upcoming payment due date',
                 'reminder_type' => 'upcoming_due',
                 'channel' => 'sms',
-                'message_template' => "Dear {student_name}, your {fee_type} payment of ₹{amount} is due on {due_date}. Please pay before due date to avoid late fees. - {college_name}",
+                'message_template' => 'Dear {student_name}, your {fee_type} payment of ₹{amount} is due on {due_date}. Please pay before due date to avoid late fees. - {college_name}',
                 'character_limit' => 160,
                 'is_active' => true,
                 'is_default' => true,
@@ -51,7 +51,7 @@ class PaymentReminderTemplatesSeeder extends Seeder
                 'description' => 'SMS reminder for overdue payments',
                 'reminder_type' => 'overdue',
                 'channel' => 'sms',
-                'message_template' => "OVERDUE: {student_name}, your {fee_type} payment of ₹{amount} was due on {due_date}. Pay immediately to avoid action. - {college_name}",
+                'message_template' => 'OVERDUE: {student_name}, your {fee_type} payment of ₹{amount} was due on {due_date}. Pay immediately to avoid action. - {college_name}',
                 'character_limit' => 160,
                 'is_active' => true,
                 'is_default' => true,
@@ -83,7 +83,7 @@ class PaymentReminderTemplatesSeeder extends Seeder
                 'description' => 'SMS template for escalated payment reminders',
                 'reminder_type' => 'escalation',
                 'channel' => 'sms',
-                'message_template' => "URGENT: {student_name}, your overdue payment of ₹{amount} requires immediate attention. Contact accounts office or pay by {final_deadline}. - {college_name}",
+                'message_template' => 'URGENT: {student_name}, your overdue payment of ₹{amount} requires immediate attention. Contact accounts office or pay by {final_deadline}. - {college_name}',
                 'character_limit' => 160,
                 'is_active' => true,
                 'is_default' => true,
@@ -105,7 +105,7 @@ class PaymentReminderTemplatesSeeder extends Seeder
                 'description' => 'Physical notice template for final warning',
                 'reminder_type' => 'final_notice',
                 'channel' => 'physical_notice',
-                'message_template' => "FINAL NOTICE\n\nTo: {student_name}\nEnrollment No: {enrollment_number}\nCourse: {course_name}\n\nThis is your FINAL NOTICE for payment of ₹{amount} for {fee_type}, which was due on {due_date} (now {days_overdue} days overdue).\n\nTotal Outstanding: ₹{total_amount_due}\n\nPayment must be made by {final_deadline} to avoid suspension.\n\nContact: {contact_number}\n\n{college_name}\nAccounts Department\nDate: " . date('d/m/Y'),
+                'message_template' => "FINAL NOTICE\n\nTo: {student_name}\nEnrollment No: {enrollment_number}\nCourse: {course_name}\n\nThis is your FINAL NOTICE for payment of ₹{amount} for {fee_type}, which was due on {due_date} (now {days_overdue} days overdue).\n\nTotal Outstanding: ₹{total_amount_due}\n\nPayment must be made by {final_deadline} to avoid suspension.\n\nContact: {contact_number}\n\n{college_name}\nAccounts Department\nDate: ".date('d/m/Y'),
                 'is_active' => true,
                 'is_default' => true,
             ],
@@ -116,7 +116,7 @@ class PaymentReminderTemplatesSeeder extends Seeder
                 [
                     'reminder_type' => $template['reminder_type'],
                     'channel' => $template['channel'],
-                    'is_default' => true
+                    'is_default' => true,
                 ],
                 $template
             );

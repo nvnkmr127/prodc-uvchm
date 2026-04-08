@@ -1,19 +1,19 @@
 <?php
+
 // File: app/Models/Attendance/Attendance.php
 
 namespace App\Models\Attendance;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use App\Models\Student;
 use App\Models\Batch;
+use App\Models\Student;
 use App\Models\Subject;
 use App\Models\TimeSlot;
 use App\Models\User;
 use App\Traits\WebhookEnabled;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Attendance extends Model
 {
@@ -35,13 +35,13 @@ class Attendance extends Model
         'biometric_log_id',
         'late_minutes',
         'location',
-        'device_id'
+        'device_id',
     ];
 
     protected $casts = [
         'attendance_date' => 'date',
         'marked_at' => 'datetime',
-        'late_minutes' => 'integer'
+        'late_minutes' => 'integer',
     ];
 
     // Relationships
@@ -134,7 +134,7 @@ class Attendance extends Model
 
     public function getStatusLabelAttribute(): string
     {
-        return match($this->status) {
+        return match ($this->status) {
             'present' => 'Present',
             'absent' => 'Absent',
             'late' => 'Late',
@@ -145,7 +145,7 @@ class Attendance extends Model
 
     public function getStatusColorAttribute(): string
     {
-        return match($this->status) {
+        return match ($this->status) {
             'present' => 'success',
             'absent' => 'danger',
             'late' => 'warning',
@@ -163,7 +163,7 @@ class Attendance extends Model
     public static function calculateAttendancePercentage($studentId, $from = null, $to = null): float
     {
         $query = static::where('student_id', $studentId);
-        
+
         if ($from && $to) {
             $query->whereBetween('attendance_date', [$from, $to]);
         }

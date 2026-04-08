@@ -10,19 +10,19 @@ class KPIDataService implements WidgetDataProviderInterface
     public function getData(array $params = []): array
     {
         $metric = $params['metric'] ?? 'total_students';
-        
+
         switch ($metric) {
             case 'total_students':
                 $current = Student::count();
                 $previous = Student::where('created_at', '<', now()->subMonth())->count();
-                
+
                 return [
                     'value' => $current,
                     'previousValue' => $previous,
                     'target' => 1000,
-                    'historical' => $this->getHistoricalData()
+                    'historical' => $this->getHistoricalData(),
                 ];
-                
+
             default:
                 return ['value' => 0, 'previousValue' => 0];
         }

@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
-use App\Models\Student;
 use App\Models\Batch;
 use App\Models\Course;
+use App\Models\Student;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -65,7 +65,7 @@ class AttendanceDashboardController extends Controller
             'success' => true,
             'data' => $absentStudents,
             'count' => $absentStudents->count(),
-            'last_updated' => now()->format('H:i:s')
+            'last_updated' => now()->format('H:i:s'),
         ]);
     }
 
@@ -82,7 +82,7 @@ class AttendanceDashboardController extends Controller
             'success' => true,
             'data' => $recentActivity,
             'count' => $recentActivity->count(),
-            'last_updated' => now()->format('H:i:s')
+            'last_updated' => now()->format('H:i:s'),
         ]);
     }
 
@@ -98,7 +98,7 @@ class AttendanceDashboardController extends Controller
         return response()->json([
             'success' => true,
             'data' => $todayStats,
-            'last_updated' => now()->format('H:i:s')
+            'last_updated' => now()->format('H:i:s'),
         ]);
     }
 
@@ -142,7 +142,7 @@ class AttendanceDashboardController extends Controller
             DB::raw('SUM(CASE WHEN status = "present" THEN 1 ELSE 0 END) as present'),
             DB::raw('SUM(CASE WHEN status = "late" THEN 1 ELSE 0 END) as late'),
             DB::raw('SUM(CASE WHEN status = "absent" THEN 1 ELSE 0 END) as absent'),
-            DB::raw('SUM(CASE WHEN status = "excused" THEN 1 ELSE 0 END) as excused')
+            DB::raw('SUM(CASE WHEN status = "excused" THEN 1 ELSE 0 END) as excused'),
         ])->first();
 
         $present = ($attendanceStats->present ?? 0) + ($attendanceStats->late ?? 0);
@@ -156,8 +156,8 @@ class AttendanceDashboardController extends Controller
                 'absent' => $absent,
                 'late' => $attendanceStats->late ?? 0,
                 'excused' => $attendanceStats->excused ?? 0,
-                'percentage' => $percentage
-            ]
+                'percentage' => $percentage,
+            ],
         ];
     }
 
@@ -210,7 +210,7 @@ class AttendanceDashboardController extends Controller
                 'father_name' => $student->father_name,
                 'batch_name' => $student->batch->name ?? 'N/A',
                 'course_name' => $student->batch->course->name ?? 'N/A',
-                'last_attendance' => $this->getLastAttendanceDate($student->id)
+                'last_attendance' => $this->getLastAttendanceDate($student->id),
             ];
         });
     }
@@ -246,7 +246,7 @@ class AttendanceDashboardController extends Controller
                 'marked_at' => $attendance->marked_at,
                 'marked_by' => $attendance->faculty->name ?? 'System',
                 'late_minutes' => $attendance->late_minutes,
-                'notes' => $attendance->notes
+                'notes' => $attendance->notes,
             ];
         });
     }
@@ -273,7 +273,7 @@ class AttendanceDashboardController extends Controller
             $trend[] = [
                 'date' => $date->format('Y-m-d'),
                 'day' => $date->format('D'),
-                'percentage' => $dayStats['students']['percentage']
+                'percentage' => $dayStats['students']['percentage'],
             ];
         }
 
@@ -284,7 +284,7 @@ class AttendanceDashboardController extends Controller
     {
         $request->validate([
             'student_id' => 'required|exists:students,id',
-            'date' => 'required|date'
+            'date' => 'required|date',
         ]);
 
         $student = Student::findOrFail($request->student_id);
@@ -300,7 +300,7 @@ class AttendanceDashboardController extends Controller
                 'status' => 'present',
                 'marked_at' => now(),
                 'marked_by' => auth()->id(),
-                'notes' => 'Marked from dashboard'
+                'notes' => 'Marked from dashboard',
             ]);
         } else {
             Attendance::create([
@@ -313,13 +313,13 @@ class AttendanceDashboardController extends Controller
                 'check_in_time' => now()->format('H:i:s'),
                 'marked_at' => now(),
                 'marked_by' => auth()->id(),
-                'notes' => 'Marked from dashboard'
+                'notes' => 'Marked from dashboard',
             ]);
         }
 
         return response()->json([
             'success' => true,
-            'message' => 'Student marked as present successfully'
+            'message' => 'Student marked as present successfully',
         ]);
     }
 
@@ -328,7 +328,7 @@ class AttendanceDashboardController extends Controller
         $request->validate([
             'student_ids' => 'required|array',
             'student_ids.*' => 'exists:students,id',
-            'date' => 'required|date'
+            'date' => 'required|date',
         ]);
 
         $date = $request->date;
@@ -346,7 +346,7 @@ class AttendanceDashboardController extends Controller
                     'status' => 'present',
                     'marked_at' => now(),
                     'marked_by' => auth()->id(),
-                    'notes' => 'Bulk marked from dashboard'
+                    'notes' => 'Bulk marked from dashboard',
                 ]);
             } else {
                 Attendance::create([
@@ -359,7 +359,7 @@ class AttendanceDashboardController extends Controller
                     'check_in_time' => now()->format('H:i:s'),
                     'marked_at' => now(),
                     'marked_by' => auth()->id(),
-                    'notes' => 'Bulk marked from dashboard'
+                    'notes' => 'Bulk marked from dashboard',
                 ]);
             }
             $markedCount++;
@@ -367,7 +367,7 @@ class AttendanceDashboardController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => "{$markedCount} students marked as present successfully"
+            'message' => "{$markedCount} students marked as present successfully",
         ]);
     }
 
@@ -392,7 +392,7 @@ class AttendanceDashboardController extends Controller
 
     private function exportAsCSV($absentStudents, $date)
     {
-        $filename = 'absent_students_' . $date->format('Y_m_d') . '.csv';
+        $filename = 'absent_students_'.$date->format('Y_m_d').'.csv';
 
         $headers = [
             'Content-Type' => 'text/csv',
@@ -411,7 +411,7 @@ class AttendanceDashboardController extends Controller
                 'Student Mobile',
                 'Father Mobile',
                 'Father Name',
-                'Last Present Date'
+                'Last Present Date',
             ]);
 
             // CSV data
@@ -424,7 +424,7 @@ class AttendanceDashboardController extends Controller
                     $student['student_mobile'] ?? '',
                     $student['father_mobile'] ?? '',
                     $student['father_name'] ?? '',
-                    $student['last_attendance'] ?? 'Never'
+                    $student['last_attendance'] ?? 'Never',
                 ]);
             }
 
@@ -456,7 +456,7 @@ class AttendanceDashboardController extends Controller
                 'title' => 'Consecutive Absences',
                 'message' => "{$student->name} has been absent for 3+ consecutive days",
                 'student_id' => $student->id,
-                'action_url' => route('admin.students.show', $student->id)
+                'action_url' => route('admin.students.show', $student->id),
             ];
         }
 
@@ -477,6 +477,7 @@ class AttendanceDashboardController extends Controller
                     ->count();
 
                 $percentage = $totalDays > 0 ? ($presentDays / $totalDays) * 100 : 100;
+
                 return $percentage < 75;
             });
 
@@ -487,13 +488,13 @@ class AttendanceDashboardController extends Controller
                 'title' => 'Low Attendance',
                 'message' => "{$student->name} has attendance below 75% this month",
                 'student_id' => $student->id,
-                'action_url' => route('admin.students.show', $student->id)
+                'action_url' => route('admin.students.show', $student->id),
             ];
         }
 
         return response()->json([
             'success' => true,
-            'alerts' => array_slice($alerts, 0, 5) // Limit to 5 alerts
+            'alerts' => array_slice($alerts, 0, 5), // Limit to 5 alerts
         ]);
     }
 
@@ -509,7 +510,7 @@ class AttendanceDashboardController extends Controller
             ->withCount([
                 'students as total_students' => function ($query) {
                     $query->where('status', 'active');
-                }
+                },
             ])
             ->get()
             ->map(function ($batch) use ($selectedDate) {
@@ -532,14 +533,14 @@ class AttendanceDashboardController extends Controller
                     'present_count' => $presentCount,
                     'absent_count' => $batch->total_students - $presentCount,
                     'attendance_percentage' => $percentage,
-                    'status' => $percentage >= 80 ? 'good' : ($percentage >= 60 ? 'average' : 'poor')
+                    'status' => $percentage >= 80 ? 'good' : ($percentage >= 60 ? 'average' : 'poor'),
                 ];
             })
             ->sortByDesc('attendance_percentage');
 
         return response()->json([
             'success' => true,
-            'batches' => $batches->values()->all()
+            'batches' => $batches->values()->all(),
         ]);
     }
 
@@ -551,7 +552,7 @@ class AttendanceDashboardController extends Controller
         $request->validate([
             'student_ids' => 'required|array',
             'student_ids.*' => 'exists:students,id',
-            'message_template' => 'required|string'
+            'message_template' => 'required|string',
         ]);
 
         $students = Student::whereIn('id', $request->student_ids)->get();
@@ -564,11 +565,11 @@ class AttendanceDashboardController extends Controller
                 $message = str_replace([
                     '{student_name}',
                     '{date}',
-                    '{college_name}'
+                    '{college_name}',
                 ], [
                     $student->name,
                     Carbon::today()->format('d/m/Y'),
-                    config('app.name', 'College')
+                    config('app.name', 'College'),
                 ], $request->message_template);
 
                 // Send to student mobile
@@ -579,13 +580,13 @@ class AttendanceDashboardController extends Controller
 
                 // Send to father mobile if requested
                 if ($request->get('send_to_father') && $student->father_mobile) {
-                    $fatherMessage = str_replace($student->name, $student->name . ' (your child)', $message);
+                    $fatherMessage = str_replace($student->name, $student->name.' (your child)', $message);
                     $this->sendSMS($student->father_mobile, $fatherMessage);
                     $sentCount++;
                 }
 
             } catch (\Exception $e) {
-                $errors[] = "Failed to send SMS to {$student->name}: " . $e->getMessage();
+                $errors[] = "Failed to send SMS to {$student->name}: ".$e->getMessage();
             }
         }
 
@@ -593,7 +594,7 @@ class AttendanceDashboardController extends Controller
             'success' => count($errors) === 0,
             'sent_count' => $sentCount,
             'errors' => $errors,
-            'message' => $sentCount > 0 ? "SMS sent to {$sentCount} contacts" : 'No SMS sent'
+            'message' => $sentCount > 0 ? "SMS sent to {$sentCount} contacts" : 'No SMS sent',
         ]);
     }
 
@@ -637,7 +638,7 @@ class AttendanceDashboardController extends Controller
     public function getAttendanceHeatmap(Request $request)
     {
         $month = $request->get('month', Carbon::now()->format('Y-m'));
-        $startDate = Carbon::parse($month . '-01');
+        $startDate = Carbon::parse($month.'-01');
         $endDate = $startDate->copy()->endOfMonth();
 
         $batchId = $request->get('batch_id');
@@ -655,7 +656,7 @@ class AttendanceDashboardController extends Controller
                     'weekday' => $date->format('D'),
                     'percentage' => $stats['students']['percentage'],
                     'present' => $stats['students']['present'],
-                    'total' => $stats['students']['total']
+                    'total' => $stats['students']['total'],
                 ];
             }
         }
@@ -663,7 +664,7 @@ class AttendanceDashboardController extends Controller
         return response()->json([
             'success' => true,
             'heatmap_data' => $heatmapData,
-            'month' => $startDate->format('F Y')
+            'month' => $startDate->format('F Y'),
         ]);
     }
 
@@ -681,7 +682,7 @@ class AttendanceDashboardController extends Controller
             'date' => $date,
             'batch_id' => $batchId,
             'timestamp' => time(),
-            'token' => csrf_token()
+            'token' => csrf_token(),
         ];
 
         $qrString = encrypt(json_encode($qrData));
@@ -691,7 +692,7 @@ class AttendanceDashboardController extends Controller
             'success' => true,
             'qr_data' => $qrString,
             'qr_url' => $qrUrl,
-            'expires_at' => Carbon::now()->addHours(2)->format('H:i')
+            'expires_at' => Carbon::now()->addHours(2)->format('H:i'),
         ]);
     }
 
@@ -705,7 +706,7 @@ class AttendanceDashboardController extends Controller
             $qrData = json_decode(decrypt($encryptedData), true);
 
             // Validate QR code
-            if (!$qrData || $qrData['action'] !== 'mark_attendance') {
+            if (! $qrData || $qrData['action'] !== 'mark_attendance') {
                 throw new \Exception('Invalid QR code');
             }
 
@@ -724,7 +725,7 @@ class AttendanceDashboardController extends Controller
 
         } catch (\Exception $e) {
             return redirect()->route('admin.attendance.dashboard')
-                ->with('error', 'Invalid or expired QR code: ' . $e->getMessage());
+                ->with('error', 'Invalid or expired QR code: '.$e->getMessage());
         }
     }
 
@@ -746,7 +747,7 @@ class AttendanceDashboardController extends Controller
                     'status' => $record->status,
                     'check_in_time' => $record->check_in_time,
                     'check_out_time' => $record->check_out_time,
-                    'late_minutes' => $record->late_minutes
+                    'late_minutes' => $record->late_minutes,
                 ];
             });
 
@@ -757,7 +758,7 @@ class AttendanceDashboardController extends Controller
             'late_days' => $attendance->where('status', 'late')->count(),
             'percentage' => $attendance->count() > 0
                 ? round(($attendance->whereIn('status', ['present', 'late'])->count() / $attendance->count()) * 100, 1)
-                : 0
+                : 0,
         ];
 
         return response()->json([
@@ -767,10 +768,10 @@ class AttendanceDashboardController extends Controller
                 'name' => $student->name,
                 'enrollment_number' => $student->enrollment_number,
                 'batch' => $student->batch->name ?? 'N/A',
-                'course' => $student->batch->course->name ?? 'N/A'
+                'course' => $student->batch->course->name ?? 'N/A',
             ],
             'attendance' => $attendance,
-            'stats' => $stats
+            'stats' => $stats,
         ]);
     }
 
@@ -782,7 +783,7 @@ class AttendanceDashboardController extends Controller
         $request->validate([
             'attendance_ids' => 'required|array',
             'attendance_ids.*' => 'exists:attendances,id',
-            'new_status' => 'required|in:present,absent,late,excused'
+            'new_status' => 'required|in:present,absent,late,excused',
         ]);
 
         $updatedCount = Attendance::whereIn('id', $request->attendance_ids)
@@ -790,14 +791,13 @@ class AttendanceDashboardController extends Controller
                 'status' => $request->new_status,
                 'marked_by' => auth()->id(),
                 'marked_at' => now(),
-                'notes' => 'Bulk updated from dashboard'
+                'notes' => 'Bulk updated from dashboard',
             ]);
 
         return response()->json([
             'success' => true,
             'updated_count' => $updatedCount,
-            'message' => "{$updatedCount} attendance records updated successfully"
+            'message' => "{$updatedCount} attendance records updated successfully",
         ]);
     }
-
 }

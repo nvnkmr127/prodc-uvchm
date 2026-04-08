@@ -64,7 +64,7 @@ class SuspiciousActivityDetector
                 ->filter()
                 ->toArray();
 
-            if (count($recentIPs) >= 2 && !in_array($ipAddress, $recentIPs)) {
+            if (count($recentIPs) >= 2 && ! in_array($ipAddress, $recentIPs)) {
                 $suspicious = true;
                 $reasons[] = 'Multiple IP addresses detected within 1 hour';
             }
@@ -72,7 +72,7 @@ class SuspiciousActivityDetector
 
         return [
             'is_suspicious' => $suspicious,
-            'flagged_reason' => $suspicious ? implode('; ', $reasons) : null
+            'flagged_reason' => $suspicious ? implode('; ', $reasons) : null,
         ];
     }
 

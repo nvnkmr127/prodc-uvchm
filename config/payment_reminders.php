@@ -91,7 +91,7 @@ return [
             'second_reminder' => env('SECOND_REMINDER_DAYS', 3),
             'final_reminder' => env('FINAL_REMINDER_DAYS', 1),
         ],
-        
+
         // Days after due date to send overdue reminders
         'after_due_days' => [
             'first_overdue' => env('FIRST_OVERDUE_DAYS', 1),
@@ -99,16 +99,16 @@ return [
             'third_overdue' => env('THIRD_OVERDUE_DAYS', 15),
             'escalation' => env('ESCALATION_DAYS', 30),
         ],
-        
+
         // Special notice timings
         'escalation_days' => env('ESCALATION_DAYS', 30),
         'final_notice_days' => env('FINAL_NOTICE_DAYS', 45),
         'suspension_warning_days' => env('SUSPENSION_WARNING_DAYS', 60),
-        
+
         // Daily reminder time
         'daily_reminder_time' => env('DAILY_REMINDER_TIME', '09:00'),
         'urgent_reminder_time' => env('URGENT_REMINDER_TIME', '16:00'),
-        
+
         // Weekend handling
         'send_on_weekends' => env('SEND_REMINDERS_WEEKENDS', false),
         'skip_holidays' => env('SKIP_HOLIDAYS', true),
@@ -225,28 +225,28 @@ return [
     'automation' => [
         // Automatically schedule reminders for new invoices
         'auto_schedule_reminders' => env('AUTO_SCHEDULE_REMINDERS', true),
-        
+
         // Automatically escalate overdue payments
         'auto_escalate' => env('AUTO_ESCALATE', false),
-        
+
         // Automatically suspend students for chronic non-payment
         'auto_suspend' => env('AUTO_SUSPEND', false),
-        
+
         // Batch processing settings
         'batch_size' => env('REMINDER_BATCH_SIZE', 50),
         'max_concurrent_jobs' => env('MAX_CONCURRENT_REMINDER_JOBS', 5),
-        
+
         // Retry settings for failed reminders
         'retry_failed' => env('RETRY_FAILED_REMINDERS', true),
         'max_retries' => env('MAX_REMINDER_RETRIES', 3),
         'retry_backoff' => env('RETRY_BACKOFF_MINUTES', 60), // minutes
-        
+
         // Smart scheduling (avoid weekends, holidays)
         'smart_scheduling' => env('SMART_SCHEDULING', true),
         'business_hours_only' => env('BUSINESS_HOURS_ONLY', false),
         'business_start_time' => env('BUSINESS_START_TIME', '09:00'),
         'business_end_time' => env('BUSINESS_END_TIME', '17:00'),
-        
+
         // Duplicate prevention
         'prevent_duplicate_reminders' => env('PREVENT_DUPLICATE_REMINDERS', true),
         'duplicate_check_window' => env('DUPLICATE_CHECK_WINDOW_HOURS', 24), // hours
@@ -263,22 +263,22 @@ return [
     'templates' => [
         // Use custom templates instead of default ones
         'use_custom' => env('USE_CUSTOM_TEMPLATES', false),
-        
+
         // Path to custom template files
         'custom_path' => resource_path('views/payment/templates'),
-        
+
         // Template variables available for personalization
         'available_variables' => [
             'student_name', 'enrollment_number', 'course_name', 'batch_name',
             'fee_type', 'amount', 'due_date', 'days_overdue', 'college_name',
-            'contact_number', 'email', 'father_name', 'mother_name'
+            'contact_number', 'email', 'father_name', 'mother_name',
         ],
-        
+
         // Message length limits
         'max_email_length' => 2000,
         'max_sms_length' => 160,
         'max_whatsapp_length' => 1000,
-        
+
         // Language support
         'default_language' => env('DEFAULT_REMINDER_LANGUAGE', 'en'),
         'supported_languages' => ['en', 'hi'], // English, Hindi
@@ -299,20 +299,20 @@ return [
         'weekly_report' => env('WEEKLY_REPORT_ENABLED', true),
         'monthly_analytics' => env('MONTHLY_ANALYTICS_ENABLED', true),
         'quarterly_insights' => env('QUARTERLY_INSIGHTS_ENABLED', true),
-        
+
         // Real-time dashboard updates
         'real_time_dashboard' => env('REAL_TIME_DASHBOARD', true),
         'dashboard_refresh_interval' => env('DASHBOARD_REFRESH_INTERVAL', 300), // seconds
-        
+
         // Data retention for reports
         'retain_daily_reports' => env('RETAIN_DAILY_REPORTS_DAYS', 90),
         'retain_weekly_reports' => env('RETAIN_WEEKLY_REPORTS_WEEKS', 52),
         'retain_monthly_reports' => env('RETAIN_MONTHLY_REPORTS_MONTHS', 36),
-        
+
         // Export formats
         'export_formats' => ['pdf', 'excel', 'csv'],
         'default_export_format' => env('DEFAULT_EXPORT_FORMAT', 'excel'),
-        
+
         // Email reports to administrators
         'email_reports' => env('EMAIL_REPORTS_ENABLED', true),
         'report_recipients' => [
@@ -342,16 +342,16 @@ return [
                 'webhook_enabled' => env('PAYU_WEBHOOK_ENABLED', false),
             ],
         ],
-        
+
         // Student information system integration
         'sis_integration' => env('SIS_INTEGRATION_ENABLED', false),
-        
+
         // Parent portal integration
         'parent_portal' => env('PARENT_PORTAL_ENABLED', false),
-        
+
         // Mobile app integration
         'mobile_app_api' => env('MOBILE_APP_API_ENABLED', true),
-        
+
         // Third-party SMS/Email services
         'external_services' => [
             'twilio' => env('TWILIO_ENABLED', false),
@@ -371,17 +371,17 @@ return [
     'security' => [
         // Encrypt sensitive data in database
         'encrypt_data' => env('ENCRYPT_REMINDER_DATA', true),
-        
+
         // Data retention and privacy
         'data_retention_days' => env('REMINDER_DATA_RETENTION_DAYS', 365),
         'auto_cleanup_old_data' => env('AUTO_CLEANUP_OLD_DATA', true),
         'anonymize_expired_data' => env('ANONYMIZE_EXPIRED_DATA', true),
-        
+
         // Access control
         'require_two_factor' => env('REQUIRE_2FA_FOR_REMINDERS', false),
         'log_all_activities' => env('LOG_REMINDER_ACTIVITIES', true),
         'audit_trail' => env('REMINDER_AUDIT_TRAIL', true),
-        
+
         // Rate limiting and abuse prevention
         'rate_limit_per_user' => env('RATE_LIMIT_PER_USER', 100), // per hour
         'block_suspicious_activity' => env('BLOCK_SUSPICIOUS_ACTIVITY', true),
@@ -402,16 +402,16 @@ return [
         'cache_enabled' => env('REMINDER_CACHE_ENABLED', true),
         'cache_duration' => env('REMINDER_CACHE_DURATION', 3600), // seconds
         'cache_driver' => env('REMINDER_CACHE_DRIVER', 'redis'),
-        
+
         // Database optimization
         'use_database_indexes' => true,
         'optimize_queries' => true,
         'batch_database_operations' => true,
-        
+
         // Memory management
         'memory_limit' => env('REMINDER_MEMORY_LIMIT', '256M'),
         'garbage_collection' => env('REMINDER_GC_ENABLED', true),
-        
+
         // Parallel processing
         'parallel_processing' => env('PARALLEL_PROCESSING', true),
         'max_parallel_workers' => env('MAX_PARALLEL_WORKERS', 4),
@@ -429,7 +429,7 @@ return [
         // Debug mode
         'debug_mode' => env('REMINDER_DEBUG_MODE', false),
         'verbose_logging' => env('VERBOSE_REMINDER_LOGGING', false),
-        
+
         // Testing settings
         'test_mode' => env('REMINDER_TEST_MODE', false),
         'test_recipients' => [
@@ -437,12 +437,12 @@ return [
             'sms' => env('TEST_SMS_RECIPIENT'),
             'whatsapp' => env('TEST_WHATSAPP_RECIPIENT'),
         ],
-        
+
         // Mock external services in testing
         'mock_sms_service' => env('MOCK_SMS_SERVICE', false),
         'mock_email_service' => env('MOCK_EMAIL_SERVICE', false),
         'mock_whatsapp_service' => env('MOCK_WHATSAPP_SERVICE', false),
-        
+
         // Development helpers
         'show_sql_queries' => env('SHOW_REMINDER_SQL_QUERIES', false),
         'profile_performance' => env('PROFILE_REMINDER_PERFORMANCE', false),

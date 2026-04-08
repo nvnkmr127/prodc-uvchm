@@ -17,25 +17,25 @@ class DashboardPermissionSeeder extends Seeder
             'customize dashboard',
             'manage dashboards',
             'view all dashboards',
-            
+
             // Widget Permissions
             'view widgets',
             'create widgets',
             'edit widgets',
             'delete widgets',
             'manage widget categories',
-            
+
             // Data Access Permissions
             'view student data',
             'view financial data',
             'view staff data',
             'view academic data',
             'view system data',
-            
+
             // Dashboard Builder
             'access dashboard builder',
             'create dashboard templates',
-            'apply dashboard templates'
+            'apply dashboard templates',
         ];
 
         // Create permissions
@@ -58,7 +58,7 @@ class DashboardPermissionSeeder extends Seeder
                 'edit widgets', 'delete widgets', 'manage widget categories',
                 'view student data', 'view financial data', 'view staff data',
                 'view academic data', 'view system data', 'access dashboard builder',
-                'create dashboard templates', 'apply dashboard templates'
+                'create dashboard templates', 'apply dashboard templates',
             ]);
         }
 
@@ -68,7 +68,7 @@ class DashboardPermissionSeeder extends Seeder
             $collegeAdmin->givePermissionTo([
                 'view dashboard', 'customize dashboard',
                 'view student data', 'view academic data', 'view staff data',
-                'view financial data'
+                'view financial data',
             ]);
         }
 
@@ -77,7 +77,7 @@ class DashboardPermissionSeeder extends Seeder
         if ($accountant) {
             $accountant->givePermissionTo([
                 'view dashboard', 'customize dashboard',
-                'view financial data', 'view student data'
+                'view financial data', 'view student data',
             ]);
         }
 
@@ -86,7 +86,7 @@ class DashboardPermissionSeeder extends Seeder
         if ($staff) {
             $staff->givePermissionTo([
                 'view dashboard',
-                'view student data', 'view academic data'
+                'view student data', 'view academic data',
             ]);
         }
 
@@ -94,7 +94,7 @@ class DashboardPermissionSeeder extends Seeder
         $student = Role::where('name', 'student')->first();
         if ($student) {
             $student->givePermissionTo([
-                'view dashboard'
+                'view dashboard',
             ]);
         }
     }

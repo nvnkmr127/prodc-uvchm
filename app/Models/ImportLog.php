@@ -100,22 +100,22 @@ class ImportLog extends Model
         if ($this->total_rows === 0) {
             return 0;
         }
-        
+
         return round(($this->imported_count / $this->total_rows) * 100, 2);
     }
 
     public function getDurationAttribute()
     {
-        if (!$this->started_at || !$this->completed_at) {
+        if (! $this->started_at || ! $this->completed_at) {
             return null;
         }
-        
+
         return $this->started_at->diffForHumans($this->completed_at, true);
     }
 
     public function getStatusBadgeClassAttribute()
     {
-        return match($this->status) {
+        return match ($this->status) {
             'completed' => 'success',
             'processing' => 'warning',
             'failed' => 'danger',
@@ -133,7 +133,7 @@ class ImportLog extends Model
         if ($this->imported_count === 0) {
             return 0;
         }
-        
+
         return round(($this->fees_created / $this->imported_count) * 100, 2);
     }
 
@@ -142,7 +142,7 @@ class ImportLog extends Model
     {
         $this->update([
             'status' => 'completed',
-            'completed_at' => now()
+            'completed_at' => now(),
         ]);
     }
 
@@ -150,31 +150,31 @@ class ImportLog extends Model
     {
         $this->update([
             'status' => 'failed',
-            'completed_at' => now()
+            'completed_at' => now(),
         ]);
     }
 
     public function getImportedStudents()
     {
         return $this->details()
-                   ->where('status', 'imported')
-                   ->whereNotNull('student_id')
-                   ->with('student')
-                   ->get();
+            ->where('status', 'imported')
+            ->whereNotNull('student_id')
+            ->with('student')
+            ->get();
     }
 
     public function getRejectedRows()
     {
         return $this->details()
-                   ->where('status', 'rejected')
-                   ->get();
+            ->where('status', 'rejected')
+            ->get();
     }
 
     public function getErrorRows()
     {
         return $this->details()
-                   ->where('status', 'error')
-                   ->get();
+            ->where('status', 'error')
+            ->get();
     }
 }
 
@@ -231,7 +231,7 @@ class ImportLogDetail extends Model
     // Accessors
     public function getStatusBadgeClassAttribute()
     {
-        return match($this->status) {
+        return match ($this->status) {
             'imported' => 'success',
             'skipped' => 'warning',
             'rejected' => 'danger',
@@ -243,7 +243,7 @@ class ImportLogDetail extends Model
     public function getFormattedRowDataAttribute()
     {
         return collect($this->row_data)->map(function ($value, $key) {
-            return ucfirst(str_replace('_', ' ', $key)) . ': ' . $value;
+            return ucfirst(str_replace('_', ' ', $key)).': '.$value;
         })->implode(', ');
     }
 }

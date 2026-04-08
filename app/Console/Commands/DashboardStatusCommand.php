@@ -2,14 +2,18 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Dashboard;
+use App\Models\DashboardWidget;
+use App\Models\Widget;
+use App\Models\WidgetCategory;
 use Illuminate\Console\Command;
-use App\Models\{Dashboard, Widget, WidgetCategory, DashboardWidget};
-use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\File;
 
 class DashboardStatusCommand extends Command
 {
     protected $signature = 'dashboard:status {--detailed : Show detailed information}';
+
     protected $description = 'Check dashboard system status and health';
 
     public function handle()
@@ -18,9 +22,9 @@ class DashboardStatusCommand extends Command
         $this->newLine();
 
         $status = $this->checkSystemStatus();
-        
+
         $this->displayOverallStatus($status);
-        
+
         if ($this->option('detailed')) {
             $this->displayDetailedStatus($status);
         }
@@ -38,14 +42,14 @@ class DashboardStatusCommand extends Command
                 'database' => $this->checkDatabase(),
                 'widgets' => $this->checkWidgets(),
                 'templates' => $this->checkTemplates(),
-                'cache' => $this->checkCache()
+                'cache' => $this->checkCache(),
             ],
-            'statistics' => $this->getStatistics()
+            'statistics' => $this->getStatistics(),
         ];
 
         // Determine overall status
         $componentStatuses = collect($status['components'])->pluck('status');
-        
+
         if ($componentStatuses->contains('error')) {
             $status['overall'] = 'error';
         } elseif ($componentStatuses->contains('warning')) {
@@ -67,7 +71,7 @@ class DashboardStatusCommand extends Command
                 return [
                     'status' => 'warning',
                     'message' => 'No dashboards configured',
-                    'details' => ['dashboards' => 0, 'widgets' => $widgets]
+                    'details' => ['dashboards' => 0, 'widgets' => $widgets],
                 ];
             }
 
@@ -78,14 +82,14 @@ class DashboardStatusCommand extends Command
                     'dashboards' => $dashboards,
                     'widgets' => $widgets,
                     'categories' => $categories,
-                    'dashboard_widgets' => $dashboardWidgets
-                ]
+                    'dashboard_widgets' => $dashboardWidgets,
+                ],
             ];
         } catch (\Exception $e) {
             return [
                 'status' => 'error',
                 'message' => 'Database connection failed',
-                'details' => ['error' => $e->getMessage()]
+                'details' => ['error' => $e->getMessage()],
             ];
         }
     }
@@ -98,7 +102,7 @@ class DashboardStatusCommand extends Command
             $inactiveWidgets = $widgets - $activeWidgets;
 
             $status = 'healthy';
-            $message = "Widgets loaded successfully";
+            $message = 'Widgets loaded successfully';
 
             if ($activeWidgets === 0) {
                 $status = 'warning';
@@ -111,14 +115,14 @@ class DashboardStatusCommand extends Command
                 'details' => [
                     'total' => $widgets,
                     'active' => $activeWidgets,
-                    'inactive' => $inactiveWidgets
-                ]
+                    'inactive' => $inactiveWidgets,
+                ],
             ];
         } catch (\Exception $e) {
             return [
                 'status' => 'error',
                 'message' => 'Widget loading failed',
-                'details' => ['error' => $e->getMessage()]
+                'details' => ['error' => $e->getMessage()],
             ];
         }
     }
@@ -126,12 +130,12 @@ class DashboardStatusCommand extends Command
     private function checkTemplates()
     {
         $templatePath = resource_path('views/dashboard/widgets');
-        
-        if (!is_dir($templatePath)) {
+
+        if (! is_dir($templatePath)) {
             return [
                 'status' => 'error',
                 'message' => 'Widget templates directory not found',
-                'details' => ['path' => $templatePath]
+                'details' => ['path' => $templatePath],
             ];
         }
 
@@ -143,8 +147,8 @@ class DashboardStatusCommand extends Command
             'status' => $status,
             'message' => $message,
             'details' => [
-                'total_templates' => count($templateFiles)
-            ]
+                'total_templates' => count($templateFiles),
+            ],
         ];
     }
 
@@ -153,25 +157,25 @@ class DashboardStatusCommand extends Command
         try {
             Cache::put('dashboard_health_check', 'test', 60);
             $value = Cache::get('dashboard_health_check');
-            
+
             if ($value === 'test') {
                 return [
                     'status' => 'healthy',
                     'message' => 'Cache system working',
-                    'details' => ['driver' => config('cache.default')]
+                    'details' => ['driver' => config('cache.default')],
                 ];
             }
 
             return [
                 'status' => 'warning',
                 'message' => 'Cache not working properly',
-                'details' => ['driver' => config('cache.default')]
+                'details' => ['driver' => config('cache.default')],
             ];
         } catch (\Exception $e) {
             return [
                 'status' => 'error',
                 'message' => 'Cache system failed',
-                'details' => ['error' => $e->getMessage()]
+                'details' => ['error' => $e->getMessage()],
             ];
         }
     }
@@ -184,7 +188,7 @@ class DashboardStatusCommand extends Command
                 'total_widgets' => Widget::count(),
                 'active_widgets' => Widget::where('is_active', true)->count(),
                 'widget_categories' => WidgetCategory::count(),
-                'dashboard_widgets' => DashboardWidget::count()
+                'dashboard_widgets' => DashboardWidget::count(),
             ];
         } catch (\Exception $e) {
             return [
@@ -192,28 +196,28 @@ class DashboardStatusCommand extends Command
                 'total_widgets' => 0,
                 'active_widgets' => 0,
                 'widget_categories' => 0,
-                'dashboard_widgets' => 0
+                'dashboard_widgets' => 0,
             ];
         }
     }
 
     private function displayOverallStatus($status)
     {
-        $statusColor = match($status['overall']) {
+        $statusColor = match ($status['overall']) {
             'healthy' => 'info',
             'warning' => 'comment',
             'error' => 'error',
             default => 'line'
         };
 
-        $statusIcon = match($status['overall']) {
+        $statusIcon = match ($status['overall']) {
             'healthy' => '✅',
             'warning' => '⚠️',
             'error' => '❌',
             default => 'ℹ️'
         };
 
-        $this->{$statusColor}("{$statusIcon} Overall Status: " . ucfirst($status['overall']));
+        $this->{$statusColor}("{$statusIcon} Overall Status: ".ucfirst($status['overall']));
         $this->newLine();
     }
 
@@ -223,16 +227,16 @@ class DashboardStatusCommand extends Command
         $this->newLine();
 
         foreach ($status['components'] as $component => $details) {
-            $icon = match($details['status']) {
+            $icon = match ($details['status']) {
                 'healthy' => '✅',
                 'warning' => '⚠️',
                 'error' => '❌',
                 default => 'ℹ️'
             };
 
-            $this->line("{$icon} " . ucfirst($component) . ": {$details['message']}");
-            
-            if (!empty($details['details'])) {
+            $this->line("{$icon} ".ucfirst($component).": {$details['message']}");
+
+            if (! empty($details['details'])) {
                 foreach ($details['details'] as $key => $value) {
                     $this->line("   {$key}: {$value}");
                 }
@@ -243,9 +247,9 @@ class DashboardStatusCommand extends Command
         $this->info('📈 System Statistics:');
         $this->table(
             ['Metric', 'Count'],
-            collect($status['statistics'])->map(fn($value, $key) => [
+            collect($status['statistics'])->map(fn ($value, $key) => [
                 ucwords(str_replace('_', ' ', $key)),
-                $value
+                $value,
             ])->toArray()
         );
     }
@@ -264,6 +268,7 @@ class DashboardStatusCommand extends Command
 
         if (empty($recommendations)) {
             $this->info('🎉 No issues found! Dashboard system is healthy.');
+
             return;
         }
 

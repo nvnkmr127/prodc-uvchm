@@ -26,6 +26,6 @@ class CourseSubjectController extends Controller
         $course->subjects()->sync($request->input('subjects', []));
 
         return redirect()->route('admin.courses.index')
-                         ->with('success', 'Subjects for ' . $course->name . ' updated successfully.');
+            ->with('success', 'Subjects for '.$course->name.' updated successfully.');
     }
 }

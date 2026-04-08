@@ -12,6 +12,7 @@ class HolidayController extends Controller
     public function index()
     {
         $holidays = Holiday::orderBy('date')->get();
+
         return view('admin.holidays.index', compact('holidays'));
     }
 
@@ -30,6 +31,7 @@ class HolidayController extends Controller
         ]);
 
         Holiday::create($validated);
+
         return redirect()->route('admin.holidays.index')->with('success', 'Holiday created successfully.');
     }
 
@@ -48,12 +50,14 @@ class HolidayController extends Controller
         ]);
 
         $holiday->update($validated);
+
         return redirect()->route('admin.holidays.index')->with('success', 'Holiday updated successfully.');
     }
 
     public function destroy(Holiday $holiday)
     {
         $holiday->delete();
+
         return redirect()->route('admin.holidays.index')->with('success', 'Holiday deleted successfully.');
     }
 }

@@ -3,16 +3,13 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\FeeCategory;
-use App\Models\StudentFee;
-use App\Models\Student;
 use App\Models\Batch;
 use App\Models\Course;
+use App\Models\FeeCategory;
+use App\Models\Student;
+use App\Models\StudentFee;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
-use Maatwebsite\Excel\Facades\Excel;
-use App\Exports\FeeCategoryAnalysisExport;
 
 class FeeCategoryAnalysisController extends Controller
 {
@@ -37,7 +34,7 @@ class FeeCategoryAnalysisController extends Controller
                 'stats' => $summaryStats,
                 // We'll also return highlights data if needed, but summaryStats contains top/bottom categories
                 'top_performer' => $summaryStats['top_performing_category'] ?? null,
-                'most_pending' => $summaryStats['most_pending_category'] ?? null
+                'most_pending' => $summaryStats['most_pending_category'] ?? null,
             ]);
         }
 
@@ -47,7 +44,7 @@ class FeeCategoryAnalysisController extends Controller
         $courses = Course::with([
             'batches' => function ($q) {
                 $q->orderBy('name');
-            }
+            },
         ])->orderBy('name')->get();
         $batches = Batch::with('course')->orderBy('name')->get();
 
@@ -68,7 +65,7 @@ class FeeCategoryAnalysisController extends Controller
         // Base Query
         $query = \App\Models\StudentFee::with(['student.batch.course'])
             ->where('fee_category_id', $id)
-            ->whereHas('student', function($q) {
+            ->whereHas('student', function ($q) {
                 $q->where('status', '!=', 'dropout');
             });
 
@@ -122,7 +119,7 @@ class FeeCategoryAnalysisController extends Controller
             'total' => $summaryQuery->sum('amount'),
             'paid' => $summaryQuery->sum('paid_amount'),
             'concession' => $summaryQuery->sum('concession_amount'),
-            'count' => $summaryQuery->count()
+            'count' => $summaryQuery->count(),
         ];
         $stats['pending'] = $stats['total'] - $stats['paid'] - $stats['concession'];
 
@@ -134,7 +131,7 @@ class FeeCategoryAnalysisController extends Controller
             return response()->json([
                 'stats' => $stats,
                 'html' => view('admin.fee-category-analysis._student_table_rows', compact('studentFees'))->render(),
-                'pagination' => (string) $studentFees->links()
+                'pagination' => (string) $studentFees->links(),
             ]);
         }
 
@@ -150,6 +147,7 @@ class FeeCategoryAnalysisController extends Controller
             'stats'
         ));
     }
+
     /**
      * FIXED: Get students with pending amounts for a specific category (excludes dropout students)
      */
@@ -165,7 +163,7 @@ class FeeCategoryAnalysisController extends Controller
                     $q->withoutGlobalScope('academic_year');
                 },
                 'student.batch.course',
-                'feeCategory'
+                'feeCategory',
             ])
             ->whereHas('student', function ($query) {
                 $query->withoutGlobalScope('academic_year')->where('status', '!=', 'dropout');
@@ -203,11 +201,10 @@ class FeeCategoryAnalysisController extends Controller
                 'current_page' => $pendingStudents->currentPage(),
                 'last_page' => $pendingStudents->lastPage(),
                 'total' => $pendingStudents->total(),
-                'per_page' => $pendingStudents->perPage()
-            ]
+                'per_page' => $pendingStudents->perPage(),
+            ],
         ]);
     }
-
 
     public function export(Request $request, $type)
     {
@@ -297,7 +294,7 @@ class FeeCategoryAnalysisController extends Controller
 
         return \Maatwebsite\Excel\Facades\Excel::download(
             new \App\Exports\FeeCategoryAnalysisExport($data, $type),
-            'fee_analysis_' . $type . '_' . date('Y-m-d') . '.xlsx'
+            'fee_analysis_'.$type.'_'.date('Y-m-d').'.xlsx'
         );
     }
 
@@ -527,7 +524,7 @@ class FeeCategoryAnalysisController extends Controller
                 DB::raw('SUM(student_fees.amount - student_fees.concession_amount - student_fees.paid_amount) as pending_amount'),
                 DB::raw('MIN(student_fees.due_date) as earliest_due_date'),
                 DB::raw('MAX(student_fees.due_date) as latest_due_date'),
-                DB::raw('COUNT(student_fees.id) as total_fee_records')
+                DB::raw('COUNT(student_fees.id) as total_fee_records'),
             ])
             ->leftJoin('batches', 'students.batch_id', '=', 'batches.id')
             ->leftJoin('courses', 'batches.course_id', '=', 'courses.id')
@@ -596,7 +593,7 @@ class FeeCategoryAnalysisController extends Controller
                 'pending_amount' => $stats->pending_amount ?? 0,
                 'total_fees' => $stats->total_fees ?? 0,
                 'paid_fees' => $stats->paid_fees ?? 0,
-                'overdue_fees' => $stats->overdue_fees ?? 0
+                'overdue_fees' => $stats->overdue_fees ?? 0,
             ];
         } else {
             $statsArray = $stats;
@@ -658,7 +655,7 @@ class FeeCategoryAnalysisController extends Controller
             'amount_range' => $request->get('amount_range'),
             'overdue_only' => $request->boolean('overdue_only'),
             'min_amount' => $request->get('min_amount'),
-            'filter_entity' => $filterEntity // Pass back for view state
+            'filter_entity' => $filterEntity, // Pass back for view state
         ];
     }
 
@@ -696,7 +693,7 @@ class FeeCategoryAnalysisController extends Controller
                 'total_paid' => $monthlyData->total_paid ?? 0,
                 'collection_rate' => $monthlyData->total_amount > 0
                     ? round(($monthlyData->total_paid / $monthlyData->total_amount) * 100, 1)
-                    : 0
+                    : 0,
             ]);
         }
 
@@ -756,6 +753,7 @@ class FeeCategoryAnalysisController extends Controller
                     ? round(($category->overdue_amount / $category->total_amount) * 100, 2)
                     : 0;
                 $category->efficiency_score = $this->calculateEfficiencyScore($category);
+
                 return $category;
             });
     }
@@ -799,6 +797,7 @@ class FeeCategoryAnalysisController extends Controller
                 $fee->remaining_amount = $fee->amount - $fee->concession_amount - $fee->paid_amount;
                 $fee->days_overdue = $fee->due_date < now() ? $fee->due_date->diffInDays(now()) : 0;
                 $fee->urgency_level = $this->calculateUrgencyLevel($fee);
+
                 return $fee;
             });
     }
@@ -861,7 +860,7 @@ class FeeCategoryAnalysisController extends Controller
             'current_month_fees' => $currentData->recovered_fees ?? 0,
             'last_month_recovery' => $lastMonthData->recovered_amount ?? 0,
             'recovery_rate_change' => round($recoveryRate, 1),
-            'recovery_trend' => $recoveryRate >= 0 ? 'positive' : 'negative'
+            'recovery_trend' => $recoveryRate >= 0 ? 'positive' : 'negative',
         ];
     }
 
@@ -892,7 +891,7 @@ class FeeCategoryAnalysisController extends Controller
                 'month' => $monthStart->format('M Y'),
                 'month_key' => $monthStart->format('Y-m'),
                 'recovered_fees' => $recoveryData->recovered_fees ?? 0,
-                'recovered_amount' => $recoveryData->recovered_amount ?? 0
+                'recovered_amount' => $recoveryData->recovered_amount ?? 0,
             ]);
         }
 
@@ -916,7 +915,6 @@ class FeeCategoryAnalysisController extends Controller
             ->orderBy('recovery_amount', 'desc')
             ->get();
     }
-
 
     /**
      * FIXED: Get category-specific statistics (excludes dropout students)
@@ -1053,7 +1051,6 @@ class FeeCategoryAnalysisController extends Controller
             ->first();
     }
 
-
     /**
      * Get category with most pending amount
      */
@@ -1080,8 +1077,6 @@ class FeeCategoryAnalysisController extends Controller
             ->first();
     }
 
-
-
     /**
      * FIXED: Critical defaulters page (excludes dropout students)
      */
@@ -1099,7 +1094,7 @@ class FeeCategoryAnalysisController extends Controller
             'avg_recovery_days' => $this->calculateAverageRecoveryDays($filters),
             'total_overdue_amount' => $criticalDefaulters->sum('total_overdue'),
             'max_overdue_days' => $criticalDefaulters->max('overdue_days'),
-            'categories_affected' => $criticalDefaulters->sum('affected_categories')
+            'categories_affected' => $criticalDefaulters->sum('affected_categories'),
         ];
 
         // Add filter options for the view
@@ -1126,7 +1121,7 @@ class FeeCategoryAnalysisController extends Controller
             'reminder_type' => 'required|in:gentle,firm,urgent,final_notice',
             'include_overdue_only' => 'boolean',
             'minimum_amount' => 'nullable|numeric|min:0',
-            'message_content' => 'nullable|string'
+            'message_content' => 'nullable|string',
         ]);
 
         try {
@@ -1138,15 +1133,15 @@ class FeeCategoryAnalysisController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => "Queued {$reminderCount} reminders for {$feeCategory->name} category",
-                'students_count' => $reminderCount
+                'students_count' => $reminderCount,
             ]);
 
         } catch (\Exception $e) {
-            \Log::error('Category reminder error: ' . $e->getMessage());
+            \Log::error('Category reminder error: '.$e->getMessage());
 
             return response()->json([
                 'success' => false,
-                'error' => 'Failed to send category reminders. Please try again.'
+                'error' => 'Failed to send category reminders. Please try again.',
             ], 500);
         }
     }
@@ -1160,13 +1155,13 @@ class FeeCategoryAnalysisController extends Controller
         if ($student->status === 'dropout') {
             return response()->json([
                 'success' => false,
-                'message' => 'Cannot perform intervention on dropout students'
+                'message' => 'Cannot perform intervention on dropout students',
             ], 400);
         }
 
         $request->validate([
             'intervention_type' => 'required|in:reminder,call,meeting,email',
-            'notes' => 'required|string|max:500'
+            'notes' => 'required|string|max:500',
         ]);
 
         // Log the intervention
@@ -1177,13 +1172,13 @@ class FeeCategoryAnalysisController extends Controller
                 'intervention_type' => $request->intervention_type,
                 'notes' => $request->notes,
                 'outstanding_amount' => $student->getTotalOutstandingAmount(),
-                'overdue_amount' => $student->getOverdueAmount()
+                'overdue_amount' => $student->getOverdueAmount(),
             ])
             ->log("Fee intervention: {$request->intervention_type}");
 
         return response()->json([
             'success' => true,
-            'message' => 'Intervention recorded successfully'
+            'message' => 'Intervention recorded successfully',
         ]);
     }
 
@@ -1207,8 +1202,8 @@ class FeeCategoryAnalysisController extends Controller
     }
 
     // ==========================================
-// 3. HELPER METHODS - Add these to FeeCategoryAnalysisController
-// ==========================================
+    // 3. HELPER METHODS - Add these to FeeCategoryAnalysisController
+    // ==========================================
 
     /**
      * FIXED: Get critical defaulters for intervention (excludes dropout students)
@@ -1338,7 +1333,7 @@ class FeeCategoryAnalysisController extends Controller
             'critical_count' => $criticalCount,
             'total_at_risk' => $totalAmount,
             'avg_overdue_amount' => $totalDefaulters > 0 ? round($totalAmount / $totalDefaulters, 2) : 0,
-            'avg_recovery_days' => $this->calculateAverageRecoveryDays($filters)
+            'avg_recovery_days' => $this->calculateAverageRecoveryDays($filters),
         ];
     }
 
@@ -1365,7 +1360,7 @@ class FeeCategoryAnalysisController extends Controller
             'studentFees' => function ($q) use ($feeCategory) {
                 $q->where('fee_category_id', $feeCategory->id)
                     ->whereIn('status', ['unpaid', 'partial']);
-            }
+            },
         ])->get();
     }
 
@@ -1387,7 +1382,7 @@ class FeeCategoryAnalysisController extends Controller
                 'scheduled_date' => now(),
                 'status' => 'pending',
                 'created_at' => now(),
-                'updated_at' => now()
+                'updated_at' => now(),
             ];
 
             // Insert into your reminders table
@@ -1414,14 +1409,14 @@ class FeeCategoryAnalysisController extends Controller
             'channel' => 'email',
             'message_content' => $this->getDefaultReminderMessage($criteria['reminder_type'] ?? 'general'),
             'scheduled_date' => now(),
-            'status' => 'pending'
+            'status' => 'pending',
         ];
 
         DB::table('payment_reminders')->insert($reminderData);
 
         return [
             'message' => 'Reminder has been queued for sending.',
-            'data' => $reminderData
+            'data' => $reminderData,
         ];
     }
 
@@ -1436,12 +1431,12 @@ class FeeCategoryAnalysisController extends Controller
             'intervention_type' => 'escalation',
             'notes' => $criteria['reason'] ?? 'Case escalated due to non-payment',
             'created_by' => auth()->id(),
-            'created_at' => now()
+            'created_at' => now(),
         ]);
 
         return [
             'message' => 'Student case has been escalated to management.',
-            'data' => ['escalation_level' => $criteria['priority'] ?? 'high']
+            'data' => ['escalation_level' => $criteria['priority'] ?? 'high'],
         ];
     }
 
@@ -1456,7 +1451,7 @@ class FeeCategoryAnalysisController extends Controller
             'installments' => $criteria['installments'] ?? 3,
             'first_due_date' => $criteria['first_due'] ?? now()->addDays(7),
             'created_by' => auth()->id(),
-            'status' => 'active'
+            'status' => 'active',
         ];
 
         // Insert into payment plans table (if you have one)
@@ -1464,7 +1459,7 @@ class FeeCategoryAnalysisController extends Controller
 
         return [
             'message' => 'Payment plan has been created successfully.',
-            'data' => $planData
+            'data' => $planData,
         ];
     }
 
@@ -1477,7 +1472,7 @@ class FeeCategoryAnalysisController extends Controller
             'gentle' => 'Dear {student_name}, this is a friendly reminder about your pending payment. Please pay at your earliest convenience.',
             'firm' => 'Dear {student_name}, your payment is now overdue. Please make the payment immediately.',
             'urgent' => 'URGENT: Dear {student_name}, immediate payment is required to avoid further action.',
-            'final_notice' => 'FINAL NOTICE: Dear {student_name}, this is your last notice before escalation.'
+            'final_notice' => 'FINAL NOTICE: Dear {student_name}, this is your last notice before escalation.',
         ];
 
         return $templates[$type] ?? $templates['gentle'];
@@ -1488,12 +1483,9 @@ class FeeCategoryAnalysisController extends Controller
     {
         return [];
     }
+
     private function calculateAverageRecoveryDays($filters)
     {
         return 30;
     }
-
-
-
-
 }

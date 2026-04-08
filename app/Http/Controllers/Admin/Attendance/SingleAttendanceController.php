@@ -5,9 +5,8 @@ namespace App\Http\Controllers\Admin\Attendance;
 use App\Http\Controllers\Controller;
 use App\Models\Attendance\Attendance;
 use App\Models\Student;
-use App\Models\Batch;
-use Illuminate\Http\Request;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class SingleAttendanceController extends Controller
@@ -94,7 +93,7 @@ class SingleAttendanceController extends Controller
             // Low Attendance/Existing Attendance Holiday Logic
             $isLowAttendanceHoliday = false;
             // Only check if not already a weekend or future
-            if (!$isFuture && !$isWeekend && !$isExplicitHoliday) {
+            if (! $isFuture && ! $isWeekend && ! $isExplicitHoliday) {
                 $dayPunchCount = $dailyCounts[$dateStr] ?? 0;
                 // If fewer than 10 students present, treat as holiday (e.g. unexpected leave)
                 if ($dayPunchCount < 10) {
@@ -129,7 +128,7 @@ class SingleAttendanceController extends Controller
                 'status' => $status,
                 'record' => $record,
                 'holiday_name' => ($status === 'holiday') ? $holidayName : null,
-                'is_sunday' => $isWeekend
+                'is_sunday' => $isWeekend,
             ];
 
             $current->addDay();

@@ -10,11 +10,11 @@ return new class extends Migration
      * Run the migrations.
      */
     public function up(): void
-{
-    Schema::table('admissions', function (Blueprint $table) {
-        $table->string('referral_name')->nullable()->after('source');
-    });
-}
+    {
+        Schema::table('admissions', function (Blueprint $table) {
+            $table->string('referral_name')->nullable()->after('source');
+        });
+    }
 
     /**
      * Reverse the migrations.

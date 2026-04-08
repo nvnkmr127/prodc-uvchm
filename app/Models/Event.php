@@ -2,15 +2,15 @@
 
 namespace App\Models;
 
+use App\Traits\WebhookEnabled;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use App\Traits\WebhookEnabled;
 
 class Event extends Model
 {
-    use WebhookEnabled;
     use HasFactory;
+    use WebhookEnabled;
 
     protected $fillable = [
         'name',
@@ -24,8 +24,23 @@ class Event extends Model
     ];
 
     // Define relationships to get details easily
-    public function course(): BelongsTo { return $this->belongsTo(Course::class); }
-    public function subject(): BelongsTo { return $this->belongsTo(Subject::class); }
-    public function user(): BelongsTo { return $this->belongsTo(User::class); } // This is the faculty
-    public function classroom(): BelongsTo { return $this->belongsTo(Classroom::class); }
+    public function course(): BelongsTo
+    {
+        return $this->belongsTo(Course::class);
+    }
+
+    public function subject(): BelongsTo
+    {
+        return $this->belongsTo(Subject::class);
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    } // This is the faculty
+
+    public function classroom(): BelongsTo
+    {
+        return $this->belongsTo(Classroom::class);
+    }
 }

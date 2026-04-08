@@ -2,25 +2,23 @@
 
 namespace App\Services\Attendance;
 
-use App\Models\Attendance\Attendance;
-use App\Models\Student;
-use App\Models\Batch;
-use App\Services\Attendance\ValidationService;
-use App\Services\Attendance\NotificationService;
-use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\AttendanceExport;
 use App\Imports\AttendancesImport;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Http\UploadedFile;
-use Carbon\Carbon;
+use App\Models\Attendance\Attendance;
+use App\Models\Batch;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ImportExportService
 {
     protected ValidationService $validationService;
+
     protected NotificationService $notificationService;
-    
+
     public function __construct(
         ValidationService $validationService,
         NotificationService $notificationService
@@ -36,38 +34,38 @@ class ImportExportService
     {
         try {
             $filename = $this->generateExportFilename('attendance_export', 'xlsx', $filters);
-            $filepath = 'exports/' . $filename;
-            
+            $filepath = 'exports/'.$filename;
+
             // Get attendance data with filters
             $attendanceData = $this->getAttendanceData($filters);
-            
+
             // Create Excel export
             Excel::store(new AttendanceExport($attendanceData, $filters), $filepath, 'public');
-            
+
             Log::info('Attendance exported to Excel', [
                 'filename' => $filename,
                 'records_count' => count($attendanceData),
-                'filters' => $filters
+                'filters' => $filters,
             ]);
-            
+
             return [
                 'success' => true,
                 'filename' => $filename,
                 'path' => $filepath,
                 'download_url' => Storage::url($filepath),
                 'records_count' => count($attendanceData),
-                'file_size' => Storage::size('public/' . $filepath)
+                'file_size' => Storage::size('public/'.$filepath),
             ];
-            
+
         } catch (\Exception $e) {
             Log::error('Excel export failed', [
                 'error' => $e->getMessage(),
-                'filters' => $filters
+                'filters' => $filters,
             ]);
-            
+
             return [
                 'success' => false,
-                'error' => 'Failed to export to Excel: ' . $e->getMessage()
+                'error' => 'Failed to export to Excel: '.$e->getMessage(),
             ];
         }
     }
@@ -79,40 +77,40 @@ class ImportExportService
     {
         try {
             $filename = $this->generateExportFilename('attendance_export', 'csv', $filters);
-            $filepath = 'exports/' . $filename;
-            
+            $filepath = 'exports/'.$filename;
+
             // Get attendance data
             $attendanceData = $this->getAttendanceData($filters);
-            
+
             // Generate CSV content
             $csvContent = $this->generateCsvContent($attendanceData);
-            
+
             // Store CSV file
-            Storage::put('public/' . $filepath, $csvContent);
-            
+            Storage::put('public/'.$filepath, $csvContent);
+
             Log::info('Attendance exported to CSV', [
                 'filename' => $filename,
-                'records_count' => count($attendanceData)
+                'records_count' => count($attendanceData),
             ]);
-            
+
             return [
                 'success' => true,
                 'filename' => $filename,
                 'path' => $filepath,
                 'download_url' => Storage::url($filepath),
                 'records_count' => count($attendanceData),
-                'file_size' => Storage::size('public/' . $filepath)
+                'file_size' => Storage::size('public/'.$filepath),
             ];
-            
+
         } catch (\Exception $e) {
             Log::error('CSV export failed', [
                 'error' => $e->getMessage(),
-                'filters' => $filters
+                'filters' => $filters,
             ]);
-            
+
             return [
                 'success' => false,
-                'error' => 'Failed to export to CSV: ' . $e->getMessage()
+                'error' => 'Failed to export to CSV: '.$e->getMessage(),
             ];
         }
     }
@@ -124,45 +122,45 @@ class ImportExportService
     {
         try {
             $filename = $this->generateExportFilename('attendance_report', 'pdf', $filters);
-            $filepath = 'exports/' . $filename;
-            
+            $filepath = 'exports/'.$filename;
+
             // Get attendance data
             $attendanceData = $this->getAttendanceData($filters);
-            
+
             // Generate PDF content
             $pdf = Pdf::loadView('attendance.exports.pdf', [
                 'attendances' => $attendanceData,
                 'filters' => $filters,
                 'generated_at' => now(),
-                'summary' => $this->generateSummaryStats($attendanceData)
+                'summary' => $this->generateSummaryStats($attendanceData),
             ]);
-            
+
             // Store PDF file
-            Storage::put('public/' . $filepath, $pdf->output());
-            
+            Storage::put('public/'.$filepath, $pdf->output());
+
             Log::info('Attendance exported to PDF', [
                 'filename' => $filename,
-                'records_count' => count($attendanceData)
+                'records_count' => count($attendanceData),
             ]);
-            
+
             return [
                 'success' => true,
                 'filename' => $filename,
                 'path' => $filepath,
                 'download_url' => Storage::url($filepath),
                 'records_count' => count($attendanceData),
-                'file_size' => Storage::size('public/' . $filepath)
+                'file_size' => Storage::size('public/'.$filepath),
             ];
-            
+
         } catch (\Exception $e) {
             Log::error('PDF export failed', [
                 'error' => $e->getMessage(),
-                'filters' => $filters
+                'filters' => $filters,
             ]);
-            
+
             return [
                 'success' => false,
-                'error' => 'Failed to export to PDF: ' . $e->getMessage()
+                'error' => 'Failed to export to PDF: '.$e->getMessage(),
             ];
         }
     }
@@ -175,51 +173,51 @@ class ImportExportService
         try {
             // Validate file
             $fileValidation = $this->validateImportFile($file);
-            if (!$fileValidation['valid']) {
+            if (! $fileValidation['valid']) {
                 return [
                     'success' => false,
-                    'error' => $fileValidation['error']
+                    'error' => $fileValidation['error'],
                 ];
             }
-            
+
             // Store file temporarily
             $tempPath = $file->store('temp', 'local');
-            
+
             // Create import instance
-            $import = new AttendancesImport();
-            
+            $import = new AttendancesImport;
+
             // Perform import
-            Excel::import($import, storage_path('app/' . $tempPath));
-            
+            Excel::import($import, storage_path('app/'.$tempPath));
+
             // Get import results
             $results = $import->getImportSummary();
-            
+
             // Clean up temp file
             Storage::disk('local')->delete($tempPath);
-            
+
             // Send notification about import completion
             $this->notifyImportCompletion($results, $options);
-            
+
             Log::info('Attendance import completed', [
                 'filename' => $file->getClientOriginalName(),
-                'results' => $results
+                'results' => $results,
             ]);
-            
+
             return [
                 'success' => true,
                 'results' => $results,
-                'message' => $this->generateImportMessage($results)
+                'message' => $this->generateImportMessage($results),
             ];
-            
+
         } catch (\Exception $e) {
             Log::error('Import failed', [
                 'filename' => $file->getClientOriginalName(),
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
-            
+
             return [
                 'success' => false,
-                'error' => 'Import failed: ' . $e->getMessage()
+                'error' => 'Import failed: '.$e->getMessage(),
             ];
         }
     }
@@ -231,39 +229,39 @@ class ImportExportService
     {
         $maxSize = config('attendance.import_export.max_import_size', 10000) * 1024; // Convert to bytes
         $allowedFormats = config('attendance.import_export.allowed_import_formats', ['csv', 'xlsx']);
-        
+
         // Check file size
         if ($file->getSize() > $maxSize) {
             return [
                 'valid' => false,
-                'error' => 'File size exceeds maximum allowed size of ' . ($maxSize / 1024 / 1024) . 'MB'
+                'error' => 'File size exceeds maximum allowed size of '.($maxSize / 1024 / 1024).'MB',
             ];
         }
-        
+
         // Check file extension
         $extension = strtolower($file->getClientOriginalExtension());
-        if (!in_array($extension, $allowedFormats)) {
+        if (! in_array($extension, $allowedFormats)) {
             return [
                 'valid' => false,
-                'error' => 'Invalid file format. Allowed formats: ' . implode(', ', $allowedFormats)
+                'error' => 'Invalid file format. Allowed formats: '.implode(', ', $allowedFormats),
             ];
         }
-        
+
         // Check MIME type
         $allowedMimes = [
             'text/csv',
             'application/csv',
             'application/vnd.ms-excel',
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ];
-        
-        if (!in_array($file->getMimeType(), $allowedMimes)) {
+
+        if (! in_array($file->getMimeType(), $allowedMimes)) {
             return [
                 'valid' => false,
-                'error' => 'Invalid file type detected'
+                'error' => 'Invalid file type detected',
             ];
         }
-        
+
         return ['valid' => true];
     }
 
@@ -274,8 +272,8 @@ class ImportExportService
     {
         try {
             $filename = 'attendance_import_template.xlsx';
-            $filepath = 'templates/' . $filename;
-            
+            $filepath = 'templates/'.$filename;
+
             // Sample data for template
             $sampleData = [
                 [
@@ -283,24 +281,24 @@ class ImportExportService
                     'attendance_date' => '2024-01-15',
                     'status' => 'present',
                     'notes' => 'On time',
-                    'late_minutes' => ''
+                    'late_minutes' => '',
                 ],
                 [
                     'enrollment_number' => 'STU002',
                     'attendance_date' => '2024-01-15',
                     'status' => 'late',
                     'notes' => 'Traffic delay',
-                    'late_minutes' => '10'
+                    'late_minutes' => '10',
                 ],
                 [
                     'enrollment_number' => 'STU003',
                     'attendance_date' => '2024-01-15',
                     'status' => 'absent',
                     'notes' => 'Sick leave',
-                    'late_minutes' => ''
-                ]
+                    'late_minutes' => '',
+                ],
             ];
-            
+
             // Create template with instructions
             $templateData = [
                 'instructions' => [
@@ -308,24 +306,24 @@ class ImportExportService
                     'Status Options: present, absent, late, excused',
                     'Date Format: YYYY-MM-DD (e.g., 2024-01-15)',
                     'Notes: Optional field for additional information',
-                    'Late Minutes: Required only when status is "late"'
+                    'Late Minutes: Required only when status is "late"',
                 ],
-                'sample_data' => $sampleData
+                'sample_data' => $sampleData,
             ];
-            
+
             Excel::store(new \App\Exports\AttendanceTemplateExport($templateData), $filepath, 'public');
-            
+
             return [
                 'success' => true,
                 'filename' => $filename,
                 'path' => $filepath,
-                'download_url' => Storage::url($filepath)
+                'download_url' => Storage::url($filepath),
             ];
-            
+
         } catch (\Exception $e) {
             return [
                 'success' => false,
-                'error' => 'Failed to generate template: ' . $e->getMessage()
+                'error' => 'Failed to generate template: '.$e->getMessage(),
             ];
         }
     }
@@ -337,13 +335,15 @@ class ImportExportService
     {
         try {
             $exports = [];
-            
+
             foreach ($batchIds as $batchId) {
                 $batch = Batch::find($batchId);
-                if (!$batch) continue;
-                
+                if (! $batch) {
+                    continue;
+                }
+
                 $filters = ['batch_id' => $batchId];
-                
+
                 switch ($format) {
                     case 'excel':
                         $result = $this->exportAttendanceToExcel($filters);
@@ -357,26 +357,26 @@ class ImportExportService
                     default:
                         throw new \InvalidArgumentException("Unsupported format: {$format}");
                 }
-                
+
                 if ($result['success']) {
                     $exports[] = [
                         'batch_id' => $batchId,
                         'batch_name' => $batch->name,
-                        'result' => $result
+                        'result' => $result,
                     ];
                 }
             }
-            
+
             return [
                 'success' => true,
                 'exports' => $exports,
-                'total_files' => count($exports)
+                'total_files' => count($exports),
             ];
-            
+
         } catch (\Exception $e) {
             return [
                 'success' => false,
-                'error' => 'Bulk export failed: ' . $e->getMessage()
+                'error' => 'Bulk export failed: '.$e->getMessage(),
             ];
         }
     }
@@ -389,31 +389,31 @@ class ImportExportService
         $query = Attendance::with(['student.user', 'batch', 'subject', 'faculty'])
             ->orderBy('attendance_date', 'desc')
             ->orderBy('created_at', 'desc');
-        
+
         // Apply filters
         if (isset($filters['date_from'])) {
             $query->where('attendance_date', '>=', $filters['date_from']);
         }
-        
+
         if (isset($filters['date_to'])) {
             $query->where('attendance_date', '<=', $filters['date_to']);
         }
-        
+
         if (isset($filters['batch_id'])) {
             $query->where('batch_id', $filters['batch_id']);
         }
-        
+
         if (isset($filters['student_id'])) {
             $query->where('student_id', $filters['student_id']);
         }
-        
+
         if (isset($filters['status'])) {
             $query->where('status', $filters['status']);
         }
-        
+
         // Limit records for performance
         $limit = $filters['limit'] ?? config('attendance.import_export.export_chunk_size', 1000);
-        
+
         return $query->limit($limit)->get()->toArray();
     }
 
@@ -422,9 +422,9 @@ class ImportExportService
         if (empty($data)) {
             return "No data available\n";
         }
-        
+
         $csvContent = '';
-        
+
         // Headers
         $headers = [
             'Date',
@@ -434,10 +434,10 @@ class ImportExportService
             'Status',
             'Marked At',
             'Marked By',
-            'Notes'
+            'Notes',
         ];
-        $csvContent .= '"' . implode('","', $headers) . '"' . "\n";
-        
+        $csvContent .= '"'.implode('","', $headers).'"'."\n";
+
         // Data rows
         foreach ($data as $attendance) {
             $row = [
@@ -448,28 +448,28 @@ class ImportExportService
                 ucfirst($attendance['status']),
                 $attendance['marked_at'] ? Carbon::parse($attendance['marked_at'])->format('Y-m-d H:i:s') : 'N/A',
                 $attendance['faculty']['name'] ?? 'System',
-                $attendance['notes'] ?? ''
+                $attendance['notes'] ?? '',
             ];
-            
-            $csvContent .= '"' . implode('","', array_map('str_replace', array_fill(0, count($row), '"'), array_fill(0, count($row), '""'), $row)) . '"' . "\n";
+
+            $csvContent .= '"'.implode('","', array_map('str_replace', array_fill(0, count($row), '"'), array_fill(0, count($row), '""'), $row)).'"'."\n";
         }
-        
+
         return $csvContent;
     }
 
     private function generateSummaryStats(array $data): array
     {
         $total = count($data);
-        $present = count(array_filter($data, fn($a) => in_array($a['status'], ['present', 'late'])));
-        $absent = count(array_filter($data, fn($a) => $a['status'] === 'absent'));
-        $late = count(array_filter($data, fn($a) => $a['status'] === 'late'));
-        
+        $present = count(array_filter($data, fn ($a) => in_array($a['status'], ['present', 'late'])));
+        $absent = count(array_filter($data, fn ($a) => $a['status'] === 'absent'));
+        $late = count(array_filter($data, fn ($a) => $a['status'] === 'late'));
+
         return [
             'total_records' => $total,
             'present_count' => $present,
             'absent_count' => $absent,
             'late_count' => $late,
-            'attendance_percentage' => $total > 0 ? round(($present / $total) * 100, 2) : 0
+            'attendance_percentage' => $total > 0 ? round(($present / $total) * 100, 2) : 0,
         ];
     }
 
@@ -477,34 +477,34 @@ class ImportExportService
     {
         $timestamp = now()->format('Y-m-d_H-i-s');
         $filterString = '';
-        
+
         if (isset($filters['batch_id'])) {
             $batch = Batch::find($filters['batch_id']);
-            $filterString .= '_' . ($batch ? str_replace(' ', '-', $batch->name) : 'batch-' . $filters['batch_id']);
+            $filterString .= '_'.($batch ? str_replace(' ', '-', $batch->name) : 'batch-'.$filters['batch_id']);
         }
-        
+
         if (isset($filters['date_from']) && isset($filters['date_to'])) {
             $from = Carbon::parse($filters['date_from'])->format('Y-m-d');
             $to = Carbon::parse($filters['date_to'])->format('Y-m-d');
-            $filterString .= '_' . $from . '_to_' . $to;
+            $filterString .= '_'.$from.'_to_'.$to;
         }
-        
-        return $prefix . $filterString . '_' . $timestamp . '.' . $extension;
+
+        return $prefix.$filterString.'_'.$timestamp.'.'.$extension;
     }
 
     private function generateImportMessage(array $results): string
     {
         $message = "Import completed successfully!\n";
         $message .= "• Imported: {$results['imported']} records\n";
-        
+
         if ($results['skipped'] > 0) {
             $message .= "• Skipped: {$results['skipped']} records\n";
         }
-        
+
         if ($results['rejected'] > 0) {
             $message .= "• Rejected: {$results['rejected']} records (validation errors)\n";
         }
-        
+
         return $message;
     }
 
@@ -520,8 +520,8 @@ class ImportExportService
             'data' => [
                 'import_results' => $results,
                 'imported_by' => auth()->user()->name ?? 'System',
-                'timestamp' => now()->toISOString()
-            ]
+                'timestamp' => now()->toISOString(),
+            ],
         ]);
     }
 }

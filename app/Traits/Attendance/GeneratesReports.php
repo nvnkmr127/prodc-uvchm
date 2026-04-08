@@ -3,13 +3,12 @@
 namespace App\Traits\Attendance;
 
 use App\Models\Attendance\Attendance;
-use App\Models\Student;
 use App\Models\Batch;
+use App\Models\Student;
 use App\Models\Subject;
 use App\Models\User;
-use Illuminate\Support\Collection;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Collection;
 
 trait GeneratesReports
 {
@@ -46,19 +45,19 @@ trait GeneratesReports
                 'name' => $student->name,
                 'enrollment_number' => $student->enrollment_number,
                 'batch_name' => $student->batch->name ?? 'N/A',
-                'course_name' => $student->batch->course->name ?? 'N/A'
+                'course_name' => $student->batch->course->name ?? 'N/A',
             ],
             'report_period' => [
                 'from' => $filters['date_from'] ?? $attendances->min('attendance_date'),
                 'to' => $filters['date_to'] ?? $attendances->max('attendance_date'),
-                'total_days' => $attendances->count()
+                'total_days' => $attendances->count(),
             ],
             'statistics' => $stats,
             'monthly_breakdown' => $monthlyData,
             'subject_analysis' => $subjectAnalysis,
             'attendance_patterns' => $patterns,
             'recommendations' => $recommendations,
-            'generated_at' => now()->toISOString()
+            'generated_at' => now()->toISOString(),
         ];
     }
 
@@ -95,19 +94,19 @@ trait GeneratesReports
                 'name' => $batch->name,
                 'course_name' => $batch->course->name ?? 'N/A',
                 'total_students' => $batch->students->count(),
-                'active_students' => $batch->students->where('is_active', true)->count()
+                'active_students' => $batch->students->where('is_active', true)->count(),
             ],
             'report_period' => [
                 'from' => $filters['date_from'] ?? $attendances->min('attendance_date'),
                 'to' => $filters['date_to'] ?? $attendances->max('attendance_date'),
-                'total_records' => $attendances->count()
+                'total_records' => $attendances->count(),
             ],
             'statistics' => $stats,
             'student_summary' => $studentSummary,
             'daily_trends' => $dailyTrends,
             'at_risk_students' => $atRiskStudents,
             'insights' => $insights,
-            'generated_at' => now()->toISOString()
+            'generated_at' => now()->toISOString(),
         ];
     }
 
@@ -150,7 +149,7 @@ trait GeneratesReports
             'grouped_data' => $groupedData,
             'charts' => $charts,
             'raw_data' => $config['include_raw_data'] ?? false ? $attendances->toArray() : null,
-            'generated_at' => now()->toISOString()
+            'generated_at' => now()->toISOString(),
         ];
     }
 
@@ -185,12 +184,12 @@ trait GeneratesReports
                 'name' => $faculty->name,
                 'email' => $faculty->email,
                 'assigned_batches' => $assignedBatches->count(),
-                'assigned_subjects' => $assignedSubjects->count()
+                'assigned_subjects' => $assignedSubjects->count(),
             ],
             'report_period' => [
                 'from' => $filters['date_from'] ?? $attendances->min('attendance_date'),
                 'to' => $filters['date_to'] ?? $attendances->max('attendance_date'),
-                'records_marked' => $attendances->count()
+                'records_marked' => $attendances->count(),
             ],
             'statistics' => $stats,
             'batch_breakdown' => $batchBreakdown,
@@ -199,10 +198,10 @@ trait GeneratesReports
                 return [
                     'id' => $batch->id,
                     'name' => $batch->name,
-                    'student_count' => $batch->students()->count()
+                    'student_count' => $batch->students()->count(),
                 ];
             }),
-            'generated_at' => now()->toISOString()
+            'generated_at' => now()->toISOString(),
         ];
     }
 
@@ -220,7 +219,7 @@ trait GeneratesReports
                     $comparisons[] = [
                         'entity_id' => $entityId,
                         'entity_name' => $data['batch_info']['name'],
-                        'statistics' => $data['statistics']
+                        'statistics' => $data['statistics'],
                     ];
                     break;
 
@@ -229,7 +228,7 @@ trait GeneratesReports
                     $comparisons[] = [
                         'entity_id' => $entityId,
                         'entity_name' => $data['student_info']['name'],
-                        'statistics' => $data['statistics']
+                        'statistics' => $data['statistics'],
                     ];
                     break;
 
@@ -238,7 +237,7 @@ trait GeneratesReports
                     $comparisons[] = [
                         'entity_id' => $entityId,
                         'entity_name' => $data['faculty_info']['name'],
-                        'statistics' => $data['statistics']
+                        'statistics' => $data['statistics'],
                     ];
                     break;
             }
@@ -247,7 +246,7 @@ trait GeneratesReports
         return [
             'type' => $type,
             'comparisons' => $comparisons,
-            'generated_at' => now()->toISOString()
+            'generated_at' => now()->toISOString(),
         ];
     }
 
@@ -263,13 +262,13 @@ trait GeneratesReports
             $insights[] = [
                 'type' => 'positive',
                 'title' => 'Excellent Batch Performance',
-                'description' => 'The batch maintains excellent attendance rates above 90%'
+                'description' => 'The batch maintains excellent attendance rates above 90%',
             ];
         } elseif ($stats['batch_attendance_rate'] < 75) {
             $insights[] = [
                 'type' => 'concern',
                 'title' => 'Batch Attendance Below Threshold',
-                'description' => 'Batch attendance is below the required 75% threshold'
+                'description' => 'Batch attendance is below the required 75% threshold',
             ];
         }
 
@@ -281,7 +280,7 @@ trait GeneratesReports
             $insights[] = [
                 'type' => 'warning',
                 'title' => 'Students Requiring Attention',
-                'description' => "{$atRiskCount} students are at high or critical risk based on attendance patterns"
+                'description' => "{$atRiskCount} students are at high or critical risk based on attendance patterns",
             ];
         }
 
@@ -313,14 +312,14 @@ trait GeneratesReports
             'report_type' => 'time_based_analysis',
             'period' => [
                 'from' => $filters['date_from'] ?? null,
-                'to' => $filters['date_to'] ?? null
+                'to' => $filters['date_to'] ?? null,
             ],
             'hourly_analysis' => $hourlyData,
             'weekly_analysis' => $weeklyData,
             'monthly_progression' => $monthlyProgression,
             'peak_analysis' => $peakAnalysis,
             'recommendations' => $this->generateTimeBasedRecommendations($hourlyData, $weeklyData),
-            'generated_at' => now()->toISOString()
+            'generated_at' => now()->toISOString(),
         ];
     }
 
@@ -345,7 +344,7 @@ trait GeneratesReports
             'effectiveness_data' => $effectivenessData,
             'success_metrics' => $this->calculateInterventionSuccessMetrics($atRiskStudents),
             'recommended_actions' => $this->generateInterventionRecommendations($atRiskStudents),
-            'generated_at' => now()->toISOString()
+            'generated_at' => now()->toISOString(),
         ];
     }
 
@@ -376,7 +375,7 @@ trait GeneratesReports
             'non_compliant_students' => $nonCompliantStudents,
             'compliance_trends' => $complianceTrends,
             'improvement_recommendations' => $this->generateComplianceRecommendations($complianceData),
-            'generated_at' => now()->toISOString()
+            'generated_at' => now()->toISOString(),
         ];
     }
 
@@ -393,7 +392,7 @@ trait GeneratesReports
                 'hour' => $hour,
                 'hour_display' => Carbon::createFromTime($hour)->format('H:i'),
                 'total_records' => $hourAttendances->count(),
-                'status_breakdown' => $hourAttendances->groupBy('status')->map(fn($group) => $group->count())->toArray()
+                'status_breakdown' => $hourAttendances->groupBy('status')->map(fn ($group) => $group->count())->toArray(),
             ];
         })->sortBy('hour')->values()->toArray();
     }
@@ -412,7 +411,7 @@ trait GeneratesReports
                 'total_classes' => $total,
                 'present_count' => $present,
                 'attendance_percentage' => $total > 0 ? round(($present / $total) * 100, 2) : 0,
-                'status_breakdown' => $dayAttendances->groupBy('status')->map(fn($group) => $group->count())->toArray()
+                'status_breakdown' => $dayAttendances->groupBy('status')->map(fn ($group) => $group->count())->toArray(),
             ];
         })->sortBy('day_of_week')->values()->toArray();
     }
@@ -431,7 +430,7 @@ trait GeneratesReports
                 'total_classes' => $total,
                 'present_count' => $present,
                 'attendance_percentage' => $total > 0 ? round(($present / $total) * 100, 2) : 0,
-                'improvement_from_previous' => $this->calculateMonthlyImprovement($month, $attendances)
+                'improvement_from_previous' => $this->calculateMonthlyImprovement($month, $attendances),
             ];
         })->sortBy('month')->values()->toArray();
     }
@@ -442,9 +441,10 @@ trait GeneratesReports
             ->map(function ($dayAttendances, $date) {
                 $total = $dayAttendances->count();
                 $present = $dayAttendances->whereIn('status', ['present', 'late', 'excused'])->count();
+
                 return [
                     'date' => $date,
-                    'attendance_percentage' => $total > 0 ? round(($present / $total) * 100, 2) : 0
+                    'attendance_percentage' => $total > 0 ? round(($present / $total) * 100, 2) : 0,
                 ];
             });
 
@@ -453,7 +453,7 @@ trait GeneratesReports
         return [
             'lowest_attendance_days' => $sortedStats->take(5)->values()->toArray(),
             'highest_attendance_days' => $sortedStats->sortByDesc('attendance_percentage')->take(5)->values()->toArray(),
-            'average_attendance' => round($dailyStats->avg('attendance_percentage'), 2)
+            'average_attendance' => round($dailyStats->avg('attendance_percentage'), 2),
         ];
     }
 
@@ -466,13 +466,13 @@ trait GeneratesReports
         if ($lowestDay && $lowestDay['attendance_percentage'] < 80) {
             $recommendations[] = [
                 'type' => 'schedule_optimization',
-                'title' => 'Improve ' . $lowestDay['day_name'] . ' Attendance',
+                'title' => 'Improve '.$lowestDay['day_name'].' Attendance',
                 'description' => "Attendance on {$lowestDay['day_name']} is significantly lower at {$lowestDay['attendance_percentage']}%",
                 'suggested_actions' => [
-                    'Review class schedules for ' . $lowestDay['day_name'],
-                    'Consider incentives for ' . $lowestDay['day_name'] . ' classes',
-                    'Investigate external factors affecting ' . $lowestDay['day_name']
-                ]
+                    'Review class schedules for '.$lowestDay['day_name'],
+                    'Consider incentives for '.$lowestDay['day_name'].' classes',
+                    'Investigate external factors affecting '.$lowestDay['day_name'],
+                ],
             ];
         }
 
@@ -496,7 +496,7 @@ trait GeneratesReports
                     'enrollment_number' => $student->enrollment_number,
                     'batch_name' => $student->batch->name ?? 'Unknown',
                     'statistics' => $stats,
-                    'intervention_priority' => $this->calculateInterventionPriority($stats)
+                    'intervention_priority' => $this->calculateInterventionPriority($stats),
                 ];
             })
             ->filter(function ($studentData) use ($threshold) {
@@ -520,7 +520,7 @@ trait GeneratesReports
                 'student_name' => $student['student_name'],
                 'recommended_strategy' => $this->determineInterventionStrategy($stats),
                 'urgency_level' => $student['intervention_priority'],
-                'specific_actions' => $this->generateSpecificActions($stats)
+                'specific_actions' => $this->generateSpecificActions($stats),
             ];
         }
 
@@ -591,7 +591,7 @@ trait GeneratesReports
             'total_interventions' => 15,
             'successful_interventions' => 12,
             'success_rate' => 80.0,
-            'average_improvement' => 15.5 // percentage points
+            'average_improvement' => 15.5, // percentage points
         ];
     }
 
@@ -601,7 +601,7 @@ trait GeneratesReports
             'students_identified' => count($atRiskStudents),
             'critical_cases' => collect($atRiskStudents)->where('intervention_priority', 'critical')->count(),
             'high_priority_cases' => collect($atRiskStudents)->where('intervention_priority', 'high')->count(),
-            'average_attendance_deficit' => $this->calculateAverageDeficit($atRiskStudents)
+            'average_attendance_deficit' => $this->calculateAverageDeficit($atRiskStudents),
         ];
     }
 
@@ -614,7 +614,7 @@ trait GeneratesReports
             $recommendations[] = [
                 'type' => 'system_wide',
                 'title' => 'Review Attendance Policies',
-                'description' => 'High number of critical cases suggests need for policy review'
+                'description' => 'High number of critical cases suggests need for policy review',
             ];
         }
 
@@ -638,7 +638,7 @@ trait GeneratesReports
             'compliance_rate' => $studentStats->count() > 0 ?
                 round(($compliantStudents->count() / $studentStats->count()) * 100, 2) : 0,
             'average_attendance' => round($studentStats->avg(), 2),
-            'threshold' => $threshold
+            'threshold' => $threshold,
         ];
     }
 
@@ -653,7 +653,7 @@ trait GeneratesReports
                     'student_id' => $student->id,
                     'student_name' => $student->name,
                     'attendance_percentage' => $percentage,
-                    'deficit' => round($threshold - $percentage, 2)
+                    'deficit' => round($threshold - $percentage, 2),
                 ];
             })
             ->filter(function ($studentData) use ($threshold) {
@@ -671,6 +671,7 @@ trait GeneratesReports
             return Carbon::parse($attendance->attendance_date)->format('Y-m');
         })->map(function ($monthAttendances, $month) {
             $threshold = config('attendance.minimum_percentage', 75);
+
             return $this->calculateComplianceMetrics($monthAttendances, $threshold);
         });
 
@@ -679,7 +680,7 @@ trait GeneratesReports
                 'month' => $month,
                 'month_name' => Carbon::createFromFormat('Y-m', $month)->format('F Y'),
                 'compliance_rate' => $compliance['compliance_rate'],
-                'average_attendance' => $compliance['average_attendance']
+                'average_attendance' => $compliance['average_attendance'],
             ];
         })->sortBy('month')->values()->toArray();
     }
@@ -697,8 +698,8 @@ trait GeneratesReports
                 'actions' => [
                     'Review attendance policies',
                     'Implement intensive intervention program',
-                    'Conduct system-wide attendance review'
-                ]
+                    'Conduct system-wide attendance review',
+                ],
             ];
         } elseif ($rate < 85) {
             $recommendations[] = [
@@ -708,8 +709,8 @@ trait GeneratesReports
                 'actions' => [
                     'Enhance student support services',
                     'Increase parent engagement',
-                    'Review class scheduling'
-                ]
+                    'Review class scheduling',
+                ],
             ];
         }
 

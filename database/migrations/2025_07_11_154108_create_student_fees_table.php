@@ -25,7 +25,7 @@ return new class extends Migration
             $table->string('transaction_id')->nullable();
             $table->text('remarks')->nullable();
             $table->timestamps();
-            
+
             // Indexes
             $table->index(['student_id', 'status']);
             $table->index(['fee_structure_id']);

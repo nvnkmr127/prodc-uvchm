@@ -2,11 +2,11 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Widget;
+use App\Services\DashboardPermissionService;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
-use App\Models\Widget;
-use App\Services\DashboardPermissionService;
 
 class WidgetPermissionMiddleware
 {
@@ -23,40 +23,40 @@ class WidgetPermissionMiddleware
     public function handle(Request $request, Closure $next, $action = 'view'): Response
     {
         $user = auth()->user();
-        
-        if (!$user) {
+
+        if (! $user) {
             return response()->json(['error' => 'Authentication required'], 401);
         }
-        
+
         // Get widget from route parameter
         $widget = $this->getWidgetFromRequest($request);
-        
-        if (!$widget) {
+
+        if (! $widget) {
             return response()->json(['error' => 'Widget not found'], 404);
         }
-        
+
         // Check widget permissions based on action
-        $hasPermission = match($action) {
+        $hasPermission = match ($action) {
             'view' => $this->permissionService->canViewWidget($user, $widget),
             'edit' => $this->canEditWidget($user, $widget),
             'delete' => $this->canDeleteWidget($user, $widget),
             default => false
         };
-        
-        if (!$hasPermission) {
+
+        if (! $hasPermission) {
             return response()->json([
                 'error' => "Insufficient permissions to {$action} this widget",
                 'required_permissions' => $widget->required_permissions ?? [],
-                'user_roles' => $user->getRoleNames()
+                'user_roles' => $user->getRoleNames(),
             ], 403);
         }
-        
+
         // Add widget to request for controller use
         $request->merge(['validated_widget' => $widget]);
-        
+
         return $next($request);
     }
-    
+
     /**
      * Get widget from request parameters
      */
@@ -66,30 +66,30 @@ class WidgetPermissionMiddleware
         if ($request->route('widget')) {
             return $request->route('widget');
         }
-        
+
         // Try request parameter
         if ($request->has('widget_id')) {
             return Widget::find($request->widget_id);
         }
-        
+
         return null;
     }
-    
+
     /**
      * Check if user can edit widget
      */
     private function canEditWidget($user, Widget $widget): bool
     {
-        return $user->hasPermissionTo('edit widgets') && 
+        return $user->hasPermissionTo('edit widgets') &&
                $this->permissionService->canViewWidget($user, $widget);
     }
-    
+
     /**
      * Check if user can delete widget
      */
     private function canDeleteWidget($user, Widget $widget): bool
     {
-        return $user->hasPermissionTo('delete widgets') && 
+        return $user->hasPermissionTo('delete widgets') &&
                $user->hasRole('super-admin');
     }
 }

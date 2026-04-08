@@ -2,20 +2,23 @@
 
 namespace App\Exports;
 
+use App\Models\User;
+use Carbon\Carbon;
+use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
-use Carbon\Carbon;
-use App\Models\User;
-use Illuminate\Support\Collection;
 
 class UserCollectionExport implements FromCollection, WithHeadings, WithStyles, WithTitle
 {
     protected $payments;
+
     protected $user;
+
     protected $startDate;
+
     protected $endDate;
 
     public function __construct(Collection $payments, User $user, Carbon $startDate, Carbon $endDate)
@@ -40,7 +43,7 @@ class UserCollectionExport implements FromCollection, WithHeadings, WithStyles, 
                 'transaction_id' => $payment->transaction_id ?? 'N/A',
                 'status' => ucfirst($payment->status),
                 'created_at' => $payment->created_at->format('d-m-Y H:i:s'),
-                'notes' => $payment->notes ?? ''
+                'notes' => $payment->notes ?? '',
             ];
         });
     }
@@ -58,7 +61,7 @@ class UserCollectionExport implements FromCollection, WithHeadings, WithStyles, 
             'Transaction ID',
             'Status',
             'Created At',
-            'Notes'
+            'Notes',
         ];
     }
 
@@ -68,7 +71,7 @@ class UserCollectionExport implements FromCollection, WithHeadings, WithStyles, 
             1 => [
                 'font' => ['bold' => true, 'size' => 12],
                 'fill' => ['fillType' => 'solid', 'color' => ['rgb' => '4e73df']],
-                'font' => ['color' => ['rgb' => 'FFFFFF']]
+                'font' => ['color' => ['rgb' => 'FFFFFF']],
             ],
             'A:K' => ['alignment' => ['horizontal' => 'center']],
         ];
@@ -76,6 +79,6 @@ class UserCollectionExport implements FromCollection, WithHeadings, WithStyles, 
 
     public function title(): string
     {
-        return 'Collections_' . $this->user->name . '_' . $this->startDate->format('d-m-Y') . '_to_' . $this->endDate->format('d-m-Y');
+        return 'Collections_'.$this->user->name.'_'.$this->startDate->format('d-m-Y').'_to_'.$this->endDate->format('d-m-Y');
     }
 }

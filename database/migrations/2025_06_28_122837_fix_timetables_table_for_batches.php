@@ -9,17 +9,17 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-public function up(): void
-{
-    Schema::table('timetables', function (Blueprint $table) {
-        // First, add the new column and link it to the batches table
-        $table->foreignId('batch_id')->after('schedule_date')->constrained()->onDelete('cascade');
+    public function up(): void
+    {
+        Schema::table('timetables', function (Blueprint $table) {
+            // First, add the new column and link it to the batches table
+            $table->foreignId('batch_id')->after('schedule_date')->constrained()->onDelete('cascade');
 
-        // Then, remove the old course_id column and its foreign key
-        $table->dropForeign(['course_id']);
-        $table->dropColumn('course_id');
-    });
-}
+            // Then, remove the old course_id column and its foreign key
+            $table->dropForeign(['course_id']);
+            $table->dropColumn('course_id');
+        });
+    }
 
     /**
      * Reverse the migrations.

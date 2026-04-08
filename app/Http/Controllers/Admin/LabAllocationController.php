@@ -3,11 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AcademicYear;
 use App\Models\Batch;
 use App\Models\Classroom;
 use App\Models\PracticalGroup;
 use App\Models\Student;
-use App\Models\AcademicYear;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -22,8 +22,8 @@ class LabAllocationController extends Controller
 
         if ($request->filled('batch_id')) {
             $selectedBatch = Batch::with(['practicalGroups.classroom', 'course'])
-                                  ->findOrFail($request->batch_id);
-            
+                ->findOrFail($request->batch_id);
+
             $practicalGroups = $selectedBatch->practicalGroups()->withCount('students')->get();
         }
 
@@ -35,11 +35,11 @@ class LabAllocationController extends Controller
         $request->validate([
             'batch_id' => 'required|exists:batches,id',
             'academic_year_id' => 'required|exists:academic_years,id',
-            'lab_capacity' => 'sometimes|integer|min:10|max:50'
+            'lab_capacity' => 'sometimes|integer|min:10|max:50',
         ]);
 
         DB::beginTransaction();
-        
+
         try {
             $batch = Batch::findOrFail($request->batch_id);
             $academicYear = AcademicYear::findOrFail($request->academic_year_id);
@@ -49,7 +49,7 @@ class LabAllocationController extends Controller
             $labs = Classroom::where('type', 'lab')
                 ->orderBy('name')
                 ->get();
-                
+
             if ($labs->isEmpty()) {
                 return redirect()->back()->with('error', 'No active labs found. Please create lab classrooms first.');
             }
@@ -73,7 +73,7 @@ class LabAllocationController extends Controller
                 ->where('academic_year_id', $academicYear->id)
                 ->count();
 
-            if ($existingGroups > 0 && !$request->has('force_recreate')) {
+            if ($existingGroups > 0 && ! $request->has('force_recreate')) {
                 return redirect()->back()
                     ->with('warning', "Groups already exist for {$batch->name} in {$academicYear->name}. Use 'Force Recreate' if you want to create new groups.");
             }
@@ -89,21 +89,21 @@ class LabAllocationController extends Controller
             $report .= "Lab Capacity: {$labCapacity} students per lab\n\n";
 
             foreach ($studentChunks as $chunkIndex => $chunk) {
-                if (!isset($labs[$labCounter])) {
-                    $report .= "⚠️ Could not assign " . $chunk->count() . " students - insufficient labs available.\n";
+                if (! isset($labs[$labCounter])) {
+                    $report .= '⚠️ Could not assign '.$chunk->count()." students - insufficient labs available.\n";
                     break;
                 }
-                
+
                 $lab = $labs[$labCounter];
-                
+
                 // Check if lab capacity allows this group
                 if ($chunk->count() > $lab->capacity) {
                     $report .= "⚠️ Lab {$lab->name} capacity ({$lab->capacity}) is less than group size ({$chunk->count()}). Proceeding anyway.\n";
                 }
-                
+
                 // Create group name
-                $groupName = "{$batch->name} - {$lab->name} - Group " . ($chunkIndex + 1);
-                
+                $groupName = "{$batch->name} - {$lab->name} - Group ".($chunkIndex + 1);
+
                 // Create practical group
                 $practicalGroup = PracticalGroup::create([
                     'name' => $groupName,
@@ -111,21 +111,21 @@ class LabAllocationController extends Controller
                     'classroom_id' => $lab->id,
                     'academic_year_id' => $academicYear->id,
                 ]);
-                
+
                 // Assign students to group
                 $practicalGroup->students()->attach($chunk->pluck('id'));
-                
+
                 $createdGroups[] = $practicalGroup;
                 $report .= "✅ Created '{$groupName}'\n";
                 $report .= "   📍 Lab: {$lab->name} (Capacity: {$lab->capacity})\n";
                 $report .= "   👥 Students: {$chunk->count()}\n";
-                $report .= "   📋 Names: " . $chunk->pluck('name')->join(', ') . "\n\n";
-                
+                $report .= '   📋 Names: '.$chunk->pluck('name')->join(', ')."\n\n";
+
                 $labCounter++;
             }
 
             $report .= "🎉 Allocation completed successfully!\n";
-            $report .= "📊 Summary: " . count($createdGroups) . " groups created using {$labCounter} labs.";
+            $report .= '📊 Summary: '.count($createdGroups)." groups created using {$labCounter} labs.";
 
             DB::commit();
 
@@ -134,25 +134,26 @@ class LabAllocationController extends Controller
 
         } catch (\Exception $e) {
             DB::rollback();
-            
+
             return redirect()->back()
-                ->with('error', 'Allocation failed: ' . $e->getMessage())
+                ->with('error', 'Allocation failed: '.$e->getMessage())
                 ->withInput();
         }
     }
-    
+
     public function destroy(PracticalGroup $practicalGroup)
-{
-    try {
-        $practicalGroup->delete();
-        return redirect()->route('admin.lab-allocation.index')
-            ->with('success', 'Practical group deleted successfully.');
-    } catch (\Exception $e) {
-        return redirect()->back()
-            ->with('error', 'Failed to delete practical group: ' . $e->getMessage());
+    {
+        try {
+            $practicalGroup->delete();
+
+            return redirect()->route('admin.lab-allocation.index')
+                ->with('success', 'Practical group deleted successfully.');
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->with('error', 'Failed to delete practical group: '.$e->getMessage());
+        }
     }
-}
-    
+
     /**
      * Show the page to manually manage students in a single practical group.
      */
@@ -171,11 +172,11 @@ class LabAllocationController extends Controller
             })
             ->orderBy('name')
             ->get();
-        
+
         return view('admin.lab_allocation.manage', [
             'group' => $group,
             'studentsInGroup' => $group->students,
-            'unassignedStudents' => $unassignedStudents
+            'unassignedStudents' => $unassignedStudents,
         ]);
     }
 
@@ -185,11 +186,11 @@ class LabAllocationController extends Controller
     public function addStudentToGroup(Request $request, PracticalGroup $group)
     {
         $request->validate([
-            'student_id' => 'required|exists:students,id'
+            'student_id' => 'required|exists:students,id',
         ]);
 
         $student = Student::findOrFail($request->student_id);
-        
+
         // Check if student is already in this group
         if ($group->students()->where('student_id', $student->id)->exists()) {
             return redirect()->back()->with('error', 'Student is already in this group.');
@@ -216,7 +217,7 @@ class LabAllocationController extends Controller
 
         // Add student to group
         $group->students()->attach($student->id);
-        
+
         return redirect()->back()
             ->with('success', "Successfully added {$student->name} to {$group->name}.");
     }
@@ -226,12 +227,12 @@ class LabAllocationController extends Controller
      */
     public function removeStudentFromGroup(PracticalGroup $group, Student $student)
     {
-        if (!$group->students()->where('student_id', $student->id)->exists()) {
+        if (! $group->students()->where('student_id', $student->id)->exists()) {
             return redirect()->back()->with('error', 'Student is not in this group.');
         }
 
         $group->students()->detach($student->id);
-        
+
         return redirect()->back()
             ->with('success', "Successfully removed {$student->name} from {$group->name}.");
     }
@@ -243,328 +244,328 @@ class LabAllocationController extends Controller
     {
         $groupName = $group->name;
         $studentCount = $group->students()->count();
-        
+
         // Remove all student associations first
         $group->students()->detach();
-        
+
         // Delete the group
         $group->delete();
-        
+
         return redirect()->back()
             ->with('success', "Successfully deleted group '{$groupName}' and unassigned {$studentCount} students.");
     }
-    
-/**
- * Generate PDF report for lab allocation
- */
-public function generatePdf(Request $request, Batch $batch = null)
-{
-    $request->validate([
-        'academic_year_id' => 'sometimes|exists:academic_years,id',
-        'format' => 'sometimes|in:detailed,summary'
-    ]);
 
-    $academicYearId = $request->academic_year_id;
-    $format = $request->format ?? 'detailed';
-    
-    // Get current academic year if none specified
-    if (!$academicYearId) {
-        $currentYear = AcademicYear::where('is_current', true)->first();
-        $academicYearId = $currentYear?->id;
-    }
-    
-    $academicYear = AcademicYear::find($academicYearId);
-    
-    if (!$academicYear) {
-        return redirect()->back()->with('error', 'Academic year not found.');
-    }
-
-    // If specific batch is provided, get only that batch's data
-    if ($batch) {
-        $batches = collect([$batch->load(['course', 'practicalGroups' => function($query) use ($academicYearId) {
-            $query->where('academic_year_id', $academicYearId)
-                  ->with(['classroom', 'students' => function($q) {
-                      $q->orderBy('name');
-                  }]);
-        }])]);
-        $reportTitle = "Lab Allocation Report - {$batch->name}";
-        $filename = "lab-allocation-{$batch->name}-{$academicYear->name}";
-    } else {
-        // Get all batches with their practical groups
-        $batches = Batch::with(['course', 'practicalGroups' => function($query) use ($academicYearId) {
-            $query->where('academic_year_id', $academicYearId)
-                  ->with(['classroom', 'students' => function($q) {
-                      $q->orderBy('name');
-                  }]);
-        }])->whereHas('practicalGroups', function($query) use ($academicYearId) {
-            $query->where('academic_year_id', $academicYearId);
-        })->orderBy('name')->get();
-        
-        $reportTitle = "Complete Lab Allocation Report";
-        $filename = "lab-allocation-all-batches-{$academicYear->name}";
-    }
-
-    // Get college information from settings
-    $collegeInfo = $this->getCollegeInfo();
-    
-    // Get statistics
-    $statistics = $this->generateAllocationStatistics($batches, $academicYear);
-    
-    // Get unassigned students
-    $unassignedStudents = $this->getUnassignedStudents($batches, $academicYearId);
-    
-    // Generate the PDF using dompdf
-    try {
-        // Ensure academic year dates are properly formatted
-        $academicYear->start_date = \Carbon\Carbon::parse($academicYear->start_date);
-        $academicYear->end_date = \Carbon\Carbon::parse($academicYear->end_date);
-        
-        $pdf = app('dompdf.wrapper');
-        $pdf->loadView('admin.lab_allocation.pdf', [
-            'batches' => $batches,
-            'academicYear' => $academicYear,
-            'collegeInfo' => $collegeInfo,
-            'statistics' => $statistics,
-            'unassignedStudents' => $unassignedStudents,
-            'reportTitle' => $reportTitle,
-            'format' => $format,
-            'generatedAt' => now(),
-            'generatedBy' => auth()->user()
+    /**
+     * Generate PDF report for lab allocation
+     */
+    public function generatePdf(Request $request, ?Batch $batch = null)
+    {
+        $request->validate([
+            'academic_year_id' => 'sometimes|exists:academic_years,id',
+            'format' => 'sometimes|in:detailed,summary',
         ]);
-        
-        $pdf->setPaper('a4', 'portrait');
-        
-        return $pdf->download($filename . '.pdf');
-    } catch (\Exception $e) {
-        return redirect()->back()->with('error', 'Failed to generate PDF: ' . $e->getMessage());
-    }
-}
 
-/**
- * Get college information from settings
- */
-private function getCollegeInfo()
-{
-    try {
-        if (class_exists('\App\Models\Setting')) {
-            $settings = \App\Models\Setting::whereIn('key', [
-                'college_name', 'college_address', 'college_phone', 
-                'college_email', 'college_website', 'principal_name',
-                'college_logo', 'college_code', 'affiliation'
-            ])->pluck('value', 'key');
-            
-            return [
-                'name' => $settings['college_name'] ?? 'College Name',
-                'address' => $settings['college_address'] ?? 'College Address',
-                'phone' => $settings['college_phone'] ?? 'Phone Number',
-                'email' => $settings['college_email'] ?? 'Email Address',
-                'website' => $settings['college_website'] ?? 'Website',
-                'principal' => $settings['principal_name'] ?? 'Principal Name',
-                'logo' => $settings['college_logo'] ?? null,
-                'code' => $settings['college_code'] ?? 'CODE',
-                'affiliation' => $settings['affiliation'] ?? 'Affiliation'
-            ];
+        $academicYearId = $request->academic_year_id;
+        $format = $request->format ?? 'detailed';
+
+        // Get current academic year if none specified
+        if (! $academicYearId) {
+            $currentYear = AcademicYear::where('is_current', true)->first();
+            $academicYearId = $currentYear?->id;
         }
-    } catch (\Exception $e) {
-        // Log error but don't fail
-        \Log::warning('Could not fetch college settings: ' . $e->getMessage());
-    }
-    
-    // Default college info if settings not available
-    return [
-        'name' => config('app.name', 'College Management System'),
-        'address' => 'College Address',
-        'phone' => 'Phone Number',
-        'email' => 'college@email.com',
-        'website' => 'www.college.edu',
-        'principal' => 'Principal Name',
-        'logo' => null,
-        'code' => 'COLLEGE',
-        'affiliation' => 'Education Board'
-    ];
-}
 
-/**
- * Generate allocation statistics
- */
-private function generateAllocationStatistics($batches, $academicYear)
-{
-    $totalStudents = 0;
-    $allocatedStudents = 0;
-    $totalGroups = 0;
-    $totalLabs = 0;
-    $labUtilization = [];
-    $courseBreakdown = [];
-    
-    foreach ($batches as $batch) {
-        $batchStudentCount = $batch->students()->where('status', 'active')->count();
-        $totalStudents += $batchStudentCount;
-        
-        $batchAllocatedCount = 0;
-        foreach ($batch->practicalGroups as $group) {
-            $groupStudentCount = $group->students->count();
-            $batchAllocatedCount += $groupStudentCount;
-            $totalGroups++;
-            
-            // Lab utilization
-            $labName = $group->classroom->name;
-            if (!isset($labUtilization[$labName])) {
-                $labUtilization[$labName] = [
-                    'capacity' => $group->classroom->capacity,
-                    'used' => 0,
-                    'groups' => 0
+        $academicYear = AcademicYear::find($academicYearId);
+
+        if (! $academicYear) {
+            return redirect()->back()->with('error', 'Academic year not found.');
+        }
+
+        // If specific batch is provided, get only that batch's data
+        if ($batch) {
+            $batches = collect([$batch->load(['course', 'practicalGroups' => function ($query) use ($academicYearId) {
+                $query->where('academic_year_id', $academicYearId)
+                    ->with(['classroom', 'students' => function ($q) {
+                        $q->orderBy('name');
+                    }]);
+            }])]);
+            $reportTitle = "Lab Allocation Report - {$batch->name}";
+            $filename = "lab-allocation-{$batch->name}-{$academicYear->name}";
+        } else {
+            // Get all batches with their practical groups
+            $batches = Batch::with(['course', 'practicalGroups' => function ($query) use ($academicYearId) {
+                $query->where('academic_year_id', $academicYearId)
+                    ->with(['classroom', 'students' => function ($q) {
+                        $q->orderBy('name');
+                    }]);
+            }])->whereHas('practicalGroups', function ($query) use ($academicYearId) {
+                $query->where('academic_year_id', $academicYearId);
+            })->orderBy('name')->get();
+
+            $reportTitle = 'Complete Lab Allocation Report';
+            $filename = "lab-allocation-all-batches-{$academicYear->name}";
+        }
+
+        // Get college information from settings
+        $collegeInfo = $this->getCollegeInfo();
+
+        // Get statistics
+        $statistics = $this->generateAllocationStatistics($batches, $academicYear);
+
+        // Get unassigned students
+        $unassignedStudents = $this->getUnassignedStudents($batches, $academicYearId);
+
+        // Generate the PDF using dompdf
+        try {
+            // Ensure academic year dates are properly formatted
+            $academicYear->start_date = \Carbon\Carbon::parse($academicYear->start_date);
+            $academicYear->end_date = \Carbon\Carbon::parse($academicYear->end_date);
+
+            $pdf = app('dompdf.wrapper');
+            $pdf->loadView('admin.lab_allocation.pdf', [
+                'batches' => $batches,
+                'academicYear' => $academicYear,
+                'collegeInfo' => $collegeInfo,
+                'statistics' => $statistics,
+                'unassignedStudents' => $unassignedStudents,
+                'reportTitle' => $reportTitle,
+                'format' => $format,
+                'generatedAt' => now(),
+                'generatedBy' => auth()->user(),
+            ]);
+
+            $pdf->setPaper('a4', 'portrait');
+
+            return $pdf->download($filename.'.pdf');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Failed to generate PDF: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Get college information from settings
+     */
+    private function getCollegeInfo()
+    {
+        try {
+            if (class_exists('\App\Models\Setting')) {
+                $settings = \App\Models\Setting::whereIn('key', [
+                    'college_name', 'college_address', 'college_phone',
+                    'college_email', 'college_website', 'principal_name',
+                    'college_logo', 'college_code', 'affiliation',
+                ])->pluck('value', 'key');
+
+                return [
+                    'name' => $settings['college_name'] ?? 'College Name',
+                    'address' => $settings['college_address'] ?? 'College Address',
+                    'phone' => $settings['college_phone'] ?? 'Phone Number',
+                    'email' => $settings['college_email'] ?? 'Email Address',
+                    'website' => $settings['college_website'] ?? 'Website',
+                    'principal' => $settings['principal_name'] ?? 'Principal Name',
+                    'logo' => $settings['college_logo'] ?? null,
+                    'code' => $settings['college_code'] ?? 'CODE',
+                    'affiliation' => $settings['affiliation'] ?? 'Affiliation',
                 ];
-                $totalLabs++;
             }
-            $labUtilization[$labName]['used'] += $groupStudentCount;
-            $labUtilization[$labName]['groups']++;
+        } catch (\Exception $e) {
+            // Log error but don't fail
+            \Log::warning('Could not fetch college settings: '.$e->getMessage());
         }
-        
-        $allocatedStudents += $batchAllocatedCount;
-        
-        // Course breakdown
-        $courseName = $batch->course->name;
-        if (!isset($courseBreakdown[$courseName])) {
-            $courseBreakdown[$courseName] = [
-                'batches' => 0,
-                'total_students' => 0,
-                'allocated_students' => 0,
-                'groups' => 0
-            ];
+
+        // Default college info if settings not available
+        return [
+            'name' => config('app.name', 'College Management System'),
+            'address' => 'College Address',
+            'phone' => 'Phone Number',
+            'email' => 'college@email.com',
+            'website' => 'www.college.edu',
+            'principal' => 'Principal Name',
+            'logo' => null,
+            'code' => 'COLLEGE',
+            'affiliation' => 'Education Board',
+        ];
+    }
+
+    /**
+     * Generate allocation statistics
+     */
+    private function generateAllocationStatistics($batches, $academicYear)
+    {
+        $totalStudents = 0;
+        $allocatedStudents = 0;
+        $totalGroups = 0;
+        $totalLabs = 0;
+        $labUtilization = [];
+        $courseBreakdown = [];
+
+        foreach ($batches as $batch) {
+            $batchStudentCount = $batch->students()->where('status', 'active')->count();
+            $totalStudents += $batchStudentCount;
+
+            $batchAllocatedCount = 0;
+            foreach ($batch->practicalGroups as $group) {
+                $groupStudentCount = $group->students->count();
+                $batchAllocatedCount += $groupStudentCount;
+                $totalGroups++;
+
+                // Lab utilization
+                $labName = $group->classroom->name;
+                if (! isset($labUtilization[$labName])) {
+                    $labUtilization[$labName] = [
+                        'capacity' => $group->classroom->capacity,
+                        'used' => 0,
+                        'groups' => 0,
+                    ];
+                    $totalLabs++;
+                }
+                $labUtilization[$labName]['used'] += $groupStudentCount;
+                $labUtilization[$labName]['groups']++;
+            }
+
+            $allocatedStudents += $batchAllocatedCount;
+
+            // Course breakdown
+            $courseName = $batch->course->name;
+            if (! isset($courseBreakdown[$courseName])) {
+                $courseBreakdown[$courseName] = [
+                    'batches' => 0,
+                    'total_students' => 0,
+                    'allocated_students' => 0,
+                    'groups' => 0,
+                ];
+            }
+            $courseBreakdown[$courseName]['batches']++;
+            $courseBreakdown[$courseName]['total_students'] += $batchStudentCount;
+            $courseBreakdown[$courseName]['allocated_students'] += $batchAllocatedCount;
+            $courseBreakdown[$courseName]['groups'] += $batch->practicalGroups->count();
         }
-        $courseBreakdown[$courseName]['batches']++;
-        $courseBreakdown[$courseName]['total_students'] += $batchStudentCount;
-        $courseBreakdown[$courseName]['allocated_students'] += $batchAllocatedCount;
-        $courseBreakdown[$courseName]['groups'] += $batch->practicalGroups->count();
-    }
-    
-    return [
-        'total_students' => $totalStudents,
-        'allocated_students' => $allocatedStudents,
-        'unassigned_students' => $totalStudents - $allocatedStudents,
-        'allocation_percentage' => $totalStudents > 0 ? round(($allocatedStudents / $totalStudents) * 100, 1) : 0,
-        'total_groups' => $totalGroups,
-        'total_labs' => $totalLabs,
-        'average_group_size' => $totalGroups > 0 ? round($allocatedStudents / $totalGroups, 1) : 0,
-        'lab_utilization' => $labUtilization,
-        'course_breakdown' => $courseBreakdown
-    ];
-}
 
-/**
- * Get unassigned students for the academic year
- */
-private function getUnassignedStudents($batches, $academicYearId)
-{
-    $unassigned = [];
-    
-    foreach ($batches as $batch) {
-        $assignedStudentIds = $batch->practicalGroups
-            ->flatMap(function($group) {
-                return $group->students->pluck('id');
-            })->toArray();
-            
-        $unassignedInBatch = $batch->students()
-            ->where('status', 'active')
-            ->whereNotIn('id', $assignedStudentIds)
-            ->orderBy('name')
-            ->get();
-            
-        if ($unassignedInBatch->count() > 0) {
-            $unassigned[$batch->name] = $unassignedInBatch;
+        return [
+            'total_students' => $totalStudents,
+            'allocated_students' => $allocatedStudents,
+            'unassigned_students' => $totalStudents - $allocatedStudents,
+            'allocation_percentage' => $totalStudents > 0 ? round(($allocatedStudents / $totalStudents) * 100, 1) : 0,
+            'total_groups' => $totalGroups,
+            'total_labs' => $totalLabs,
+            'average_group_size' => $totalGroups > 0 ? round($allocatedStudents / $totalGroups, 1) : 0,
+            'lab_utilization' => $labUtilization,
+            'course_breakdown' => $courseBreakdown,
+        ];
+    }
+
+    /**
+     * Get unassigned students for the academic year
+     */
+    private function getUnassignedStudents($batches, $academicYearId)
+    {
+        $unassigned = [];
+
+        foreach ($batches as $batch) {
+            $assignedStudentIds = $batch->practicalGroups
+                ->flatMap(function ($group) {
+                    return $group->students->pluck('id');
+                })->toArray();
+
+            $unassignedInBatch = $batch->students()
+                ->where('status', 'active')
+                ->whereNotIn('id', $assignedStudentIds)
+                ->orderBy('name')
+                ->get();
+
+            if ($unassignedInBatch->count() > 0) {
+                $unassigned[$batch->name] = $unassignedInBatch;
+            }
         }
-    }
-    
-    return $unassigned;
-}
 
-/**
- * Export allocation data as Excel
- */
-public function exportExcel(Request $request, Batch $batch = null)
-{
-    // Placeholder for Excel export - implement with Laravel Excel package
-    return response()->json(['message' => 'Excel export feature coming soon']);
-}
-
-/**
- * Generate Students-Only PDF report
- */
-public function generateStudentsPdf(Request $request, Batch $batch = null)
-{
-    $request->validate([
-        'academic_year_id' => 'sometimes|exists:academic_years,id',
-    ]);
-
-    $academicYearId = $request->academic_year_id;
-    
-    // Get current academic year if none specified
-    if (!$academicYearId) {
-        $currentYear = AcademicYear::where('is_current', true)->first();
-        $academicYearId = $currentYear?->id;
-    }
-    
-    $academicYear = AcademicYear::find($academicYearId);
-    
-    if (!$academicYear) {
-        return redirect()->back()->with('error', 'Academic year not found.');
+        return $unassigned;
     }
 
-    // If specific batch is provided, get only that batch's data
-    if ($batch) {
-        $batches = collect([$batch->load(['course', 'practicalGroups' => function($query) use ($academicYearId) {
-            $query->where('academic_year_id', $academicYearId)
-                  ->with(['classroom', 'students' => function($q) {
-                      $q->orderBy('name');
-                  }]);
-        }])]);
-        $reportTitle = "Student Allocation List - {$batch->name}";
-        $filename = "students-allocation-{$batch->name}-{$academicYear->name}";
-    } else {
-        // Get all batches with their practical groups
-        $batches = Batch::with(['course', 'practicalGroups' => function($query) use ($academicYearId) {
-            $query->where('academic_year_id', $academicYearId)
-                  ->with(['classroom', 'students' => function($q) {
-                      $q->orderBy('name');
-                  }]);
-        }])->whereHas('practicalGroups', function($query) use ($academicYearId) {
-            $query->where('academic_year_id', $academicYearId);
-        })->orderBy('name')->get();
-        
-        $reportTitle = "Complete Student Allocation List";
-        $filename = "students-allocation-all-batches-{$academicYear->name}";
+    /**
+     * Export allocation data as Excel
+     */
+    public function exportExcel(Request $request, ?Batch $batch = null)
+    {
+        // Placeholder for Excel export - implement with Laravel Excel package
+        return response()->json(['message' => 'Excel export feature coming soon']);
     }
 
-    // Get college information from settings
-    $collegeInfo = $this->getCollegeInfo();
-    
-    // Get unassigned students
-    $unassignedStudents = $this->getUnassignedStudents($batches, $academicYearId);
-    
-    // Generate the PDF using dompdf
-    try {
-        // Ensure academic year dates are properly formatted
-        $academicYear->start_date = \Carbon\Carbon::parse($academicYear->start_date);
-        $academicYear->end_date = \Carbon\Carbon::parse($academicYear->end_date);
-        
-        $pdf = app('dompdf.wrapper');
-        $pdf->loadView('admin.lab_allocation.students_pdf', [
-            'batches' => $batches,
-            'academicYear' => $academicYear,
-            'collegeInfo' => $collegeInfo,
-            'unassignedStudents' => $unassignedStudents,
-            'reportTitle' => $reportTitle,
-            'generatedAt' => now(),
-            'generatedBy' => auth()->user()
+    /**
+     * Generate Students-Only PDF report
+     */
+    public function generateStudentsPdf(Request $request, ?Batch $batch = null)
+    {
+        $request->validate([
+            'academic_year_id' => 'sometimes|exists:academic_years,id',
         ]);
-        
-        $pdf->setPaper('a4', 'portrait');
-        
-        return $pdf->download($filename . '.pdf');
-    } catch (\Exception $e) {
-        return redirect()->back()->with('error', 'Failed to generate students PDF: ' . $e->getMessage());
+
+        $academicYearId = $request->academic_year_id;
+
+        // Get current academic year if none specified
+        if (! $academicYearId) {
+            $currentYear = AcademicYear::where('is_current', true)->first();
+            $academicYearId = $currentYear?->id;
+        }
+
+        $academicYear = AcademicYear::find($academicYearId);
+
+        if (! $academicYear) {
+            return redirect()->back()->with('error', 'Academic year not found.');
+        }
+
+        // If specific batch is provided, get only that batch's data
+        if ($batch) {
+            $batches = collect([$batch->load(['course', 'practicalGroups' => function ($query) use ($academicYearId) {
+                $query->where('academic_year_id', $academicYearId)
+                    ->with(['classroom', 'students' => function ($q) {
+                        $q->orderBy('name');
+                    }]);
+            }])]);
+            $reportTitle = "Student Allocation List - {$batch->name}";
+            $filename = "students-allocation-{$batch->name}-{$academicYear->name}";
+        } else {
+            // Get all batches with their practical groups
+            $batches = Batch::with(['course', 'practicalGroups' => function ($query) use ($academicYearId) {
+                $query->where('academic_year_id', $academicYearId)
+                    ->with(['classroom', 'students' => function ($q) {
+                        $q->orderBy('name');
+                    }]);
+            }])->whereHas('practicalGroups', function ($query) use ($academicYearId) {
+                $query->where('academic_year_id', $academicYearId);
+            })->orderBy('name')->get();
+
+            $reportTitle = 'Complete Student Allocation List';
+            $filename = "students-allocation-all-batches-{$academicYear->name}";
+        }
+
+        // Get college information from settings
+        $collegeInfo = $this->getCollegeInfo();
+
+        // Get unassigned students
+        $unassignedStudents = $this->getUnassignedStudents($batches, $academicYearId);
+
+        // Generate the PDF using dompdf
+        try {
+            // Ensure academic year dates are properly formatted
+            $academicYear->start_date = \Carbon\Carbon::parse($academicYear->start_date);
+            $academicYear->end_date = \Carbon\Carbon::parse($academicYear->end_date);
+
+            $pdf = app('dompdf.wrapper');
+            $pdf->loadView('admin.lab_allocation.students_pdf', [
+                'batches' => $batches,
+                'academicYear' => $academicYear,
+                'collegeInfo' => $collegeInfo,
+                'unassignedStudents' => $unassignedStudents,
+                'reportTitle' => $reportTitle,
+                'generatedAt' => now(),
+                'generatedBy' => auth()->user(),
+            ]);
+
+            $pdf->setPaper('a4', 'portrait');
+
+            return $pdf->download($filename.'.pdf');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Failed to generate students PDF: '.$e->getMessage());
+        }
     }
-}
 
     /**
      * Get allocation statistics for a batch
@@ -572,8 +573,8 @@ public function generateStudentsPdf(Request $request, Batch $batch = null)
     public function getStats(Batch $batch)
     {
         $currentAcademicYear = AcademicYear::where('is_current', true)->first();
-        
-        if (!$currentAcademicYear) {
+
+        if (! $currentAcademicYear) {
             return response()->json(['error' => 'No current academic year set'], 400);
         }
 
@@ -602,9 +603,9 @@ public function generateStudentsPdf(Request $request, Batch $batch = null)
                     'lab' => $group->classroom->name,
                     'students_count' => $group->students_count,
                     'capacity' => $group->classroom->capacity,
-                    'utilization' => round(($group->students_count / $group->classroom->capacity) * 100, 1)
+                    'utilization' => round(($group->students_count / $group->classroom->capacity) * 100, 1),
                 ];
-            })
+            }),
         ];
 
         return response()->json($stats);

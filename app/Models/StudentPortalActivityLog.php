@@ -16,13 +16,13 @@ class StudentPortalActivityLog extends Model
         'user_agent',
         'mobile_number',
         'location_data',
-        'metadata'
+        'metadata',
     ];
 
     protected $casts = [
         'location_data' => 'array',
         'metadata' => 'array',
-        'created_at' => 'datetime'
+        'created_at' => 'datetime',
     ];
 
     /**
@@ -52,15 +52,15 @@ class StudentPortalActivityLog extends Model
                 'user_agent' => $request->userAgent(),
                 'mobile_number' => $mobileNumber,
                 'location_data' => self::getLocationFromIp($request->ip()),
-                'metadata' => $metadata
+                'metadata' => $metadata,
             ]);
         } catch (\Exception $e) {
             // Log the logging error to Laravel logs but don't crash the app
-            \Log::error("Failed to log student portal activity: " . $e->getMessage());
+            \Log::error('Failed to log student portal activity: '.$e->getMessage());
+
             return null;
         }
     }
-
 
     /**
      * Get location data from IP address using free API
@@ -75,7 +75,7 @@ class StudentPortalActivityLog extends Model
         try {
             $response = Http::timeout(2)
                 ->get("http://ip-api.com/json/{$ip}", [
-                    'fields' => 'status,country,city,lat,lon'
+                    'fields' => 'status,country,city,lat,lon',
                 ]);
 
             if ($response->successful()) {
@@ -85,7 +85,7 @@ class StudentPortalActivityLog extends Model
                         'country' => $data['country'] ?? null,
                         'city' => $data['city'] ?? null,
                         'lat' => $data['lat'] ?? null,
-                        'lon' => $data['lon'] ?? null
+                        'lon' => $data['lon'] ?? null,
                     ];
                 }
             }

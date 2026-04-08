@@ -2,10 +2,10 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
-use App\Services\ETimeOfficeService;
 use App\Models\Setting;
+use App\Services\ETimeOfficeService;
 use Carbon\Carbon;
+use Illuminate\Console\Command;
 
 class SyncETimeOfficeData extends Command
 {
@@ -41,24 +41,26 @@ class SyncETimeOfficeData extends Command
         $this->newLine();
 
         // Check if API is configured
-        if (!$this->checkApiConfiguration()) {
+        if (! $this->checkApiConfiguration()) {
             $this->error('❌ eTimeOffice API is not properly configured!');
             $this->warn('Please configure the following settings:');
             $this->warn('- etimeoffice_corporate_id');
-            $this->warn('- etimeoffice_username'); 
+            $this->warn('- etimeoffice_username');
             $this->warn('- etimeoffice_password');
+
             return 1;
         }
 
         // Test API connection
         $this->info('🔗 Testing API connection...');
         $connectionTest = $this->eTimeOfficeService->testConnection();
-        
-        if (!$connectionTest['success']) {
-            $this->error('❌ API connection failed: ' . $connectionTest['message']);
+
+        if (! $connectionTest['success']) {
+            $this->error('❌ API connection failed: '.$connectionTest['message']);
+
             return 1;
         }
-        
+
         $this->info('✅ API connection successful');
         $this->newLine();
 
@@ -75,13 +77,13 @@ class SyncETimeOfficeData extends Command
         switch ($mode) {
             case 'incremental':
                 return $this->syncIncremental($isTestMode);
-                
+
             case 'today':
                 return $this->syncDateRange(today(), today(), $empcode, $isTestMode);
-                
+
             case 'yesterday':
                 return $this->syncDateRange(yesterday(), yesterday(), $empcode, $isTestMode);
-                
+
             case 'range':
                 return $this->syncDateRange(
                     Carbon::parse($this->option('from')),
@@ -89,9 +91,10 @@ class SyncETimeOfficeData extends Command
                     $empcode,
                     $isTestMode
                 );
-                
+
             default:
                 $this->error('❌ Invalid sync mode. Use: incremental, today, yesterday, or range');
+
                 return 1;
         }
     }
@@ -102,23 +105,26 @@ class SyncETimeOfficeData extends Command
     private function syncIncremental(bool $testMode): int
     {
         $this->info('📥 Fetching incremental data from eTimeOffice...');
-        
+
         $result = $this->eTimeOfficeService->fetchIncrementalData();
-        
-        if (!$result['success']) {
-            $this->error('❌ Failed to fetch incremental data: ' . $result['error']);
+
+        if (! $result['success']) {
+            $this->error('❌ Failed to fetch incremental data: '.$result['error']);
+
             return 1;
         }
 
         $this->info("✅ Fetched {$result['count']} records");
-        
+
         if ($result['count'] === 0) {
             $this->info('ℹ️ No new data to process');
+
             return 0;
         }
 
         if ($testMode) {
             $this->showDataPreview($result['data']);
+
             return 0;
         }
 
@@ -131,23 +137,26 @@ class SyncETimeOfficeData extends Command
     private function syncDateRange(Carbon $fromDate, Carbon $toDate, string $empcode, bool $testMode): int
     {
         $this->info("📥 Fetching data from {$fromDate->format('Y-m-d')} to {$toDate->format('Y-m-d')}...");
-        
+
         $result = $this->eTimeOfficeService->fetchPunchData($fromDate, $toDate, $empcode);
-        
-        if (!$result['success']) {
-            $this->error('❌ Failed to fetch data: ' . $result['error']);
+
+        if (! $result['success']) {
+            $this->error('❌ Failed to fetch data: '.$result['error']);
+
             return 1;
         }
 
         $this->info("✅ Fetched {$result['count']} records");
-        
+
         if ($result['count'] === 0) {
             $this->info('ℹ️ No data found for the specified date range');
+
             return 0;
         }
 
         if ($testMode) {
             $this->showDataPreview($result['data']);
+
             return 0;
         }
 
@@ -180,20 +189,20 @@ class SyncETimeOfficeData extends Command
                 ['Attendance Created', $result['created']],
                 ['Attendance Updated', $result['updated']],
                 ['Records Skipped', $result['skipped']],
-                ['Errors', count($result['errors'])]
+                ['Errors', count($result['errors'])],
             ]
         );
 
         // Show errors if any
-        if (!empty($result['errors'])) {
+        if (! empty($result['errors'])) {
             $this->newLine();
             $this->warn('⚠️ Errors encountered:');
             foreach (array_slice($result['errors'], 0, 10) as $error) {
                 $this->line("  • {$error}");
             }
-            
+
             if (count($result['errors']) > 10) {
-                $this->line("  • ... and " . (count($result['errors']) - 10) . " more errors");
+                $this->line('  • ... and '.(count($result['errors']) - 10).' more errors');
             }
         }
 
@@ -205,7 +214,7 @@ class SyncETimeOfficeData extends Command
 
         $this->newLine();
         $this->info('✅ Sync completed successfully!');
-        
+
         return 0;
     }
 
@@ -226,14 +235,14 @@ class SyncETimeOfficeData extends Command
                 $punch['Empcode'] ?? $punch['EmpcardNo'] ?? 'N/A',
                 $punch['Name'] ?? 'Unknown',
                 $punch['PunchDate'] ?? $punch['LogDateTime'] ?? 'N/A',
-                isset($punch['InTime']) ? 'IN/OUT Data' : 'Raw Punch'
+                isset($punch['InTime']) ? 'IN/OUT Data' : 'Raw Punch',
             ];
         }
 
         $this->table($headers, $rows);
 
         if (count($data) > 5) {
-            $this->info("... and " . (count($data) - 5) . " more records");
+            $this->info('... and '.(count($data) - 5).' more records');
         }
     }
 
@@ -246,6 +255,6 @@ class SyncETimeOfficeData extends Command
         $username = Setting::where('key', 'etimeoffice_username')->value('value');
         $password = Setting::where('key', 'etimeoffice_password')->value('value');
 
-        return !empty($corporateId) && !empty($username) && !empty($password);
+        return ! empty($corporateId) && ! empty($username) && ! empty($password);
     }
 }

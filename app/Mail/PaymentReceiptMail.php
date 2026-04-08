@@ -5,9 +5,9 @@ namespace App\Mail;
 use App\Models\Payment;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
+use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
-use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Queue\SerializesModels;
 
 class PaymentReceiptMail extends Mailable
@@ -15,6 +15,7 @@ class PaymentReceiptMail extends Mailable
     use Queueable, SerializesModels;
 
     public $payment;
+
     public $pdfData;
 
     /**
@@ -32,7 +33,7 @@ class PaymentReceiptMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Payment Receipt from ' . setting('college_name', 'Your College'),
+            subject: 'Payment Receipt from '.setting('college_name', 'Your College'),
         );
     }
 
@@ -55,7 +56,7 @@ class PaymentReceiptMail extends Mailable
     {
         return [
             // Attach the generated PDF data directly
-            Attachment::fromData(fn () => $this->pdfData, 'Receipt-' . $this->payment->receipt_number . '.pdf')
+            Attachment::fromData(fn () => $this->pdfData, 'Receipt-'.$this->payment->receipt_number.'.pdf')
                 ->withMime('application/pdf'),
         ];
     }

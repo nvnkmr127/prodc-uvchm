@@ -10,21 +10,21 @@ class RoleMiddleware
 {
     /**
      * Handle an incoming request.
-     * 
+     *
      * Now compatible with Spatie Permission package
      */
     public function handle(Request $request, Closure $next, string $role): Response
     {
         // Check if user is authenticated
-        if (!auth()->check()) {
+        if (! auth()->check()) {
             abort(401, 'Authentication required.');
         }
 
         $user = auth()->user();
 
         // ✅ FIXED - Use Spatie's hasRole method instead of direct property access
-        if (!$user->hasRole($role)) {
-            abort(403, 'Insufficient permissions. Required role: ' . $role);
+        if (! $user->hasRole($role)) {
+            abort(403, 'Insufficient permissions. Required role: '.$role);
         }
 
         return $next($request);
@@ -36,7 +36,7 @@ class RoleMiddleware
      */
     public function handleMultiple(Request $request, Closure $next, string $roles): Response
     {
-        if (!auth()->check()) {
+        if (! auth()->check()) {
             abort(401, 'Authentication required.');
         }
 
@@ -50,6 +50,6 @@ class RoleMiddleware
             }
         }
 
-        abort(403, 'Insufficient permissions. Required roles: ' . $roles);
+        abort(403, 'Insufficient permissions. Required roles: '.$roles);
     }
 }

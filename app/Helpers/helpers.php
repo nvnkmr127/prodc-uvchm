@@ -6,7 +6,7 @@ use App\Models\Setting;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 
-if (!function_exists('settings_table_available')) {
+if (! function_exists('settings_table_available')) {
     /**
      * Check if settings table can be queried safely.
      *
@@ -27,8 +27,8 @@ if (!function_exists('settings_table_available')) {
         } catch (\Throwable $e) {
             $isAvailable = false;
 
-            if (!$hasLoggedError) {
-                \Log::warning('Settings table availability check failed: ' . $e->getMessage());
+            if (! $hasLoggedError) {
+                \Log::warning('Settings table availability check failed: '.$e->getMessage());
                 $hasLoggedError = true;
             }
         }
@@ -37,19 +37,19 @@ if (!function_exists('settings_table_available')) {
     }
 }
 
-if (!function_exists('setting')) {
+if (! function_exists('setting')) {
     /**
      * Get a setting value by key
-     * 
-     * @param string $key
-     * @param mixed $default
+     *
+     * @param  string  $key
+     * @param  mixed  $default
      * @return mixed
      */
     function setting($key, $default = null)
     {
         try {
             // Check if settings table exists
-            if (!settings_table_available()) {
+            if (! settings_table_available()) {
                 return $default;
             }
 
@@ -58,7 +58,7 @@ if (!function_exists('setting')) {
             return Cache::remember($cacheKey, 3600, function () use ($key, $default) {
                 $setting = Setting::where('key', $key)->first();
 
-                if (!$setting) {
+                if (! $setting) {
                     return $default;
                 }
 
@@ -92,12 +92,13 @@ if (!function_exists('setting')) {
 
         } catch (\Throwable $e) {
             // Log error but don't break the application
-            \Log::warning("Settings helper error for key '{$key}': " . $e->getMessage());
+            \Log::warning("Settings helper error for key '{$key}': ".$e->getMessage());
+
             return $default;
         }
     }
 }
-if (!function_exists('get_payment_status_badge')) {
+if (! function_exists('get_payment_status_badge')) {
     function get_payment_status_badge($status)
     {
         $badges = [
@@ -106,11 +107,12 @@ if (!function_exists('get_payment_status_badge')) {
             'partial' => '<span class="badge badge-warning">Partial</span>',
             'overdue' => '<span class="badge badge-dark">Overdue</span>',
         ];
+
         return $badges[$status] ?? '<span class="badge badge-secondary">Unknown</span>';
     }
 }
 
-if (!function_exists('get_defaulter_category_badge')) {
+if (! function_exists('get_defaulter_category_badge')) {
     function get_defaulter_category_badge($category)
     {
         $badges = [
@@ -119,24 +121,25 @@ if (!function_exists('get_defaulter_category_badge')) {
             'severe' => '<span class="badge badge-danger">Severe</span>',
             'chronic' => '<span class="badge badge-dark">Chronic</span>',
         ];
+
         return $badges[$category] ?? '<span class="badge badge-secondary">Unknown</span>';
     }
 }
 
-if (!function_exists('format_overdue_days')) {
+if (! function_exists('format_overdue_days')) {
     function format_overdue_days($days)
     {
         if ($days < 0) {
-            return abs($days) . ' days left';
+            return abs($days).' days left';
         } elseif ($days == 0) {
             return 'Due today';
         } else {
-            return $days . ' days overdue';
+            return $days.' days overdue';
         }
     }
 }
 
-if (!function_exists('get_fee_type_color')) {
+if (! function_exists('get_fee_type_color')) {
     function get_fee_type_color($feeType)
     {
         $colors = [
@@ -147,15 +150,14 @@ if (!function_exists('get_fee_type_color')) {
             'exam_fee' => 'danger',
             'transport_fee' => 'secondary',
         ];
+
         return $colors[$feeType] ?? 'dark';
     }
 }
-if (!function_exists('settings')) {
+if (! function_exists('settings')) {
     /**
      * Get multiple settings at once
-     * 
-     * @param array $keys
-     * @param array $defaults
+     *
      * @return array
      */
     function settings(array $keys, array $defaults = [])
@@ -171,16 +173,16 @@ if (!function_exists('settings')) {
     }
 }
 
-if (!function_exists('public_settings')) {
+if (! function_exists('public_settings')) {
     /**
      * Get all public settings (for frontend use)
-     * 
+     *
      * @return array
      */
     function public_settings()
     {
         try {
-            if (!settings_table_available()) {
+            if (! settings_table_available()) {
                 return [];
             }
 
@@ -191,18 +193,19 @@ if (!function_exists('public_settings')) {
             });
 
         } catch (\Exception $e) {
-            \Log::warning("Public settings error: " . $e->getMessage());
+            \Log::warning('Public settings error: '.$e->getMessage());
+
             return [];
         }
     }
 }
 
-if (!function_exists('app_setting')) {
+if (! function_exists('app_setting')) {
     /**
      * Get application-specific settings with proper defaults
-     * 
-     * @param string $key
-     * @param mixed $default
+     *
+     * @param  string  $key
+     * @param  mixed  $default
      * @return mixed
      */
     function app_setting($key, $default = null)
@@ -220,24 +223,25 @@ if (!function_exists('app_setting')) {
         ];
 
         $defaultValue = $appDefaults[$key] ?? $default;
+
         return setting($key, $defaultValue);
     }
 }
 
-if (!function_exists('update_setting')) {
+if (! function_exists('update_setting')) {
     /**
      * Update a setting value
-     * 
-     * @param string $key
-     * @param mixed $value
-     * @param string $group
-     * @param string $type
+     *
+     * @param  string  $key
+     * @param  mixed  $value
+     * @param  string  $group
+     * @param  string  $type
      * @return bool
      */
     function update_setting($key, $value, $group = 'general', $type = 'text')
     {
         try {
-            if (!settings_table_available()) {
+            if (! settings_table_available()) {
                 return false;
             }
 
@@ -266,24 +270,26 @@ if (!function_exists('update_setting')) {
             return true;
 
         } catch (\Exception $e) {
-            \Log::error("Failed to update setting '{$key}': " . $e->getMessage());
+            \Log::error("Failed to update setting '{$key}': ".$e->getMessage());
+
             return false;
         }
     }
 }
 
-if (!function_exists('clear_settings_cache')) {
+if (! function_exists('clear_settings_cache')) {
     /**
      * Clear all settings cache
-     * 
+     *
      * @return void
      */
     function clear_settings_cache()
     {
         try {
-            if (!settings_table_available()) {
+            if (! settings_table_available()) {
                 Cache::forget('all_settings');
                 Cache::forget('public_settings');
+
                 return;
             }
 
@@ -299,18 +305,18 @@ if (!function_exists('clear_settings_cache')) {
             Cache::tags(['settings'])->flush();
 
         } catch (\Exception $e) {
-            \Log::warning("Failed to clear settings cache: " . $e->getMessage());
+            \Log::warning('Failed to clear settings cache: '.$e->getMessage());
         }
     }
 }
 
-if (!function_exists('format_setting_value')) {
+if (! function_exists('format_setting_value')) {
     /**
      * Format setting value for display
-     * 
-     * @param string $key
-     * @param mixed $value
-     * @param string $type
+     *
+     * @param  string  $key
+     * @param  mixed  $value
+     * @param  string  $type
      * @return string
      */
     function format_setting_value($key, $value, $type = 'text')
@@ -322,18 +328,21 @@ if (!function_exists('format_setting_value')) {
 
             case 'currency':
                 $symbol = app_setting('currency_symbol', '₹');
-                return $symbol . number_format($value, 2);
+
+                return $symbol.number_format($value, 2);
 
             case 'percentage':
-                return $value . '%';
+                return $value.'%';
 
             case 'array':
             case 'multiselect':
                 $array = is_string($value) ? json_decode($value, true) : $value;
+
                 return is_array($array) ? implode(', ', $array) : $value;
 
             case 'date':
                 $format = app_setting('date_format', 'd-m-Y');
+
                 return \Carbon\Carbon::parse($value)->format($format);
 
             case 'file':
@@ -345,13 +354,13 @@ if (!function_exists('format_setting_value')) {
     }
 }
 
-if (!function_exists('validate_setting_value')) {
+if (! function_exists('validate_setting_value')) {
     /**
      * Validate setting value based on type
-     * 
-     * @param mixed $value
-     * @param string $type
-     * @param array $options
+     *
+     * @param  mixed  $value
+     * @param  string  $type
+     * @param  array  $options
      * @return bool
      */
     function validate_setting_value($value, $type, $options = [])
@@ -365,13 +374,16 @@ if (!function_exists('validate_setting_value')) {
 
             case 'number':
             case 'integer':
-                if (!is_numeric($value))
+                if (! is_numeric($value)) {
                     return false;
+                }
 
-                if (isset($options['min']) && $value < $options['min'])
+                if (isset($options['min']) && $value < $options['min']) {
                     return false;
-                if (isset($options['max']) && $value > $options['max'])
+                }
+                if (isset($options['max']) && $value > $options['max']) {
                     return false;
+                }
 
                 return true;
 
@@ -388,10 +400,10 @@ if (!function_exists('validate_setting_value')) {
     }
 }
 
-if (!function_exists('get_setting_groups')) {
+if (! function_exists('get_setting_groups')) {
     /**
      * Get all setting groups with their configurations
-     * 
+     *
      * @return array
      */
     function get_setting_groups()
@@ -400,46 +412,46 @@ if (!function_exists('get_setting_groups')) {
             'general' => [
                 'title' => 'General Settings',
                 'icon' => 'fas fa-cog',
-                'description' => 'Basic application configuration'
+                'description' => 'Basic application configuration',
             ],
             'college' => [
                 'title' => 'College Information',
                 'icon' => 'fas fa-university',
-                'description' => 'College details and contact information'
+                'description' => 'College details and contact information',
             ],
             'academic' => [
                 'title' => 'Academic Settings',
                 'icon' => 'fas fa-graduation-cap',
-                'description' => 'Academic year and session configuration'
+                'description' => 'Academic year and session configuration',
             ],
             'email' => [
                 'title' => 'Email Configuration',
                 'icon' => 'fas fa-envelope',
-                'description' => 'SMTP and email settings'
+                'description' => 'SMTP and email settings',
             ],
             'attendance' => [
                 'title' => 'Attendance Settings',
                 'icon' => 'fas fa-calendar-check',
-                'description' => 'Attendance and presence configuration'
+                'description' => 'Attendance and presence configuration',
             ],
             'financial' => [
                 'title' => 'Financial Settings',
                 'icon' => 'fas fa-dollar-sign',
-                'description' => 'Fee and payment configuration'
+                'description' => 'Fee and payment configuration',
             ],
         ];
     }
 }
 
-if (!function_exists('seed_default_settings')) {
+if (! function_exists('seed_default_settings')) {
     /**
      * Seed default settings if they don't exist
-     * 
+     *
      * @return int Number of settings created
      */
     function seed_default_settings()
     {
-        if (!settings_table_available()) {
+        if (! settings_table_available()) {
             return 0;
         }
 
@@ -450,35 +462,35 @@ if (!function_exists('seed_default_settings')) {
                 'group' => 'general',
                 'type' => 'text',
                 'description' => 'Application name displayed throughout the system',
-                'is_public' => true
+                'is_public' => true,
             ],
             'app_tagline' => [
                 'value' => 'Empowering Education Excellence',
                 'group' => 'general',
                 'type' => 'text',
                 'description' => 'Application tagline or motto',
-                'is_public' => true
+                'is_public' => true,
             ],
             'timezone' => [
                 'value' => config('app.timezone', 'Asia/Kolkata'),
                 'group' => 'general',
                 'type' => 'select',
                 'description' => 'Default timezone for the application',
-                'is_public' => false
+                'is_public' => false,
             ],
             'date_format' => [
                 'value' => 'd-m-Y',
                 'group' => 'general',
                 'type' => 'select',
                 'description' => 'Default date format for display',
-                'is_public' => false
+                'is_public' => false,
             ],
             'maintenance_mode' => [
                 'value' => '0',
                 'group' => 'general',
                 'type' => 'toggle',
                 'description' => 'Put application in maintenance mode',
-                'is_public' => false
+                'is_public' => false,
             ],
 
             // Academic Settings
@@ -487,14 +499,14 @@ if (!function_exists('seed_default_settings')) {
                 'group' => 'academic',
                 'type' => 'select',
                 'description' => 'Month when academic year starts (1-12)',
-                'is_public' => false
+                'is_public' => false,
             ],
             'current_academic_year' => [
-                'value' => date('Y') . '-' . (date('Y') + 1),
+                'value' => date('Y').'-'.(date('Y') + 1),
                 'group' => 'academic',
                 'type' => 'text',
                 'description' => 'Current academic year (YYYY-YYYY format)',
-                'is_public' => true
+                'is_public' => true,
             ],
 
             // Attendance Settings
@@ -503,14 +515,14 @@ if (!function_exists('seed_default_settings')) {
                 'group' => 'attendance',
                 'type' => 'number',
                 'description' => 'Minimum attendance required for exam eligibility',
-                'is_public' => false
+                'is_public' => false,
             ],
             'attendance_grace_period' => [
                 'value' => '10',
                 'group' => 'attendance',
                 'type' => 'number',
                 'description' => 'Late arrival grace period in minutes',
-                'is_public' => false
+                'is_public' => false,
             ],
 
             // Financial Settings
@@ -519,21 +531,21 @@ if (!function_exists('seed_default_settings')) {
                 'group' => 'financial',
                 'type' => 'text',
                 'description' => 'Currency symbol to display',
-                'is_public' => true
+                'is_public' => true,
             ],
             'currency_code' => [
                 'value' => 'INR',
                 'group' => 'financial',
                 'type' => 'text',
                 'description' => 'ISO currency code',
-                'is_public' => true
+                'is_public' => true,
             ],
             'tax_rate' => [
                 'value' => '0',
                 'group' => 'financial',
                 'type' => 'number',
                 'description' => 'Default tax rate percentage',
-                'is_public' => false
+                'is_public' => false,
             ],
         ];
 
@@ -542,7 +554,7 @@ if (!function_exists('seed_default_settings')) {
         foreach ($defaultSettings as $key => $data) {
             $exists = Setting::where('key', $key)->exists();
 
-            if (!$exists) {
+            if (! $exists) {
                 Setting::create(array_merge(['key' => $key], $data));
                 $created++;
             }
@@ -557,17 +569,17 @@ if (!function_exists('seed_default_settings')) {
     }
 }
 
-if (!function_exists('export_settings')) {
+if (! function_exists('export_settings')) {
     /**
      * Export all settings to array
-     * 
-     * @param string|null $group Export specific group only
+     *
+     * @param  string|null  $group  Export specific group only
      * @return array
      */
     function export_settings($group = null)
     {
         try {
-            if (!settings_table_available()) {
+            if (! settings_table_available()) {
                 return [];
             }
 
@@ -585,29 +597,29 @@ if (!function_exists('export_settings')) {
                         'type' => $setting->type,
                         'description' => $setting->description,
                         'is_public' => $setting->is_public,
-                    ]
+                    ],
                 ];
             })->toArray();
 
         } catch (\Exception $e) {
-            \Log::error("Failed to export settings: " . $e->getMessage());
+            \Log::error('Failed to export settings: '.$e->getMessage());
+
             return [];
         }
     }
 }
 
-if (!function_exists('import_settings')) {
+if (! function_exists('import_settings')) {
     /**
      * Import settings from array
-     * 
-     * @param array $settings
-     * @param bool $overwrite
+     *
+     * @param  bool  $overwrite
      * @return int Number of settings imported
      */
     function import_settings(array $settings, $overwrite = false)
     {
         try {
-            if (!settings_table_available()) {
+            if (! settings_table_available()) {
                 return 0;
             }
 
@@ -616,7 +628,7 @@ if (!function_exists('import_settings')) {
             foreach ($settings as $key => $data) {
                 $exists = Setting::where('key', $key)->exists();
 
-                if (!$exists || $overwrite) {
+                if (! $exists || $overwrite) {
                     Setting::updateOrCreate(
                         ['key' => $key],
                         [
@@ -639,7 +651,8 @@ if (!function_exists('import_settings')) {
             return $imported;
 
         } catch (\Exception $e) {
-            \Log::error("Failed to import settings: " . $e->getMessage());
+            \Log::error('Failed to import settings: '.$e->getMessage());
+
             return 0;
         }
     }

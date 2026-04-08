@@ -4,23 +4,24 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\InboundWebhook;
-use App\Models\Enquiry;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class InboundWebhookController extends Controller
 {
     public function index()
     {
         $webhooks = InboundWebhook::latest()->paginate(10);
+
         return view('admin.inbound_webhooks.index', compact('webhooks'));
     }
 
     public function logs(InboundWebhook $inboundWebhook)
     {
         $logs = $inboundWebhook->logs()->with('enquiry')->latest()->paginate(50);
+
         return view('admin.inbound_webhooks.logs', compact('inboundWebhook', 'logs'));
     }
 
@@ -46,7 +47,7 @@ class InboundWebhookController extends Controller
         ]);
 
         if (empty($validated['slug'])) {
-            $validated['slug'] = Str::slug($validated['name']) . '-' . Str::random(5);
+            $validated['slug'] = Str::slug($validated['name']).'-'.Str::random(5);
         }
 
         $validated['secret_token'] = Str::random(32);
@@ -76,7 +77,7 @@ class InboundWebhookController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'slug' => 'required|string|unique:inbound_webhooks,slug,' . $inboundWebhook->id,
+            'slug' => 'required|string|unique:inbound_webhooks,slug,'.$inboundWebhook->id,
             'description' => 'nullable|string',
             'source_name' => 'nullable|string',
             'auto_followup_days' => 'required|integer|min:0',
@@ -98,7 +99,7 @@ class InboundWebhookController extends Controller
 
     public function show(InboundWebhook $inboundWebhook)
     {
-        $inboundWebhook->load(['logs' => function($query) {
+        $inboundWebhook->load(['logs' => function ($query) {
             $query->latest()->limit(50);
         }, 'logs.enquiry']);
 
@@ -106,14 +107,14 @@ class InboundWebhookController extends Controller
         $enquiryFields = [
             'student_name' => 'Student Name',
             'phone_number' => 'Phone Number',
-            'course_name'  => 'Course Name',
-            'gender'       => 'Gender',
-            'date_of_birth'=> 'Date of Birth',
-            'address'      => 'Address',
+            'course_name' => 'Course Name',
+            'gender' => 'Gender',
+            'date_of_birth' => 'Date of Birth',
+            'address' => 'Address',
             'education_qualification' => 'Education Qualification',
             'referral_name' => 'Referral Name',
-            'notes'        => 'Notes/Comments',
-            'email'        => 'Email Address',
+            'notes' => 'Notes/Comments',
+            'email' => 'Email Address',
         ];
 
         return view('admin.inbound_webhooks.show', compact('inboundWebhook', 'enquiryFields'));
@@ -124,7 +125,7 @@ class InboundWebhookController extends Controller
         $mapping = $request->input('mapping', []);
 
         $inboundWebhook->update([
-            'mapping_rules' => $mapping
+            'mapping_rules' => $mapping,
         ]);
 
         Log::channel('inbound-webhooks')->info('Inbound webhook mapping updated', [
@@ -139,7 +140,7 @@ class InboundWebhookController extends Controller
 
     public function toggle(InboundWebhook $inboundWebhook)
     {
-        $inboundWebhook->update(['is_active' => !$inboundWebhook->is_active]);
+        $inboundWebhook->update(['is_active' => ! $inboundWebhook->is_active]);
 
         Log::channel('inbound-webhooks')->info('Inbound webhook status toggled', [
             'webhook_id' => $inboundWebhook->id,

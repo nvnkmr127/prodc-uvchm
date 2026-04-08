@@ -27,7 +27,7 @@ return new class extends Migration
             $table->json('sent_to_users')->nullable();
             $table->json('read_by')->nullable();
             $table->timestamps();
-            
+
             // Indexes for performance
             $table->index(['type', 'category', 'priority'], 'idx_notifications_lookup');
             $table->index(['created_at', 'expires_at'], 'idx_notifications_time');

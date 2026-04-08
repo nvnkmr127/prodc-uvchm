@@ -5,9 +5,9 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Admission;
 use App\Models\Enquiry;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
 
 class AdmissionReportController extends Controller
 {
@@ -70,6 +70,7 @@ class AdmissionReportController extends Controller
             $totalDecided = $item->approved + $item->rejected;
             $item->approval_rate = ($totalDecided > 0) ? round(($item->approved / $totalDecided) * 100) : 0;
             $item->conversion_rate = ($item->total_enquiries > 0) ? round(($item->total_admissions / $item->total_enquiries) * 100) : 0;
+
             return $item;
         });
 

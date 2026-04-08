@@ -3,12 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Student;
 use App\Models\Batch;
 use App\Models\Course;
+use App\Models\Student;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
 
 class AgeReportController extends Controller
 {
@@ -51,11 +50,11 @@ class AgeReportController extends Controller
                 $query->whereNotNull('dob');
                 $range = explode('-', $ageGroup);
                 if (count($range) === 2) {
-                    $query->whereRaw("TIMESTAMPDIFF(YEAR, dob, CURDATE()) BETWEEN ? AND ?", [$range[0], $range[1]]);
+                    $query->whereRaw('TIMESTAMPDIFF(YEAR, dob, CURDATE()) BETWEEN ? AND ?', [$range[0], $range[1]]);
                 } elseif ($ageGroup === 'Under 18') {
-                    $query->whereRaw("TIMESTAMPDIFF(YEAR, dob, CURDATE()) < 18");
+                    $query->whereRaw('TIMESTAMPDIFF(YEAR, dob, CURDATE()) < 18');
                 } elseif ($ageGroup === '36+') {
-                    $query->whereRaw("TIMESTAMPDIFF(YEAR, dob, CURDATE()) >= 36");
+                    $query->whereRaw('TIMESTAMPDIFF(YEAR, dob, CURDATE()) >= 36');
                 }
             }
         }
@@ -84,7 +83,7 @@ class AgeReportController extends Controller
             '22-25' => 0,
             '26-30' => 0,
             '31-35' => 0,
-            '36 and Above' => 0
+            '36 and Above' => 0,
         ];
         $ageBuckets = array_merge($buckets, $ageBuckets);
 
@@ -99,10 +98,12 @@ class AgeReportController extends Controller
             ->where('students.status', '!=', 'dropout')
             ->where('batches.is_on_internship', 0);
 
-        if ($courseId)
+        if ($courseId) {
             $averageAgeByCourseQuery->where('courses.id', $courseId);
-        if ($gender)
+        }
+        if ($gender) {
             $averageAgeByCourseQuery->where('students.gender', $gender);
+        }
 
         $averageAgeByCourse = $averageAgeByCourseQuery->groupBy('courses.id', 'courses.name')->get();
 
@@ -140,15 +141,16 @@ class AgeReportController extends Controller
                     'missing' => number_format($missingDobCount),
                     'ageBuckets' => $ageBuckets,
                     'averageAgeByCourse' => $averageAgeByCourse,
-                    'genderAgeDist' => $genderAgeDist
-                ]
+                    'genderAgeDist' => $genderAgeDist,
+                ],
             ]);
         }
 
         $courses = Course::all();
         $batches = $batchId || $courseId ? Batch::where(function ($q) use ($courseId) {
-            if ($courseId)
+            if ($courseId) {
                 $q->where('course_id', $courseId);
+            }
         })->get() : collect();
 
         $ageGroups = [
@@ -158,7 +160,7 @@ class AgeReportController extends Controller
             '26-30' => '26-30',
             '31-35' => '31-35',
             '36+' => '36 and Above',
-            'Missing' => 'DOB Not Updated'
+            'Missing' => 'DOB Not Updated',
         ];
 
         return view('admin.reports.age.index', compact(

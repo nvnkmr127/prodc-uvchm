@@ -30,9 +30,9 @@ class PermissionHelper
             'events' => 'calendar-alt',
             'api' => 'code',
             'backend' => 'desktop',
-            'general' => 'cog'
+            'general' => 'cog',
         ];
-        
+
         return $icons[$module] ?? 'cog';
     }
 

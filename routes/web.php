@@ -1,13 +1,11 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Artisan;
-use Illuminate\Http\Request;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\Models\Permission;
-use App\Models\Payment;
-use App\Models\Student;
-
+use App\Http\Controllers\Admin\AcademicYearController;
+use App\Http\Controllers\Admin\ActivityLogController;
+use App\Http\Controllers\Admin\AdmissionController as AdminAdmissionController;
+use App\Http\Controllers\Admin\AdmissionReportController;
+use App\Http\Controllers\Admin\AgeReportController;
+use App\Http\Controllers\Admin\AlumniController;
 /*
 |--------------------------------------------------------------------------
 | Controller Imports
@@ -15,22 +13,14 @@ use App\Models\Student;
 | For clarity, all controller imports are grouped here.
 */
 // Public & Generic Auth
-use App\Http\Controllers\PublicEnquiryController;
-use App\Http\Controllers\Admin\DashboardController;
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\UnifiedCalendarController;
-use App\Http\Controllers\Admin\NotificationController as AdminNotificationController;
-use App\Http\Controllers\Auth\AuthenticatedSessionController;
-
-// Admin Controllers
-use App\Http\Controllers\Admin\ActivityLogController;
-use App\Http\Controllers\Admin\AdmissionController as AdminAdmissionController;
-use App\Http\Controllers\Admin\AdmissionReportController;
-use App\Http\Controllers\Admin\AlumniController;
 use App\Http\Controllers\Admin\ApiTokenController;
 use App\Http\Controllers\Admin\AssetCategoryController;
 use App\Http\Controllers\Admin\AssetController;
 use App\Http\Controllers\Admin\AssetReportController;
+use App\Http\Controllers\Admin\AttendanceImportController;
+use App\Http\Controllers\Admin\AttendanceReportController;
+// Admin Controllers
+use App\Http\Controllers\Admin\AttendanceSettingsController;
 use App\Http\Controllers\Admin\AuditController;
 use App\Http\Controllers\Admin\BackupController;
 use App\Http\Controllers\Admin\BatchController;
@@ -42,76 +32,70 @@ use App\Http\Controllers\Admin\CourseController;
 use App\Http\Controllers\Admin\CourseStructureController;
 use App\Http\Controllers\Admin\CourseSubjectController;
 use App\Http\Controllers\Admin\DailyAttendanceController;
+use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\DropoutController;
 use App\Http\Controllers\Admin\EnquiryController;
 use App\Http\Controllers\Admin\EventController;
 use App\Http\Controllers\Admin\ExpenseCategoryController;
 use App\Http\Controllers\Admin\ExpenseController;
 use App\Http\Controllers\Admin\FacultyController;
 use App\Http\Controllers\Admin\FacultySubjectController;
-use App\Http\Controllers\Admin\FeeCategoryController;
 use App\Http\Controllers\Admin\FeeCategoryAnalysisController;
-use App\Http\Controllers\Admin\FeeCollectionController;
+use App\Http\Controllers\Admin\FeeCategoryController;
 use App\Http\Controllers\Admin\FeeStructureController;
 use App\Http\Controllers\Admin\FinancialReportController;
 use App\Http\Controllers\Admin\FollowUpCalendarController;
+use App\Http\Controllers\Admin\GlobalSearchController;
 use App\Http\Controllers\Admin\HolidayController;
 use App\Http\Controllers\Admin\IdCardController;
 use App\Http\Controllers\Admin\IdCardTemplateController;
-use App\Http\Controllers\Admin\IntegrationController;
 use App\Http\Controllers\Admin\LabAllocationController;
 use App\Http\Controllers\Admin\LeaveTypeController;
-use App\Http\Controllers\Admin\PayslipController;
+use App\Http\Controllers\Admin\NotificationController as AdminNotificationController;
+use App\Http\Controllers\Admin\NotificationManagementController;
+use App\Http\Controllers\Admin\NotificationSettingsController;
 use App\Http\Controllers\Admin\PaymentController;
+use App\Http\Controllers\Admin\PaymentEditController;
 use App\Http\Controllers\Admin\PaymentReminderController;
 use App\Http\Controllers\Admin\PaymentReminderSettingsController;
-use App\Http\Controllers\Admin\PaymentReportsController;
+use App\Http\Controllers\Admin\PayslipController;
 use App\Http\Controllers\Admin\PermissionController;
 use App\Http\Controllers\Admin\PermissionManagementController;
+use App\Http\Controllers\Admin\ReferralReportController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\SalaryComponentController;
 use App\Http\Controllers\Admin\SettingController;
+use App\Http\Controllers\Admin\StaffActivityController;
 use App\Http\Controllers\Admin\StudentController;
-use App\Http\Controllers\Admin\StudentDuplicateCheckController;
 use App\Http\Controllers\Admin\StudentFeeController;
 use App\Http\Controllers\Admin\StudentImportController;
 use App\Http\Controllers\Admin\SubjectController;
 use App\Http\Controllers\Admin\SystemHealthController;
-use App\Http\Controllers\Admin\AttendanceSettingsController;
-use App\Http\Controllers\Api\BiometricWebhookController;
-use App\Http\Controllers\Admin\TimetableController;
 use App\Http\Controllers\Admin\TimeSlotController;
+use App\Http\Controllers\Admin\TimetableController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\UserSalaryController;
 use App\Http\Controllers\Admin\VisitorController;
 use App\Http\Controllers\Admin\WebhookController;
-use App\Http\Controllers\Admin\AcademicYearController;
-use App\Http\Controllers\Admin\PaymentEditController;
-use App\Http\Controllers\Admin\AttendanceImportController;
-use App\Http\Controllers\Admin\AttendanceReportController;
-use App\Http\Controllers\Admin\NotificationManagementController;
-use App\Http\Controllers\Admin\NotificationSettingsController;
-use App\Http\Controllers\Admin\SessionSearchController;
-use App\Http\Controllers\Admin\DropoutController;
-use App\Http\Controllers\Admin\GlobalSearchController;
-use App\Http\Controllers\Admin\ReferralReportController;
-use App\Http\Controllers\Admin\AgeReportController;
-use App\Http\Controllers\Admin\StaffActivityController;
-
-// Faculty & Student Controllers
-use App\Http\Controllers\Faculty\AttendanceController as FacultyAttendanceController;
-use App\Http\Controllers\Faculty\DashboardController as FacultyDashboardController;
-use App\Http\Controllers\Student\DashboardController as StudentDashboardController;
-use App\Http\Controllers\LeaveApplicationController;
-
-
-// API Controllers
-use App\Http\Controllers\Api\AttendanceController as ApiAttendanceController;
-use App\Http\Controllers\Api\StudentController as ApiStudentController;
-use App\Http\Controllers\Api\StudentApiController;
-use App\Http\Controllers\Api\GlobalSearchController as ApiGlobalSearchController;
-use App\Http\Controllers\Api\WebhookController as ApiWebhookController;
 use App\Http\Controllers\Api\DashboardController as ApiDashboardController;
+use App\Http\Controllers\Api\StudentApiController;
+use App\Http\Controllers\Api\StudentController as ApiStudentController;
 use App\Http\Controllers\Api\TestController;
+use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Faculty\DashboardController as FacultyDashboardController;
+use App\Http\Controllers\LeaveApplicationController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PublicEnquiryController;
+use App\Http\Controllers\Student\DashboardController as StudentDashboardController;
+// Faculty & Student Controllers
+use App\Http\Controllers\UnifiedCalendarController;
+use App\Models\Payment;
+use App\Models\Student;
+// API Controllers
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 
 /*
 |--------------------------------------------------------------------------
@@ -124,6 +108,7 @@ Route::get('/', function () {
     if (auth()->check()) {
         return redirect()->route('admin.dashboard');
     }
+
     return redirect()->route('login');
 })->name('home');
 
@@ -132,32 +117,32 @@ Route::get('/', function () {
 // Visit: https://portal.uvchm.com/csrf-debug in your browser
 // ============================================================
 Route::get('/csrf-debug', function (\Illuminate\Http\Request $request) {
-    $cookieName   = config('session.cookie');
+    $cookieName = config('session.cookie');
     $sessionToken = $request->session()->token();
 
     return response()->json([
-        'status'            => 'debug_active',
-        'timestamp'         => now()->toDateTimeString(),
-        'session_id'        => $request->session()->getId(),
-        'session_driver'    => config('session.driver'),
-        'session_domain'    => config('session.domain') ?? '(not set)',
-        'session_secure'    => config('session.secure') ? 'true' : 'false',
-        'csrf_token_preview'=> $sessionToken ? substr($sessionToken, 0, 10) . '...' : 'MISSING ❌',
-        'session_cookie_name'      => $cookieName,
-        'session_cookie_received'  => $request->hasCookie($cookieName) ? 'YES ✅' : 'NO ❌',
-        'all_cookies_received'     => array_keys($request->cookies->all()),
-        'x_forwarded_for'   => $request->header('X-Forwarded-For') ?? 'not set',
+        'status' => 'debug_active',
+        'timestamp' => now()->toDateTimeString(),
+        'session_id' => $request->session()->getId(),
+        'session_driver' => config('session.driver'),
+        'session_domain' => config('session.domain') ?? '(not set)',
+        'session_secure' => config('session.secure') ? 'true' : 'false',
+        'csrf_token_preview' => $sessionToken ? substr($sessionToken, 0, 10).'...' : 'MISSING ❌',
+        'session_cookie_name' => $cookieName,
+        'session_cookie_received' => $request->hasCookie($cookieName) ? 'YES ✅' : 'NO ❌',
+        'all_cookies_received' => array_keys($request->cookies->all()),
+        'x_forwarded_for' => $request->header('X-Forwarded-For') ?? 'not set',
         'x_forwarded_proto' => $request->header('X-Forwarded-Proto') ?? 'not set',
-        'app_env'           => config('app.env'),
-        'app_debug'         => config('app.debug') ? 'true' : 'false',
-        'hint'              => 'If session_cookie_received is NO ❌, check SESSION_DOMAIN in .env',
+        'app_env' => config('app.env'),
+        'app_debug' => config('app.debug') ? 'true' : 'false',
+        'hint' => 'If session_cookie_received is NO ❌, check SESSION_DOMAIN in .env',
     ]);
 })->name('csrf.debug');
 // ============================================================
 
 Route::get('/enquire', [PublicEnquiryController::class, 'create'])->name('enquiry.public.create');
 Route::post('/enquire', [PublicEnquiryController::class, 'store'])->name('enquiry.public.store');
-Route::get('/enquiry-success', fn() => view('public.enquiry_success'))->name('enquiry.success');
+Route::get('/enquiry-success', fn () => view('public.enquiry_success'))->name('enquiry.success');
 Route::get('receipts/{receipt_number}', [ComponentPaymentController::class, 'showPublicReceipt'])
     ->name('public.receipt.show');
 
@@ -201,7 +186,6 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
     Route::post('academic-years/{academicYear}/set-current', [AcademicYearController::class, 'setCurrent'])->name('academic-years.set-current');
     Route::get('follow-up-calendar', [FollowUpCalendarController::class, 'index'])
         ->name('follow-ups.calendar');
-
 
     // Global search route - Enhanced with Ctrl+K support
     Route::get('global-search', [GlobalSearchController::class, 'search'])->name('global-search');
@@ -288,7 +272,6 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
             ->name('students.unpaid-fees')
             ->where('student', '[0-9]+');
     });
-
 
     // Payment Reminder Bulk Actions for Fee Categories
     Route::middleware(['permission:manage financials'])->group(function () {
@@ -402,7 +385,6 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
         Route::get('students/import/sample', [StudentImportController::class, 'downloadSample'])->name('students.import.sample');
         Route::get('alumni', [AlumniController::class, 'index'])->name('alumni.index');
 
-
         // Import Log Routes
         Route::get('students/import-logs', [StudentImportController::class, 'importLogs'])->name('students.import-logs');
         Route::get('students/import-logs/{importLog}', [StudentImportController::class, 'showImportLog'])
@@ -463,7 +445,6 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
         Route::patch('students/{student}/status', [StudentController::class, 'updateStatus'])
             ->name('students.updateStatus')
             ->where('student', '[0-9]+');
-
 
         // Activity Log Routes
         Route::get('students/{student}/activity-logs', [StudentController::class, 'getActivityLogs'])
@@ -794,24 +775,24 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
 
         // Backups & System Health
         Route::get('system/health', [SystemHealthController::class, 'performHealthCheck'])->name('system.health')->middleware('permission:manage settings');
-        
+
         Route::prefix('backups')->name('backups.')->middleware('permission:manage settings')->group(function () {
             Route::get('/', [BackupController::class, 'index'])->name('index');
             Route::post('/', [BackupController::class, 'store'])->name('store');
             Route::get('/create', [BackupController::class, 'index'])->name('create');
             Route::delete('/{id}', [BackupController::class, 'destroy'])->name('destroy');
             Route::get('/download/{fileName}', [BackupController::class, 'download'])->name('download');
-            
+
             // Manual Backup / Actions
             Route::post('/manual', [BackupController::class, 'createManualBackup'])->name('manual');
             Route::post('/test', [BackupController::class, 'createManualBackup'])->name('test');
             Route::post('/cleanup', [BackupController::class, 'cleanupBackups'])->name('cleanup');
             Route::put('/settings', [BackupController::class, 'updateSettings'])->name('settings.update');
-            
+
             // Restore Routes
             Route::post('/restore/database', [BackupController::class, 'restoreDatabase'])->name('restore.database');
             Route::post('/restore/settings', [BackupController::class, 'restoreSettings'])->name('restore.settings');
-            
+
             // Google Drive
             Route::post('/gdrive/authorize', [BackupController::class, 'authorizeGoogleDrive'])->name('gdrive.authorize');
             Route::get('/gdrive/callback', [BackupController::class, 'handleGoogleDriveCallback'])->name('gdrive.callback');
@@ -835,7 +816,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
             ->where('user', '[0-9]+');
         Route::delete('api-tokens/cleanup', [ApiTokenController::class, 'cleanupExpired'])->name('api-tokens.cleanup');
 
-        Route::get('api-documentation', fn() => view('admin.api_documentation.index'))->name('api-documentation.index');
+        Route::get('api-documentation', fn () => view('admin.api_documentation.index'))->name('api-documentation.index');
         Route::get('api-docs/json', [App\Http\Controllers\Api\ApiDocumentationController::class, 'json'])->name('api-documentation.json');
 
         Route::prefix('webhooks')->name('webhooks.')->group(function () {
@@ -909,19 +890,19 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
             $status = [
                 'database_tables' => [
                     'webhooks' => Schema::hasTable('webhooks'),
-                    'webhook_calls' => Schema::hasTable('webhook_calls')
+                    'webhook_calls' => Schema::hasTable('webhook_calls'),
                 ],
                 'models' => [
                     'webhook_model' => class_exists('\App\Models\Webhook'),
-                    'webhook_call_model' => class_exists('\App\Models\WebhookCall')
+                    'webhook_call_model' => class_exists('\App\Models\WebhookCall'),
                 ],
                 'listeners' => [
-                    'universal_webhook_listener' => class_exists('\App\Listeners\UniversalWebhookListener')
+                    'universal_webhook_listener' => class_exists('\App\Listeners\UniversalWebhookListener'),
                 ],
                 'routes' => [
                     'admin_webhooks_index' => app('router')->getRoutes()->getByName('admin.webhooks.index') !== null,
                     'admin_webhooks_test' => app('router')->getRoutes()->getByName('admin.webhooks.test') !== null,
-                ]
+                ],
             ];
 
             if (class_exists('\App\Models\Webhook') && Schema::hasTable('webhooks')) {
@@ -930,7 +911,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
                     'active_webhooks' => \App\Models\Webhook::where('is_active', true)->count(),
                     'recent_calls_24h' => \App\Models\WebhookCall::where('created_at', '>=', now()->subDay())->count(),
                     'successful_calls_24h' => \App\Models\WebhookCall::where('created_at', '>=', now()->subDay())->where('success', true)->count(),
-                    'failed_webhooks' => \App\Models\Webhook::where('consecutive_failures', '>=', 3)->count()
+                    'failed_webhooks' => \App\Models\Webhook::where('consecutive_failures', '>=', 3)->count(),
                 ];
                 $status['statistics'] = $webhookStats;
             }
@@ -939,7 +920,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
             foreach ($status as $category => $checks) {
                 if ($category !== 'statistics') {
                     foreach ($checks as $check => $result) {
-                        if (!$result) {
+                        if (! $result) {
                             $allGood = false;
                             break 2;
                         }
@@ -952,14 +933,14 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
             return response()->json([
                 'webhook_system_status' => $status,
                 'health' => $allGood ? '✅ Healthy' : '❌ Issues Detected',
-                'timestamp' => now()->toIso8601String()
+                'timestamp' => now()->toIso8601String(),
             ], 200, [], JSON_PRETTY_PRINT);
 
         } catch (\Exception $e) {
             return response()->json([
                 'error' => 'Failed to check webhook status',
                 'message' => $e->getMessage(),
-                'health' => '❌ Error'
+                'health' => '❌ Error',
             ], 500);
         }
     })->middleware(['auth', 'role:super-admin']);
@@ -1082,8 +1063,6 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin|super-ad
             ->name('attendance.export.today')
             ->middleware('permission:export attendance');
 
-
-
         // Testing endpoints
         Route::post('attendance/test-rules', [AttendanceSettingsController::class, 'testRules'])->name('attendance.test.rules');
         Route::post('/attendance/settings/test-sync', [AttendanceSettingsController::class, 'testSync'])->name('admin.attendance.test-sync');
@@ -1175,9 +1154,6 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     });
 });
 
-
-
-
 // Main Attendance Routes
 
 Route::get('students/biometric-mapping-test', [StudentController::class, 'biometricMapping'])
@@ -1220,6 +1196,7 @@ Route::prefix('admin/notifications')->name('admin.notifications.')->middleware([
 
     Route::get('/admin-unread-count', function () {
         $count = \App\Models\SystemNotification::getUnreadCountForUser(auth()->id());
+
         return response()->json(['count' => $count]);
     })->name('admin-unread-count');
 
@@ -1294,7 +1271,6 @@ Route::prefix('api')->name('api.')->group(function () {
 
         // Attendance API
 
-
         // Admin-only API routes
         Route::prefix('admin')->name('admin.')->middleware(['permission:manage students'])->group(function () {
             Route::post('/students', [StudentApiController::class, 'store'])->name('students.store');
@@ -1314,12 +1290,14 @@ Route::prefix('api')->name('api.')->group(function () {
         Route::get('permissions/search', function (Request $request) {
             $query = $request->get('q', '');
             $permissions = Permission::where('name', 'like', "%{$query}%")->limit(20)->get();
+
             return response()->json(['success' => true, 'permissions' => $permissions]);
         })->name('permissions.search');
 
         Route::get('roles/search', function (Request $request) {
             $query = $request->get('q', '');
             $roles = Role::where('name', 'like', "%{$query}%")->limit(20)->get();
+
             return response()->json(['success' => true, 'roles' => $roles]);
         })->name('roles.search');
     });
@@ -1347,22 +1325,22 @@ Route::prefix('api')->name('api.')->group(function () {
                     'students' => $students,
                     'existing_attendance' => $existingAttendance,
                     'batch' => $batch,
-                    'date' => $date
-                ]
+                    'date' => $date,
+                ],
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to load students: ' . $e->getMessage()
+                'message' => 'Failed to load students: '.$e->getMessage(),
             ], 500);
         }
     })->name('admin.batches.students')->middleware(['auth', 'permission:manage attendance'])->where('batch', '[0-9]+');
 
     // Legacy API (Redirects)
     Route::middleware(['auth:sanctum'])->group(function () {
-        Route::get('/test', fn() => redirect()->route('api.v1.test'));
-        Route::get('/students/search', fn() => redirect()->route('api.v1.students.search'));
+        Route::get('/test', fn () => redirect()->route('api.v1.test'));
+        Route::get('/students/search', fn () => redirect()->route('api.v1.students.search'));
     });
 
     // Server time for real-time sync
@@ -1410,11 +1388,11 @@ Route::middleware(['auth', 'permission:manage financials'])->group(function () {
                     'components' => $payment->componentItems->map(function ($item) {
                         return [
                             'fee_category' => $item->studentFee->feeCategory->name,
-                            'amount_paid' => $item->amount_paid
+                            'amount_paid' => $item->amount_paid,
                         ];
-                    })
+                    }),
                 ];
-            })
+            }),
         ]);
     })->name('api.students.payment-history')->where('student', '[0-9]+');
 });
@@ -1454,7 +1432,7 @@ Route::get('/test-route-conflict', function () {
             'matched_route' => $route->uri(),
             'matched_action' => $route->getActionName(),
             'route_parameters' => $route->parameters(),
-            'is_conflict' => $route->uri() === 'attendance/{attendance}' ? 'YES - CONFLICT!' : 'No conflict'
+            'is_conflict' => $route->uri() === 'attendance/{attendance}' ? 'YES - CONFLICT!' : 'No conflict',
         ]);
     } catch (\Exception $e) {
         return response()->json(['error' => $e->getMessage()]);
@@ -1510,4 +1488,4 @@ Route::fallback(function () {
     abort(404);
 });
 
-require __DIR__ . '/auth.php';
+require __DIR__.'/auth.php';

@@ -2,14 +2,15 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
-use App\Models\Student;
 use App\Models\Attendance;
+use App\Models\Student;
 use App\Services\NotificationService;
+use Illuminate\Console\Command;
 
 class MonitorAttendance extends Command
 {
     protected $signature = 'attendance:monitor {--dry-run : Show what would be reported without sending notifications}';
+
     protected $description = 'Monitor attendance patterns and send alerts for concerning trends';
 
     protected $notificationService;
@@ -23,19 +24,19 @@ class MonitorAttendance extends Command
     public function handle()
     {
         $this->info('📊 Monitoring Attendance Patterns...');
-        
+
         $minimumAttendance = (int) setting('minimum_attendance_percentage', 75);
         $studentsWithIssues = [];
-        
+
         $students = Student::with('batch')->where('status', 'active')->get();
-        
+
         foreach ($students as $student) {
             $attendanceData = $this->analyzeStudentAttendance($student);
-            
+
             if ($attendanceData['has_issues']) {
                 $studentsWithIssues[] = $attendanceData;
-                
-                if (!$this->option('dry-run')) {
+
+                if (! $this->option('dry-run')) {
                     $this->sendAttendanceAlert($student, $attendanceData);
                 }
             }
@@ -44,8 +45,8 @@ class MonitorAttendance extends Command
         if ($this->option('dry-run')) {
             $this->displayDryRunResults($studentsWithIssues);
         } else {
-            $this->info("✅ Attendance monitoring completed");
-            $this->line("📋 Students with attendance issues: " . count($studentsWithIssues));
+            $this->info('✅ Attendance monitoring completed');
+            $this->line('📋 Students with attendance issues: '.count($studentsWithIssues));
         }
 
         return 0;
@@ -57,25 +58,25 @@ class MonitorAttendance extends Command
         $presentClasses = Attendance::where('student_id', $student->id)
             ->whereIn('status', ['present', 'late'])
             ->count();
-            
+
         $attendancePercentage = $totalClasses > 0 ? ($presentClasses / $totalClasses) * 100 : 100;
-        
+
         // Check recent absences (last 7 days)
         $recentAbsences = Attendance::where('student_id', $student->id)
             ->where('attendance_date', '>=', now()->subDays(7))
             ->where('status', 'absent')
             ->count();
-            
+
         // Check for long absence streaks
         $lastPresent = Attendance::where('student_id', $student->id)
             ->where('status', 'present')
             ->orderBy('attendance_date', 'desc')
             ->first();
-            
+
         $daysSincePresent = $lastPresent ? now()->diffInDays($lastPresent->attendance_date) : 999;
-        
+
         $minimumAttendance = (int) setting('minimum_attendance_percentage', 75);
-        
+
         return [
             'student' => $student,
             'attendance_percentage' => round($attendancePercentage, 2),
@@ -90,9 +91,16 @@ class MonitorAttendance extends Command
 
     private function determineIssueType($percentage, $recentAbsences, $daysSincePresent, $minimum)
     {
-        if ($daysSincePresent >= 7) return 'long_absence';
-        if ($recentAbsences >= 4) return 'frequent_recent_absences';
-        if ($percentage < $minimum) return 'low_overall_attendance';
+        if ($daysSincePresent >= 7) {
+            return 'long_absence';
+        }
+        if ($recentAbsences >= 4) {
+            return 'frequent_recent_absences';
+        }
+        if ($percentage < $minimum) {
+            return 'low_overall_attendance';
+        }
+
         return 'minor_concern';
     }
 
@@ -106,7 +114,7 @@ class MonitorAttendance extends Command
         ];
 
         $this->notificationService->send([
-            'title' => 'Attendance Alert: ' . $student->name,
+            'title' => 'Attendance Alert: '.$student->name,
             'message' => "Student attendance issue detected: {$data['attendance_percentage']}% attendance",
             'type' => 'warning',
             'category' => 'attendance',
@@ -122,17 +130,18 @@ class MonitorAttendance extends Command
     private function displayDryRunResults($studentsWithIssues)
     {
         if (empty($studentsWithIssues)) {
-            $this->info("✅ No attendance issues found!");
+            $this->info('✅ No attendance issues found!');
+
             return;
         }
 
         $this->table(
             ['Student', 'Batch', 'Attendance %', 'Recent Absences', 'Days Since Present', 'Issue Type'],
-            array_map(function($data) {
+            array_map(function ($data) {
                 return [
                     $data['student']->name,
                     $data['student']->batch->name ?? 'N/A',
-                    $data['attendance_percentage'] . '%',
+                    $data['attendance_percentage'].'%',
                     $data['recent_absences'],
                     $data['days_since_present'],
                     $data['issue_type'],
@@ -140,6 +149,6 @@ class MonitorAttendance extends Command
             }, $studentsWithIssues)
         );
 
-        $this->info("Would send " . count($studentsWithIssues) . " attendance alerts");
+        $this->info('Would send '.count($studentsWithIssues).' attendance alerts');
     }
 }

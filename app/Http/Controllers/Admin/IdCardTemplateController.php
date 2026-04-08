@@ -15,6 +15,7 @@ class IdCardTemplateController extends Controller
     public function index()
     {
         $templates = IdCardTemplate::latest()->get();
+
         return view('admin.id_card_templates.index', compact('templates'));
     }
 
@@ -43,6 +44,7 @@ class IdCardTemplateController extends Controller
         $validated['is_active'] = $validated['is_active'] ?? true;
 
         IdCardTemplate::create($validated);
+
         return redirect()->route('admin.id-card-templates.index')
             ->with('success', 'ID Card Template created successfully.');
     }
@@ -77,6 +79,7 @@ class IdCardTemplateController extends Controller
         ]);
 
         $idCardTemplate->update($validated);
+
         return redirect()->route('admin.id-card-templates.index')
             ->with('success', 'ID Card Template updated successfully.');
     }
@@ -93,6 +96,7 @@ class IdCardTemplateController extends Controller
         }
 
         $idCardTemplate->delete();
+
         return redirect()->route('admin.id-card-templates.index')
             ->with('success', 'ID Card Template deleted successfully.');
     }
@@ -102,9 +106,10 @@ class IdCardTemplateController extends Controller
      */
     public function toggleStatus(IdCardTemplate $idCardTemplate)
     {
-        $idCardTemplate->update(['is_active' => !$idCardTemplate->is_active]);
-        
+        $idCardTemplate->update(['is_active' => ! $idCardTemplate->is_active]);
+
         $status = $idCardTemplate->is_active ? 'activated' : 'deactivated';
+
         return redirect()->route('admin.id-card-templates.index')
             ->with('success', "Template {$status} successfully.");
     }

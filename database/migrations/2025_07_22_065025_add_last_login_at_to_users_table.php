@@ -1,4 +1,5 @@
 <?php
+
 // database/migrations/xxxx_add_last_login_at_to_users_table.php
 
 use Illuminate\Database\Migrations\Migration;

@@ -2,10 +2,11 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Widget;
+use App\Models\WidgetCategory;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
-use App\Models\{Widget, WidgetCategory};
 
 class CreateDashboardWidget extends Command
 {
@@ -15,7 +16,7 @@ class CreateDashboardWidget extends Command
                             {--category= : Widget category slug}
                             {--permissions= : Comma-separated required permissions}
                             {--roles= : Comma-separated allowed roles}';
-    
+
     protected $description = 'Create a new dashboard widget with Blade template and database entry';
 
     public function handle()
@@ -28,40 +29,40 @@ class CreateDashboardWidget extends Command
 
         $slug = Str::slug($name);
         $fileName = str_replace('-', '_', $slug);
-        
+
         // Create Blade template
         $this->createBladeTemplate($fileName, $name, $type);
-        
+
         // Create database entry
         $this->createDatabaseEntry($name, $slug, $fileName, $type, $categorySlug, $permissions, $roles);
-        
+
         $this->info("✅ Widget '{$name}' created successfully!");
         $this->line("📄 Blade template: resources/views/dashboard/widgets/{$fileName}.blade.php");
-        $this->line("💾 Database entry created");
+        $this->line('💾 Database entry created');
         $this->line("🔄 Run 'php artisan dashboard:sync-widgets' to refresh widget list");
-        
+
         return Command::SUCCESS;
     }
 
     private function createBladeTemplate($fileName, $name, $type)
     {
         $widgetPath = resource_path('views/dashboard/widgets');
-        
-        if (!File::isDirectory($widgetPath)) {
+
+        if (! File::isDirectory($widgetPath)) {
             File::makeDirectory($widgetPath, 0755, true, true);
         }
-        
+
         $filePath = "{$widgetPath}/{$fileName}.blade.php";
-        
+
         if (File::exists($filePath)) {
-            if (!$this->confirm("Widget template already exists. Overwrite?")) {
+            if (! $this->confirm('Widget template already exists. Overwrite?')) {
                 return;
             }
         }
-        
+
         $template = $this->getWidgetTemplate($name, $type);
         File::put($filePath, $template);
-        
+
         $this->info("Created Blade template: {$filePath}");
     }
 
@@ -70,7 +71,7 @@ class CreateDashboardWidget extends Command
         $category = null;
         if ($categorySlug) {
             $category = WidgetCategory::where('slug', $categorySlug)->first();
-            if (!$category) {
+            if (! $category) {
                 $this->warn("Category '{$categorySlug}' not found. Widget will be created without category.");
             }
         }
@@ -87,7 +88,7 @@ class CreateDashboardWidget extends Command
                 'allowed_roles' => $roles ? explode(',', $roles) : null,
                 'default_width' => $this->getDefaultWidth($type),
                 'default_height' => $this->getDefaultHeight($type),
-                'is_active' => true
+                'is_active' => true,
             ]
         );
 
@@ -102,7 +103,7 @@ class CreateDashboardWidget extends Command
             'list' => $this->getListTemplate($name),
             'action' => $this->getActionTemplate($name),
             'status' => $this->getStatusTemplate($name),
-            'general' => $this->getGeneralTemplate($name)
+            'general' => $this->getGeneralTemplate($name),
         ];
 
         return $templates[$type] ?? $templates['general'];
@@ -350,7 +351,7 @@ BLADE;
             'list' => 6,
             'action' => 4,
             'status' => 6,
-            'general' => 6
+            'general' => 6,
         ];
 
         return $widths[$type] ?? 6;
@@ -364,7 +365,7 @@ BLADE;
             'list' => 350,
             'action' => 300,
             'status' => 250,
-            'general' => 300
+            'general' => 300,
         ];
 
         return $heights[$type] ?? 300;

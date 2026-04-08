@@ -2,13 +2,12 @@
 
 namespace App\Services\Attendance;
 
-use App\Models\Student;
-use App\Models\Batch;
-use App\Models\Subject;
 use App\Models\Attendance\Attendance;
+use App\Models\Batch;
+use App\Models\Student;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
 
 class ValidationService
 {
@@ -25,7 +24,7 @@ class ValidationService
             'status' => 'required|in:present,absent,late,excused',
             'check_in_time' => 'nullable|date_format:H:i:s',
             'check_out_time' => 'nullable|date_format:H:i:s|after:check_in_time',
-            'notes' => 'nullable|string|max:500'
+            'notes' => 'nullable|string|max:500',
         ];
 
         $messages = [
@@ -41,7 +40,7 @@ class ValidationService
             'check_in_time.date_format' => 'Invalid check-in time format',
             'check_out_time.date_format' => 'Invalid check-out time format',
             'check_out_time.after' => 'Check-out time must be after check-in time',
-            'notes.max' => 'Notes cannot exceed 500 characters'
+            'notes.max' => 'Notes cannot exceed 500 characters',
         ];
 
         return Validator::make($data, $rules, $messages);
@@ -57,13 +56,13 @@ class ValidationService
 
         foreach ($attendanceData as $index => $data) {
             $validator = $this->validateAttendanceData($data);
-            
+
             if ($validator->fails()) {
                 $errors[$index] = $validator->errors()->all();
             } else {
                 // Additional business logic validation
                 $businessValidation = $this->validateBusinessRules($data);
-                if (!$businessValidation['valid']) {
+                if (! $businessValidation['valid']) {
                     $errors[$index] = $businessValidation['errors'];
                 } else {
                     $validData[$index] = $data;
@@ -77,7 +76,7 @@ class ValidationService
             'valid_data' => $validData,
             'total_records' => count($attendanceData),
             'valid_records' => count($validData),
-            'error_records' => count($errors)
+            'error_records' => count($errors),
         ];
     }
 
@@ -102,7 +101,7 @@ class ValidationService
                 $existingAttendance = Attendance::where('student_id', $data['student_id'])
                     ->where('attendance_date', $data['attendance_date'])
                     ->first();
-                
+
                 if ($existingAttendance) {
                     $errors[] = 'Attendance already exists for this student on this date';
                 }
@@ -120,7 +119,7 @@ class ValidationService
             if (isset($data['check_in_time']) && isset($data['check_out_time'])) {
                 $checkIn = Carbon::parse($data['check_in_time']);
                 $checkOut = Carbon::parse($data['check_out_time']);
-                
+
                 if ($checkOut->lessThanOrEqualTo($checkIn)) {
                     $errors[] = 'Check-out time must be after check-in time';
                 }
@@ -128,18 +127,18 @@ class ValidationService
 
             return [
                 'valid' => empty($errors),
-                'errors' => $errors
+                'errors' => $errors,
             ];
 
         } catch (\Exception $e) {
             Log::error('Business rule validation failed', [
                 'error' => $e->getMessage(),
-                'data' => $data
+                'data' => $data,
             ]);
 
             return [
                 'valid' => false,
-                'errors' => ['Validation error occurred']
+                'errors' => ['Validation error occurred'],
             ];
         }
     }
@@ -151,7 +150,7 @@ class ValidationService
     {
         $requiredHeaders = ['student_id', 'attendance_date', 'status'];
         $optionalHeaders = ['batch_id', 'subject_id', 'check_in_time', 'check_out_time', 'notes'];
-        
+
         $errors = [];
         $validRows = [];
 
@@ -164,25 +163,25 @@ class ValidationService
                 'summary' => [
                     'total_rows' => 0,
                     'valid_rows' => 0,
-                    'error_rows' => 0
-                ]
+                    'error_rows' => 0,
+                ],
             ];
         }
 
         // Validate headers (first row)
         $headers = array_keys($importData[0]);
         $missingHeaders = array_diff($requiredHeaders, $headers);
-        
-        if (!empty($missingHeaders)) {
+
+        if (! empty($missingHeaders)) {
             return [
                 'valid' => false,
-                'errors' => ['Missing required columns: ' . implode(', ', $missingHeaders)],
+                'errors' => ['Missing required columns: '.implode(', ', $missingHeaders)],
                 'valid_data' => [],
                 'summary' => [
                     'total_rows' => count($importData),
                     'valid_rows' => 0,
-                    'error_rows' => count($importData)
-                ]
+                    'error_rows' => count($importData),
+                ],
             ];
         }
 
@@ -192,7 +191,7 @@ class ValidationService
 
             // Check required fields
             foreach ($requiredHeaders as $header) {
-                if (!isset($row[$header]) || empty($row[$header])) {
+                if (! isset($row[$header]) || empty($row[$header])) {
                     $rowErrors[] = "Missing or empty {$header}";
                 }
             }
@@ -206,23 +205,23 @@ class ValidationService
                 }
             }
 
-            if (isset($row['status']) && !in_array($row['status'], ['present', 'absent', 'late', 'excused'])) {
+            if (isset($row['status']) && ! in_array($row['status'], ['present', 'absent', 'late', 'excused'])) {
                 $rowErrors[] = 'Invalid status value';
             }
 
-            if (isset($row['check_in_time']) && !empty($row['check_in_time'])) {
-                if (!preg_match('/^([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/', $row['check_in_time'])) {
+            if (isset($row['check_in_time']) && ! empty($row['check_in_time'])) {
+                if (! preg_match('/^([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/', $row['check_in_time'])) {
                     $rowErrors[] = 'Invalid time format for check_in_time';
                 }
             }
 
-            if (isset($row['check_out_time']) && !empty($row['check_out_time'])) {
-                if (!preg_match('/^([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/', $row['check_out_time'])) {
+            if (isset($row['check_out_time']) && ! empty($row['check_out_time'])) {
+                if (! preg_match('/^([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/', $row['check_out_time'])) {
                     $rowErrors[] = 'Invalid time format for check_out_time';
                 }
             }
 
-            if (!empty($rowErrors)) {
+            if (! empty($rowErrors)) {
                 $errors[$rowIndex + 1] = $rowErrors; // +1 for human-readable row numbers
             } else {
                 $validRows[$rowIndex] = $row;
@@ -236,8 +235,8 @@ class ValidationService
             'summary' => [
                 'total_rows' => count($importData),
                 'valid_rows' => count($validRows),
-                'error_rows' => count($errors)
-            ]
+                'error_rows' => count($errors),
+            ],
         ];
     }
 
@@ -252,7 +251,7 @@ class ValidationService
             'date_from' => 'nullable|date',
             'date_to' => 'nullable|date|after_or_equal:date_from',
             'status' => 'nullable|in:present,absent,late,excused',
-            'student_search' => 'nullable|string|max:255'
+            'student_search' => 'nullable|string|max:255',
         ];
 
         return Validator::make($filters, $rules);
@@ -266,12 +265,12 @@ class ValidationService
         $errors = [];
 
         // Check if student is active
-        if (!$student->is_active) {
+        if (! $student->is_active) {
             $errors[] = 'Student is not active';
         }
 
         // Check if student has a batch assigned
-        if (!$student->batch_id) {
+        if (! $student->batch_id) {
             $errors[] = 'Student is not assigned to any batch';
         }
 
@@ -287,7 +286,7 @@ class ValidationService
 
         return [
             'can_mark' => empty($errors),
-            'errors' => $errors
+            'errors' => $errors,
         ];
     }
 
@@ -300,7 +299,7 @@ class ValidationService
 
         if (isset($data['check_in_time'])) {
             $checkInTime = Carbon::parse($data['check_in_time']);
-            
+
             // Validate check-in time is within reasonable hours (e.g., 6 AM to 11 PM)
             if ($checkInTime->hour < 6 || $checkInTime->hour > 23) {
                 $errors[] = 'Check-in time must be between 6:00 AM and 11:00 PM';
@@ -309,7 +308,7 @@ class ValidationService
 
         if (isset($data['check_out_time'])) {
             $checkOutTime = Carbon::parse($data['check_out_time']);
-            
+
             // Validate check-out time is within reasonable hours
             if ($checkOutTime->hour < 6 || $checkOutTime->hour > 23) {
                 $errors[] = 'Check-out time must be between 6:00 AM and 11:00 PM';
@@ -321,12 +320,12 @@ class ValidationService
             $checkIn = Carbon::parse($data['check_in_time']);
             $checkOut = Carbon::parse($data['check_out_time']);
             $duration = $checkOut->diffInMinutes($checkIn);
-            
+
             // Minimum duration should be at least 30 minutes
             if ($duration < 30) {
                 $errors[] = 'Duration between check-in and check-out must be at least 30 minutes';
             }
-            
+
             // Maximum duration should not exceed 16 hours
             if ($duration > (16 * 60)) {
                 $errors[] = 'Duration between check-in and check-out cannot exceed 16 hours';
@@ -335,7 +334,7 @@ class ValidationService
 
         return [
             'valid' => empty($errors),
-            'errors' => $errors
+            'errors' => $errors,
         ];
     }
 }

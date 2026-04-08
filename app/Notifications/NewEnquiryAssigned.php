@@ -42,13 +42,13 @@ class NewEnquiryAssigned extends Notification implements ShouldQueue
         $url = route('admin.enquiries.edit', $this->enquiry);
 
         return (new MailMessage)
-                    ->subject('New Enquiry Assigned: ' . $this->enquiry->student_name)
-                    ->greeting('Hello ' . $notifiable->name . ',')
-                    ->line('A new enquiry has been assigned to you for follow-up.')
-                    ->line('Student Name: ' . $this->enquiry->student_name)
-                    ->line('Course Interest: ' . ($this->enquiry->course->name ?? 'Not Specified'))
-                    ->action('View Enquiry Details', $url)
-                    ->line('Please follow up at your earliest convenience.');
+            ->subject('New Enquiry Assigned: '.$this->enquiry->student_name)
+            ->greeting('Hello '.$notifiable->name.',')
+            ->line('A new enquiry has been assigned to you for follow-up.')
+            ->line('Student Name: '.$this->enquiry->student_name)
+            ->line('Course Interest: '.($this->enquiry->course->name ?? 'Not Specified'))
+            ->action('View Enquiry Details', $url)
+            ->line('Please follow up at your earliest convenience.');
     }
 
     /**

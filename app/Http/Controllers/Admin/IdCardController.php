@@ -4,8 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Batch;
-use App\Models\Student;
 use App\Models\IdCardTemplate;
+use App\Models\Student;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -24,9 +24,9 @@ class IdCardController extends Controller
         if ($request->filled('batch_id') && $request->filled('template_id')) {
             // Get all students for the selected batch
             $students = Student::where('batch_id', $request->batch_id)
-                                ->with(['batch.course'])
-                                ->get();
-            
+                ->with(['batch.course'])
+                ->get();
+
             // Get the selected template's content
             $selectedTemplate = IdCardTemplate::findOrFail($request->template_id);
         }
@@ -42,7 +42,7 @@ class IdCardController extends Controller
         // Define all possible replacements
         $replacements = [
             '[student_name]' => e($student->name),
-            '[student_photo_url]' => $student->photo ? Storage::url($student->photo) : 'https://ui-avatars.com/api/?name=' . urlencode($student->name) . '&size=150',
+            '[student_photo_url]' => $student->photo ? Storage::url($student->photo) : 'https://ui-avatars.com/api/?name='.urlencode($student->name).'&size=150',
             '[enrollment_number]' => e($student->enrollment_number),
             '[course_name]' => e($student->batch->course->name ?? 'N/A'),
             '[batch_name]' => e($student->batch->name ?? 'N/A'),

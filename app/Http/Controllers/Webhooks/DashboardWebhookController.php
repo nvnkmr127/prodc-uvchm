@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers\Webhooks;
 
+use App\Events\DashboardDataUpdated;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
-use App\Events\DashboardDataUpdated;
+use Illuminate\Support\Facades\Log;
 
 class DashboardWebhookController extends Controller
 {
@@ -26,11 +26,11 @@ class DashboardWebhookController extends Controller
                 'class_id' => 'required|integer',
                 'status' => 'required|in:present,absent,late',
                 'date' => 'required|date',
-                'timestamp' => 'required|string'
+                'timestamp' => 'required|string',
             ]);
 
             $data = $request->all();
-            
+
             Log::info('Attendance webhook received', $data);
 
             // Process attendance update
@@ -45,18 +45,18 @@ class DashboardWebhookController extends Controller
             return response()->json([
                 'status' => 'success',
                 'message' => 'Attendance update processed',
-                'timestamp' => now()->toISOString()
+                'timestamp' => now()->toISOString(),
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Attendance webhook failed: ' . $e->getMessage(), [
+            Log::error('Attendance webhook failed: '.$e->getMessage(), [
                 'request_data' => $request->all(),
-                'error' => $e->getTraceAsString()
+                'error' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'status' => 'error',
-                'message' => 'Failed to process attendance update'
+                'message' => 'Failed to process attendance update',
             ], 500);
         }
     }
@@ -73,11 +73,11 @@ class DashboardWebhookController extends Controller
                 'payment_method' => 'required|string',
                 'transaction_id' => 'required|string',
                 'fee_type' => 'required|string',
-                'timestamp' => 'required|string'
+                'timestamp' => 'required|string',
             ]);
 
             $data = $request->all();
-            
+
             Log::info('Payment webhook received', $data);
 
             // Process payment
@@ -92,18 +92,18 @@ class DashboardWebhookController extends Controller
             return response()->json([
                 'status' => 'success',
                 'message' => 'Payment processed',
-                'timestamp' => now()->toISOString()
+                'timestamp' => now()->toISOString(),
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Payment webhook failed: ' . $e->getMessage(), [
+            Log::error('Payment webhook failed: '.$e->getMessage(), [
                 'request_data' => $request->all(),
-                'error' => $e->getTraceAsString()
+                'error' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'status' => 'error',
-                'message' => 'Failed to process payment'
+                'message' => 'Failed to process payment',
             ], 500);
         }
     }
@@ -119,11 +119,11 @@ class DashboardWebhookController extends Controller
                 'course_id' => 'required|integer',
                 'status' => 'required|in:enrolled,withdrawn,transferred',
                 'effective_date' => 'required|date',
-                'timestamp' => 'required|string'
+                'timestamp' => 'required|string',
             ]);
 
             $data = $request->all();
-            
+
             Log::info('Enrollment webhook received', $data);
 
             // Process enrollment update
@@ -138,18 +138,18 @@ class DashboardWebhookController extends Controller
             return response()->json([
                 'status' => 'success',
                 'message' => 'Enrollment update processed',
-                'timestamp' => now()->toISOString()
+                'timestamp' => now()->toISOString(),
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Enrollment webhook failed: ' . $e->getMessage(), [
+            Log::error('Enrollment webhook failed: '.$e->getMessage(), [
                 'request_data' => $request->all(),
-                'error' => $e->getTraceAsString()
+                'error' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'status' => 'error',
-                'message' => 'Failed to process enrollment update'
+                'message' => 'Failed to process enrollment update',
             ], 500);
         }
     }
@@ -165,11 +165,11 @@ class DashboardWebhookController extends Controller
                 'title' => 'required|string|max:255',
                 'message' => 'required|string',
                 'source' => 'required|string',
-                'timestamp' => 'required|string'
+                'timestamp' => 'required|string',
             ]);
 
             $data = $request->all();
-            
+
             Log::info('System alert webhook received', $data);
 
             // Process system alert
@@ -181,18 +181,18 @@ class DashboardWebhookController extends Controller
             return response()->json([
                 'status' => 'success',
                 'message' => 'System alert processed',
-                'timestamp' => now()->toISOString()
+                'timestamp' => now()->toISOString(),
             ]);
 
         } catch (\Exception $e) {
-            Log::error('System alert webhook failed: ' . $e->getMessage(), [
+            Log::error('System alert webhook failed: '.$e->getMessage(), [
                 'request_data' => $request->all(),
-                'error' => $e->getTraceAsString()
+                'error' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'status' => 'error',
-                'message' => 'Failed to process system alert'
+                'message' => 'Failed to process system alert',
             ], 500);
         }
     }
@@ -207,11 +207,11 @@ class DashboardWebhookController extends Controller
             [
                 'student_id' => $data['student_id'],
                 'class_id' => $data['class_id'],
-                'date' => $data['date']
+                'date' => $data['date'],
             ],
             [
                 'status' => $data['status'],
-                'updated_at' => now()
+                'updated_at' => now(),
             ]
         );
 
@@ -232,7 +232,7 @@ class DashboardWebhookController extends Controller
             'transaction_id' => $data['transaction_id'],
             'fee_type' => $data['fee_type'],
             'status' => 'completed',
-            'paid_at' => now()
+            'paid_at' => now(),
         ]);
 
         // Update fee collection statistics
@@ -248,12 +248,12 @@ class DashboardWebhookController extends Controller
         \App\Models\Enrollment::updateOrCreate(
             [
                 'student_id' => $data['student_id'],
-                'course_id' => $data['course_id']
+                'course_id' => $data['course_id'],
             ],
             [
                 'status' => $data['status'],
                 'effective_date' => $data['effective_date'],
-                'updated_at' => now()
+                'updated_at' => now(),
             ]
         );
 
@@ -273,7 +273,7 @@ class DashboardWebhookController extends Controller
             'message' => $data['message'],
             'source' => $data['source'],
             'status' => 'active',
-            'created_at' => now()
+            'created_at' => now(),
         ]);
 
         // If critical, send immediate notifications
@@ -291,8 +291,8 @@ class DashboardWebhookController extends Controller
             "attendance_student_{$studentId}",
             "attendance_class_{$classId}",
             "attendance_statistics_{$studentId}",
-            "widget_attendance_analytics",
-            "dashboard_attendance_data"
+            'widget_attendance_analytics',
+            'dashboard_attendance_data',
         ];
 
         foreach ($cacheKeys as $key) {
@@ -307,10 +307,10 @@ class DashboardWebhookController extends Controller
     {
         $cacheKeys = [
             "payments_student_{$studentId}",
-            "fee_collection_statistics",
-            "widget_revenue_chart",
-            "widget_fee_collection_status",
-            "dashboard_financial_data"
+            'fee_collection_statistics',
+            'widget_revenue_chart',
+            'widget_fee_collection_status',
+            'dashboard_financial_data',
         ];
 
         foreach ($cacheKeys as $key) {
@@ -326,9 +326,9 @@ class DashboardWebhookController extends Controller
         $cacheKeys = [
             "enrollment_student_{$studentId}",
             "enrollment_course_{$courseId}",
-            "enrollment_statistics",
-            "widget_total_students",
-            "dashboard_academic_data"
+            'enrollment_statistics',
+            'widget_total_students',
+            'dashboard_academic_data',
         ];
 
         foreach ($cacheKeys as $key) {
@@ -377,9 +377,9 @@ class DashboardWebhookController extends Controller
         $totalClasses = \App\Models\Attendance::where('student_id', $studentId)->count();
         $presentClasses = \App\Models\Attendance::where('student_id', $studentId)
             ->where('status', 'present')->count();
-        
+
         $percentage = $totalClasses > 0 ? ($presentClasses / $totalClasses) * 100 : 0;
-        
+
         // Update student record or cache
         Cache::put("attendance_percentage_{$studentId}", $percentage, 3600);
     }
@@ -392,9 +392,9 @@ class DashboardWebhookController extends Controller
         // Recalculate fee collection statistics
         $totalDue = \App\Models\FeeStructure::sum('amount');
         $totalPaid = \App\Models\Payment::where('status', 'completed')->sum('amount');
-        
+
         $percentage = $totalDue > 0 ? ($totalPaid / $totalDue) * 100 : 0;
-        
+
         Cache::put('fee_collection_percentage', $percentage, 3600);
     }
 
@@ -406,7 +406,7 @@ class DashboardWebhookController extends Controller
         // Update course enrollment counts
         $activeEnrollments = \App\Models\Enrollment::where('course_id', $courseId)
             ->where('status', 'enrolled')->count();
-        
+
         Cache::put("enrollment_count_course_{$courseId}", $activeEnrollments, 3600);
     }
 
@@ -417,7 +417,7 @@ class DashboardWebhookController extends Controller
     {
         // Get super admins
         $superAdmins = \App\Models\User::role('super-admin')->get();
-        
+
         foreach ($superAdmins as $admin) {
             // Create notification
             $admin->notifications()->create([
@@ -425,7 +425,7 @@ class DashboardWebhookController extends Controller
                 'title' => $data['title'],
                 'message' => $data['message'],
                 'data' => json_encode($data),
-                'is_read' => false
+                'is_read' => false,
             ]);
         }
     }

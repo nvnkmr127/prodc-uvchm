@@ -2,13 +2,12 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
-use App\Services\ComponentPaymentReminderService;
 use App\Models\Student;
-use App\Models\FeeCategory;
-// ✅ CHANGED: Replaced Invoice model with StudentFee
 use App\Models\StudentFee;
+use App\Services\ComponentPaymentReminderService;
+// ✅ CHANGED: Replaced Invoice model with StudentFee
 use Carbon\Carbon;
+use Illuminate\Console\Command;
 
 class EnhancedPaymentReminders extends Command
 {
@@ -17,7 +16,7 @@ class EnhancedPaymentReminders extends Command
                             {--student-id= : Process reminders for specific student}
                             {--dry-run : Show what would be sent without actually sending}
                             {--force : Force send even if reminders were recently sent}';
-    
+
     protected $description = 'Send enhanced payment reminders for fee components with advanced filtering';
 
     protected $reminderService;
@@ -31,7 +30,7 @@ class EnhancedPaymentReminders extends Command
     public function handle()
     {
         $this->info('🔔 Starting Enhanced Payment Reminders for Fee Components...');
-        
+
         $feeType = $this->option('fee-type');
         $studentId = $this->option('student-id');
         $dryRun = $this->option('dry-run');
@@ -42,14 +41,14 @@ class EnhancedPaymentReminders extends Command
         }
 
         // ✅ CHANGED: Build query for students with overdue fee components
-        $studentsQuery = Student::whereHas('studentFees', function($query) use ($feeType) {
+        $studentsQuery = Student::whereHas('studentFees', function ($query) use ($feeType) {
             $query->whereIn('status', ['unpaid', 'partial', 'overdue'])
-                  ->where('due_date', '<=', now())
-                  ->whereRaw('amount - concession_amount - paid_amount > 0');
-            
+                ->where('due_date', '<=', now())
+                ->whereRaw('amount - concession_amount - paid_amount > 0');
+
             if ($feeType) {
-                $query->whereHas('feeCategory', function($subQuery) use ($feeType) {
-                    $subQuery->where('name', 'like', '%' . str_replace('_', ' ', $feeType) . '%');
+                $query->whereHas('feeCategory', function ($subQuery) use ($feeType) {
+                    $subQuery->where('name', 'like', '%'.str_replace('_', ' ', $feeType).'%');
                 });
             }
         });
@@ -62,29 +61,30 @@ class EnhancedPaymentReminders extends Command
         // ✅ CHANGED: Eager load studentFees instead of invoices
         $students = $studentsQuery->with([
             'batch.course',
-            'studentFees' => function($query) use ($feeType) {
+            'studentFees' => function ($query) use ($feeType) {
                 $query->whereIn('status', ['unpaid', 'partial', 'overdue'])
-                      ->where('due_date', '<=', now())
-                      ->whereRaw('amount - concession_amount - paid_amount > 0')
-                      ->with('feeCategory');
-                
+                    ->where('due_date', '<=', now())
+                    ->whereRaw('amount - concession_amount - paid_amount > 0')
+                    ->with('feeCategory');
+
                 if ($feeType) {
-                    $query->whereHas('feeCategory', function($subQuery) use ($feeType) {
-                        $subQuery->where('name', 'like', '%' . str_replace('_', ' ', $feeType) . '%');
+                    $query->whereHas('feeCategory', function ($subQuery) use ($feeType) {
+                        $subQuery->where('name', 'like', '%'.str_replace('_', ' ', $feeType).'%');
                     });
                 }
-            }
+            },
         ])->get();
 
         if ($students->isEmpty()) {
             $this->info('✅ No students found with overdue fee components for the specified criteria.');
+
             return 0;
         }
 
         $this->info("📋 Found {$students->count()} students with overdue payments");
 
         if ($feeType) {
-            $this->line("🎯 Filtering by fee type: " . str_replace('_', ' ', ucwords($feeType)));
+            $this->line('🎯 Filtering by fee type: '.str_replace('_', ' ', ucwords($feeType)));
         }
 
         $processed = 0;
@@ -97,13 +97,14 @@ class EnhancedPaymentReminders extends Command
 
         foreach ($students as $student) {
             $processed++;
-            
+
             try {
                 if (empty($student->email) && empty($student->phone)) {
                     $this->newLine();
                     $this->warn("⚠️  Skipping {$student->name} - No contact information");
                     $skipped++;
                     $progressBar->advance();
+
                     continue;
                 }
 
@@ -112,18 +113,20 @@ class EnhancedPaymentReminders extends Command
                     ->sortBy('due_date')
                     ->first();
 
-                if (!$urgentFee) {
+                if (! $urgentFee) {
                     $skipped++;
                     $progressBar->advance();
+
                     continue;
                 }
 
                 $daysOverdue = Carbon::parse($urgentFee->due_date)->diffInDays(now());
                 $reminderType = $this->determineReminderType($daysOverdue);
 
-                if (!$force && $this->wasRecentlyReminded($student, $reminderType)) {
+                if (! $force && $this->wasRecentlyReminded($student, $reminderType)) {
                     $skipped++;
                     $progressBar->advance();
+
                     continue;
                 }
 
@@ -131,7 +134,7 @@ class EnhancedPaymentReminders extends Command
                     $this->newLine();
                     $this->line("📧 Would send {$reminderType} reminder to: {$student->name}");
                     $this->line("    Fee Component: {$urgentFee->feeCategory->name}");
-                    $this->line("   💰 Amount: ₹" . $urgentFee->getRemainingAmount());
+                    $this->line('   💰 Amount: ₹'.$urgentFee->getRemainingAmount());
                     $this->line("   📅 Due: {$urgentFee->due_date} ({$daysOverdue} days overdue)");
                     $sent++;
                 } else {
@@ -156,7 +159,7 @@ class EnhancedPaymentReminders extends Command
             } catch (\Exception $e) {
                 $failed++;
                 $this->newLine();
-                $this->error("❌ Error processing {$student->name}: " . $e->getMessage());
+                $this->error("❌ Error processing {$student->name}: ".$e->getMessage());
             }
 
             $progressBar->advance();
@@ -173,7 +176,7 @@ class EnhancedPaymentReminders extends Command
                 ['Reminders Sent/Scheduled', $sent],
                 ['Failed', $failed],
                 ['Skipped', $skipped],
-                ['Success Rate', $processed > 0 ? round(($sent / $processed) * 100, 1) . '%' : '0%']
+                ['Success Rate', $processed > 0 ? round(($sent / $processed) * 100, 1).'%' : '0%'],
             ]
         );
 

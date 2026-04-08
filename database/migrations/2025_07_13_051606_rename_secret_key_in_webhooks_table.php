@@ -9,12 +9,12 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-   public function up(): void
-{
-    Schema::table('webhooks', function (Blueprint $table) {
-        $table->renameColumn('secret_key', 'signing_secret');
-    });
-}
+    public function up(): void
+    {
+        Schema::table('webhooks', function (Blueprint $table) {
+            $table->renameColumn('secret_key', 'signing_secret');
+        });
+    }
 
     /**
      * Reverse the migrations.

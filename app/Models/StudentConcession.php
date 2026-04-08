@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
+use App\Traits\WebhookEnabled;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Traits\WebhookEnabled;
 
 class StudentConcession extends Model
 {
@@ -29,7 +29,7 @@ class StudentConcession extends Model
         'applied_at',
         'reversed_by',
         'reversed_at',
-        'reversal_reason'
+        'reversal_reason',
     ];
 
     protected $casts = [
@@ -38,7 +38,7 @@ class StudentConcession extends Model
         'percentage' => 'decimal:2',
         'approved_at' => 'datetime',
         'applied_at' => 'datetime',
-        'reversed_at' => 'datetime'
+        'reversed_at' => 'datetime',
     ];
 
     protected static function boot()
@@ -47,11 +47,11 @@ class StudentConcession extends Model
 
         static::creating(function ($concession) {
             // Set defaults
-            if (!$concession->status) {
+            if (! $concession->status) {
                 $concession->status = 'pending';
             }
-            
-            if (!$concession->requested_by) {
+
+            if (! $concession->requested_by) {
                 $concession->requested_by = auth()->id();
             }
         });
@@ -189,9 +189,9 @@ class StudentConcession extends Model
     /**
      * Approve the concession
      */
-    public function approve(string $approvalNotes = null): bool
+    public function approve(?string $approvalNotes = null): bool
     {
-        if (!$this->canBeApproved()) {
+        if (! $this->canBeApproved()) {
             return false;
         }
 
@@ -199,7 +199,7 @@ class StudentConcession extends Model
             'status' => 'approved',
             'approved_by' => auth()->id(),
             'approved_at' => now(),
-            'approval_notes' => $approvalNotes
+            'approval_notes' => $approvalNotes,
         ]);
 
         return true;
@@ -208,9 +208,9 @@ class StudentConcession extends Model
     /**
      * Reject the concession
      */
-    public function reject(string $rejectionReason = null): bool
+    public function reject(?string $rejectionReason = null): bool
     {
-        if (!$this->canBeRejected()) {
+        if (! $this->canBeRejected()) {
             return false;
         }
 
@@ -218,7 +218,7 @@ class StudentConcession extends Model
             'status' => 'rejected',
             'approved_by' => auth()->id(),
             'approved_at' => now(),
-            'approval_notes' => $rejectionReason
+            'approval_notes' => $rejectionReason,
         ]);
 
         return true;
@@ -229,7 +229,7 @@ class StudentConcession extends Model
      */
     public function apply(): bool
     {
-        if (!$this->canBeApplied()) {
+        if (! $this->canBeApplied()) {
             return false;
         }
 
@@ -243,7 +243,7 @@ class StudentConcession extends Model
                     'concession_amount' => $studentFee->concession_amount + $this->concession_amount,
                     'concession_reason' => $this->reason,
                     'concession_approved_by' => $this->approved_by,
-                    'concession_approved_at' => $this->approved_at
+                    'concession_approved_at' => $this->approved_at,
                 ]);
 
                 // Update fee status
@@ -254,15 +254,17 @@ class StudentConcession extends Model
             $this->update([
                 'status' => 'applied',
                 'applied_by' => auth()->id(),
-                'applied_at' => now()
+                'applied_at' => now(),
             ]);
 
             \DB::commit();
+
             return true;
 
         } catch (\Exception $e) {
             \DB::rollback();
-            \Log::error('Failed to apply concession: ' . $e->getMessage());
+            \Log::error('Failed to apply concession: '.$e->getMessage());
+
             return false;
         }
     }
@@ -270,9 +272,9 @@ class StudentConcession extends Model
     /**
      * Reverse the concession
      */
-    public function reverse(string $reason = null): bool
+    public function reverse(?string $reason = null): bool
     {
-        if (!$this->canBeReversed()) {
+        if (! $this->canBeReversed()) {
             return false;
         }
 
@@ -283,7 +285,7 @@ class StudentConcession extends Model
             if ($this->status === 'applied' && $this->student_fee_id) {
                 $studentFee = $this->studentFee;
                 $studentFee->update([
-                    'concession_amount' => max(0, $studentFee->concession_amount - $this->concession_amount)
+                    'concession_amount' => max(0, $studentFee->concession_amount - $this->concession_amount),
                 ]);
 
                 // Update fee status
@@ -295,15 +297,17 @@ class StudentConcession extends Model
                 'status' => 'reversed',
                 'reversed_by' => auth()->id(),
                 'reversed_at' => now(),
-                'reversal_reason' => $reason
+                'reversal_reason' => $reason,
             ]);
 
             \DB::commit();
+
             return true;
 
         } catch (\Exception $e) {
             \DB::rollback();
-            \Log::error('Failed to reverse concession: ' . $e->getMessage());
+            \Log::error('Failed to reverse concession: '.$e->getMessage());
+
             return false;
         }
     }
@@ -313,7 +317,7 @@ class StudentConcession extends Model
      */
     public function calculateAmountFromPercentage(float $baseAmount): float
     {
-        if (!$this->percentage) {
+        if (! $this->percentage) {
             return 0;
         }
 
@@ -326,9 +330,10 @@ class StudentConcession extends Model
     public function getFormattedConcessionAttribute(): string
     {
         if ($this->concession_type === 'percentage' && $this->percentage) {
-            return $this->percentage . '%';
+            return $this->percentage.'%';
         }
-        return '₹' . number_format($this->concession_amount, 2);
+
+        return '₹'.number_format($this->concession_amount, 2);
     }
 
     public function getStatusBadgeAttribute(): string
@@ -338,7 +343,7 @@ class StudentConcession extends Model
             'approved' => '<span class="badge badge-info">Approved</span>',
             'applied' => '<span class="badge badge-success">Applied</span>',
             'rejected' => '<span class="badge badge-danger">Rejected</span>',
-            'reversed' => '<span class="badge badge-secondary">Reversed</span>'
+            'reversed' => '<span class="badge badge-secondary">Reversed</span>',
         ];
 
         return $badges[$this->status] ?? '<span class="badge badge-light">Unknown</span>';
@@ -352,7 +357,7 @@ class StudentConcession extends Model
             'discount' => 'Discount',
             'special_case' => 'Special Case',
             'percentage' => 'Percentage Discount',
-            'fixed_amount' => 'Fixed Amount Discount'
+            'fixed_amount' => 'Fixed Amount Discount',
         ];
 
         return $types[$this->concession_type] ?? ucfirst(str_replace('_', ' ', $this->concession_type));

@@ -2,22 +2,23 @@
 
 namespace Tests\Feature;
 
+use App\Models\Setting;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
-use Tests\TestCase;
-use App\Models\User;
-use App\Models\Setting;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\Models\Permission;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
+use Tests\TestCase;
 
 class SettingsTest extends TestCase
 {
     use RefreshDatabase, WithFaker;
 
     protected $admin;
+
     protected $user;
 
     protected function setUp(): void
@@ -48,7 +49,7 @@ class SettingsTest extends TestCase
     public function admin_can_view_settings_page()
     {
         $response = $this->actingAs($this->admin)
-                         ->get(route('admin.settings.index'));
+            ->get(route('admin.settings.index'));
 
         $response->assertStatus(200);
         $response->assertViewIs('admin.settings.index');
@@ -59,7 +60,7 @@ class SettingsTest extends TestCase
     public function non_admin_cannot_view_settings_page()
     {
         $response = $this->actingAs($this->user)
-                         ->get(route('admin.settings.index'));
+            ->get(route('admin.settings.index'));
 
         $response->assertStatus(403);
     }
@@ -71,21 +72,21 @@ class SettingsTest extends TestCase
             'key' => 'app_name',
             'value' => 'Old Name',
             'group' => 'general',
-            'type' => 'text'
+            'type' => 'text',
         ]);
 
         $response = $this->actingAs($this->admin)
-                         ->post(route('admin.settings.update'), [
-                             'app_name' => 'New College Name',
-                             'active_tab' => 'general'
-                         ]);
+            ->post(route('admin.settings.update'), [
+                'app_name' => 'New College Name',
+                'active_tab' => 'general',
+            ]);
 
         $response->assertRedirect();
         $response->assertSessionHas('success');
 
         $this->assertDatabaseHas('settings', [
             'key' => 'app_name',
-            'value' => 'New College Name'
+            'value' => 'New College Name',
         ]);
     }
 
@@ -93,10 +94,10 @@ class SettingsTest extends TestCase
     public function setting_validation_works()
     {
         $response = $this->actingAs($this->admin)
-                         ->post(route('admin.settings.update'), [
-                             'college_email' => 'invalid-email',
-                             'active_tab' => 'college'
-                         ]);
+            ->post(route('admin.settings.update'), [
+                'college_email' => 'invalid-email',
+                'active_tab' => 'college',
+            ]);
 
         $response->assertSessionHasErrors('college_email');
     }
@@ -109,10 +110,10 @@ class SettingsTest extends TestCase
         $file = UploadedFile::fake()->image('logo.jpg', 200, 200);
 
         $response = $this->actingAs($this->admin)
-                         ->post(route('admin.settings.update'), [
-                             'college_logo' => $file,
-                             'active_tab' => 'college'
-                         ]);
+            ->post(route('admin.settings.update'), [
+                'college_logo' => $file,
+                'active_tab' => 'college',
+            ]);
 
         $response->assertRedirect();
         $response->assertSessionHas('success');
@@ -129,17 +130,17 @@ class SettingsTest extends TestCase
             'key' => 'test_setting',
             'value' => 'test_value',
             'group' => 'general',
-            'type' => 'text'
+            'type' => 'text',
         ]);
 
         $response = $this->actingAs($this->admin)
-                         ->get(route('admin.settings.export'));
+            ->get(route('admin.settings.export'));
 
         $response->assertStatus(200);
         $response->assertJsonStructure([
             'exported_at',
             'app_version',
-            'settings'
+            'settings',
         ]);
     }
 
@@ -152,9 +153,9 @@ class SettingsTest extends TestCase
                     'key' => 'imported_setting',
                     'value' => 'imported_value',
                     'group' => 'general',
-                    'type' => 'text'
-                ]
-            ]
+                    'type' => 'text',
+                ],
+            ],
         ];
 
         $file = UploadedFile::fake()->createWithContent(
@@ -163,16 +164,16 @@ class SettingsTest extends TestCase
         );
 
         $response = $this->actingAs($this->admin)
-                         ->post(route('admin.settings.import'), [
-                             'settings_file' => $file
-                         ]);
+            ->post(route('admin.settings.import'), [
+                'settings_file' => $file,
+            ]);
 
         $response->assertRedirect();
         $response->assertSessionHas('success');
 
         $this->assertDatabaseHas('settings', [
             'key' => 'imported_setting',
-            'value' => 'imported_value'
+            'value' => 'imported_value',
         ]);
     }
 
@@ -183,13 +184,13 @@ class SettingsTest extends TestCase
             'key' => 'app_name',
             'value' => 'Modified Name',
             'group' => 'general',
-            'type' => 'text'
+            'type' => 'text',
         ]);
 
         $response = $this->actingAs($this->admin)
-                         ->post(route('admin.settings.reset-defaults'), [
-                             'group' => 'general'
-                         ]);
+            ->post(route('admin.settings.reset-defaults'), [
+                'group' => 'general',
+            ]);
 
         $response->assertRedirect();
         $response->assertSessionHas('success');
@@ -199,9 +200,9 @@ class SettingsTest extends TestCase
     public function admin_can_test_email_configuration()
     {
         $response = $this->actingAs($this->admin)
-                         ->postJson(route('admin.settings.test-email'), [
-                             'test_email' => 'test@example.com'
-                         ]);
+            ->postJson(route('admin.settings.test-email'), [
+                'test_email' => 'test@example.com',
+            ]);
 
         $response->assertJsonStructure(['success', 'message']);
     }
@@ -212,7 +213,7 @@ class SettingsTest extends TestCase
         Cache::put('test_key', 'test_value', 60);
 
         $response = $this->actingAs($this->admin)
-                         ->postJson(route('admin.settings.clear-cache'));
+            ->postJson(route('admin.settings.clear-cache'));
 
         $response->assertJson(['success' => true]);
     }
@@ -224,11 +225,11 @@ class SettingsTest extends TestCase
             'key' => 'maintenance_mode',
             'value' => '0',
             'group' => 'general',
-            'type' => 'toggle'
+            'type' => 'toggle',
         ]);
 
         $response = $this->actingAs($this->admin)
-                         ->postJson(route('admin.settings.toggle-maintenance'));
+            ->postJson(route('admin.settings.toggle-maintenance'));
 
         $response->assertJson(['success' => true]);
     }
@@ -240,11 +241,11 @@ class SettingsTest extends TestCase
             'key' => 'test_setting',
             'value' => 'test_value',
             'group' => 'general',
-            'type' => 'text'
+            'type' => 'text',
         ]);
 
         $response = $this->actingAs($this->admin)
-                         ->postJson(route('admin.settings.backup'));
+            ->postJson(route('admin.settings.backup'));
 
         $response->assertJson(['success' => true]);
         $response->assertJsonStructure(['success', 'message', 'file']);
@@ -254,7 +255,7 @@ class SettingsTest extends TestCase
     public function admin_can_view_system_info()
     {
         $response = $this->actingAs($this->admin)
-                         ->get(route('admin.settings.system-info'));
+            ->get(route('admin.settings.system-info'));
 
         $response->assertStatus(200);
         $response->assertViewIs('admin.settings.system-info');
@@ -265,12 +266,12 @@ class SettingsTest extends TestCase
     public function admin_can_run_health_check()
     {
         $response = $this->actingAs($this->admin)
-                         ->getJson(route('admin.settings.health-check'));
+            ->getJson(route('admin.settings.health-check'));
 
         $response->assertJsonStructure([
             'status',
             'checks',
-            'timestamp'
+            'timestamp',
         ]);
     }
 
@@ -281,7 +282,7 @@ class SettingsTest extends TestCase
             'key' => 'test_setting',
             'value' => 'test_value',
             'group' => 'general',
-            'type' => 'text'
+            'type' => 'text',
         ]);
 
         $value = setting('test_setting');
@@ -298,14 +299,14 @@ class SettingsTest extends TestCase
             'key' => 'boolean_setting',
             'value' => '1',
             'group' => 'general',
-            'type' => 'toggle'
+            'type' => 'toggle',
         ]);
 
         Setting::create([
             'key' => 'number_setting',
             'value' => '42',
             'group' => 'general',
-            'type' => 'number'
+            'type' => 'number',
         ]);
 
         $boolValue = setting('boolean_setting', false, 'bool');
@@ -322,15 +323,15 @@ class SettingsTest extends TestCase
             'key' => 'cached_setting',
             'value' => 'cached_value',
             'group' => 'general',
-            'type' => 'text'
+            'type' => 'text',
         ]);
 
         // First call should hit database
         $value1 = setting('cached_setting');
-        
+
         // Second call should hit cache
         $value2 = setting('cached_setting');
-        
+
         $this->assertEquals($value1, $value2);
         $this->assertTrue(Cache::has('all_settings'));
     }
@@ -343,7 +344,7 @@ class SettingsTest extends TestCase
             'value' => encrypt('secret_value'),
             'group' => 'security',
             'type' => 'password',
-            'is_encrypted' => true
+            'is_encrypted' => true,
         ]);
 
         $value = setting('encrypted_setting');
@@ -354,11 +355,11 @@ class SettingsTest extends TestCase
     public function update_setting_helper_works()
     {
         $result = update_setting('new_setting', 'new_value');
-        
+
         $this->assertTrue($result);
         $this->assertDatabaseHas('settings', [
             'key' => 'new_setting',
-            'value' => 'new_value'
+            'value' => 'new_value',
         ]);
     }
 
@@ -369,18 +370,18 @@ class SettingsTest extends TestCase
             'key' => 'group_setting_1',
             'value' => 'value_1',
             'group' => 'test_group',
-            'type' => 'text'
+            'type' => 'text',
         ]);
 
         Setting::create([
             'key' => 'group_setting_2',
             'value' => 'value_2',
             'group' => 'test_group',
-            'type' => 'text'
+            'type' => 'text',
         ]);
 
         $groupSettings = get_settings_by_group('test_group');
-        
+
         $this->assertCount(2, $groupSettings);
         $this->assertEquals('value_1', $groupSettings['group_setting_1']);
         $this->assertEquals('value_2', $groupSettings['group_setting_2']);
@@ -394,7 +395,7 @@ class SettingsTest extends TestCase
             'value' => 'public_value',
             'group' => 'general',
             'type' => 'text',
-            'is_public' => true
+            'is_public' => true,
         ]);
 
         Setting::create([
@@ -402,11 +403,11 @@ class SettingsTest extends TestCase
             'value' => 'private_value',
             'group' => 'general',
             'type' => 'text',
-            'is_public' => false
+            'is_public' => false,
         ]);
 
         $publicSettings = get_public_settings();
-        
+
         $this->assertArrayHasKey('public_setting', $publicSettings);
         $this->assertArrayNotHasKey('private_setting', $publicSettings);
         $this->assertEquals('public_value', $publicSettings['public_setting']);
@@ -420,7 +421,7 @@ class SettingsTest extends TestCase
             'value' => '',
             'group' => 'general',
             'type' => 'email',
-            'validation_rules' => json_encode(['email', 'required'])
+            'validation_rules' => json_encode(['email', 'required']),
         ]);
 
         $validResult = validate_setting('email_setting', 'valid@email.com');
@@ -437,7 +438,7 @@ class SettingsTest extends TestCase
             'key' => 'backup_test_setting',
             'value' => 'backup_test_value',
             'group' => 'general',
-            'type' => 'text'
+            'type' => 'text',
         ]);
 
         // Create backup
@@ -467,17 +468,17 @@ class SettingsTest extends TestCase
     {
         // Test get groups
         $response = $this->actingAs($this->admin)
-                         ->getJson(route('admin.api.settings.groups'));
+            ->getJson(route('admin.api.settings.groups'));
         $response->assertStatus(200);
 
         // Test get public settings
         $response = $this->actingAs($this->admin)
-                         ->getJson(route('admin.api.settings.public'));
+            ->getJson(route('admin.api.settings.public'));
         $response->assertStatus(200);
 
         // Test get statistics
         $response = $this->actingAs($this->admin)
-                         ->getJson(route('admin.api.settings.statistics'));
+            ->getJson(route('admin.api.settings.statistics'));
         $response->assertStatus(200);
     }
 
@@ -485,7 +486,7 @@ class SettingsTest extends TestCase
     public function api_endpoints_require_authorization()
     {
         $response = $this->actingAs($this->user)
-                         ->getJson(route('admin.api.settings.groups'));
+            ->getJson(route('admin.api.settings.groups'));
         $response->assertStatus(403);
 
         $response = $this->getJson(route('admin.api.settings.groups'));
@@ -499,7 +500,7 @@ class SettingsTest extends TestCase
             'key' => 'typed_setting',
             'value' => '1',
             'group' => 'general',
-            'type' => 'toggle'
+            'type' => 'toggle',
         ]);
 
         $typedValue = $setting->getTypedValue();
@@ -522,7 +523,7 @@ class SettingsTest extends TestCase
             'value' => '',
             'group' => 'general',
             'type' => 'email',
-            'validation_rules' => json_encode(['email', 'required'])
+            'validation_rules' => json_encode(['email', 'required']),
         ]);
 
         $validResult = $setting->validateValue('valid@email.com');
@@ -540,7 +541,7 @@ class SettingsTest extends TestCase
             'key' => 'display_setting',
             'value' => '1',
             'group' => 'general',
-            'type' => 'toggle'
+            'type' => 'toggle',
         ]);
 
         $displayValue = $setting->getDisplayValue();
@@ -560,14 +561,14 @@ class SettingsTest extends TestCase
             'key' => 'export_setting_1',
             'value' => 'value_1',
             'group' => 'test_group',
-            'type' => 'text'
+            'type' => 'text',
         ]);
 
         Setting::create([
             'key' => 'export_setting_2',
             'value' => 'value_2',
             'group' => 'test_group',
-            'type' => 'text'
+            'type' => 'text',
         ]);
 
         // Test export
@@ -585,7 +586,7 @@ class SettingsTest extends TestCase
         // Verify import
         $this->assertDatabaseHas('settings', [
             'key' => 'export_setting_1',
-            'value' => 'value_1'
+            'value' => 'value_1',
         ]);
     }
 
@@ -593,7 +594,7 @@ class SettingsTest extends TestCase
     public function system_info_helper_works()
     {
         $systemInfo = get_system_info();
-        
+
         $this->assertIsArray($systemInfo);
         $this->assertArrayHasKey('app_name', $systemInfo);
         $this->assertArrayHasKey('php_version', $systemInfo);
@@ -623,7 +624,7 @@ class SettingsTest extends TestCase
             'key' => 'cache_test_setting',
             'value' => 'cache_test_value',
             'group' => 'general',
-            'type' => 'text'
+            'type' => 'text',
         ]);
 
         // Cache should be cleared
@@ -637,18 +638,18 @@ class SettingsTest extends TestCase
             'key' => 'setting_1',
             'value' => 'value_1',
             'group' => 'general',
-            'type' => 'text'
+            'type' => 'text',
         ]);
 
         Setting::create([
             'key' => 'setting_2',
             'value' => 'value_2',
             'group' => 'general',
-            'type' => 'text'
+            'type' => 'text',
         ]);
 
         $result = settings(['setting_1', 'setting_2', 'non_existent'], [
-            'non_existent' => 'default_value'
+            'non_existent' => 'default_value',
         ]);
 
         $this->assertEquals('value_1', $result['setting_1']);
@@ -686,14 +687,14 @@ class SettingsTest extends TestCase
         ];
 
         $result = Setting::bulkUpsert($settings);
-        
+
         $this->assertEquals(3, $result['success']);
         $this->assertEquals(0, $result['failed']);
 
         foreach ($settings as $key => $value) {
             $this->assertDatabaseHas('settings', [
                 'key' => $key,
-                'value' => $value
+                'value' => $value,
             ]);
         }
     }
@@ -703,7 +704,7 @@ class SettingsTest extends TestCase
         // Clean up any created backup files
         $backupPath = storage_path('app/backups');
         if (is_dir($backupPath)) {
-            $files = glob($backupPath . '/settings-backup-*.json');
+            $files = glob($backupPath.'/settings-backup-*.json');
             foreach ($files as $file) {
                 if (file_exists($file)) {
                     unlink($file);

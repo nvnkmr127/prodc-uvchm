@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::table('fee_categories', function (Blueprint $table) {
             // Only add the description column if it doesn't already exist
-            if (!Schema::hasColumn('fee_categories', 'description')) {
+            if (! Schema::hasColumn('fee_categories', 'description')) {
                 $table->text('description')->nullable()->after('name');
             }
         });

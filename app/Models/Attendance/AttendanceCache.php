@@ -2,12 +2,11 @@
 
 namespace App\Models\Attendance;
 
+use App\Models\Batch;
+use App\Models\Student;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use App\Models\Student;
-use App\Models\Batch;
-use Carbon\Carbon;
 
 class AttendanceCache extends Model
 {
@@ -32,7 +31,7 @@ class AttendanceCache extends Model
         'consecutive_absents',
         'analytics_data',
         'is_current',
-        'expires_at'
+        'expires_at',
     ];
 
     protected $casts = [
@@ -69,10 +68,10 @@ class AttendanceCache extends Model
     public function scopeCurrent($query)
     {
         return $query->where('is_current', true)
-                    ->where(function ($q) {
-                        $q->whereNull('expires_at')
-                          ->orWhere('expires_at', '>', now());
-                    });
+            ->where(function ($q) {
+                $q->whereNull('expires_at')
+                    ->orWhere('expires_at', '>', now());
+            });
     }
 
     /**
@@ -81,7 +80,7 @@ class AttendanceCache extends Model
     public function scopeExpired($query)
     {
         return $query->where('expires_at', '<', now())
-                    ->orWhere('is_current', false);
+            ->orWhere('is_current', false);
     }
 
     /**
@@ -98,7 +97,7 @@ class AttendanceCache extends Model
     public function scopeForPeriod($query, string $periodType, string $periodValue)
     {
         return $query->where('period_type', $periodType)
-                    ->where('period_value', $periodValue);
+            ->where('period_value', $periodValue);
     }
 
     /**
@@ -113,13 +112,13 @@ class AttendanceCache extends Model
      * Get or create cache entry for student
      */
     public static function getOrCreateForStudent(
-        int $studentId, 
-        string $cacheType = 'overall', 
+        int $studentId,
+        string $cacheType = 'overall',
         string $periodType = 'academic_year',
-        string $periodValue = null
+        ?string $periodValue = null
     ): self {
         $periodValue = $periodValue ?? now()->format('Y');
-        
+
         return static::firstOrCreate(
             [
                 'student_id' => $studentId,
@@ -150,13 +149,13 @@ class AttendanceCache extends Model
         $totalClasses = $attendanceData['total_classes'] ?? 0;
         $presentClasses = $attendanceData['present_classes'] ?? 0;
         $lateClasses = $attendanceData['late_classes'] ?? 0;
-        
-        $attendancePercentage = $totalClasses > 0 
-            ? (($presentClasses + $lateClasses) / $totalClasses) * 100 
+
+        $attendancePercentage = $totalClasses > 0
+            ? (($presentClasses + $lateClasses) / $totalClasses) * 100
             : 100;
-            
-        $punctualityPercentage = $totalClasses > 0 
-            ? ($presentClasses / $totalClasses) * 100 
+
+        $punctualityPercentage = $totalClasses > 0
+            ? ($presentClasses / $totalClasses) * 100
             : 100;
 
         $this->update([
@@ -188,7 +187,7 @@ class AttendanceCache extends Model
             ->orderBy('calculation_date', 'desc')
             ->first();
 
-        if (!$previousCache) {
+        if (! $previousCache) {
             return 'stable';
         }
 
@@ -220,7 +219,7 @@ class AttendanceCache extends Model
     public function getAttendanceStatusAttribute(): array
     {
         $percentage = $this->attendance_percentage;
-        
+
         if ($percentage >= 90) {
             return ['text' => 'Excellent', 'class' => 'success'];
         } elseif ($percentage >= 80) {
@@ -237,7 +236,7 @@ class AttendanceCache extends Model
      */
     public function getTrendBadgeAttribute(): array
     {
-        return match($this->trend_direction) {
+        return match ($this->trend_direction) {
             'improving' => ['text' => 'Improving', 'class' => 'success', 'icon' => 'fa-arrow-up'],
             'declining' => ['text' => 'Declining', 'class' => 'danger', 'icon' => 'fa-arrow-down'],
             default => ['text' => 'Stable', 'class' => 'secondary', 'icon' => 'fa-minus'],
@@ -267,7 +266,7 @@ class AttendanceCache extends Model
     public static function getDashboardSummary(): array
     {
         $current = static::current();
-        
+
         return [
             'total_students' => $current->distinct('student_id')->count(),
             'excellent_attendance' => $current->where('attendance_percentage', '>=', 90)->count(),

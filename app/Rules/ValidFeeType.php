@@ -2,8 +2,8 @@
 
 namespace App\Rules;
 
-use Illuminate\Contracts\Validation\Rule;
 use App\Models\FeeCategory;
+use Illuminate\Contracts\Validation\Rule;
 
 class ValidFeeType implements Rule
 {

@@ -14,23 +14,23 @@ return new class extends Migration
         // Instead of creating the table, modify the existing one
         Schema::table('dashboards', function (Blueprint $table) {
             // Add new columns that don't exist
-            if (!Schema::hasColumn('dashboards', 'slug')) {
+            if (! Schema::hasColumn('dashboards', 'slug')) {
                 $table->string('slug')->after('name');
             }
-            
-            if (!Schema::hasColumn('dashboards', 'layout')) {
+
+            if (! Schema::hasColumn('dashboards', 'layout')) {
                 $table->json('layout')->nullable()->after('role_id');
             }
-            
-            if (!Schema::hasColumn('dashboards', 'config')) {
+
+            if (! Schema::hasColumn('dashboards', 'config')) {
                 $table->json('config')->nullable()->after('layout');
             }
-            
-            if (!Schema::hasColumn('dashboards', 'is_active')) {
+
+            if (! Schema::hasColumn('dashboards', 'is_active')) {
                 $table->boolean('is_active')->default(true)->after('config');
             }
-            
-            if (!Schema::hasColumn('dashboards', 'is_default')) {
+
+            if (! Schema::hasColumn('dashboards', 'is_default')) {
                 $table->boolean('is_default')->default(false)->after('is_active');
             }
         });
@@ -46,7 +46,7 @@ return new class extends Migration
 
         // Populate slug column for existing records if any
         DB::table('dashboards')->whereNull('slug')->orWhere('slug', '')->update([
-            'slug' => DB::raw("LOWER(REPLACE(name, ' ', '-'))")
+            'slug' => DB::raw("LOWER(REPLACE(name, ' ', '-'))"),
         ]);
     }
 

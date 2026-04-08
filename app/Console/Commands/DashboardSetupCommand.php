@@ -1,10 +1,10 @@
 <?php
+
 // File: app/Console/Commands/DashboardSetupCommand.php
 
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Artisan;
 
 class DashboardSetupCommand extends Command
 {
@@ -20,9 +20,9 @@ class DashboardSetupCommand extends Command
         $this->newLine();
 
         // Check if already set up
-        if (!$this->option('force') && $this->isDashboardSetup()) {
+        if (! $this->option('force') && $this->isDashboardSetup()) {
             $this->warn('Dashboard system appears to be already set up.');
-            if (!$this->confirm('Do you want to continue anyway?')) {
+            if (! $this->confirm('Do you want to continue anyway?')) {
                 return 0;
             }
         }
@@ -33,21 +33,21 @@ class DashboardSetupCommand extends Command
             'syncWidgets' => 'Syncing widget definitions...',
             'runSeeders' => 'Running dashboard seeders...',
             'clearCaches' => 'Clearing caches...',
-            'validateSetup' => 'Validating setup...'
+            'validateSetup' => 'Validating setup...',
         ];
 
         $progressBar = $this->output->createProgressBar(count($steps));
         $progressBar->start();
 
         foreach ($steps as $method => $description) {
-            $this->info("\n" . $description);
+            $this->info("\n".$description);
             $this->{$method}();
             $progressBar->advance();
         }
 
         $progressBar->finish();
         $this->newLine(2);
-        
+
         $this->info('✅ Dashboard system setup completed successfully!');
         $this->displayNextSteps();
 
@@ -57,7 +57,7 @@ class DashboardSetupCommand extends Command
     private function isDashboardSetup(): bool
     {
         try {
-            return \App\Models\Dashboard::count() > 0 && 
+            return \App\Models\Dashboard::count() > 0 &&
                    \App\Models\Widget::count() > 0;
         } catch (\Exception $e) {
             return false;
@@ -75,11 +75,11 @@ class DashboardSetupCommand extends Command
             storage_path('app/exports'),
             storage_path('app/dashboard-cache'),
             public_path('dashboard-assets'),
-            resource_path('views/dashboard/widgets')
+            resource_path('views/dashboard/widgets'),
         ];
 
         foreach ($directories as $directory) {
-            if (!is_dir($directory)) {
+            if (! is_dir($directory)) {
                 mkdir($directory, 0755, true);
                 $this->line("Created: {$directory}");
             }
@@ -96,9 +96,9 @@ class DashboardSetupCommand extends Command
         if ($this->option('seed')) {
             $seeders = [
                 'DashboardPermissionSeeder',
-                'WidgetCategorySeeder', 
+                'WidgetCategorySeeder',
                 'WidgetSeeder',
-                'DashboardSeeder'
+                'DashboardSeeder',
             ];
 
             foreach ($seeders as $seeder) {

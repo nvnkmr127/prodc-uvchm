@@ -64,8 +64,8 @@ class IntegrationController extends Controller
             return view('admin.integrations.payment-gateways', compact('gateways', 'stats'));
 
         } catch (\Exception $e) {
-            Log::error('Error loading payment gateways: ' . $e->getMessage());
-            
+            Log::error('Error loading payment gateways: '.$e->getMessage());
+
             return back()->with('error', 'Error loading payment gateway settings.');
         }
     }
@@ -77,39 +77,39 @@ class IntegrationController extends Controller
     {
         try {
             $result = [];
-            
+
             switch ($gateway) {
                 case 'razorpay':
                     $result = $this->testRazorpay($request);
                     break;
-                    
+
                 case 'payu':
                     $result = $this->testPayU($request);
                     break;
-                    
+
                 case 'phonepe':
                     $result = $this->testPhonePe($request);
                     break;
-                    
+
                 case 'stripe':
                     $result = $this->testStripe($request);
                     break;
-                    
+
                 default:
                     return response()->json([
                         'success' => false,
-                        'message' => 'Unsupported gateway: ' . $gateway
+                        'message' => 'Unsupported gateway: '.$gateway,
                     ]);
             }
 
             return response()->json($result);
 
         } catch (\Exception $e) {
-            Log::error("Gateway test failed for {$gateway}: " . $e->getMessage());
-            
+            Log::error("Gateway test failed for {$gateway}: ".$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Test failed: ' . $e->getMessage()
+                'message' => 'Test failed: '.$e->getMessage(),
             ]);
         }
     }
@@ -141,8 +141,8 @@ class IntegrationController extends Controller
             return view('admin.integrations.webhooks', compact('webhooks', 'recentWebhooks'));
 
         } catch (\Exception $e) {
-            Log::error('Error loading webhook settings: ' . $e->getMessage());
-            
+            Log::error('Error loading webhook settings: '.$e->getMessage());
+
             return back()->with('error', 'Error loading webhook settings.');
         }
     }
@@ -155,39 +155,39 @@ class IntegrationController extends Controller
         try {
             $webhookType = $request->input('type', 'payment_webhook');
             $newSecret = Str::random(32);
-            
+
             switch ($webhookType) {
                 case 'payment_webhook':
                     $this->setSetting('webhook_secret', $newSecret);
                     break;
-                    
+
                 case 'razorpay_webhook':
                     $this->setSetting('razorpay_webhook_secret', $newSecret);
                     break;
-                    
+
                 case 'stripe_webhook':
                     $this->setSetting('stripe_webhook_secret', $newSecret);
                     break;
-                    
+
                 default:
                     return response()->json([
                         'success' => false,
-                        'message' => 'Invalid webhook type'
+                        'message' => 'Invalid webhook type',
                     ]);
             }
 
             return response()->json([
                 'success' => true,
                 'message' => 'Webhook secret regenerated successfully',
-                'secret' => $newSecret
+                'secret' => $newSecret,
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error regenerating webhook secret: ' . $e->getMessage());
-            
+            Log::error('Error regenerating webhook secret: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error regenerating webhook secret'
+                'message' => 'Error regenerating webhook secret',
             ]);
         }
     }
@@ -199,18 +199,18 @@ class IntegrationController extends Controller
     {
         $keyId = $request->input('key_id') ?: $this->getSetting('razorpay_key_id');
         $keySecret = $request->input('key_secret') ?: $this->getSetting('razorpay_key_secret');
-        
-        if (!$keyId || !$keySecret) {
+
+        if (! $keyId || ! $keySecret) {
             return [
                 'success' => false,
-                'message' => 'Razorpay credentials not configured'
+                'message' => 'Razorpay credentials not configured',
             ];
         }
 
         try {
             $response = Http::withBasicAuth($keyId, $keySecret)
                 ->get('https://api.razorpay.com/v1/payments', [
-                    'count' => 1
+                    'count' => 1,
                 ]);
 
             if ($response->successful()) {
@@ -220,20 +220,20 @@ class IntegrationController extends Controller
                     'data' => [
                         'api_status' => 'Connected',
                         'test_mode' => $this->getSetting('razorpay_test_mode', true),
-                        'response_code' => $response->status()
-                    ]
+                        'response_code' => $response->status(),
+                    ],
                 ];
             }
 
             return [
                 'success' => false,
-                'message' => 'Razorpay API error: ' . $response->body()
+                'message' => 'Razorpay API error: '.$response->body(),
             ];
 
         } catch (\Exception $e) {
             return [
                 'success' => false,
-                'message' => 'Razorpay connection failed: ' . $e->getMessage()
+                'message' => 'Razorpay connection failed: '.$e->getMessage(),
             ];
         }
     }
@@ -245,11 +245,11 @@ class IntegrationController extends Controller
     {
         $merchantKey = $request->input('merchant_key') ?: $this->getSetting('payu_merchant_key');
         $merchantSalt = $request->input('merchant_salt') ?: $this->getSetting('payu_merchant_salt');
-        
-        if (!$merchantKey || !$merchantSalt) {
+
+        if (! $merchantKey || ! $merchantSalt) {
             return [
                 'success' => false,
-                'message' => 'PayU credentials not configured'
+                'message' => 'PayU credentials not configured',
             ];
         }
 
@@ -257,8 +257,8 @@ class IntegrationController extends Controller
             $testData = [
                 'key' => $merchantKey,
                 'command' => 'verify_payment',
-                'var1' => 'test_transaction_' . time(),
-                'hash' => hash('sha512', $merchantKey . '|verify_payment|test_transaction_' . time() . '|' . $merchantSalt)
+                'var1' => 'test_transaction_'.time(),
+                'hash' => hash('sha512', $merchantKey.'|verify_payment|test_transaction_'.time().'|'.$merchantSalt),
             ];
 
             $response = Http::asForm()->post('https://info.payu.in/merchant/postservice?form=2', $testData);
@@ -269,14 +269,14 @@ class IntegrationController extends Controller
                 'data' => [
                     'api_status' => $response->successful() ? 'Connected' : 'Error',
                     'test_mode' => $this->getSetting('payu_test_mode', true),
-                    'response_code' => $response->status()
-                ]
+                    'response_code' => $response->status(),
+                ],
             ];
 
         } catch (\Exception $e) {
             return [
                 'success' => false,
-                'message' => 'PayU connection failed: ' . $e->getMessage()
+                'message' => 'PayU connection failed: '.$e->getMessage(),
             ];
         }
     }
@@ -288,23 +288,23 @@ class IntegrationController extends Controller
     {
         $merchantId = $request->input('merchant_id') ?: $this->getSetting('phonepe_merchant_id');
         $apiKey = $request->input('api_key') ?: $this->getSetting('phonepe_api_key');
-        
-        if (!$merchantId || !$apiKey) {
+
+        if (! $merchantId || ! $apiKey) {
             return [
                 'success' => false,
-                'message' => 'PhonePe credentials not configured'
+                'message' => 'PhonePe credentials not configured',
             ];
         }
 
         try {
-            $testUrl = $this->getSetting('phonepe_test_mode', true) 
+            $testUrl = $this->getSetting('phonepe_test_mode', true)
                 ? 'https://api-preprod.phonepe.com/apis/merchant-simulator'
                 : 'https://api.phonepe.com/apis/hermes';
 
             $response = Http::withHeaders([
-                'X-VERIFY' => hash('sha256', 'test' . $apiKey) . '###1',
-                'Content-Type' => 'application/json'
-            ])->get($testUrl . '/status');
+                'X-VERIFY' => hash('sha256', 'test'.$apiKey).'###1',
+                'Content-Type' => 'application/json',
+            ])->get($testUrl.'/status');
 
             return [
                 'success' => true,
@@ -312,14 +312,14 @@ class IntegrationController extends Controller
                 'data' => [
                     'api_status' => $response->successful() ? 'Connected' : 'Error',
                     'test_mode' => $this->getSetting('phonepe_test_mode', true),
-                    'response_code' => $response->status()
-                ]
+                    'response_code' => $response->status(),
+                ],
             ];
 
         } catch (\Exception $e) {
             return [
                 'success' => false,
-                'message' => 'PhonePe connection failed: ' . $e->getMessage()
+                'message' => 'PhonePe connection failed: '.$e->getMessage(),
             ];
         }
     }
@@ -330,42 +330,43 @@ class IntegrationController extends Controller
     private function testStripe(Request $request): array
     {
         $secretKey = $request->input('secret_key') ?: $this->getSetting('stripe_secret_key');
-        
-        if (!$secretKey) {
+
+        if (! $secretKey) {
             return [
                 'success' => false,
-                'message' => 'Stripe secret key not configured'
+                'message' => 'Stripe secret key not configured',
             ];
         }
 
         try {
             $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $secretKey,
-                'Content-Type' => 'application/x-www-form-urlencoded'
+                'Authorization' => 'Bearer '.$secretKey,
+                'Content-Type' => 'application/x-www-form-urlencoded',
             ])->get('https://api.stripe.com/v1/balance');
 
             if ($response->successful()) {
                 $data = $response->json();
+
                 return [
                     'success' => true,
                     'message' => 'Stripe connection successful',
                     'data' => [
                         'api_status' => 'Connected',
                         'test_mode' => $this->getSetting('stripe_test_mode', true),
-                        'account_type' => ($data['livemode'] ?? false) ? 'Live' : 'Test'
-                    ]
+                        'account_type' => ($data['livemode'] ?? false) ? 'Live' : 'Test',
+                    ],
                 ];
             }
 
             return [
                 'success' => false,
-                'message' => 'Stripe API error: ' . $response->body()
+                'message' => 'Stripe API error: '.$response->body(),
             ];
 
         } catch (\Exception $e) {
             return [
                 'success' => false,
-                'message' => 'Stripe connection failed: ' . $e->getMessage()
+                'message' => 'Stripe connection failed: '.$e->getMessage(),
             ];
         }
     }
@@ -393,7 +394,8 @@ class IntegrationController extends Controller
             ];
 
         } catch (\Exception $e) {
-            Log::error('Error getting gateway stats: ' . $e->getMessage());
+            Log::error('Error getting gateway stats: '.$e->getMessage());
+
             return [
                 'total_transactions' => 0,
                 'total_amount' => 0,
@@ -412,11 +414,12 @@ class IntegrationController extends Controller
             // Try Settings model first
             if (class_exists('\App\Models\Setting')) {
                 $setting = \App\Models\Setting::where('key', $key)->first();
+
                 return $setting ? $setting->value : $default;
             }
-            
+
             // Fall back to config
-            return config('settings.' . $key, $default);
+            return config('settings.'.$key, $default);
         } catch (\Exception $e) {
             return $default;
         }
@@ -434,12 +437,14 @@ class IntegrationController extends Controller
                     ['value' => $value]
                 );
             }
-            
+
             // Log that we couldn't save the setting
             Log::warning("Could not save setting {$key}: Settings model not available");
+
             return false;
         } catch (\Exception $e) {
-            Log::error("Error saving setting {$key}: " . $e->getMessage());
+            Log::error("Error saving setting {$key}: ".$e->getMessage());
+
             return false;
         }
     }

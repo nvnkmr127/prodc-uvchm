@@ -14,10 +14,10 @@ return new class extends Migration
         Schema::table('students', function (Blueprint $table) {
             // Add the user_id column after the id column
             $table->foreignId('user_id')
-                  ->nullable() // Make it nullable initially if you have old records without users
-                  ->after('id')
-                  ->constrained('users') // This creates the foreign key constraint to the users table
-                  ->onDelete('cascade'); // Optional: if a user is deleted, their student profile is also deleted
+                ->nullable() // Make it nullable initially if you have old records without users
+                ->after('id')
+                ->constrained('users') // This creates the foreign key constraint to the users table
+                ->onDelete('cascade'); // Optional: if a user is deleted, their student profile is also deleted
         });
     }
 

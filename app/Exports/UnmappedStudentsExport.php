@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Exports;
 
 use App\Models\Student;
@@ -25,7 +26,7 @@ class UnmappedStudentsExport implements FromCollection, WithHeadings, WithMappin
             'batch',
             'course',
             'suggested_biometric_code',
-            'biometric_code'                 // ✅ Fixed: matches import expectation
+            'biometric_code',                 // ✅ Fixed: matches import expectation
         ];
     }
 
@@ -38,7 +39,7 @@ class UnmappedStudentsExport implements FromCollection, WithHeadings, WithMappin
             $student->batch->name ?? 'No Batch',
             $student->batch->course->name ?? 'No Course',
             $this->generateBiometricCodeFromEnrollment($student->enrollment_number),
-            '' // Empty column for manual entry - this will be the biometric_code column
+            '', // Empty column for manual entry - this will be the biometric_code column
         ];
     }
 
@@ -46,10 +47,10 @@ class UnmappedStudentsExport implements FromCollection, WithHeadings, WithMappin
     {
         // Remove common prefixes and extract numbers/letters
         $code = preg_replace('/^(UVCHM-|UV-|ENR-|STD-)/i', '', $enrollmentNumber);
-        
+
         // Remove any non-alphanumeric characters except hyphens
         $code = preg_replace('/[^a-zA-Z0-9\-]/', '', $code);
-        
+
         return $code;
     }
 }

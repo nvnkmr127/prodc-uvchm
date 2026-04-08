@@ -9,15 +9,15 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-public function up(): void
-{
-    Schema::create('holidays', function (Blueprint $table) {
-        $table->id();
-        $table->string('name'); // e.g., "Diwali", "Republic Day"
-        $table->date('date');
-        $table->timestamps();
-    });
-}
+    public function up(): void
+    {
+        Schema::create('holidays', function (Blueprint $table) {
+            $table->id();
+            $table->string('name'); // e.g., "Diwali", "Republic Day"
+            $table->date('date');
+            $table->timestamps();
+        });
+    }
 
     /**
      * Reverse the migrations.

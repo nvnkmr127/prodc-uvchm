@@ -10,6 +10,7 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 class AttendanceSampleExport implements FromArray, WithHeadings, WithStyles
 {
     protected $headers;
+
     protected $sampleData;
 
     public function __construct($headers, $sampleData)

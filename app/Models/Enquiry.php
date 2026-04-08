@@ -2,28 +2,28 @@
 
 namespace App\Models;
 
+use App\Traits\WebhookEnabled;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
-use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
-use App\Traits\WebhookEnabled;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class Enquiry extends Model
 {
-    use WebhookEnabled;
     use HasFactory, LogsActivity;
+    use WebhookEnabled;
 
     /** Single source of truth for all enquiry source options */
     const SOURCES = [
-        'Website'       => 'Website / Google',
-        'Social Media'  => 'Social Media',
-        'Agent'         => 'Agent',
-        'Referrals'     => 'Referrals',
+        'Website' => 'Website / Google',
+        'Social Media' => 'Social Media',
+        'Agent' => 'Agent',
+        'Referrals' => 'Referrals',
         'Student Refer' => 'Student Referral',
-        'Walk-in'       => 'Walk-in',
-        'Other'         => 'Other',
+        'Walk-in' => 'Walk-in',
+        'Other' => 'Other',
     ];
 
     protected $fillable = [
@@ -69,7 +69,7 @@ class Enquiry extends Model
         return LogOptions::defaults()
             ->logOnly(['status', 'next_follow_up_date', 'assigned_to_user_id'])
             ->logOnlyDirty()
-            ->setDescriptionForEvent(fn(string $eventName) => "The enquiry for '{$this->student_name}' has been {$eventName}");
+            ->setDescriptionForEvent(fn (string $eventName) => "The enquiry for '{$this->student_name}' has been {$eventName}");
     }
 
     public function course(): BelongsTo

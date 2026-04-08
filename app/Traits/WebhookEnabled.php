@@ -1,14 +1,14 @@
 <?php
 
 // App/Traits/WebhookEnabled.php - Fixed version to prevent infinite loops
+
 namespace App\Traits;
 
 use App\Events\EloquentWebhookEvent;
-use Illuminate\Support\Str;
 
 /**
  * Trait for Eloquent models to enable automatic webhook events
- * 
+ *
  * Add this trait to any model to automatically fire webhook events
  * when the model is created, updated, deleted, etc.
  */
@@ -35,7 +35,7 @@ trait WebhookEnabled
     protected array $webhookEvents = [
         'created',
         'updated',
-        'deleted'
+        'deleted',
     ];
 
     /**
@@ -92,14 +92,16 @@ trait WebhookEnabled
         ]);
 
         // Check if webhooks are enabled for this instance
-        if (!$this->areWebhooksEnabled()) {
+        if (! $this->areWebhooksEnabled()) {
             \Log::channel('webhook-events')->debug('Webhooks disabled for this model instance');
+
             return;
         }
 
         // Check if this event type should trigger webhooks
-        if (!$this->shouldTriggerWebhook($eventType)) {
+        if (! $this->shouldTriggerWebhook($eventType)) {
             \Log::channel('webhook-events')->debug('Event type should not trigger webhooks', ['event_type' => $eventType]);
+
             return;
         }
 
@@ -114,6 +116,7 @@ trait WebhookEnabled
                 'id' => $modelId,
                 'event' => $eventType,
             ]);
+
             return;
         }
 
@@ -122,7 +125,7 @@ trait WebhookEnabled
             static::$firingWebhooks[$eventKey] = true;
 
             // Set webhook event name if not already set
-            if (!$this->webhookEventName) {
+            if (! $this->webhookEventName) {
                 $this->setWebhookEventName($eventType);
             }
 
@@ -189,11 +192,11 @@ trait WebhookEnabled
     {
         $modelClass = get_class($this);
 
-        if (!isset(static::$recursionDepth[$modelClass])) {
+        if (! isset(static::$recursionDepth[$modelClass])) {
             static::$recursionDepth[$modelClass] = [];
         }
 
-        if (!isset(static::$recursionDepth[$modelClass][$eventType])) {
+        if (! isset(static::$recursionDepth[$modelClass][$eventType])) {
             static::$recursionDepth[$modelClass][$eventType] = 0;
         }
 
@@ -224,7 +227,7 @@ trait WebhookEnabled
         $modelName = strtolower(class_basename(static::class));
 
         // If action already starts with model name and a dot, don't prefix it
-        if (str_starts_with($action, $modelName . '.')) {
+        if (str_starts_with($action, $modelName.'.')) {
             $this->webhookEventName = $action;
         } else {
             $this->webhookEventName = "{$modelName}.{$action}";
@@ -250,7 +253,7 @@ trait WebhookEnabled
             static::$firingWebhooks[$eventKey] = true;
 
             // Set webhook event name if not already set
-            if (!$this->webhookEventName) {
+            if (! $this->webhookEventName) {
                 $this->setWebhookEventName($action);
             }
 
@@ -263,7 +266,7 @@ trait WebhookEnabled
             );
 
             // Add any custom webhook data
-            if (!empty($this->webhookData)) {
+            if (! empty($this->webhookData)) {
                 $syntheticEvent->setAdditionalData($this->webhookData);
             }
 
@@ -282,7 +285,7 @@ trait WebhookEnabled
     public function fireWebhookEvent(string $action, array $additionalData = []): void
     {
         // Check if webhooks are enabled
-        if (!$this->areWebhooksEnabled()) {
+        if (! $this->areWebhooksEnabled()) {
             return;
         }
 
@@ -295,6 +298,7 @@ trait WebhookEnabled
     public function addWebhookData(string $key, $value): self
     {
         $this->webhookData[$key] = $value;
+
         return $this;
     }
 
@@ -304,6 +308,7 @@ trait WebhookEnabled
     public function setWebhookData(array $data): self
     {
         $this->webhookData = array_merge($this->webhookData, $data);
+
         return $this;
     }
 
@@ -349,7 +354,7 @@ trait WebhookEnabled
             // This prevents leaking sensitive data.
             $safeChanges = array_intersect_key($changes, $visibleAttributes);
 
-            if (!empty($safeChanges)) {
+            if (! empty($safeChanges)) {
                 $data['changes'] = $safeChanges;
             }
         }
@@ -382,6 +387,7 @@ trait WebhookEnabled
     public function enableWebhooks(): self
     {
         $this->webhooksEnabled = true;
+
         return $this;
     }
 
@@ -391,6 +397,7 @@ trait WebhookEnabled
     public function disableWebhooks(): self
     {
         $this->webhooksEnabled = false;
+
         return $this;
     }
 
@@ -449,6 +456,7 @@ trait WebhookEnabled
     public function setWebhookEvents(array $events): self
     {
         $this->webhookEvents = $events;
+
         return $this;
     }
 
@@ -463,7 +471,7 @@ trait WebhookEnabled
         $this->fireWebhookEvent($eventName, [
             'business_event' => true,
             'custom_event_name' => $eventName,
-            'event_data' => $data
+            'event_data' => $data,
         ]);
     }
 

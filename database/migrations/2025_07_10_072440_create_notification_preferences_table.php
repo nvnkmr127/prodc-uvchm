@@ -16,7 +16,7 @@ return new class extends Migration
             $table->boolean('enabled')->default(true);
             $table->json('settings')->nullable();
             $table->timestamps();
-            
+
             $table->unique(['user_id', 'notification_type', 'category'], 'idx_preferences_unique');
             $table->index(['user_id', 'enabled'], 'idx_preferences_lookup');
         });

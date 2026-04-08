@@ -9,15 +9,15 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-public function up(): void
-{
-    Schema::create('certificate_templates', function (Blueprint $table) {
-        $table->id();
-        $table->string('name')->unique();
-        $table->longText('body'); // Use longText for potentially large HTML content
-        $table->timestamps();
-    });
-}
+    public function up(): void
+    {
+        Schema::create('certificate_templates', function (Blueprint $table) {
+            $table->id();
+            $table->string('name')->unique();
+            $table->longText('body'); // Use longText for potentially large HTML content
+            $table->timestamps();
+        });
+    }
 
     /**
      * Reverse the migrations.

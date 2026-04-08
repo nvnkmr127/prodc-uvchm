@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\HasAcademicYear;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use App\Traits\HasAcademicYear;
 
 class Attendance extends Model
 {
     use HasAcademicYear;
+
     protected $fillable = [
         'student_id',
         'batch_id',
@@ -23,23 +24,23 @@ class Attendance extends Model
         'late_minutes',
         'location',
         'device_id',
-        'biometric_log_id'
+        'biometric_log_id',
     ];
-    
+
     protected $casts = [
         'attendance_date' => 'date',
         'marked_at' => 'datetime',
         'check_in_time' => 'datetime:H:i:s',
         'check_out_time' => 'datetime:H:i:s',
-        'late_minutes' => 'integer'
+        'late_minutes' => 'integer',
     ];
-    
+
     // Default values for required fields
     protected $attributes = [
         'status' => 'present',
-        'device_id' => 'manual'
+        'device_id' => 'manual',
     ];
-    
+
     /**
      * Student relationship
      */
@@ -47,7 +48,7 @@ class Attendance extends Model
     {
         return $this->belongsTo(Student::class);
     }
-    
+
     /**
      * Batch relationship
      */
@@ -55,7 +56,7 @@ class Attendance extends Model
     {
         return $this->belongsTo(Batch::class);
     }
-    
+
     /**
      * Faculty relationship (who marked the attendance)
      */
@@ -63,7 +64,7 @@ class Attendance extends Model
     {
         return $this->belongsTo(User::class, 'faculty_id');
     }
-    
+
     /**
      * User who marked this attendance
      */
@@ -71,22 +72,22 @@ class Attendance extends Model
     {
         return $this->belongsTo(User::class, 'marked_by');
     }
-    
+
     /**
      * Calculate total hours spent (if both check-in and check-out exist)
      */
     public function getTotalHoursAttribute(): ?float
     {
-        if (!$this->check_in_time || !$this->check_out_time) {
+        if (! $this->check_in_time || ! $this->check_out_time) {
             return null;
         }
-        
-        $checkIn = \Carbon\Carbon::parse($this->attendance_date . ' ' . $this->check_in_time);
-        $checkOut = \Carbon\Carbon::parse($this->attendance_date . ' ' . $this->check_out_time);
-        
+
+        $checkIn = \Carbon\Carbon::parse($this->attendance_date.' '.$this->check_in_time);
+        $checkOut = \Carbon\Carbon::parse($this->attendance_date.' '.$this->check_out_time);
+
         return $checkOut->diffInHours($checkIn, true);
     }
-    
+
     /**
      * Get formatted check-in time
      */
@@ -94,7 +95,7 @@ class Attendance extends Model
     {
         return $this->check_in_time ? \Carbon\Carbon::parse($this->check_in_time)->format('h:i A') : null;
     }
-    
+
     /**
      * Get formatted check-out time
      */
@@ -102,7 +103,7 @@ class Attendance extends Model
     {
         return $this->check_out_time ? \Carbon\Carbon::parse($this->check_out_time)->format('h:i A') : null;
     }
-    
+
     /**
      * Check if student was late
      */
@@ -110,13 +111,13 @@ class Attendance extends Model
     {
         return $this->late_minutes > 0 || $this->status === 'late';
     }
-    
+
     /**
      * Get status color for UI
      */
     public function getStatusColorAttribute(): string
     {
-        return match($this->status) {
+        return match ($this->status) {
             'present' => 'success',
             'late' => 'warning',
             'absent' => 'danger',
@@ -124,7 +125,7 @@ class Attendance extends Model
             default => 'secondary'
         };
     }
-    
+
     /**
      * Scope for today's attendance
      */
@@ -132,7 +133,7 @@ class Attendance extends Model
     {
         return $query->whereDate('attendance_date', today());
     }
-    
+
     /**
      * Scope for present students
      */
@@ -140,7 +141,7 @@ class Attendance extends Model
     {
         return $query->whereIn('status', ['present', 'late']);
     }
-    
+
     /**
      * Scope for absent students
      */
@@ -148,7 +149,7 @@ class Attendance extends Model
     {
         return $query->where('status', 'absent');
     }
-    
+
     /**
      * Scope by date range
      */

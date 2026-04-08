@@ -13,19 +13,19 @@ return new class extends Migration
         // Add specific fee types for better tracking
         Schema::table('fee_categories', function (Blueprint $table) {
             $table->enum('category_type', [
-                'tuition_fee', 
-                'uniform_fee', 
-                'library_fee', 
-                'exam_fee', 
-                'lab_fee', 
-                'transport_fee', 
+                'tuition_fee',
+                'uniform_fee',
+                'library_fee',
+                'exam_fee',
+                'lab_fee',
+                'transport_fee',
                 'hostel_fee',
                 'sports_fee',
                 'registration_fee',
                 'caution_deposit',
-                'other'
+                'other',
             ])->default('tuition_fee')->after('name');
-            
+
             $table->boolean('is_mandatory')->default(true)->after('category_type');
             $table->boolean('is_recurring')->default(false)->after('is_mandatory');
             $table->string('recurrence_type')->nullable()->after('is_recurring'); // monthly, semester, annual
@@ -53,7 +53,7 @@ return new class extends Migration
             $table->integer('attempt_count')->default(0);
             $table->timestamp('next_attempt_at')->nullable();
             $table->timestamps();
-            
+
             $table->index(['student_id', 'status']);
             $table->index(['scheduled_date', 'status']);
             $table->index(['reminder_type', 'status']);
@@ -76,7 +76,7 @@ return new class extends Migration
             $table->foreignId('assigned_to')->nullable()->constrained('users')->onDelete('set null');
             $table->text('notes')->nullable();
             $table->timestamps();
-            
+
             $table->index(['defaulter_category', 'current_status']);
             $table->index(['overdue_days']);
             $table->index(['total_overdue_amount']);
@@ -100,7 +100,7 @@ return new class extends Migration
             $table->date('due_date');
             $table->date('last_updated_at');
             $table->timestamps();
-            
+
             $table->index(['fee_category_id', 'collection_period']);
             $table->index(['due_date']);
         });
@@ -111,11 +111,11 @@ return new class extends Migration
         Schema::dropIfExists('fee_collections');
         Schema::dropIfExists('payment_defaulters');
         Schema::dropIfExists('payment_reminders');
-        
+
         Schema::table('fee_categories', function (Blueprint $table) {
             $table->dropColumn([
                 'category_type', 'is_mandatory', 'is_recurring', 'recurrence_type',
-                'late_fee_percentage', 'reminder_days_before', 'escalation_days_after'
+                'late_fee_percentage', 'reminder_days_before', 'escalation_days_after',
             ]);
         });
     }

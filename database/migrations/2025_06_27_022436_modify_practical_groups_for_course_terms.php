@@ -9,15 +9,15 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-  public function up(): void
-{
-    Schema::table('practical_groups', function (Blueprint $table) {
-        // Add the new column first
-        $table->foreignId('course_term_id')->nullable()->after('batch_id')->constrained()->onDelete('cascade');
-        // Then drop the old one
-        $table->dropColumn('academic_period');
-    });
-}
+    public function up(): void
+    {
+        Schema::table('practical_groups', function (Blueprint $table) {
+            // Add the new column first
+            $table->foreignId('course_term_id')->nullable()->after('batch_id')->constrained()->onDelete('cascade');
+            // Then drop the old one
+            $table->dropColumn('academic_period');
+        });
+    }
 
     /**
      * Reverse the migrations.

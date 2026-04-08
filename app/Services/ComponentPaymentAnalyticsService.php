@@ -6,12 +6,12 @@
 
 namespace App\Services;
 
-use App\Models\Student;
-use App\Models\StudentFee;
-use App\Models\Payment;
-use App\Models\FeeCategory;
 use App\Models\Batch;
 use App\Models\ComponentPaymentItem;
+use App\Models\FeeCategory;
+use App\Models\Payment;
+use App\Models\Student;
+use App\Models\StudentFee;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -29,7 +29,7 @@ class ComponentPaymentAnalyticsService
             'payment_patterns' => $this->getPaymentPatterns(),
             'seasonal_trends' => $this->getSeasonalTrends(),
             'risk_assessment' => $this->getRiskAssessment(),
-            'component_insights' => $this->getComponentInsights()
+            'component_insights' => $this->getComponentInsights(),
         ];
     }
 
@@ -205,7 +205,7 @@ class ComponentPaymentAnalyticsService
     {
         $totalStudents = Student::count();
         $activeStudents = Student::where('status', 'active')->count();
-        
+
         // Component-based overdue calculation
         $totalOverdue = StudentFee::whereIn('status', ['unpaid', 'partial'])
             ->where('due_date', '<', now())
@@ -213,21 +213,21 @@ class ComponentPaymentAnalyticsService
             ->sum(function ($fee) {
                 return $fee->amount - $fee->concession_amount - $fee->paid_amount;
             });
-        
+
         $riskFactors = [
-            'high_risk_students' => Student::whereHas('studentFees', function($q) {
+            'high_risk_students' => Student::whereHas('studentFees', function ($q) {
                 $q->where('due_date', '<', now()->subDays(60))
-                  ->whereIn('status', ['unpaid', 'partial'])
-                  ->whereRaw('amount - concession_amount - paid_amount > 0');
+                    ->whereIn('status', ['unpaid', 'partial'])
+                    ->whereRaw('amount - concession_amount - paid_amount > 0');
             })->count(),
-            
-            'medium_risk_students' => Student::whereHas('studentFees', function($q) {
+
+            'medium_risk_students' => Student::whereHas('studentFees', function ($q) {
                 $q->where('due_date', '<', now()->subDays(30))
-                  ->where('due_date', '>=', now()->subDays(60))
-                  ->whereIn('status', ['unpaid', 'partial'])
-                  ->whereRaw('amount - concession_amount - paid_amount > 0');
+                    ->where('due_date', '>=', now()->subDays(60))
+                    ->whereIn('status', ['unpaid', 'partial'])
+                    ->whereRaw('amount - concession_amount - paid_amount > 0');
             })->count(),
-            
+
             'collection_efficiency' => $this->calculateComponentCollectionEfficiency(),
             'default_rate' => $this->calculateComponentDefaultRate(),
             'recovery_rate' => $this->calculateComponentRecoveryRate(),
@@ -263,9 +263,9 @@ class ComponentPaymentAnalyticsService
         $totalFeeAmount = StudentFee::sum('amount');
         $totalConcessions = StudentFee::sum('concession_amount');
         $totalCollected = StudentFee::sum('paid_amount');
-        
+
         $netFeeAmount = $totalFeeAmount - $totalConcessions;
-        
+
         return $netFeeAmount > 0 ? round(($totalCollected / $netFeeAmount) * 100, 2) : 0;
     }
 
@@ -279,7 +279,7 @@ class ComponentPaymentAnalyticsService
             ->whereIn('status', ['unpaid', 'partial'])
             ->whereRaw('amount - concession_amount - paid_amount > 0')
             ->count();
-            
+
         return $totalFees > 0 ? round(($overdueFees / $totalFees) * 100, 2) : 0;
     }
 
@@ -291,7 +291,7 @@ class ComponentPaymentAnalyticsService
         $overdueFees = StudentFee::where('due_date', '<', now()->subDays(30))->get();
         $overdueValue = $overdueFees->sum('amount') - $overdueFees->sum('concession_amount');
         $recoveredFromOverdue = $overdueFees->sum('paid_amount');
-        
+
         return $overdueValue > 0 ? round(($recoveredFromOverdue / $overdueValue) * 100, 2) : 0;
     }
 
@@ -338,10 +338,11 @@ class ComponentPaymentAnalyticsService
             ->get()
             ->map(function ($category) {
                 $netAmount = $category->total_amount - $category->total_concessions;
-                $category->collection_rate = $netAmount > 0 ? 
+                $category->collection_rate = $netAmount > 0 ?
                     round(($category->total_collected / $netAmount) * 100, 2) : 0;
                 $category->default_rate = $category->total_fees > 0 ?
                     round(($category->overdue_fees / $category->total_fees) * 100, 2) : 0;
+
                 return $category;
             })
             ->toArray();
@@ -363,6 +364,7 @@ class ComponentPaymentAnalyticsService
             }),
             'category_breakdown' => $partialFees->groupBy('fee_category_id')->map(function ($fees, $categoryId) {
                 $category = $fees->first()->feeCategory;
+
                 return [
                     'category_name' => $category->name,
                     'count' => $fees->count(),
@@ -371,6 +373,7 @@ class ComponentPaymentAnalyticsService
                     }),
                     'avg_completion_rate' => $fees->avg(function ($fee) {
                         $netAmount = $fee->amount - $fee->concession_amount;
+
                         return $netAmount > 0 ? ($fee->paid_amount / $netAmount) * 100 : 0;
                     }),
                 ];
@@ -398,12 +401,13 @@ class ComponentPaymentAnalyticsService
             ->leftJoin('student_fees', 'fee_categories.id', '=', 'student_fees.fee_category_id')
             ->groupBy('fee_categories.id')
             ->get()
-            ->map(function($category) {
-                $category->collection_rate = $category->net_total > 0 ? 
+            ->map(function ($category) {
+                $category->collection_rate = $category->net_total > 0 ?
                     round(($category->total_paid / $category->net_total) * 100, 2) : 0;
                 $category->default_rate = $category->total_count > 0 ?
                     round(($category->unpaid_count / $category->total_count) * 100, 2) : 0;
                 $category->efficiency_score = $this->calculateCategoryEfficiency($category);
+
                 return $category;
             })
             ->toArray();
@@ -428,13 +432,14 @@ class ComponentPaymentAnalyticsService
             ->with('course')
             ->groupBy('batches.id')
             ->get()
-            ->map(function($batch) {
+            ->map(function ($batch) {
                 $batch->collection_rate = $batch->total_net_fees > 0 ?
                     round(($batch->collected / $batch->total_net_fees) * 100, 2) : 0;
                 $batch->per_student_collection = $batch->total_students > 0 ?
                     round($batch->collected / $batch->total_students, 2) : 0;
                 $batch->defaulter_percentage = $batch->total_students > 0 ?
                     round(($batch->students_with_dues / $batch->total_students) * 100, 2) : 0;
+
                 return $batch;
             })
             ->sortByDesc('collection_rate')
@@ -452,14 +457,15 @@ class ComponentPaymentAnalyticsService
 
     private function getPreferredPaymentComponents(int $studentId): array
     {
-        return ComponentPaymentItem::whereHas('studentFee', function($q) use ($studentId) {
-                $q->where('student_id', $studentId);
-            })
+        return ComponentPaymentItem::whereHas('studentFee', function ($q) use ($studentId) {
+            $q->where('student_id', $studentId);
+        })
             ->with('studentFee.feeCategory')
             ->get()
             ->groupBy('studentFee.fee_category_id')
-            ->map(function($items, $categoryId) {
+            ->map(function ($items, $categoryId) {
                 $category = $items->first()->studentFee->feeCategory;
+
                 return [
                     'category_name' => $category->name,
                     'payment_count' => $items->count(),
@@ -485,7 +491,7 @@ class ComponentPaymentAnalyticsService
             ->where('due_date', '<', now())
             ->with('feeCategory')
             ->get()
-            ->map(function($fee) {
+            ->map(function ($fee) {
                 return [
                     'category_name' => $fee->feeCategory->name,
                     'overdue_amount' => $fee->amount - $fee->concession_amount - $fee->paid_amount,
@@ -497,9 +503,16 @@ class ComponentPaymentAnalyticsService
 
     private function calculateDefaulterSeverity(Student $student): string
     {
-        if ($student->total_overdue_amount > 50000) return 'critical';
-        if ($student->total_overdue_amount > 25000) return 'high';
-        if ($student->total_overdue_amount > 10000) return 'medium';
+        if ($student->total_overdue_amount > 50000) {
+            return 'critical';
+        }
+        if ($student->total_overdue_amount > 25000) {
+            return 'high';
+        }
+        if ($student->total_overdue_amount > 10000) {
+            return 'medium';
+        }
+
         return 'low';
     }
 
@@ -511,11 +524,12 @@ class ComponentPaymentAnalyticsService
             ->with('feeCategory')
             ->get()
             ->groupBy('fee_category_id')
-            ->map(function($fees, $categoryId) {
+            ->map(function ($fees, $categoryId) {
                 $category = $fees->first()->feeCategory;
+
                 return [
                     'category_name' => $category->name,
-                    'overdue_amount' => $fees->sum(function($fee) {
+                    'overdue_amount' => $fees->sum(function ($fee) {
                         return $fee->amount - $fee->concession_amount - $fee->paid_amount;
                     }),
                     'fee_count' => $fees->count(),
@@ -528,15 +542,15 @@ class ComponentPaymentAnalyticsService
     private function calculateOverallRiskScore(array $factors): string
     {
         $score = 0;
-        
+
         // High risk students contribute more to risk
         $totalStudents = Student::count();
         $score += ($factors['high_risk_students'] / $totalStudents) * 40;
         $score += ($factors['medium_risk_students'] / $totalStudents) * 20;
         $score += (100 - $factors['collection_efficiency']) * 0.3;
         $score += $factors['default_rate'] * 0.1;
-        
-        return match(true) {
+
+        return match (true) {
             $score >= 30 => 'HIGH',
             $score >= 15 => 'MEDIUM',
             default => 'LOW'
@@ -552,11 +566,11 @@ class ComponentPaymentAnalyticsService
         }
 
         if ($factors['collection_efficiency'] < 80) {
-            $recommendations[] = "Component collection efficiency is below optimal (80%). Review payment processes.";
+            $recommendations[] = 'Component collection efficiency is below optimal (80%). Review payment processes.';
         }
 
         if ($factors['default_rate'] > 10) {
-            $recommendations[] = "Component default rate is concerning. Implement stricter follow-up procedures.";
+            $recommendations[] = 'Component default rate is concerning. Implement stricter follow-up procedures.';
         }
 
         // Add component-specific recommendations
@@ -573,12 +587,13 @@ class ComponentPaymentAnalyticsService
     private function getPeakPaymentMonths(array $monthlyData): array
     {
         $sorted = collect($monthlyData)->sortByDesc('total_amount')->take(3);
-        return $sorted->map(function($data, $month) {
+
+        return $sorted->map(function ($data, $month) {
             return [
                 'month' => Carbon::create(null, $month)->format('F'),
                 'amount' => $data['total_amount'],
                 'count' => $data['payment_count'],
-                'unique_students' => $data['unique_students'] ?? 0
+                'unique_students' => $data['unique_students'] ?? 0,
             ];
         })->values()->toArray();
     }
@@ -586,12 +601,12 @@ class ComponentPaymentAnalyticsService
     private function getPreferredPaymentDays(array $weeklyData): array
     {
         $dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-        
-        return collect($weeklyData)->map(function($data, $dayNumber) use ($dayNames) {
+
+        return collect($weeklyData)->map(function ($data, $dayNumber) use ($dayNames) {
             return [
                 'day' => $dayNames[$dayNumber - 1] ?? 'Unknown',
                 'count' => $data['payment_count'],
-                'avg_amount' => round($data['avg_amount'] ?? 0, 2)
+                'avg_amount' => round($data['avg_amount'] ?? 0, 2),
             ];
         })->sortByDesc('count')->values()->toArray();
     }
@@ -627,7 +642,7 @@ class ComponentPaymentAnalyticsService
             ->orderBy('month')
             ->get()
             ->groupBy('name')
-            ->map(function($categoryData, $categoryName) {
+            ->map(function ($categoryData, $categoryName) {
                 return [
                     'category_name' => $categoryName,
                     'monthly_data' => $categoryData->keyBy('month')->toArray(),
@@ -650,7 +665,7 @@ class ComponentPaymentAnalyticsService
             ->leftJoin('student_fees', 'fee_categories.id', '=', 'student_fees.fee_category_id')
             ->groupBy('fee_categories.id')
             ->get()
-            ->map(function($category) {
+            ->map(function ($category) {
                 $riskLevel = 'low';
                 if ($category->overdue_amount > 100000 || ($category->total_fees > 0 && ($category->overdue_count / $category->total_fees) > 0.3)) {
                     $riskLevel = 'high';
@@ -697,23 +712,24 @@ class ComponentPaymentAnalyticsService
             ->where('payment_type', 'component')
             ->where('payment_date', '>=', now()->subMonths(6))
             ->get()
-            ->filter(function($payment) {
+            ->filter(function ($payment) {
                 return $payment->componentItems->count() > 1; // Multi-component payments
             })
-            ->flatMap(function($payment) {
+            ->flatMap(function ($payment) {
                 $categories = $payment->componentItems->pluck('studentFee.feeCategory.name')->unique()->sort();
                 $combinations = [];
                 for ($i = 0; $i < $categories->count(); $i++) {
                     for ($j = $i + 1; $j < $categories->count(); $j++) {
-                        $combinations[] = $categories[$i] . ' + ' . $categories[$j];
+                        $combinations[] = $categories[$i].' + '.$categories[$j];
                     }
                 }
+
                 return $combinations;
             })
             ->countBy()
             ->sortDesc()
             ->take(10)
-            ->map(function($count, $combination) {
+            ->map(function ($count, $combination) {
                 return [
                     'combination' => $combination,
                     'frequency' => $count,
@@ -725,13 +741,14 @@ class ComponentPaymentAnalyticsService
 
     private function getPartialPaymentStudentAnalysis($partialFees): array
     {
-        return $partialFees->groupBy('student_id')->map(function($fees, $studentId) {
+        return $partialFees->groupBy('student_id')->map(function ($fees, $studentId) {
             $student = $fees->first()->student;
+
             return [
                 'student_name' => $student->name,
                 'enrollment_number' => $student->enrollment_number,
                 'partial_fees_count' => $fees->count(),
-                'total_remaining' => $fees->sum(function($fee) {
+                'total_remaining' => $fees->sum(function ($fee) {
                     return $fee->amount - $fee->concession_amount - $fee->paid_amount;
                 }),
                 'categories' => $fees->pluck('feeCategory.name')->unique()->implode(', '),
@@ -761,10 +778,12 @@ class ComponentPaymentAnalyticsService
     private function calculateSeasonalVariance($categoryData): float
     {
         $amounts = $categoryData->pluck('total_amount')->toArray();
-        if (count($amounts) < 2) return 0;
+        if (count($amounts) < 2) {
+            return 0;
+        }
 
         $mean = array_sum($amounts) / count($amounts);
-        $variance = array_sum(array_map(function($amount) use ($mean) {
+        $variance = array_sum(array_map(function ($amount) use ($mean) {
             return pow($amount - $mean, 2);
         }, $amounts)) / count($amounts);
 

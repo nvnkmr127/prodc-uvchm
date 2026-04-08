@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Helpers\ErrorHandler;
 use App\Http\Controllers\Controller;
 use App\Models\Student;
 use Illuminate\Http\Request;
-use App\Helpers\ErrorHandler;
 
 class StudentController extends Controller
 {
@@ -21,11 +21,11 @@ class StudentController extends Controller
         }
 
         $students = Student::with('batch.course')
-                           ->where('name', 'LIKE', "%{$searchTerm}%")
-                           ->orWhere('enrollment_number', 'LIKE', "%{$searchTerm}%")
-                           ->orWhere('student_mobile', 'LIKE', "%{$searchTerm}%")
-                           ->limit(10)
-                           ->get();
+            ->where('name', 'LIKE', "%{$searchTerm}%")
+            ->orWhere('enrollment_number', 'LIKE', "%{$searchTerm}%")
+            ->orWhere('student_mobile', 'LIKE', "%{$searchTerm}%")
+            ->limit(10)
+            ->get();
 
         // Format the data for a cleaner API response
         $formattedStudents = $students->map(function ($student) {
@@ -43,7 +43,7 @@ class StudentController extends Controller
 
     /**
      * Get the full details for a single student.
-     * 
+     *
      * ✅ FIXED: Updated to use current relationship structure
      */
     public function show(Student $student)
@@ -54,9 +54,9 @@ class StudentController extends Controller
             $student->load([
                 'batch.course',
                 'studentFees.feeCategory',  // Component-based fee system
-                'attendances' => function($query) {
+                'attendances' => function ($query) {
                     $query->latest()->limit(10);
-                }
+                },
             ]);
 
             // Calculate financial summary from studentFees (not invoices)
@@ -87,7 +87,7 @@ class StudentController extends Controller
                 'admission_date' => $student->admission_date,
                 'status' => $student->status,
                 'photo_url' => $student->photo_url ?? null,
-                
+
                 // Academic Information
                 'batch' => [
                     'id' => $student->batch->id ?? null,
@@ -95,9 +95,9 @@ class StudentController extends Controller
                     'course' => [
                         'id' => $student->batch->course->id ?? null,
                         'name' => $student->batch->course->name ?? null,
-                    ]
+                    ],
                 ],
-                
+
                 // Financial Summary (using component-based system)
                 'financial_summary' => [
                     'total_fee_amount' => $totalFeeAmount,
@@ -106,9 +106,9 @@ class StudentController extends Controller
                     'total_due_amount' => $totalDueAmount,
                     'payment_percentage' => $totalFeeAmount > 0 ? round(($totalPaidAmount / $totalFeeAmount) * 100, 2) : 0,
                 ],
-                
+
                 // Fee Components
-                'fee_components' => $studentFees->map(function($fee) {
+                'fee_components' => $studentFees->map(function ($fee) {
                     return [
                         'id' => $fee->id,
                         'category' => $fee->feeCategory->name ?? 'Unknown',
@@ -121,9 +121,9 @@ class StudentController extends Controller
                         'academic_year' => $fee->academic_year,
                     ];
                 }),
-                
+
                 // Recent Payments
-                'recent_payments' => $recentPayments->map(function($payment) {
+                'recent_payments' => $recentPayments->map(function ($payment) {
                     return [
                         'id' => $payment->id,
                         'receipt_number' => $payment->receipt_number,
@@ -131,7 +131,7 @@ class StudentController extends Controller
                         'payment_date' => $payment->payment_date,
                         'payment_method' => $payment->payment_method,
                         'created_by' => $payment->createdBy->name ?? 'System',
-                        'components_paid' => $payment->componentItems->map(function($item) {
+                        'components_paid' => $payment->componentItems->map(function ($item) {
                             return [
                                 'fee_category' => $item->studentFee->feeCategory->name ?? 'Unknown',
                                 'amount_paid' => $item->amount_paid,
@@ -139,9 +139,9 @@ class StudentController extends Controller
                         }),
                     ];
                 }),
-                
+
                 // Recent Attendance
-                'recent_attendance' => $student->attendances->map(function($attendance) {
+                'recent_attendance' => $student->attendances->map(function ($attendance) {
                     return [
                         'id' => $attendance->id,
                         'date' => $attendance->attendance_date,
@@ -150,7 +150,7 @@ class StudentController extends Controller
                         'created_at' => $attendance->created_at,
                     ];
                 }),
-                
+
                 // Timestamps
                 'created_at' => $student->created_at,
                 'updated_at' => $student->updated_at,
@@ -158,14 +158,14 @@ class StudentController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $responseData
+                'data' => $responseData,
             ]);
 
         } catch (\Exception $e) {
             // Log the error for debugging
-            \Log::error('API Student Show Error: ' . $e->getMessage(), [
+            \Log::error('API Student Show Error: '.$e->getMessage(), [
                 'student_id' => $student->id,
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return ErrorHandler::handleApiException(

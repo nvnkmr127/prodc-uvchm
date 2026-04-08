@@ -4,18 +4,18 @@ namespace App\Exports;
 
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithHeadings;
+use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithTitle;
-use Maatwebsite\Excel\Concerns\WithMultipleSheets;
-use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class AttendanceExport implements FromArray, WithHeadings, WithStyles, WithTitle, WithMultipleSheets
+class AttendanceExport implements FromArray, WithHeadings, WithMultipleSheets, WithStyles, WithTitle
 {
     protected $exportData;
-    
+
     public function __construct(array $exportData)
     {
         $this->exportData = $exportData;
@@ -24,15 +24,15 @@ class AttendanceExport implements FromArray, WithHeadings, WithStyles, WithTitle
     public function sheets(): array
     {
         $sheets = [];
-        
+
         // Main attendance data sheet
         $sheets[] = new AttendanceDataSheet($this->exportData['data']);
-        
+
         // Summary sheet if requested
         if ($this->exportData['include_summary'] ?? false) {
             $sheets[] = new AttendanceSummarySheet($this->exportData);
         }
-        
+
         return $sheets;
     }
 
@@ -53,7 +53,7 @@ class AttendanceExport implements FromArray, WithHeadings, WithStyles, WithTitle
             'Marked Time',
             'Device ID',
             'Biometric Code',
-            'Notes'
+            'Notes',
         ];
     }
 
@@ -64,26 +64,26 @@ class AttendanceExport implements FromArray, WithHeadings, WithStyles, WithTitle
             1 => [
                 'font' => [
                     'bold' => true,
-                    'color' => ['rgb' => 'FFFFFF']
+                    'color' => ['rgb' => 'FFFFFF'],
                 ],
                 'fill' => [
                     'fillType' => Fill::FILL_SOLID,
-                    'startColor' => ['rgb' => '4472C4']
+                    'startColor' => ['rgb' => '4472C4'],
                 ],
                 'alignment' => [
                     'horizontal' => Alignment::HORIZONTAL_CENTER,
-                    'vertical' => Alignment::VERTICAL_CENTER
-                ]
+                    'vertical' => Alignment::VERTICAL_CENTER,
+                ],
             ],
             // All cells border
-            'A1:J' . (count($this->exportData['data']) + 1) => [
+            'A1:J'.(count($this->exportData['data']) + 1) => [
                 'borders' => [
                     'allBorders' => [
                         'borderStyle' => Border::BORDER_THIN,
-                        'color' => ['rgb' => '000000']
-                    ]
-                ]
-            ]
+                        'color' => ['rgb' => '000000'],
+                    ],
+                ],
+            ],
         ];
     }
 
@@ -91,8 +91,9 @@ class AttendanceExport implements FromArray, WithHeadings, WithStyles, WithTitle
     {
         $dateRange = $this->exportData['date_range'] ?? null;
         if ($dateRange) {
-            return 'Attendance ' . $dateRange['start'] . ' to ' . $dateRange['end'];
+            return 'Attendance '.$dateRange['start'].' to '.$dateRange['end'];
         }
+
         return 'Attendance Export';
     }
 }
@@ -100,7 +101,7 @@ class AttendanceExport implements FromArray, WithHeadings, WithStyles, WithTitle
 class AttendanceDataSheet implements FromArray, WithHeadings, WithStyles, WithTitle
 {
     protected $data;
-    
+
     public function __construct(array $data)
     {
         $this->data = $data;
@@ -123,7 +124,7 @@ class AttendanceDataSheet implements FromArray, WithHeadings, WithStyles, WithTi
             'Marked Time',
             'Device ID',
             'Biometric Code',
-            'Notes'
+            'Notes',
         ];
     }
 
@@ -138,39 +139,39 @@ class AttendanceDataSheet implements FromArray, WithHeadings, WithStyles, WithTi
         $sheet->getStyle('A1:J1')->applyFromArray([
             'font' => [
                 'bold' => true,
-                'color' => ['rgb' => 'FFFFFF']
+                'color' => ['rgb' => 'FFFFFF'],
             ],
             'fill' => [
                 'fillType' => Fill::FILL_SOLID,
-                'startColor' => ['rgb' => '4472C4']
+                'startColor' => ['rgb' => '4472C4'],
             ],
             'alignment' => [
                 'horizontal' => Alignment::HORIZONTAL_CENTER,
-                'vertical' => Alignment::VERTICAL_CENTER
-            ]
+                'vertical' => Alignment::VERTICAL_CENTER,
+            ],
         ]);
 
         // Data rows styling
         if (count($this->data) > 0) {
             $lastRow = count($this->data) + 1;
-            
+
             // Alternate row colors
             for ($i = 2; $i <= $lastRow; $i++) {
                 if ($i % 2 == 0) {
                     $sheet->getStyle("A{$i}:J{$i}")->applyFromArray([
                         'fill' => [
                             'fillType' => Fill::FILL_SOLID,
-                            'startColor' => ['rgb' => 'F2F2F2']
-                        ]
+                            'startColor' => ['rgb' => 'F2F2F2'],
+                        ],
                     ]);
                 }
             }
-            
+
             // Status column conditional formatting
             for ($i = 2; $i <= $lastRow; $i++) {
                 $status = $sheet->getCell("F{$i}")->getValue();
                 $color = '';
-                
+
                 switch (strtolower($status)) {
                     case 'present':
                         $color = 'C6EFCE'; // Light green
@@ -182,25 +183,25 @@ class AttendanceDataSheet implements FromArray, WithHeadings, WithStyles, WithTi
                         $color = 'FFC7CE'; // Light red
                         break;
                 }
-                
+
                 if ($color) {
                     $sheet->getStyle("F{$i}")->applyFromArray([
                         'fill' => [
                             'fillType' => Fill::FILL_SOLID,
-                            'startColor' => ['rgb' => $color]
-                        ]
+                            'startColor' => ['rgb' => $color],
+                        ],
                     ]);
                 }
             }
-            
+
             // All borders
             $sheet->getStyle("A1:J{$lastRow}")->applyFromArray([
                 'borders' => [
                     'allBorders' => [
                         'borderStyle' => Border::BORDER_THIN,
-                        'color' => ['rgb' => '000000']
-                    ]
-                ]
+                        'color' => ['rgb' => '000000'],
+                    ],
+                ],
             ]);
         }
 
@@ -216,7 +217,7 @@ class AttendanceDataSheet implements FromArray, WithHeadings, WithStyles, WithTi
 class AttendanceSummarySheet implements FromArray, WithHeadings, WithStyles, WithTitle
 {
     protected $exportData;
-    
+
     public function __construct(array $exportData)
     {
         $this->exportData = $exportData;
@@ -226,64 +227,64 @@ class AttendanceSummarySheet implements FromArray, WithHeadings, WithStyles, Wit
     {
         $data = $this->exportData['data'] ?? [];
         $dateRange = $this->exportData['date_range'] ?? null;
-        
+
         // Calculate summary statistics
         $totalRecords = count($data);
         $presentCount = collect($data)->where('status', 'Present')->count();
         $absentCount = collect($data)->where('status', 'Absent')->count();
         $lateCount = collect($data)->where('status', 'Late')->count();
-        
+
         $presentPercentage = $totalRecords > 0 ? round(($presentCount / $totalRecords) * 100, 2) : 0;
         $absentPercentage = $totalRecords > 0 ? round(($absentCount / $totalRecords) * 100, 2) : 0;
         $latePercentage = $totalRecords > 0 ? round(($lateCount / $totalRecords) * 100, 2) : 0;
-        
+
         // Get unique students and dates
         $uniqueStudents = collect($data)->pluck('enrollment_number')->unique()->count();
         $uniqueDates = collect($data)->pluck('date')->unique()->count();
-        
+
         $summary = [
             ['Metric', 'Value', 'Percentage'],
             ['', '', ''], // Empty row
             ['Export Information', '', ''],
             ['Export Date', now()->format('Y-m-d H:i:s'), ''],
-            ['Date Range', $dateRange ? $dateRange['start'] . ' to ' . $dateRange['end'] : 'N/A', ''],
+            ['Date Range', $dateRange ? $dateRange['start'].' to '.$dateRange['end'] : 'N/A', ''],
             ['', '', ''], // Empty row
             ['Summary Statistics', '', ''],
             ['Total Records', $totalRecords, '100%'],
-            ['Present Records', $presentCount, $presentPercentage . '%'],
-            ['Absent Records', $absentCount, $absentPercentage . '%'],
-            ['Late Records', $lateCount, $latePercentage . '%'],
+            ['Present Records', $presentCount, $presentPercentage.'%'],
+            ['Absent Records', $absentCount, $absentPercentage.'%'],
+            ['Late Records', $lateCount, $latePercentage.'%'],
             ['', '', ''], // Empty row
             ['Additional Information', '', ''],
             ['Unique Students', $uniqueStudents, ''],
             ['Unique Dates', $uniqueDates, ''],
-            ['Average Attendance Rate', $presentPercentage + $latePercentage . '%', ''],
+            ['Average Attendance Rate', $presentPercentage + $latePercentage.'%', ''],
         ];
-        
+
         // Add batch-wise breakdown if available
         $batchStats = collect($data)->groupBy('batch_name')->map(function ($records, $batch) {
             $total = $records->count();
             $present = $records->where('status', 'Present')->count();
             $late = $records->where('status', 'Late')->count();
             $attendanceRate = $total > 0 ? round((($present + $late) / $total) * 100, 2) : 0;
-            
+
             return [
                 'batch' => $batch,
                 'total' => $total,
-                'attendance_rate' => $attendanceRate
+                'attendance_rate' => $attendanceRate,
             ];
         });
-        
+
         if ($batchStats->isNotEmpty()) {
             $summary[] = ['', '', ''];
             $summary[] = ['Batch-wise Statistics', '', ''];
             $summary[] = ['Batch Name', 'Total Records', 'Attendance Rate'];
-            
+
             foreach ($batchStats as $stat) {
-                $summary[] = [$stat['batch'], $stat['total'], $stat['attendance_rate'] . '%'];
+                $summary[] = [$stat['batch'], $stat['total'], $stat['attendance_rate'].'%'];
             }
         }
-        
+
         return $summary;
     }
 
@@ -303,12 +304,12 @@ class AttendanceSummarySheet implements FromArray, WithHeadings, WithStyles, Wit
         $sheet->getStyle('A1:C1')->applyFromArray([
             'font' => [
                 'bold' => true,
-                'color' => ['rgb' => 'FFFFFF']
+                'color' => ['rgb' => 'FFFFFF'],
             ],
             'fill' => [
                 'fillType' => Fill::FILL_SOLID,
-                'startColor' => ['rgb' => '4472C4']
-            ]
+                'startColor' => ['rgb' => '4472C4'],
+            ],
         ]);
 
         // Section headers styling
@@ -317,12 +318,12 @@ class AttendanceSummarySheet implements FromArray, WithHeadings, WithStyles, Wit
             $sheet->getStyle("A{$row}:C{$row}")->applyFromArray([
                 'font' => [
                     'bold' => true,
-                    'color' => ['rgb' => 'FFFFFF']
+                    'color' => ['rgb' => 'FFFFFF'],
                 ],
                 'fill' => [
                     'fillType' => Fill::FILL_SOLID,
-                    'startColor' => ['rgb' => '70AD47']
-                ]
+                    'startColor' => ['rgb' => '70AD47'],
+                ],
             ]);
         }
 

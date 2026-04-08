@@ -1,4 +1,5 @@
 <?php
+
 // app/Http/Controllers/Admin/LeaveController.php
 
 namespace App\Http\Controllers\Admin;

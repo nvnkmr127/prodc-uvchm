@@ -4,11 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Services\NotificationService;
-use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Cache;
 
 class SystemHealthController extends Controller
 {
@@ -44,14 +42,14 @@ class SystemHealthController extends Controller
             return response()->json([
                 'success' => true,
                 'health_data' => $healthData,
-                'overall_status' => $overallStatus
+                'overall_status' => $overallStatus,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'error' => 'Health check failed: ' . $e->getMessage(),
+                'error' => 'Health check failed: '.$e->getMessage(),
                 'health_data' => ['error' => $e->getMessage()],
-                'overall_status' => 'critical'
+                'overall_status' => 'critical',
             ], 500);
         }
     }
@@ -87,14 +85,14 @@ class SystemHealthController extends Controller
             $path = storage_path();
             $totalSpace = disk_total_space($path);
             $freeSpace = disk_free_space($path);
-            
-            if (!$totalSpace || !$freeSpace) {
+
+            if (! $totalSpace || ! $freeSpace) {
                 return [
                     'status' => 'warning',
                     'error' => 'Could not determine disk space',
                 ];
             }
-            
+
             $usedSpace = $totalSpace - $freeSpace;
             $usagePercentage = ($usedSpace / $totalSpace) * 100;
 
@@ -161,14 +159,14 @@ class SystemHealthController extends Controller
             $path = base_path();
             $totalSpace = disk_total_space($path);
             $freeSpace = disk_free_space($path);
-            
-            if (!$totalSpace || !$freeSpace) {
+
+            if (! $totalSpace || ! $freeSpace) {
                 return [
                     'status' => 'warning',
                     'error' => 'Could not determine disk space',
                 ];
             }
-            
+
             $usedSpace = $totalSpace - $freeSpace;
             $usagePercentage = ($usedSpace / $totalSpace) * 100;
 
@@ -191,12 +189,12 @@ class SystemHealthController extends Controller
         try {
             // Check if we have any failed jobs
             $failedJobs = 0;
-            
+
             // Only check failed_jobs table if it exists
             if (Schema::hasTable('failed_jobs')) {
                 $failedJobs = DB::table('failed_jobs')->count();
             }
-            
+
             return [
                 'status' => $failedJobs > 10 ? 'warning' : 'healthy',
                 'failed_jobs' => $failedJobs,
@@ -213,9 +211,14 @@ class SystemHealthController extends Controller
     private function determineOverallHealth($healthData)
     {
         $statuses = collect($healthData)->pluck('status')->filter();
-        
-        if ($statuses->contains('critical')) return 'critical';
-        if ($statuses->contains('warning')) return 'warning';
+
+        if ($statuses->contains('critical')) {
+            return 'critical';
+        }
+        if ($statuses->contains('warning')) {
+            return 'warning';
+        }
+
         return 'healthy';
     }
 
@@ -253,7 +256,7 @@ class SystemHealthController extends Controller
                 );
             }
         } catch (\Exception $e) {
-            \Log::error('Failed to send health notifications: ' . $e->getMessage());
+            \Log::error('Failed to send health notifications: '.$e->getMessage());
         }
     }
 
@@ -290,19 +293,19 @@ class SystemHealthController extends Controller
                 'cache' => $this->checkCache(),
             ];
 
-            $allHealthy = !in_array('critical', array_column($checks, 'status'));
+            $allHealthy = ! in_array('critical', array_column($checks, 'status'));
 
             return response()->json([
                 'success' => true,
                 'healthy' => $allHealthy,
                 'checks' => $checks,
-                'timestamp' => now()->toISOString()
+                'timestamp' => now()->toISOString(),
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'error' => $e->getMessage(),
-                'timestamp' => now()->toISOString()
+                'timestamp' => now()->toISOString(),
             ], 500);
         }
     }
@@ -313,6 +316,7 @@ class SystemHealthController extends Controller
         try {
             DB::connection()->getPdo();
             DB::table('users')->count();
+
             return ['status' => 'healthy', 'message' => 'Database connection successful'];
         } catch (\Exception $e) {
             return ['status' => 'critical', 'message' => 'Database connection failed'];
@@ -325,13 +329,13 @@ class SystemHealthController extends Controller
             $path = storage_path();
             $freeSpace = disk_free_space($path);
             $totalSpace = disk_total_space($path);
-            
-            if (!$freeSpace || !$totalSpace) {
+
+            if (! $freeSpace || ! $totalSpace) {
                 return ['status' => 'warning', 'message' => 'Could not determine storage space'];
             }
-            
+
             $usagePercent = (($totalSpace - $freeSpace) / $totalSpace) * 100;
-            
+
             if ($usagePercent > 90) {
                 return ['status' => 'critical', 'message' => 'Storage space critical'];
             } elseif ($usagePercent > 80) {
@@ -349,8 +353,9 @@ class SystemHealthController extends Controller
         try {
             Cache::put('health_test', 'ok', 60);
             $value = Cache::get('health_test');
-            return $value === 'ok' ? 
-                ['status' => 'healthy', 'message' => 'Cache working'] : 
+
+            return $value === 'ok' ?
+                ['status' => 'healthy', 'message' => 'Cache working'] :
                 ['status' => 'warning', 'message' => 'Cache not working'];
         } catch (\Exception $e) {
             return ['status' => 'warning', 'message' => 'Cache check failed'];

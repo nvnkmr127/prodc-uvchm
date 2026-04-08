@@ -12,6 +12,7 @@ class SalaryComponentController extends Controller
     public function index()
     {
         $components = SalaryComponent::latest()->get();
+
         return view('admin.salary_components.index', compact('components'));
     }
 
@@ -34,6 +35,7 @@ class SalaryComponentController extends Controller
             'is_mandatory' => 'boolean',
         ]);
         SalaryComponent::create($validated);
+
         return redirect()->route('admin.salary-components.index')->with('success', 'Salary component created.');
     }
 
@@ -56,12 +58,14 @@ class SalaryComponentController extends Controller
             'is_mandatory' => 'boolean',
         ]);
         $salaryComponent->update($validated);
+
         return redirect()->route('admin.salary-components.index')->with('success', 'Salary component updated.');
     }
 
     public function destroy(SalaryComponent $salaryComponent)
     {
         $salaryComponent->delete();
+
         return redirect()->route('admin.salary-components.index')->with('success', 'Salary component deleted.');
     }
 }

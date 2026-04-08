@@ -46,11 +46,11 @@ class NotificationSettingsController extends Controller
             // Update global settings using the helper function
             foreach ($request->only([
                 'email_notifications',
-                'sms_notifications', 
+                'sms_notifications',
                 'push_notifications',
                 'sound_notifications',
                 'fee_reminder_days',
-                'minimum_attendance_percentage'
+                'minimum_attendance_percentage',
             ]) as $key => $value) {
                 if ($value !== null) {
                     update_setting($key, $value);
@@ -59,12 +59,12 @@ class NotificationSettingsController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Notification settings updated successfully'
+                'message' => 'Notification settings updated successfully',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to update settings: ' . $e->getMessage()
+                'message' => 'Failed to update settings: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -97,7 +97,7 @@ class NotificationSettingsController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to update preferences: ' . $e->getMessage()
+                'message' => 'Failed to update preferences: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -112,12 +112,12 @@ class NotificationSettingsController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Preferences reset to default successfully'
+                'message' => 'Preferences reset to default successfully',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to reset preferences: ' . $e->getMessage()
+                'message' => 'Failed to reset preferences: '.$e->getMessage(),
             ], 500);
         }
     }

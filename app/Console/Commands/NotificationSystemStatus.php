@@ -2,14 +2,15 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
 use App\Models\SystemNotification;
 use App\Services\NotificationService;
+use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Schema;
 
 class NotificationSystemStatus extends Command
 {
     protected $signature = 'notifications:status {--detailed : Show detailed status}';
+
     protected $description = 'Check the status of the notification system';
 
     public function handle()
@@ -19,16 +20,16 @@ class NotificationSystemStatus extends Command
 
         // Check database tables
         $this->checkDatabaseTables();
-        
+
         // Check service availability
         $this->checkServiceAvailability();
-        
+
         // Check notification statistics
         $this->checkNotificationStatistics();
-        
+
         // Check scheduled tasks
         $this->checkScheduledTasks();
-        
+
         if ($this->option('detailed')) {
             $this->showDetailedStatus();
         }
@@ -40,7 +41,7 @@ class NotificationSystemStatus extends Command
     private function checkDatabaseTables()
     {
         $this->info('📊 Database Tables:');
-        
+
         $tables = [
             'system_notifications' => 'System Notifications',
             'notification_preferences' => 'User Preferences',
@@ -54,19 +55,19 @@ class NotificationSystemStatus extends Command
         foreach ($tables as $table => $description) {
             $exists = Schema::hasTable($table);
             $icon = $exists ? '✅' : '❌';
-            $this->line("  {$icon} {$description}: " . ($exists ? 'EXISTS' : 'MISSING'));
+            $this->line("  {$icon} {$description}: ".($exists ? 'EXISTS' : 'MISSING'));
         }
     }
 
     private function checkServiceAvailability()
     {
         $this->info('🔧 Service Availability:');
-        
+
         try {
             $service = app(NotificationService::class);
             $this->line('  ✅ NotificationService: AVAILABLE');
         } catch (\Exception $e) {
-            $this->line('  ❌ NotificationService: ERROR - ' . $e->getMessage());
+            $this->line('  ❌ NotificationService: ERROR - '.$e->getMessage());
         }
 
         // Check if routes are registered
@@ -74,14 +75,14 @@ class NotificationSystemStatus extends Command
         foreach ($routes as $route) {
             $exists = \Route::has($route);
             $icon = $exists ? '✅' : '❌';
-            $this->line("  {$icon} Route '{$route}': " . ($exists ? 'REGISTERED' : 'MISSING'));
+            $this->line("  {$icon} Route '{$route}': ".($exists ? 'REGISTERED' : 'MISSING'));
         }
     }
 
     private function checkNotificationStatistics()
     {
         $this->info('📈 Notification Statistics:');
-        
+
         $stats = [
             'Total Notifications' => SystemNotification::count(),
             'Notifications Today' => SystemNotification::whereDate('created_at', today())->count(),
@@ -97,7 +98,7 @@ class NotificationSystemStatus extends Command
     private function checkScheduledTasks()
     {
         $this->info('⏰ Scheduled Tasks:');
-        
+
         $tasks = [
             'fees:send-reminders' => 'Fee Reminders',
             'finance:health-check' => 'Financial Health Check',
@@ -119,7 +120,7 @@ class NotificationSystemStatus extends Command
     private function showDetailedStatus()
     {
         $this->info('🔍 Detailed Status:');
-        
+
         // Check recent notifications by category
         $categories = SystemNotification::selectRaw('category, COUNT(*) as count')
             ->where('created_at', '>=', now()->subDays(7))
@@ -145,9 +146,9 @@ class NotificationSystemStatus extends Command
         // Check system health
         $this->line('  🏥 System Health:');
         $memoryUsage = memory_get_usage(true) / 1024 / 1024;
-        $this->line("    • Memory Usage: " . round($memoryUsage, 2) . " MB");
-        
+        $this->line('    • Memory Usage: '.round($memoryUsage, 2).' MB');
+
         $diskSpace = disk_free_space(base_path()) / 1024 / 1024 / 1024;
-        $this->line("    • Available Disk Space: " . round($diskSpace, 2) . " GB");
+        $this->line('    • Available Disk Space: '.round($diskSpace, 2).' GB');
     }
 }

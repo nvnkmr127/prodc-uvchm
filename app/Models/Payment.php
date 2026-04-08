@@ -2,18 +2,17 @@
 
 namespace App\Models;
 
+use App\Traits\HasAcademicYear;
+use App\Traits\WebhookEnabled;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use App\Traits\WebhookEnabled;
-use App\Traits\HasAcademicYear;
-use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Payment extends Model
 {
-    use HasFactory, WebhookEnabled, HasAcademicYear;
+    use HasAcademicYear, HasFactory, WebhookEnabled;
 
     // Define the custom column name for academic year
     public $academic_year_column = 'academic_year';
@@ -34,7 +33,7 @@ class Payment extends Model
         'receipt_number',      // NULLABLE - Auto-generated receipt number
         'academic_year',       // NULLABLE - Academic year
         'notes',              // NULLABLE - Additional notes
-        'status'
+        'status',
     ];
 
     /**
@@ -68,27 +67,27 @@ class Payment extends Model
         // Auto-generate receipt number and set defaults when creating
         static::creating(function ($payment) {
             // Generate receipt number if not provided
-            if (!$payment->receipt_number) {
+            if (! $payment->receipt_number) {
                 $payment->receipt_number = static::generateReceiptNumber();
             }
 
             // Set payment type if not provided
-            if (!$payment->payment_type) {
+            if (! $payment->payment_type) {
                 $payment->payment_type = 'component';
             }
 
             // Set status if not provided
-            if (!$payment->status) {
+            if (! $payment->status) {
                 $payment->status = 'completed';
             }
 
             // Set payment date if not provided
-            if (!$payment->payment_date) {
+            if (! $payment->payment_date) {
                 $payment->payment_date = now();
             }
 
             // Set created_by if not already set and user is authenticated
-            if (!$payment->created_by && auth()->check()) {
+            if (! $payment->created_by && auth()->check()) {
                 $payment->created_by = auth()->id();
             }
         });
@@ -152,7 +151,6 @@ class Payment extends Model
         return $this->hasMany(PaymentEditLog::class, 'payment_id');
     }
 
-
     /**
      * Get the user who created this payment
      */
@@ -160,7 +158,6 @@ class Payment extends Model
     {
         return $this->belongsTo(User::class, 'created_by');
     }
-
 
     /**
      * Get the user who last updated this payment
@@ -177,8 +174,6 @@ class Payment extends Model
     {
         return $this->belongsTo(User::class, 'created_by');
     }
-
-
 
     /**
      * SCOPES
@@ -243,13 +238,10 @@ class Payment extends Model
         return $query->whereBetween('payment_date', [$startDate, $endDate]);
     }
 
-
-
     public function updater()
     {
         return $this->belongsTo(User::class, 'updated_by');
     }
-
 
     /**
      * Scope to get payments by payment method
@@ -284,12 +276,12 @@ class Payment extends Model
      */
     public static function generateReceiptNumber(): string
     {
-        $prefix = 'RCP-' . date('Y') . '-';
+        $prefix = 'RCP-'.date('Y').'-';
 
         // Get the latest receipt number for this year - BYPASS GLOBAL SCOPES
         $latest = static::withoutGlobalScope('academic_year')
-            ->where('receipt_number', 'LIKE', $prefix . '%')
-            ->orderByRaw('CAST(SUBSTRING(receipt_number, ' . (strlen($prefix) + 1) . ') AS UNSIGNED) DESC')
+            ->where('receipt_number', 'LIKE', $prefix.'%')
+            ->orderByRaw('CAST(SUBSTRING(receipt_number, '.(strlen($prefix) + 1).') AS UNSIGNED) DESC')
             ->first();
 
         if ($latest) {
@@ -300,7 +292,7 @@ class Payment extends Model
             $newNumber = 1;
         }
 
-        return $prefix . str_pad($newNumber, 6, '0', STR_PAD_LEFT);
+        return $prefix.str_pad($newNumber, 6, '0', STR_PAD_LEFT);
     }
 
     /**
@@ -319,7 +311,7 @@ class Payment extends Model
         if ($this->isComponentPayment()) {
             $this->load([
                 'componentItems.studentFee.feeCategory',
-                'student'
+                'student',
             ]);
         }
 
@@ -331,12 +323,12 @@ class Payment extends Model
      */
     public function getComponentsForWebhook(): array
     {
-        if (!$this->isComponentPayment()) {
+        if (! $this->isComponentPayment()) {
             return [];
         }
 
         // Ensure relationships are loaded
-        if (!$this->relationLoaded('componentItems')) {
+        if (! $this->relationLoaded('componentItems')) {
             $this->load('componentItems.studentFee.feeCategory');
         }
 
@@ -351,8 +343,6 @@ class Payment extends Model
         })->toArray();
     }
 
-
-
     /**
      * Get the total amount paid through component items
      */
@@ -366,7 +356,7 @@ class Payment extends Model
      */
     public function getFormattedAmountAttribute(): string
     {
-        return '₹' . number_format($this->amount, 2);
+        return '₹'.number_format($this->amount, 2);
     }
 
     /**
@@ -469,7 +459,7 @@ class Payment extends Model
         }
 
         // Check if user has permission
-        if (!auth()->check() || !auth()->user()->can('edit payments')) {
+        if (! auth()->check() || ! auth()->user()->can('edit payments')) {
             return false;
         }
 
@@ -481,11 +471,8 @@ class Payment extends Model
         return true;
     }
 
-
     /**
      * Check if payment can be reverted
-     * 
-     * @return bool
      */
     public function canBeReverted(): bool
     {
@@ -497,6 +484,7 @@ class Payment extends Model
             auth()->user() &&
             auth()->user()->can('revert payments');
     }
+
     /**
      * Check if this payment can have a receipt generated
      */
@@ -528,7 +516,7 @@ class Payment extends Model
         }
 
         // Check user permissions
-        if (!auth()->user()->can('delete payments')) {
+        if (! auth()->user()->can('delete payments')) {
             return false;
         }
 
@@ -550,7 +538,6 @@ class Payment extends Model
             default => ucfirst(str_replace('_', ' ', $this->payment_method))
         };
     }
-
 
     /**
      * Get related fee categories through component items

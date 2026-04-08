@@ -4,12 +4,11 @@
 
 namespace App\Services;
 
-use Carbon\Carbon;
-use Illuminate\Database\Eloquent\Model;
 use App\Models\Payment;
 use App\Models\Student;
-use App\Models\StudentFee;
 use App\Models\StudentConcession;
+use App\Models\StudentFee;
+use Illuminate\Database\Eloquent\Model;
 
 class WebhookPayloadBuilder
 {
@@ -24,7 +23,7 @@ class WebhookPayloadBuilder
             $eventType = property_exists($event, 'eventType') ? $event->eventType : 'unknown';
             $additionalData = property_exists($event, 'additionalData') ? $event->additionalData : [];
 
-            if (!$model) {
+            if (! $model) {
                 return self::buildFallbackPayload($event);
             }
 
@@ -32,17 +31,17 @@ class WebhookPayloadBuilder
 
             return [
                 'event' => $eventName,
-                'event_id' => 'evt_' . uniqid(),
+                'event_id' => 'evt_'.uniqid(),
                 'timestamp' => now()->toISOString(),
                 'app_name' => config('app.name', 'CollegeManagement'),
                 'environment' => app()->environment(),
-                'data' => self::buildEventData($modelType, $eventType, $model, $additionalData)
+                'data' => self::buildEventData($modelType, $eventType, $model, $additionalData),
             ];
 
         } catch (\Exception $e) {
             \Log::error('Error building optimized payload', [
                 'error' => $e->getMessage(),
-                'event_class' => get_class($event)
+                'event_class' => get_class($event),
             ]);
 
             return self::buildFallbackPayload($event);
@@ -69,11 +68,11 @@ class WebhookPayloadBuilder
     private static function buildPaymentData(string $action, Model $payment, array $additionalData = []): array
     {
         // Force load relationships if not already loaded
-        if (!$payment->relationLoaded('student')) {
+        if (! $payment->relationLoaded('student')) {
             $payment->load('student');
         }
 
-        if (!$payment->relationLoaded('componentItems')) {
+        if (! $payment->relationLoaded('componentItems')) {
             $payment->load('componentItems.studentFee.feeCategory');
         }
 
@@ -83,7 +82,7 @@ class WebhookPayloadBuilder
             'payment' => [
                 'id' => $payment->id,
                 'amount' => (float) $payment->amount,
-                'formatted_amount' => '₹' . number_format($payment->amount, 2),
+                'formatted_amount' => '₹'.number_format($payment->amount, 2),
                 'payment_method' => $payment->payment_method,
                 'payment_date' => $payment->payment_date ? $payment->payment_date->toISOString() : null,
                 'receipt_number' => $payment->receipt_number,
@@ -91,7 +90,7 @@ class WebhookPayloadBuilder
                 'payment_type' => $payment->payment_type ?? 'component',
             ],
             'receipt_urls' => self::generatePublicReceiptUrls($payment),
-            'components_paid' => [] // Initialize empty array
+            'components_paid' => [], // Initialize empty array
         ];
 
         // Add student information
@@ -138,14 +137,14 @@ class WebhookPayloadBuilder
                     // Log warning if no component items found for component payment
                     \Log::warning('Component payment has no component items', [
                         'payment_id' => $payment->id,
-                        'payment_type' => $payment->payment_type
+                        'payment_type' => $payment->payment_type,
                     ]);
                 }
 
             } catch (\Exception $e) {
                 \Log::warning('Could not load component items for webhook', [
                     'payment_id' => $payment->id,
-                    'error' => $e->getMessage()
+                    'error' => $e->getMessage(),
                 ]);
             }
         }
@@ -183,7 +182,7 @@ class WebhookPayloadBuilder
                 'status' => $student->status,
                 'admission_date' => $student->admission_date,
                 'mobile' => $student->student_mobile,
-            ]
+            ],
         ];
 
         try {
@@ -191,7 +190,7 @@ class WebhookPayloadBuilder
                 $data['batch'] = [
                     'id' => $student->batch->id,
                     'name' => $student->batch->name,
-                    'course_id' => $student->batch->course_id ?? null
+                    'course_id' => $student->batch->course_id ?? null,
                 ];
             }
         } catch (\Exception $e) {
@@ -218,7 +217,7 @@ class WebhookPayloadBuilder
                 'status' => $studentFee->status,
                 'due_date' => $studentFee->due_date,
                 'academic_year' => $studentFee->academic_year,
-            ]
+            ],
         ];
 
         try {
@@ -226,14 +225,14 @@ class WebhookPayloadBuilder
                 $data['student'] = [
                     'id' => $studentFee->student->id,
                     'name' => $studentFee->student->name,
-                    'enrollment_number' => $studentFee->student->enrollment_number
+                    'enrollment_number' => $studentFee->student->enrollment_number,
                 ];
             }
 
             if ($studentFee->feeCategory) {
                 $data['fee_category'] = [
                     'id' => $studentFee->feeCategory->id,
-                    'name' => $studentFee->feeCategory->name
+                    'name' => $studentFee->feeCategory->name,
                 ];
             }
         } catch (\Exception $e) {
@@ -257,21 +256,21 @@ class WebhookPayloadBuilder
                 'reason' => $concession->reason,
                 'approved_by' => $concession->approved_by,
                 'status' => $concession->status,
-            ]
+            ],
         ];
 
         try {
             if ($concession->studentFee) {
                 $data['student_fee'] = [
                     'id' => $concession->studentFee->id,
-                    'category_name' => $concession->studentFee->feeCategory->name ?? 'Unknown'
+                    'category_name' => $concession->studentFee->feeCategory->name ?? 'Unknown',
                 ];
             }
 
             if (isset($concession->studentFee->student)) {
                 $data['student'] = [
                     'id' => $concession->studentFee->student->id,
-                    'name' => $concession->studentFee->student->name
+                    'name' => $concession->studentFee->student->name,
                 ];
             }
         } catch (\Exception $e) {
@@ -303,7 +302,7 @@ class WebhookPayloadBuilder
     {
         return [
             'event' => 'system.error',
-            'event_id' => 'evt_' . uniqid(),
+            'event_id' => 'evt_'.uniqid(),
             'timestamp' => now()->toISOString(),
             'app_name' => config('app.name', 'CollegeManagement'),
             'environment' => app()->environment(),
@@ -313,8 +312,8 @@ class WebhookPayloadBuilder
                 'debug_info' => [
                     'has_model' => property_exists($event, 'model') && $event->model !== null,
                     'model_class' => property_exists($event, 'model') && $event->model ? get_class($event->model) : null,
-                ]
-            ]
+                ],
+            ],
         ];
     }
 }

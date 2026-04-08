@@ -42,7 +42,7 @@ class EnquiriesExport implements FromCollection, WithHeadings, WithMapping
     }
 
     /**
-     * @var Enquiry $enquiry
+     * @var Enquiry
      */
     public function map($enquiry): array
     {

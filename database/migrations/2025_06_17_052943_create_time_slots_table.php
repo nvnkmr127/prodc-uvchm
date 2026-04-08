@@ -10,14 +10,15 @@ return new class extends Migration
      * Run the migrations.
      */
     public function up(): void
-{
-    Schema::create('time_slots', function (Blueprint $table) {
-        $table->id();
-        $table->time('start_time'); // e.g., 09:00:00
-        $table->time('end_time');   // e.g., 10:00:00
-        $table->timestamps();
-    });
-}
+    {
+        Schema::create('time_slots', function (Blueprint $table) {
+            $table->id();
+            $table->time('start_time'); // e.g., 09:00:00
+            $table->time('end_time');   // e.g., 10:00:00
+            $table->timestamps();
+        });
+    }
+
     /**
      * Reverse the migrations.
      */

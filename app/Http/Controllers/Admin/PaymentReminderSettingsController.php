@@ -3,12 +3,9 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Setting;
 use App\Models\PaymentReminder;
+use App\Models\Setting;
 use Illuminate\Http\Request;
-use Carbon\Carbon;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 
 class PaymentReminderSettingsController extends Controller
 {
@@ -51,7 +48,7 @@ class PaymentReminderSettingsController extends Controller
                     ->get();
             }
         } catch (\Exception $e) {
-            \Log::info('PaymentReminder table not yet available: ' . $e->getMessage());
+            \Log::info('PaymentReminder table not yet available: '.$e->getMessage());
         }
 
         // ✅ FIXED: Return the correct view path in the payments folder
@@ -70,7 +67,7 @@ class PaymentReminderSettingsController extends Controller
         $validated = $request->validate([
             'settings' => 'required|array',
             'settings.*.key' => 'required|string',
-            'settings.*.value' => 'nullable|string'
+            'settings.*.value' => 'nullable|string',
         ]);
 
         try {
@@ -89,7 +86,8 @@ class PaymentReminderSettingsController extends Controller
             return redirect()->back()->with('success', 'Payment reminder settings updated successfully!');
 
         } catch (\Exception $e) {
-            \Log::error('Failed to update payment reminder settings: ' . $e->getMessage());
+            \Log::error('Failed to update payment reminder settings: '.$e->getMessage());
+
             return redirect()->back()->with('error', 'Failed to update settings. Please try again.');
         }
     }
@@ -100,13 +98,13 @@ class PaymentReminderSettingsController extends Controller
     private function getReminderStatistics(): array
     {
         try {
-            if (!class_exists('\App\Models\PaymentReminder')) {
+            if (! class_exists('\App\Models\PaymentReminder')) {
                 return [
                     'total_reminders' => 0,
                     'sent_today' => 0,
                     'pending' => 0,
                     'failed' => 0,
-                    'success_rate' => 0
+                    'success_rate' => 0,
                 ];
             }
 
@@ -123,17 +121,18 @@ class PaymentReminderSettingsController extends Controller
                 'sent_today' => $sentToday,
                 'pending' => $pending,
                 'failed' => $failed,
-                'success_rate' => $successRate
+                'success_rate' => $successRate,
             ];
 
         } catch (\Exception $e) {
-            \Log::error('Error getting reminder statistics: ' . $e->getMessage());
+            \Log::error('Error getting reminder statistics: '.$e->getMessage());
+
             return [
                 'total_reminders' => 0,
                 'sent_today' => 0,
                 'pending' => 0,
                 'failed' => 0,
-                'success_rate' => 0
+                'success_rate' => 0,
             ];
         }
     }
@@ -146,7 +145,7 @@ class PaymentReminderSettingsController extends Controller
         $validated = $request->validate([
             'channel' => 'required|in:email,sms,whatsapp',
             'recipient' => 'required|string',
-            'test_message' => 'required|string'
+            'test_message' => 'required|string',
         ]);
 
         try {
@@ -160,26 +159,27 @@ class PaymentReminderSettingsController extends Controller
                 if ($result['success']) {
                     return response()->json([
                         'success' => true,
-                        'message' => 'Test reminder sent successfully!'
+                        'message' => 'Test reminder sent successfully!',
                     ]);
                 } else {
                     return response()->json([
                         'success' => false,
-                        'message' => 'Failed to send test reminder: ' . $result['error']
+                        'message' => 'Failed to send test reminder: '.$result['error'],
                     ], 422);
                 }
             }
 
             return response()->json([
                 'success' => false,
-                'message' => 'Reminder service not available'
+                'message' => 'Reminder service not available',
             ], 503);
 
         } catch (\Exception $e) {
-            \Log::error('Test reminder failed: ' . $e->getMessage());
+            \Log::error('Test reminder failed: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Test failed: ' . $e->getMessage()
+                'message' => 'Test failed: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -193,17 +193,17 @@ class PaymentReminderSettingsController extends Controller
             $issues = [];
 
             // Check email configuration
-            if (!config('mail.default')) {
+            if (! config('mail.default')) {
                 $issues[] = 'Email driver not configured';
             }
 
             // Check SMS configuration (if applicable)
-            if (!config('services.sms.api_key')) {
+            if (! config('services.sms.api_key')) {
                 $issues[] = 'SMS service not configured';
             }
 
-            // Check WhatsApp configuration (if applicable) 
-            if (!config('services.whatsapp.api_key')) {
+            // Check WhatsApp configuration (if applicable)
+            if (! config('services.whatsapp.api_key')) {
                 $issues[] = 'WhatsApp service not configured';
             }
 
@@ -217,13 +217,13 @@ class PaymentReminderSettingsController extends Controller
             return response()->json([
                 'success' => count($issues) === 0,
                 'issues' => $issues,
-                'message' => count($issues) === 0 ? 'Configuration is valid' : 'Configuration issues found'
+                'message' => count($issues) === 0 ? 'Configuration is valid' : 'Configuration issues found',
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Validation failed: ' . $e->getMessage()
+                'message' => 'Validation failed: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -245,7 +245,7 @@ class PaymentReminderSettingsController extends Controller
                 'reminder_sms_template' => 'Dear [STUDENT_NAME], Fee payment of ₹[AMOUNT] due on [DUE_DATE]. Pay now to avoid late fees.',
                 'defaulter_grace_period' => '15',
                 'escalation_threshold' => '5000',
-                'auto_block_defaulters' => '0'
+                'auto_block_defaulters' => '0',
             ];
 
             foreach ($defaultSettings as $key => $value) {
@@ -263,7 +263,8 @@ class PaymentReminderSettingsController extends Controller
             return redirect()->back()->with('success', 'Settings reset to defaults successfully!');
 
         } catch (\Exception $e) {
-            \Log::error('Failed to reset settings: ' . $e->getMessage());
+            \Log::error('Failed to reset settings: '.$e->getMessage());
+
             return redirect()->back()->with('error', 'Failed to reset settings. Please try again.');
         }
     }

@@ -3,17 +3,16 @@
 namespace App\Exports;
 
 use Maatwebsite\Excel\Concerns\FromArray;
-use Maatwebsite\Excel\Concerns\WithHeadings;
-use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithColumnWidths;
-use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
-use PhpOffice\PhpSpreadsheet\Style\Fill;
-use PhpOffice\PhpSpreadsheet\Style\Color;
-use PhpOffice\PhpSpreadsheet\Style\Border;
+use Maatwebsite\Excel\Concerns\WithHeadings;
+use Maatwebsite\Excel\Concerns\WithStyles;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class StudentsSampleExport implements FromArray, WithHeadings, WithStyles, ShouldAutoSize, WithColumnWidths
+class StudentsSampleExport implements FromArray, ShouldAutoSize, WithColumnWidths, WithHeadings, WithStyles
 {
     public function array(): array
     {
@@ -30,7 +29,7 @@ class StudentsSampleExport implements FromArray, WithHeadings, WithStyles, Shoul
                 'Website',               // source
                 'Rampur',                // village
                 'Priya Patel',           // referral_name
-                
+
                 // Financial Information
                 85000,                   // total_fee_amount
                 50000,                   // paid_amount
@@ -38,9 +37,9 @@ class StudentsSampleExport implements FromArray, WithHeadings, WithStyles, Shoul
                 12000,                   // uniform_fee
                 '2025-01-15',           // payment_date (YYYY-MM-DD format)
                 'Cash',                  // payment_method
-                'Partial payment with merit scholarship' // payment_remarks
+                'Partial payment with merit scholarship', // payment_remarks
             ],
-            
+
             // Example 2: Online payment, no concession
             [
                 // Student Information
@@ -53,7 +52,7 @@ class StudentsSampleExport implements FromArray, WithHeadings, WithStyles, Shoul
                 'Social Media',         // source
                 'Kondapur',             // village
                 'Rahul Kumar',          // referral_name
-                
+
                 // Financial Information
                 85000,                  // total_fee_amount
                 85000,                  // paid_amount (full payment)
@@ -61,9 +60,9 @@ class StudentsSampleExport implements FromArray, WithHeadings, WithStyles, Shoul
                 12000,                  // uniform_fee
                 '2025-01-16',          // payment_date
                 'Online',              // payment_method
-                'Full payment via UPI - PhonePe' // payment_remarks
+                'Full payment via UPI - PhonePe', // payment_remarks
             ],
-            
+
             // Example 3: Cheque payment with family discount
             [
                 // Student Information
@@ -76,7 +75,7 @@ class StudentsSampleExport implements FromArray, WithHeadings, WithStyles, Shoul
                 'Referrals',           // source
                 'Sonapur',             // village
                 'Anita Singh',         // referral_name
-                
+
                 // Financial Information
                 120000,                // total_fee_amount (PG course - higher fee)
                 30000,                 // paid_amount
@@ -84,9 +83,9 @@ class StudentsSampleExport implements FromArray, WithHeadings, WithStyles, Shoul
                 12000,                 // uniform_fee
                 '2025-01-17',         // payment_date
                 'Cheque',             // payment_method
-                'Initial payment via cheque, family discount applied' // payment_remarks
+                'Initial payment via cheque, family discount applied', // payment_remarks
             ],
-            
+
             // Example 4: No payment yet, but concession applied
             [
                 // Student Information
@@ -99,7 +98,7 @@ class StudentsSampleExport implements FromArray, WithHeadings, WithStyles, Shoul
                 'Walk-in',            // source
                 'Mehsana',            // village
                 '',                   // referral_name (empty - no referral)
-                
+
                 // Financial Information
                 85000,                // total_fee_amount
                 0,                    // paid_amount (no payment yet)
@@ -107,9 +106,9 @@ class StudentsSampleExport implements FromArray, WithHeadings, WithStyles, Shoul
                 12000,                // uniform_fee
                 '',                   // payment_date (empty - no payment yet)
                 '',                   // payment_method (empty - no payment yet)
-                'Merit scholarship applied - 10% discount, payment pending' // payment_remarks
+                'Merit scholarship applied - 10% discount, payment pending', // payment_remarks
             ],
-            
+
             // Example 5: Bank transfer with installment plan
             [
                 // Student Information
@@ -122,7 +121,7 @@ class StudentsSampleExport implements FromArray, WithHeadings, WithStyles, Shoul
                 'Student Referral',   // source
                 'Jaipur',             // village
                 'Mohan Sharma',       // referral_name
-                
+
                 // Financial Information
                 85000,                // total_fee_amount
                 25000,                // paid_amount (installment 1)
@@ -130,9 +129,9 @@ class StudentsSampleExport implements FromArray, WithHeadings, WithStyles, Shoul
                 12000,                // uniform_fee
                 '2025-01-19',        // payment_date
                 'Bank Transfer',      // payment_method
-                'First installment - NEFT transfer, early bird discount' // payment_remarks
+                'First installment - NEFT transfer, early bird discount', // payment_remarks
             ],
-            
+
             // Example 6: UPI payment, complete uniform fee paid
             [
                 // Student Information
@@ -145,7 +144,7 @@ class StudentsSampleExport implements FromArray, WithHeadings, WithStyles, Shoul
                 'Online Ads',         // source
                 'Kochi',              // village
                 'Deepa Thomas',       // referral_name
-                
+
                 // Financial Information
                 85000,                // total_fee_amount
                 15000,                // paid_amount (partial)
@@ -153,8 +152,8 @@ class StudentsSampleExport implements FromArray, WithHeadings, WithStyles, Shoul
                 12000,                // uniform_fee (will be paid separately)
                 '2025-01-20',        // payment_date
                 'UPI',                // payment_method
-                'Advance payment via GooglePay, uniform fee included' // payment_remarks
-            ]
+                'Advance payment via GooglePay, uniform fee included', // payment_remarks
+            ],
         ];
     }
 
@@ -163,7 +162,7 @@ class StudentsSampleExport implements FromArray, WithHeadings, WithStyles, Shoul
         return [
             // Student Information Columns (A-I)
             'full_name',              // A - Required
-            'father_name',            // B - Required  
+            'father_name',            // B - Required
             'gender',                 // C - Required (Male/Female)
             'admission_date',         // D - Required (YYYY-MM-DD)
             'student_mobile',         // E - Optional (10-digit number)
@@ -171,7 +170,7 @@ class StudentsSampleExport implements FromArray, WithHeadings, WithStyles, Shoul
             'source',                 // G - Optional (how they found college)
             'village',                // H - Optional (student location)
             'referral_name',          // I - Optional (who referred them)
-            
+
             // Financial Information Columns (J-P)
             'total_fee_amount',       // J - Optional (override default fees)
             'paid_amount',            // K - Optional (amount already paid)
@@ -179,7 +178,7 @@ class StudentsSampleExport implements FromArray, WithHeadings, WithStyles, Shoul
             'uniform_fee',            // M - Optional (uniform fee amount)
             'payment_date',           // N - Optional (YYYY-MM-DD format)
             'payment_method',         // O - Optional (Cash/Online/Cheque/UPI/Bank Transfer)
-            'payment_remarks'         // P - Optional (notes about payment)
+            'payment_remarks',         // P - Optional (notes about payment)
         ];
     }
 
@@ -209,12 +208,12 @@ class StudentsSampleExport implements FromArray, WithHeadings, WithStyles, Shoul
     {
         // Add instructions at the top
         $sheet->insertNewRowBefore(1, 3);
-        
+
         // Add title and instructions
         $sheet->setCellValue('A1', 'STUDENT BULK IMPORT TEMPLATE WITH FINANCIAL DATA');
         $sheet->setCellValue('A2', 'Instructions: Fill student data (A-I) and financial data (J-P). Financial columns are optional.');
         $sheet->setCellValue('A3', 'Date Format: YYYY-MM-DD | Mobile: 10-digit numbers | Amounts: Numbers only (no commas)');
-        
+
         return [
             // Title styling
             1 => [
@@ -231,7 +230,7 @@ class StudentsSampleExport implements FromArray, WithHeadings, WithStyles, Shoul
                     'horizontal' => Alignment::HORIZONTAL_CENTER,
                 ],
             ],
-            
+
             // Instructions styling
             2 => [
                 'font' => [
@@ -242,7 +241,7 @@ class StudentsSampleExport implements FromArray, WithHeadings, WithStyles, Shoul
                     'horizontal' => Alignment::HORIZONTAL_LEFT,
                 ],
             ],
-            
+
             3 => [
                 'font' => [
                     'size' => 9,
@@ -252,7 +251,7 @@ class StudentsSampleExport implements FromArray, WithHeadings, WithStyles, Shoul
                     'horizontal' => Alignment::HORIZONTAL_LEFT,
                 ],
             ],
-            
+
             // Header row styling (row 4 after instructions)
             4 => [
                 'font' => [
@@ -275,7 +274,7 @@ class StudentsSampleExport implements FromArray, WithHeadings, WithStyles, Shoul
                     'vertical' => Alignment::VERTICAL_CENTER,
                 ],
             ],
-            
+
             // Student information columns (A-I) - Light blue background
             'A4:I4' => [
                 'fill' => [
@@ -287,7 +286,7 @@ class StudentsSampleExport implements FromArray, WithHeadings, WithStyles, Shoul
                     'bold' => true,
                 ],
             ],
-            
+
             // Financial information columns (J-P) - Light green background
             'J4:P4' => [
                 'fill' => [
@@ -299,7 +298,7 @@ class StudentsSampleExport implements FromArray, WithHeadings, WithStyles, Shoul
                     'bold' => true,
                 ],
             ],
-            
+
             // Data rows styling
             'A5:P10' => [
                 'borders' => [
@@ -309,33 +308,33 @@ class StudentsSampleExport implements FromArray, WithHeadings, WithStyles, Shoul
                     ],
                 ],
             ],
-            
+
             // Numeric columns formatting (amounts)
             'J:M' => [
                 'numberFormat' => [
-                    'formatCode' => '#,##0'
+                    'formatCode' => '#,##0',
                 ],
             ],
-            
+
             // Date columns formatting
             'D:D' => [
                 'numberFormat' => [
-                    'formatCode' => 'yyyy-mm-dd'
+                    'formatCode' => 'yyyy-mm-dd',
                 ],
             ],
             'N:N' => [
                 'numberFormat' => [
-                    'formatCode' => 'yyyy-mm-dd'
+                    'formatCode' => 'yyyy-mm-dd',
                 ],
             ],
-            
+
             // Mobile number columns - text format to preserve leading zeros
             'E:F' => [
                 'numberFormat' => [
-                    'formatCode' => '@' // Text format
+                    'formatCode' => '@', // Text format
                 ],
             ],
-            
+
             // Merge title cell across all columns
             'A1:P1' => [
                 'alignment' => [

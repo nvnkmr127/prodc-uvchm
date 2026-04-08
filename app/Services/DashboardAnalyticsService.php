@@ -2,9 +2,9 @@
 
 namespace App\Services;
 
-use App\Models\User;
 use App\Models\Dashboard;
 use App\Models\DashboardView;
+use App\Models\User;
 
 class DashboardAnalyticsService
 {
@@ -15,7 +15,7 @@ class DashboardAnalyticsService
             'dashboard_id' => $dashboard->id,
             'viewed_at' => now(),
             'ip_address' => request()->ip(),
-            'user_agent' => request()->userAgent()
+            'user_agent' => request()->userAgent(),
         ]);
     }
 
@@ -25,14 +25,14 @@ class DashboardAnalyticsService
             'user_id' => $user->id,
             'widget_id' => $widget->id,
             'action' => $action,
-            'occurred_at' => now()
+            'occurred_at' => now(),
         ]);
     }
 
     public function getDashboardUsageStats(Dashboard $dashboard, string $period = '30d'): array
     {
         $startDate = $this->getPeriodStartDate($period);
-        
+
         return [
             'total_views' => DashboardView::where('dashboard_id', $dashboard->id)
                 ->where('viewed_at', '>=', $startDate)
@@ -43,7 +43,7 @@ class DashboardAnalyticsService
                 ->count(),
             'avg_session_duration' => $this->calculateAverageSessionDuration($dashboard, $startDate),
             'most_used_widgets' => $this->getMostUsedWidgets($dashboard, $startDate),
-            'usage_by_hour' => $this->getUsageByHour($dashboard, $startDate)
+            'usage_by_hour' => $this->getUsageByHour($dashboard, $startDate),
         ];
     }
 
@@ -58,9 +58,10 @@ class DashboardAnalyticsService
             'error_rate' => Cache::remember('dashboard_error_rate', 300, function () {
                 $total = DashboardView::where('created_at', '>=', now()->subDays(7))->count();
                 $errors = DashboardError::where('created_at', '>=', now()->subDays(7))->count();
+
                 return $total > 0 ? ($errors / $total) * 100 : 0;
             }),
-            'widget_response_times' => $this->getWidgetResponseTimes()
+            'widget_response_times' => $this->getWidgetResponseTimes(),
         ];
     }
 }

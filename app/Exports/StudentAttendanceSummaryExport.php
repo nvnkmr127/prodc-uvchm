@@ -3,27 +3,29 @@
 namespace App\Exports;
 
 use App\Models\Attendance;
-use App\Models\Batch;
 use App\Models\Holiday;
 use App\Models\Student;
 use Carbon\Carbon;
-use Carbon\CarbonPeriod;
 use Maatwebsite\Excel\Concerns\FromCollection;
-use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
-use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithEvents;
+use Maatwebsite\Excel\Concerns\WithHeadings;
+use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Events\AfterSheet;
-use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class StudentAttendanceSummaryExport implements FromCollection, WithHeadings, ShouldAutoSize, WithStyles, WithEvents
+class StudentAttendanceSummaryExport implements FromCollection, ShouldAutoSize, WithEvents, WithHeadings, WithStyles
 {
     protected $courseId;
+
     protected $batchId;
+
     protected $startDate;
+
     protected $endDate;
+
     protected $months;
 
     public function __construct($courseId, $batchId, $startDate, $endDate)
@@ -67,7 +69,7 @@ class StudentAttendanceSummaryExport implements FromCollection, WithHeadings, Sh
         if ($this->batchId) {
             $studentsQuery->where('batch_id', $this->batchId);
 
-            if (!$this->courseId) {
+            if (! $this->courseId) {
                 $batch = \App\Models\Batch::withoutGlobalScope('academic_year')->with('course')->find($this->batchId);
                 if ($batch && $batch->course && stripos($batch->course->name, 'Internship') !== false) {
                     $studentsQuery->where('status', 'active');
@@ -78,13 +80,13 @@ class StudentAttendanceSummaryExport implements FromCollection, WithHeadings, Sh
         $students = $studentsQuery->with([
             'batch' => function ($q) {
                 $q->withoutGlobalScope('academic_year');
-            }
+            },
         ])->get();
 
         // 2. Fetch Holidays - Ensure consistent string format
         $holidays = Holiday::whereBetween('date', [$this->startDate->format('Y-m-d'), $this->endDate->format('Y-m-d')])
             ->get()
-            ->map(fn($h) => (is_string($h->date) ? substr($h->date, 0, 10) : $h->date->format('Y-m-d')))
+            ->map(fn ($h) => (is_string($h->date) ? substr($h->date, 0, 10) : $h->date->format('Y-m-d')))
             ->toArray();
 
         // 3. Fetch Attendance Data - Bypass Global Scope
@@ -104,6 +106,7 @@ class StudentAttendanceSummaryExport implements FromCollection, WithHeadings, Sh
             ->mapWithKeys(function ($item) {
                 // Handle different potential date formats from DB
                 $dateStr = is_string($item->date) ? substr($item->date, 0, 10) : Carbon::parse($item->date)->format('Y-m-d');
+
                 return [$dateStr => $item->count];
             })
             ->toArray();
@@ -115,6 +118,7 @@ class StudentAttendanceSummaryExport implements FromCollection, WithHeadings, Sh
             // This is indexed by 'Y-m-d' date string
             $studentRecordsMap = $attendanceRecords->get($student->id, collect())->mapWithKeys(function ($item) {
                 $d = is_string($item->attendance_date) ? substr($item->attendance_date, 0, 10) : $item->attendance_date->format('Y-m-d');
+
                 return [$d => $item];
             });
 
@@ -131,10 +135,12 @@ class StudentAttendanceSummaryExport implements FromCollection, WithHeadings, Sh
                 $monthEnd = $month->copy()->endOfMonth();
 
                 // Clip to selected range
-                if ($monthStart->lt($this->startDate))
+                if ($monthStart->lt($this->startDate)) {
                     $monthStart = $this->startDate->copy();
-                if ($monthEnd->gt($this->endDate))
+                }
+                if ($monthEnd->gt($this->endDate)) {
                     $monthEnd = $this->endDate->copy();
+                }
 
                 if ($monthStart->gt($monthEnd)) {
                     $row[] = 0;
@@ -143,6 +149,7 @@ class StudentAttendanceSummaryExport implements FromCollection, WithHeadings, Sh
                     $row[] = 0;
                     $row[] = '0%';
                     $row[] = '';
+
                     continue;
                 }
 
@@ -152,7 +159,7 @@ class StudentAttendanceSummaryExport implements FromCollection, WithHeadings, Sh
                 $row[] = $stats['present'];
                 $row[] = $stats['absent'];
                 $row[] = $stats['excused'];
-                $row[] = $stats['percentage'] . '%';
+                $row[] = $stats['percentage'].'%';
                 $row[] = ''; // Separator
             }
 
@@ -162,7 +169,7 @@ class StudentAttendanceSummaryExport implements FromCollection, WithHeadings, Sh
             $row[] = $overallStats['present'];
             $row[] = $overallStats['absent'];
             $row[] = $overallStats['excused'];
-            $row[] = $overallStats['percentage'] . '%';
+            $row[] = $overallStats['percentage'].'%';
 
             $output->push($row);
         }
@@ -195,7 +202,7 @@ class StudentAttendanceSummaryExport implements FromCollection, WithHeadings, Sh
             $isExplicitHoliday = in_array($dateStr, $allHolidays);
 
             $isLowAttendanceHoliday = false;
-            if ($current->lte($today) && !$isSunday && !$isExplicitHoliday) {
+            if ($current->lte($today) && ! $isSunday && ! $isExplicitHoliday) {
                 $dayPunchCount = $dailyCounts[$dateStr] ?? 0;
                 if ($dayPunchCount < 10) {
                     $isLowAttendanceHoliday = true;
@@ -238,7 +245,7 @@ class StudentAttendanceSummaryExport implements FromCollection, WithHeadings, Sh
             $isExplicitHoliday = in_array($dateStr, $allHolidays);
 
             $isLowAttendanceHoliday = false;
-            if ($current->lte($today) && !$isSunday && !$isExplicitHoliday) {
+            if ($current->lte($today) && ! $isSunday && ! $isExplicitHoliday) {
                 $dayPunchCount = $dailyCounts[$dateStr] ?? 0;
                 if ($dayPunchCount < 10) {
                     $isLowAttendanceHoliday = true;
@@ -248,7 +255,7 @@ class StudentAttendanceSummaryExport implements FromCollection, WithHeadings, Sh
             $isHoliday = $isSunday || $isExplicitHoliday || $isLowAttendanceHoliday;
 
             // We only care about attendance on "Working Days" for this student
-            if (!$isHoliday) {
+            if (! $isHoliday) {
                 $hasStarted = $student->admission_date
                     ? $current->gte(Carbon::parse($student->admission_date)->startOfDay())
                     : ($firstBiometricUse ? $current->gte(Carbon::parse($firstBiometricUse)->startOfDay()) : false);
@@ -257,6 +264,7 @@ class StudentAttendanceSummaryExport implements FromCollection, WithHeadings, Sh
                     // If the day is in the future, ignore it for attendance stats
                     if ($current->gt($today)) {
                         $current->addDay();
+
                         continue;
                     }
 
@@ -292,15 +300,16 @@ class StudentAttendanceSummaryExport implements FromCollection, WithHeadings, Sh
 
         $totalAttended = $present + $internship + $excused;
         $percentage = ($working_days_in_loop > 0) ? round(($totalAttended / $working_days_in_loop) * 100, 1) : 0;
-        if ($percentage > 100)
+        if ($percentage > 100) {
             $percentage = 100;
+        }
 
         return [
             'working_days' => $working_days_in_loop,
             'present' => $present,
             'absent' => $absent,
             'excused' => $excused,
-            'percentage' => $percentage
+            'percentage' => $percentage,
         ];
     }
 

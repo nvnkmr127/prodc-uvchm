@@ -1,13 +1,11 @@
 <?php
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Schema;
-use App\Http\Controllers\Api\GlobalSearchController;
-use App\Http\Controllers\Api\WebhookController;
 use App\Http\Controllers\Api\AttendanceController;
 use App\Http\Controllers\Api\BiometricWebhookController;
+use App\Http\Controllers\Api\GlobalSearchController;
 use App\Http\Controllers\NotificationController;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
@@ -16,12 +14,12 @@ use App\Http\Controllers\NotificationController;
 */
 
 Route::middleware(['auth'])->group(function () {
-        Route::get('/api/dashboard/my-payment-data', [DashboardController::class, 'getMyPaymentData']);
-        Route::get('/api/dashboard/my-activities', [DashboardController::class, 'getMyActivities']);
-        Route::get('/api/dashboard/attendance-data', [DashboardController::class, 'getAttendanceData']);
-        Route::get('/admin/reports/my-payments/export', [ComponentPaymentController::class, 'exportMyPayments']);
+    Route::get('/api/dashboard/my-payment-data', [DashboardController::class, 'getMyPaymentData']);
+    Route::get('/api/dashboard/my-activities', [DashboardController::class, 'getMyActivities']);
+    Route::get('/api/dashboard/attendance-data', [DashboardController::class, 'getAttendanceData']);
+    Route::get('/admin/reports/my-payments/export', [ComponentPaymentController::class, 'exportMyPayments']);
 
-    });
+});
 
 // Health check endpoints
 Route::get('/ping', function () {
@@ -29,7 +27,7 @@ Route::get('/ping', function () {
         'status' => 'success',
         'message' => 'PONG',
         'timestamp' => now(),
-        'server_time' => date('Y-m-d H:i:s')
+        'server_time' => date('Y-m-d H:i:s'),
     ]);
 });
 
@@ -38,37 +36,37 @@ Route::get('/test', function () {
         'status' => 'success',
         'message' => 'API is working',
         'timestamp' => now(),
-        'server_time' => date('Y-m-d H:i:s')
+        'server_time' => date('Y-m-d H:i:s'),
     ]);
 });
 
 // Debug endpoint - SECURED: Only available in local environment with authentication
 Route::middleware(['auth:sanctum', 'throttle:10,1'])->group(function () {
-    Route::any('/debug-realtime', function(\Illuminate\Http\Request $request) {
+    Route::any('/debug-realtime', function (\Illuminate\Http\Request $request) {
         // Only allow in local environment
-        if (!app()->environment('local')) {
+        if (! app()->environment('local')) {
             abort(404);
         }
-        
+
         // Only allow super-admin users
-        if (!$request->user() || !$request->user()->hasRole('super-admin')) {
+        if (! $request->user() || ! $request->user()->hasRole('super-admin')) {
             abort(403, 'Unauthorized access to debug endpoint');
         }
-        
+
         \Log::info('=== DEBUG REALTIME ENDPOINT ===', [
             'timestamp' => now(),
             'method' => $request->method(),
             'user_id' => $request->user()->id,
-            'ip' => $request->ip()
+            'ip' => $request->ip(),
             // Removed sensitive data logging
         ]);
-        
+
         return response()->json([
             'Result' => 'OK',
             'Status' => 'Debug endpoint working (secured)',
             'timestamp' => now(),
             'method' => $request->method(),
-            'environment' => app()->environment()
+            'environment' => app()->environment(),
         ]);
     });
 });
@@ -78,11 +76,11 @@ Route::prefix('etimeoffice')->group(function () {
     // Primary ETimeOffice webhook endpoint
     Route::post('/webhook', [BiometricWebhookController::class, 'handleETimeOffice'])
         ->name('api.etimeoffice.webhook');
-    
+
     // Alternative endpoint names for ETimeOffice compatibility
     Route::post('/attendance', [BiometricWebhookController::class, 'handleETimeOffice'])
         ->name('api.etimeoffice.attendance');
-    
+
     Route::post('/punch-data', [BiometricWebhookController::class, 'handleETimeOffice'])
         ->name('api.etimeoffice.punch-data');
 });
@@ -94,7 +92,6 @@ Route::post('/biometric/webhook', [BiometricWebhookController::class, 'handleBio
 // Deprecated endpoints - return 410 Gone
 Route::post('/biometric/realtime', [BiometricWebhookController::class, 'handleRealtime'])
     ->name('api.biometric.realtime.deprecated');
-
 
 /*
 |--------------------------------------------------------------------------
@@ -118,36 +115,36 @@ Route::post('/attendance', [AttendanceController::class, 'store'])->name('api.at
 Route::middleware(['auth:sanctum', 'throttle:60,1'])->group(function () {
     // Global search endpoint
     Route::get('/search', [GlobalSearchController::class, 'search']);
-    
+
     // Course-related endpoints
     Route::get('/courses/{course}/terms', function (App\Models\Course $course) {
         return response()->json($course->terms);
     });
-    
+
     // User profile endpoint
     Route::get('/user', function (Request $request) {
         return $request->user();
     });
-    
+
     // Student search endpoints - more restrictive rate limiting for search
     Route::middleware('throttle:30,1')->group(function () {
         Route::get('/students/search', [\App\Http\Controllers\Api\StudentController::class, 'search']);
     });
-    
+
     Route::get('/students/{student}', [\App\Http\Controllers\Api\StudentController::class, 'show']);
-    
+
     // Attendance API endpoints - sensitive data with tighter rate limiting
     Route::prefix('attendance')->name('api.attendance.')->middleware('throttle:100,1')->group(function () {
         Route::get('/today', [AttendanceController::class, 'getTodayAttendance'])->name('today');
         Route::get('/student/{student}', [AttendanceController::class, 'getStudentAttendance'])->name('student');
         Route::get('/batch/{batch}', [AttendanceController::class, 'getBatchAttendance'])->name('batch');
-        
+
         // Real-time endpoints need more restrictive limits
         Route::middleware('throttle:30,1')->group(function () {
             Route::get('/realtime', [AttendanceController::class, 'getRealTimeData'])->name('realtime');
             Route::get('/live-feed', [AttendanceController::class, 'getLiveFeed'])->name('live-feed');
         });
-        
+
         Route::get('/stats/today', [AttendanceController::class, 'getTodayStats'])->name('stats.today');
         Route::get('/stats/weekly', [AttendanceController::class, 'getWeeklyStats'])->name('stats.weekly');
         Route::get('/stats/monthly', [AttendanceController::class, 'getMonthlyStats'])->name('stats.monthly');

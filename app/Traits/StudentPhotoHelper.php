@@ -2,81 +2,71 @@
 
 namespace App\Traits;
 
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Log;
 use App\Models\Student;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 trait StudentPhotoHelper
 {
     /**
      * Get student's profile photo URL with fallback to dummy avatar
-     *
-     * @param Student $student
-     * @param int $size
-     * @param string $background
-     * @param string $color
-     * @return string
      */
     public static function getStudentPhotoUrl(Student $student, int $size = 100, string $background = '4e73df', string $color = 'fff'): string
     {
         if ($student->photo) {
             $photoPath = ltrim($student->photo, '/'); // Remove leading slash if any
-            
+
             // Potential prefixes to check if the file is just a filename
             $prefixes = ['student_photos/', 'students/', 'student-photos/'];
-            
+
             // 1. Check direct path on public disk
             if (Storage::disk('public')->exists($photoPath)) {
-                return asset('storage/' . $photoPath);
+                return asset('storage/'.$photoPath);
             }
-            
+
             // 2. Check each prefix if path doesn't contain a slash
-            if (!str_contains($photoPath, '/')) {
+            if (! str_contains($photoPath, '/')) {
                 foreach ($prefixes as $prefix) {
-                    if (Storage::disk('public')->exists($prefix . $photoPath)) {
-                        return asset('storage/' . $prefix . $photoPath);
+                    if (Storage::disk('public')->exists($prefix.$photoPath)) {
+                        return asset('storage/'.$prefix.$photoPath);
                     }
                 }
             }
-            
+
             // 3. Direct filesystem check (absolute path)
-            $fullPath = storage_path('app/public/' . $photoPath);
+            $fullPath = storage_path('app/public/'.$photoPath);
             if (file_exists($fullPath)) {
-                return asset('storage/' . $photoPath);
+                return asset('storage/'.$photoPath);
             }
-            
+
             // 4. Check prefixes on filesystem
             $filename = basename($photoPath);
             foreach ($prefixes as $prefix) {
-                $fullPathWithPrefix = storage_path('app/public/' . $prefix . $filename);
+                $fullPathWithPrefix = storage_path('app/public/'.$prefix.$filename);
                 if (file_exists($fullPathWithPrefix)) {
-                    return asset('storage/' . $prefix . $filename);
+                    return asset('storage/'.$prefix.$filename);
                 }
             }
 
             // [DEBUG] If we reached here, photo is in DB but not on disk or in common folders
-            Log::warning("Student Photo Missing on Disk", [
+            Log::warning('Student Photo Missing on Disk', [
                 'student_id' => $student->id,
                 'student_name' => $student->name,
                 'photo_field' => $student->photo,
                 'resolved_photo_path' => $photoPath,
                 'attempted_full_path' => $fullPath,
-                'checked_prefixes' => $prefixes
+                'checked_prefixes' => $prefixes,
             ]);
         }
-        
+
         // Generate dummy avatar using UI Avatars service
         $name = urlencode($student->name);
-        
+
         return "https://ui-avatars.com/api/?name={$name}&size={$size}&background={$background}&color={$color}&rounded=true&bold=true";
     }
 
     /**
-
      * Get student's circular profile photo for listings
-     *
-     * @param Student $student
-     * @return string
      */
     public static function getStudentCircularPhoto(Student $student): string
     {
@@ -85,9 +75,6 @@ trait StudentPhotoHelper
 
     /**
      * Get student's medium profile photo for cards
-     *
-     * @param Student $student
-     * @return string
      */
     public static function getStudentMediumPhoto(Student $student): string
     {
@@ -96,9 +83,6 @@ trait StudentPhotoHelper
 
     /**
      * Get student's large profile photo for detailed views
-     *
-     * @param Student $student
-     * @return string
      */
     public static function getStudentLargePhoto(Student $student): string
     {
@@ -107,9 +91,6 @@ trait StudentPhotoHelper
 
     /**
      * Get student's photo for ID cards
-     *
-     * @param Student $student
-     * @return string
      */
     public static function getStudentIdCardPhoto(Student $student): string
     {
@@ -118,10 +99,6 @@ trait StudentPhotoHelper
 
     /**
      * Get gender-specific dummy avatar colors
-     *
-     * @param Student $student
-     * @param int $size
-     * @return string
      */
     public static function getGenderSpecificPhoto(Student $student, int $size = 100): string
     {
@@ -130,18 +107,14 @@ trait StudentPhotoHelper
             'Female' => ['background' => 'e91e63', 'color' => 'fff'],
             'Other' => ['background' => '9c27b0', 'color' => 'fff'],
         ];
-        
+
         $genderColors = $colors[$student->gender] ?? $colors['Other'];
-        
+
         return self::getStudentPhotoUrl($student, $size, $genderColors['background'], $genderColors['color']);
     }
 
     /**
      * Get batch color-coded photo
-     *
-     * @param Student $student
-     * @param int $size
-     * @return string
      */
     public static function getBatchColoredPhoto(Student $student, int $size = 100): string
     {
@@ -157,19 +130,17 @@ trait StudentPhotoHelper
             '20c997', // Teal
             '6c757d', // Secondary gray
         ];
-        
+
         $colorIndex = $batchId % count($colors);
         $backgroundColor = $colors[$colorIndex];
-        
+
         return self::getStudentPhotoUrl($student, $size, $backgroundColor, 'fff');
     }
 
     /**
      * Get student photo for different contexts
      *
-     * @param Student $student
-     * @param string $context ('list', 'card', 'profile', 'id_card', 'small')
-     * @return string
+     * @param  string  $context  ('list', 'card', 'profile', 'id_card', 'small')
      */
     public static function getStudentPhotoForContext(Student $student, string $context = 'card'): string
     {
@@ -194,9 +165,6 @@ trait StudentPhotoHelper
 
     /**
      * Get multiple photo sizes for responsive design
-     *
-     * @param Student $student
-     * @return array
      */
     public static function getResponsivePhotos(Student $student): array
     {
@@ -210,32 +178,32 @@ trait StudentPhotoHelper
 
     /**
      * Check if student has a real uploaded photo
-     *
-     * @param Student $student
-     * @return bool
      */
     public static function hasRealPhoto(Student $student): bool
     {
-        if (!$student->photo) return false;
-        
+        if (! $student->photo) {
+            return false;
+        }
+
         $photoPath = ltrim($student->photo, '/');
-        if (Storage::disk('public')->exists($photoPath)) return true;
-        
-        if (!str_contains($photoPath, '/')) {
+        if (Storage::disk('public')->exists($photoPath)) {
+            return true;
+        }
+
+        if (! str_contains($photoPath, '/')) {
             $prefixes = ['student_photos/', 'students/', 'student-photos/'];
             foreach ($prefixes as $prefix) {
-                if (Storage::disk('public')->exists($prefix . $photoPath)) return true;
+                if (Storage::disk('public')->exists($prefix.$photoPath)) {
+                    return true;
+                }
             }
         }
-        
+
         return false;
     }
 
     /**
      * Get photo type (real or dummy)
-     *
-     * @param Student $student
-     * @return string
      */
     public static function getPhotoType(Student $student): string
     {
@@ -244,26 +212,23 @@ trait StudentPhotoHelper
 
     /**
      * Generate a data URL for student photo (useful for PDFs, emails, etc.)
-     *
-     * @param Student $student
-     * @param int $size
-     * @return string
      */
     public static function getStudentPhotoDataUrl(Student $student, int $size = 100): string
     {
         if (self::hasRealPhoto($student)) {
             try {
-                $path = storage_path('app/public/' . $student->photo);
+                $path = storage_path('app/public/'.$student->photo);
                 if (file_exists($path)) {
                     $imageData = base64_encode(file_get_contents($path));
                     $mimeType = mime_content_type($path);
+
                     return "data:{$mimeType};base64,{$imageData}";
                 }
             } catch (\Exception $e) {
                 // Fall through to dummy photo
             }
         }
-        
+
         // For dummy photos, return the URL (since we can't easily convert external URLs to data URLs)
         return self::getStudentPhotoUrl($student, $size);
     }

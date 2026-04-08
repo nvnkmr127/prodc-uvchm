@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::table('settings', function (Blueprint $table) {
             // Add a new column to group settings in the UI
             $table->string('group')->default('general')->after('key');
-            
+
             // Columns for Enrollment Number configuration
             $table->string('enrollment_prefix')->nullable()->after('value');
             $table->string('enrollment_year_format')->nullable()->after('enrollment_prefix');

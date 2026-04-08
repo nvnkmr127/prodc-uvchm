@@ -30,7 +30,7 @@ return new class extends Migration
             $table->timestamp('started_at')->nullable();
             $table->timestamp('completed_at')->nullable();
             $table->timestamps();
-            
+
             $table->index(['batch_id', 'status']);
             $table->index(['user_id', 'created_at']);
             $table->index('import_type');
@@ -47,7 +47,7 @@ return new class extends Migration
             $table->text('message')->nullable();
             $table->timestamp('processed_at');
             $table->timestamps();
-            
+
             $table->index(['import_log_id', 'status']);
             $table->index('student_id');
         });

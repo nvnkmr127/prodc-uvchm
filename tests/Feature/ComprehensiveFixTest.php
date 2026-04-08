@@ -5,18 +5,15 @@
 
 namespace Tests\Feature;
 
+use App\Models\Course;
+use App\Models\Setting;
+use App\Models\Student;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
-use Tests\TestCase;
-use App\Models\User;
-use App\Models\Course;
-use App\Models\Holiday;
-use App\Models\CertificateTemplate;
-use App\Models\IdCardTemplate;
-use App\Models\Student;
-use App\Models\Setting;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Tests\TestCase;
 
 class ComprehensiveFixTest extends TestCase
 {
@@ -25,7 +22,7 @@ class ComprehensiveFixTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         // Create an admin user for testing
         $this->adminUser = User::factory()->create();
         $this->adminUser->assignRole('admin');
@@ -41,18 +38,18 @@ class ComprehensiveFixTest extends TestCase
             'name' => 'Computer Science Engineering',
             'code' => 'CSE',
             'duration_months' => 48,
-            'description' => 'Four-year engineering program in computer science'
+            'description' => 'Four-year engineering program in computer science',
         ];
 
         $response = $this->post(route('admin.courses.store'), $courseData);
-        
+
         $response->assertRedirect(route('admin.courses.index'));
         $response->assertSessionHas('success', 'Course created successfully.');
-        
+
         $this->assertDatabaseHas('courses', [
             'name' => 'Computer Science Engineering',
             'code' => 'CSE',
-            'duration_months' => 48
+            'duration_months' => 48,
         ]);
 
         // Test validation fails for invalid data
@@ -69,25 +66,25 @@ class ComprehensiveFixTest extends TestCase
     public function course_controller_update_validation_works()
     {
         $this->actingAs($this->adminUser);
-        
+
         $course = Course::factory()->create([
             'name' => 'Original Course',
             'code' => 'OC',
-            'duration_months' => 12
+            'duration_months' => 12,
         ]);
 
         $updateData = [
             'name' => 'Updated Course Name',
             'code' => 'UC',
             'duration_months' => 24,
-            'description' => 'Updated description'
+            'description' => 'Updated description',
         ];
 
         $response = $this->put(route('admin.courses.update', $course), $updateData);
-        
+
         $response->assertRedirect(route('admin.courses.index'));
         $response->assertSessionHas('success', 'Course updated successfully.');
-        
+
         $course->refresh();
         $this->assertEquals('Updated Course Name', $course->name);
         $this->assertEquals('UC', $course->code);
@@ -102,24 +99,24 @@ class ComprehensiveFixTest extends TestCase
         $holidayData = [
             'name' => 'Independence Day',
             'date' => '2025-08-15',
-            'description' => 'National holiday celebrating independence'
+            'description' => 'National holiday celebrating independence',
         ];
 
         $response = $this->post(route('admin.holidays.store'), $holidayData);
-        
+
         $response->assertRedirect(route('admin.holidays.index'));
         $response->assertSessionHas('success', 'Holiday created successfully.');
-        
+
         $this->assertDatabaseHas('holidays', [
             'name' => 'Independence Day',
-            'date' => '2025-08-15'
+            'date' => '2025-08-15',
         ]);
 
         // Test duplicate date validation
         $duplicateData = [
             'name' => 'Another Holiday',
             'date' => '2025-08-15', // Same date
-            'description' => 'Should fail'
+            'description' => 'Should fail',
         ];
 
         $response = $this->post(route('admin.holidays.store'), $duplicateData);
@@ -134,16 +131,16 @@ class ComprehensiveFixTest extends TestCase
         $templateData = [
             'name' => 'Graduation Certificate',
             'body' => 'This is to certify that {{student_name}} has successfully completed...',
-            'description' => 'Template for graduation certificates'
+            'description' => 'Template for graduation certificates',
         ];
 
         $response = $this->post(route('admin.certificate-templates.store'), $templateData);
-        
+
         $response->assertRedirect(route('admin.certificate-templates.index'));
         $response->assertSessionHas('success', 'Certificate template created successfully.');
-        
+
         $this->assertDatabaseHas('certificate_templates', [
-            'name' => 'Graduation Certificate'
+            'name' => 'Graduation Certificate',
         ]);
 
         // Test minimum content validation
@@ -165,17 +162,17 @@ class ComprehensiveFixTest extends TestCase
             'name' => 'Student ID Card',
             'content' => 'Student ID Card Template with {{student_name}} and {{enrollment_number}}',
             'description' => 'Standard student ID card template',
-            'is_active' => true
+            'is_active' => true,
         ];
 
         $response = $this->post(route('admin.id-card-templates.store'), $templateData);
-        
+
         $response->assertRedirect(route('admin.id-card-templates.index'));
         $response->assertSessionHas('success', 'ID Card Template created successfully.');
-        
+
         $this->assertDatabaseHas('id_card_templates', [
             'name' => 'Student ID Card',
-            'is_active' => true
+            'is_active' => true,
         ]);
     }
 
@@ -185,10 +182,10 @@ class ComprehensiveFixTest extends TestCase
         // Create related models
         $course = Course::factory()->create();
         $batch = \App\Models\Batch::factory()->create(['course_id' => $course->id]);
-        
+
         $student = Student::factory()->create([
             'batch_id' => $batch->id,
-            'enrollment_number' => '2025CSE001'
+            'enrollment_number' => '2025CSE001',
         ]);
 
         // Test relationships
@@ -208,7 +205,7 @@ class ComprehensiveFixTest extends TestCase
     {
         // Test setting creation and retrieval
         update_setting('test_setting', 'test_value', 'test_group', 'text');
-        
+
         $this->assertEquals('test_value', setting('test_setting'));
         $this->assertEquals('default', setting('nonexistent_setting', 'default'));
 
@@ -241,14 +238,14 @@ class ComprehensiveFixTest extends TestCase
             'app_name' => 'Test College Management System',
             'app_tagline' => 'Test Tagline',
             'timezone' => 'Asia/Kolkata',
-            'date_format' => 'd-m-Y'
+            'date_format' => 'd-m-Y',
         ];
 
         $response = $this->post(route('admin.settings.update'), $settingsData);
-        
+
         $response->assertRedirect();
         $response->assertSessionHas('success', 'Settings updated successfully!');
-        
+
         $this->assertEquals('Test College Management System', setting('app_name'));
         $this->assertEquals('Test Tagline', setting('app_tagline'));
     }
@@ -264,20 +261,20 @@ class ComprehensiveFixTest extends TestCase
         $settingsData = [
             'group' => 'college',
             'college_name' => 'Test College',
-            'college_logo' => $file
+            'college_logo' => $file,
         ];
 
         $response = $this->post(route('admin.settings.update'), $settingsData);
-        
+
         $response->assertRedirect();
         $response->assertSessionHas('success');
-        
+
         // Verify file was stored
         $logoPath = setting('college_logo');
         $this->assertNotNull($logoPath);
-        
+
         $filename = basename($logoPath);
-        Storage::disk('public')->assertExists('settings/' . $filename);
+        Storage::disk('public')->assertExists('settings/'.$filename);
     }
 
     /** @test */
@@ -291,7 +288,7 @@ class ComprehensiveFixTest extends TestCase
 
         // Clear cache via controller
         $response = $this->post(route('admin.settings.clear-cache'));
-        
+
         $response->assertJson(['success' => true]);
 
         // Verify cache was cleared by checking if helper function works
@@ -308,11 +305,11 @@ class ComprehensiveFixTest extends TestCase
         \Mail::fake();
 
         $response = $this->post(route('admin.settings.test-email'), [
-            'test_email' => 'test@example.com'
+            'test_email' => 'test@example.com',
         ]);
 
         $response->assertJson(['success' => true]);
-        
+
         \Mail::assertSent(\Illuminate\Mail\Mailable::class, function ($mail) {
             return $mail->hasTo('test@example.com');
         });
@@ -330,10 +327,10 @@ class ComprehensiveFixTest extends TestCase
         // Test export
         $response = $this->get(route('admin.settings.export'));
         $response->assertOk();
-        
+
         $exportData = $response->getContent();
         $decodedData = json_decode($exportData, true);
-        
+
         $this->assertArrayHasKey('settings', $decodedData);
         $this->assertArrayHasKey('export_test_1', $decodedData['settings']);
 
@@ -346,19 +343,19 @@ class ComprehensiveFixTest extends TestCase
                     'import_test' => [
                         'value' => 'imported_value',
                         'group' => 'general',
-                        'type' => 'text'
-                    ]
-                ]
+                        'type' => 'text',
+                    ],
+                ],
             ])
         );
 
         $response = $this->post(route('admin.settings.import'), [
-            'settings_file' => $importFile
+            'settings_file' => $importFile,
         ]);
 
         $response->assertRedirect();
         $response->assertSessionHas('success');
-        
+
         $this->assertEquals('imported_value', setting('import_test'));
     }
 
@@ -368,13 +365,13 @@ class ComprehensiveFixTest extends TestCase
         $course = Course::factory()->create(['code' => 'CSE']);
         $batch = \App\Models\Batch::factory()->create([
             'course_id' => $course->id,
-            'code' => 'CSE2025'
+            'code' => 'CSE2025',
         ]);
 
         // Create student without enrollment number
         $student = Student::factory()->make([
             'batch_id' => $batch->id,
-            'enrollment_number' => null
+            'enrollment_number' => null,
         ]);
 
         $student->save();

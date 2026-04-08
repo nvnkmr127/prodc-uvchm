@@ -2,19 +2,23 @@
 
 namespace App\Services;
 
+use App\Models\Attendance;
 use App\Models\Setting;
 use App\Models\Student;
-use App\Models\Attendance;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Carbon\Carbon;
 
 class ETimeOfficeApiPuller
 {
     private $apiUrl;
+
     private $corporateId;
+
     private $username;
+
     private $password;
+
     private $authToken;
 
     public function __construct()
@@ -42,47 +46,47 @@ class ETimeOfficeApiPuller
      */
     public function pullAttendanceData(Carbon $fromDate, Carbon $toDate, $empcode = 'ALL')
     {
-        if (!$this->authToken) {
+        if (! $this->authToken) {
             throw new \Exception('ETimeOffice configuration is incomplete');
         }
 
         $params = [
             'Empcode' => $empcode,
             'FromDate' => $fromDate->format('d/m/Y_H:i'),
-            'ToDate' => $toDate->format('d/m/Y_H:i')
+            'ToDate' => $toDate->format('d/m/Y_H:i'),
         ];
 
-        $url = rtrim($this->apiUrl, '/') . '/DownloadPunchData?' . http_build_query($params);
+        $url = rtrim($this->apiUrl, '/').'/DownloadPunchData?'.http_build_query($params);
 
         Log::info('ETimeOffice API Request', [
             'url' => $url,
             'from_date' => $fromDate->toISOString(),
             'to_date' => $toDate->toISOString(),
-            'empcode' => $empcode
+            'empcode' => $empcode,
         ]);
 
         try {
             $response = Http::timeout(60)
                 ->withHeaders([
-                    'Authorization' => 'Basic ' . $this->authToken,
+                    'Authorization' => 'Basic '.$this->authToken,
                     'Accept' => 'application/json',
-                    'User-Agent' => 'Laravel-ETimeOffice-Client/1.0'
+                    'User-Agent' => 'Laravel-ETimeOffice-Client/1.0',
                 ])
                 ->get($url);
 
             if ($response->successful()) {
                 $responseData = $response->json();
-                
+
                 // Handle ETimeOffice API structure: {"Error":false,"Msg":"Success","IsAdmin":true,"PunchData":[...]}
                 if (isset($responseData['Error']) && $responseData['Error'] === false) {
                     $punchData = $responseData['PunchData'] ?? [];
-                    
+
                     Log::info('ETimeOffice API Response', [
                         'status' => $response->status(),
                         'error' => $responseData['Error'],
                         'message' => $responseData['Msg'] ?? 'No message',
                         'punch_data_count' => is_array($punchData) ? count($punchData) : 0,
-                        'is_admin' => $responseData['IsAdmin'] ?? false
+                        'is_admin' => $responseData['IsAdmin'] ?? false,
                     ]);
 
                     return [
@@ -90,44 +94,44 @@ class ETimeOfficeApiPuller
                         'data' => $punchData,
                         'count' => is_array($punchData) ? count($punchData) : 0,
                         'api_message' => $responseData['Msg'] ?? 'Success',
-                        'is_admin' => $responseData['IsAdmin'] ?? false
+                        'is_admin' => $responseData['IsAdmin'] ?? false,
                     ];
-                    
+
                 } else {
                     $errorMsg = $responseData['Msg'] ?? 'Unknown API error';
                     Log::error('ETimeOffice API returned error', [
                         'error' => $responseData['Error'] ?? 'Unknown',
                         'message' => $errorMsg,
-                        'response' => $responseData
+                        'response' => $responseData,
                     ]);
 
                     return [
                         'success' => false,
-                        'error' => 'ETimeOffice API error: ' . $errorMsg,
-                        'api_response' => $responseData
+                        'error' => 'ETimeOffice API error: '.$errorMsg,
+                        'api_response' => $responseData,
                     ];
                 }
             } else {
                 Log::error('ETimeOffice API HTTP Error', [
                     'status' => $response->status(),
-                    'response' => $response->body()
+                    'response' => $response->body(),
                 ]);
 
                 return [
                     'success' => false,
-                    'error' => 'API request failed: HTTP ' . $response->status(),
-                    'response' => $response->body()
+                    'error' => 'API request failed: HTTP '.$response->status(),
+                    'response' => $response->body(),
                 ];
             }
         } catch (\Exception $e) {
             Log::error('ETimeOffice API Exception', [
                 'error' => $e->getMessage(),
-                'url' => $url
+                'url' => $url,
             ]);
 
             return [
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ];
         }
     }
@@ -137,22 +141,24 @@ class ETimeOfficeApiPuller
      */
     public function processAttendanceRecords($punchData)
     {
-        if (!is_array($punchData)) {
+        if (! is_array($punchData)) {
             Log::warning('ETimeOffice punch data is not an array', ['data_type' => gettype($punchData)]);
+
             return [
                 'processed' => 0,
                 'errors' => ['Punch data is not in expected format'],
-                'employee_codes_found' => []
+                'employee_codes_found' => [],
             ];
         }
 
         if (empty($punchData)) {
             Log::info('ETimeOffice returned empty punch data');
+
             return [
                 'processed' => 0,
                 'errors' => [],
                 'employee_codes_found' => [],
-                'message' => 'No punch data available for the specified time range'
+                'message' => 'No punch data available for the specified time range',
             ];
         }
 
@@ -166,7 +172,7 @@ class ETimeOfficeApiPuller
                 if ($index === 0) {
                     Log::info('ETimeOffice Punch Record Structure', [
                         'sample_record' => $record,
-                        'keys' => is_array($record) ? array_keys($record) : 'not_array'
+                        'keys' => is_array($record) ? array_keys($record) : 'not_array',
                     ]);
                 }
 
@@ -177,23 +183,23 @@ class ETimeOfficeApiPuller
 
                 if (is_array($record)) {
                     // ETimeOffice common field names (case sensitive)
-                    $empcode = $record['Empcode'] ?? 
-                              $record['EmployeeCode'] ?? 
-                              $record['EmpCode'] ?? 
+                    $empcode = $record['Empcode'] ??
+                              $record['EmployeeCode'] ??
+                              $record['EmpCode'] ??
                               $record['empcode'] ?? null;
 
                     // ETimeOffice date/time field names
-                    $punchDate = $record['PunchDate'] ?? 
-                                $record['LogDateTime'] ?? 
-                                $record['DateTime'] ?? 
-                                $record['Date'] ?? 
+                    $punchDate = $record['PunchDate'] ??
+                                $record['LogDateTime'] ??
+                                $record['DateTime'] ??
+                                $record['Date'] ??
                                 $record['Time'] ?? null;
 
                     // Direction/Type field
-                    $direction = $record['Direction'] ?? 
-                                $record['InOut'] ?? 
-                                $record['Type'] ?? 
-                                $record['PunchType'] ?? 
+                    $direction = $record['Direction'] ??
+                                $record['InOut'] ??
+                                $record['Type'] ??
+                                $record['PunchType'] ??
                                 'IN';
 
                     if ($empcode) {
@@ -201,32 +207,35 @@ class ETimeOfficeApiPuller
                     }
                 }
 
-                if (!$empcode || !$punchDate) {
+                if (! $empcode || ! $punchDate) {
                     Log::warning('ETimeOffice record missing required fields', [
                         'record_index' => $index,
                         'record' => $record,
                         'empcode' => $empcode,
-                        'punch_date' => $punchDate
+                        'punch_date' => $punchDate,
                     ]);
                     $errors[] = "Record #{$index}: missing empcode or punch date";
+
                     continue;
                 }
 
                 // Find student
                 $student = $this->findStudentByEmployeeCode($empcode);
-                if (!$student) {
+                if (! $student) {
                     Log::info('Student not found for employee code', [
                         'empcode' => $empcode,
-                        'record_index' => $index
+                        'record_index' => $index,
                     ]);
                     $errors[] = "Student not found for employee code: {$empcode}";
+
                     continue;
                 }
 
                 // Parse punch date
                 $carbonDate = $this->parsePunchDate($punchDate);
-                if (!$carbonDate) {
+                if (! $carbonDate) {
                     $errors[] = "Could not parse punch date: {$punchDate}";
+
                     continue;
                 }
 
@@ -240,9 +249,9 @@ class ETimeOfficeApiPuller
                 Log::error('Error processing ETimeOffice punch record', [
                     'record_index' => $index,
                     'record' => $record,
-                    'error' => $e->getMessage()
+                    'error' => $e->getMessage(),
                 ]);
-                $errors[] = "Error processing record #{$index}: " . $e->getMessage();
+                $errors[] = "Error processing record #{$index}: ".$e->getMessage();
             }
         }
 
@@ -253,13 +262,13 @@ class ETimeOfficeApiPuller
             'unique_employee_codes' => count($uniqueCodes),
             'codes_sample' => array_slice($uniqueCodes, 0, 10),
             'processed_records' => $processed,
-            'error_count' => count($errors)
+            'error_count' => count($errors),
         ]);
 
         return [
             'processed' => $processed,
             'errors' => $errors,
-            'employee_codes_found' => $uniqueCodes
+            'employee_codes_found' => $uniqueCodes,
         ];
     }
 
@@ -283,8 +292,9 @@ class ETimeOfficeApiPuller
                 'student_id' => $student->id,
                 'student_name' => $student->name,
                 'empcode' => $empcode,
-                'enrollment' => $student->enrollment_number
+                'enrollment' => $student->enrollment_number,
             ]);
+
             return $student;
         }
 
@@ -294,15 +304,17 @@ class ETimeOfficeApiPuller
             "UV-{$empcode}",
             "ENR-{$empcode}",
             preg_replace('/^[A-Z]+-/', '', $empcode), // Remove prefix like UVCHM-123 -> 123
-            preg_replace('/[^0-9]/', '', $empcode)    // Extract numbers only
+            preg_replace('/[^0-9]/', '', $empcode),    // Extract numbers only
         ];
 
         foreach ($patterns as $pattern) {
-            if (empty($pattern)) continue;
-            
+            if (empty($pattern)) {
+                continue;
+            }
+
             $student = Student::where('enrollment_number', $pattern)
-                             ->orWhere('enrollment_number', 'LIKE', "%{$pattern}%")
-                             ->first();
+                ->orWhere('enrollment_number', 'LIKE', "%{$pattern}%")
+                ->first();
             if ($student) {
                 // Auto-populate biometric code
                 $student->update(['biometric_employee_code' => $empcode]);
@@ -311,8 +323,9 @@ class ETimeOfficeApiPuller
                     'student_name' => $student->name,
                     'empcode' => $empcode,
                     'pattern_matched' => $pattern,
-                    'enrollment' => $student->enrollment_number
+                    'enrollment' => $student->enrollment_number,
                 ]);
+
                 return $student;
             }
         }
@@ -353,8 +366,9 @@ class ETimeOfficeApiPuller
         } catch (\Exception $e) {
             Log::warning('Could not parse ETimeOffice punch date', [
                 'punch_date' => $punchDate,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
+
             return null;
         }
     }
@@ -362,63 +376,64 @@ class ETimeOfficeApiPuller
     /**
      * Create attendance record from ETimeOffice data
      */
-private function createAttendanceRecord($student, $carbonDate, $direction, $rawRecord)
-{
-    $attendanceDate = $carbonDate->toDateString();
-    $attendanceTime = $carbonDate->toTimeString();
+    private function createAttendanceRecord($student, $carbonDate, $direction, $rawRecord)
+    {
+        $attendanceDate = $carbonDate->toDateString();
+        $attendanceTime = $carbonDate->toTimeString();
 
-    // Determine attendance status based on college timing
-    $status = $this->determineAttendanceStatus($carbonDate);
+        // Determine attendance status based on college timing
+        $status = $this->determineAttendanceStatus($carbonDate);
 
-    try {
-        $attendance = Attendance::updateOrCreate(
-            [
+        try {
+            $attendance = Attendance::updateOrCreate(
+                [
+                    'student_id' => $student->id,
+                    'attendance_date' => $attendanceDate,
+                ],
+                [
+                    'batch_id' => $student->batch_id, // <-- Add this line
+                    'status' => $status['status'],
+
+                    'check_in_time' => $attendanceTime,
+                    'notes' => 'ETimeOffice API - '.$status['reason'],
+                    'created_by' => null, // System generated
+                ]
+            );
+
+            // Handle OUT punches for check_out_time
+            if (strtoupper($direction) === 'OUT' && $attendance->check_in_time) {
+                $checkInDateTime = Carbon::parse($attendanceDate.' '.$attendance->check_in_time);
+                if ($carbonDate->gt($checkInDateTime)) {
+                    $attendance->update([
+                        'check_out_time' => $attendanceTime,
+                        'notes' => $attendance->notes.' | OUT: '.$attendanceTime,
+                    ]);
+                }
+            }
+
+            Log::info('Processed ETimeOffice attendance', [
+                'student_id' => $student->id,
+                'student_name' => $student->name,
+                'enrollment' => $student->enrollment_number,
+                'attendance_date' => $attendanceDate,
+                'time' => $attendanceTime,
+                'status' => $status['status'],
+                'direction' => $direction,
+                'was_created' => $attendance->wasRecentlyCreated,
+            ]);
+
+            return $attendance;
+
+        } catch (\Exception $e) {
+            Log::error('Failed to create ETimeOffice attendance record', [
                 'student_id' => $student->id,
                 'attendance_date' => $attendanceDate,
-            ],
-            [
-                'batch_id' => $student->batch_id, // <-- Add this line
-                'status' => $status['status'],
+                'error' => $e->getMessage(),
+            ]);
 
-                'check_in_time' => $attendanceTime,
-                'notes' => 'ETimeOffice API - ' . $status['reason'],
-                'created_by' => null // System generated
-            ]
-        );
-
-        // Handle OUT punches for check_out_time
-        if (strtoupper($direction) === 'OUT' && $attendance->check_in_time) {
-            $checkInDateTime = Carbon::parse($attendanceDate . ' ' . $attendance->check_in_time);
-            if ($carbonDate->gt($checkInDateTime)) {
-                $attendance->update([
-                    'check_out_time' => $attendanceTime,
-                    'notes' => $attendance->notes . ' | OUT: ' . $attendanceTime
-                ]);
-            }
+            return null;
         }
-
-        Log::info('Processed ETimeOffice attendance', [
-            'student_id' => $student->id,
-            'student_name' => $student->name,
-            'enrollment' => $student->enrollment_number,
-            'attendance_date' => $attendanceDate,
-            'time' => $attendanceTime,
-            'status' => $status['status'],
-            'direction' => $direction,
-            'was_created' => $attendance->wasRecentlyCreated
-        ]);
-
-        return $attendance;
-
-    } catch (\Exception $e) {
-        Log::error('Failed to create ETimeOffice attendance record', [
-            'student_id' => $student->id,
-            'attendance_date' => $attendanceDate,
-            'error' => $e->getMessage()
-        ]);
-        return null;
     }
-}
 
     /**
      * Determine attendance status based on college timing rules
@@ -428,23 +443,23 @@ private function createAttendanceRecord($student, $carbonDate, $direction, $rawR
         $collegeStartTime = Setting::where('key', 'college_start_time')->value('value') ?? '09:00';
         $lateThreshold = Setting::where('key', 'late_threshold_minutes')->value('value') ?? 15;
 
-        $collegeStart = Carbon::parse($punchTime->toDateString() . ' ' . $collegeStartTime);
+        $collegeStart = Carbon::parse($punchTime->toDateString().' '.$collegeStartTime);
         $lateLimit = $collegeStart->copy()->addMinutes($lateThreshold);
 
         if ($punchTime->lte($collegeStart)) {
             return [
                 'status' => 'present',
-                'reason' => 'On time'
+                'reason' => 'On time',
             ];
         } elseif ($punchTime->lte($lateLimit)) {
             return [
                 'status' => 'late',
-                'reason' => 'Late arrival'
+                'reason' => 'Late arrival',
             ];
         } else {
             return [
                 'status' => 'absent',
-                'reason' => 'Very late - marked absent'
+                'reason' => 'Very late - marked absent',
             ];
         }
     }
@@ -456,12 +471,12 @@ private function createAttendanceRecord($student, $carbonDate, $direction, $rawR
     {
         // Pull data from API
         $apiResult = $this->pullAttendanceData($fromDate, $toDate, $empcode);
-        
-        if (!$apiResult['success']) {
+
+        if (! $apiResult['success']) {
             return [
                 'success' => false,
                 'error' => $apiResult['error'],
-                'processed' => 0
+                'processed' => 0,
             ];
         }
 
@@ -480,7 +495,7 @@ private function createAttendanceRecord($student, $carbonDate, $direction, $rawR
             'processed' => $processResult['processed'],
             'errors' => $processResult['errors'],
             'employee_codes_found' => $processResult['employee_codes_found'] ?? [],
-            'api_message' => $apiResult['api_message'] ?? 'Success'
+            'api_message' => $apiResult['api_message'] ?? 'Success',
         ];
     }
 
@@ -491,7 +506,7 @@ private function createAttendanceRecord($student, $carbonDate, $direction, $rawR
     {
         $today = now()->startOfDay();
         $now = now();
-        
+
         return $this->pullAndProcess($today, $now);
     }
 
@@ -502,7 +517,7 @@ private function createAttendanceRecord($student, $carbonDate, $direction, $rawR
     {
         $from = now()->subHours($hours);
         $to = now();
-        
+
         return $this->pullAndProcess($from, $to);
     }
 
@@ -513,7 +528,7 @@ private function createAttendanceRecord($student, $carbonDate, $direction, $rawR
     {
         $from = now()->subHours($hours);
         $to = now();
-        
+
         return $this->pullAttendanceData($from, $to, 'ALL');
     }
 }

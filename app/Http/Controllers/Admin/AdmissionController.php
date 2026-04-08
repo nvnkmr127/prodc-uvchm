@@ -6,8 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Admission;
 use App\Models\Course;
 use App\Models\Enquiry;
-use App\Models\Student;
 use App\Models\FollowUp;
+use App\Models\Student;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -41,7 +41,7 @@ class AdmissionController extends Controller
             'pending' => $counts['pending'] ?? 0,
             'approved' => $counts['approved'] ?? 0,
             'rejected' => $counts['rejected'] ?? 0,
-            'total' => array_sum($counts)
+            'total' => array_sum($counts),
         ];
 
         // Apply filters to list query
@@ -59,10 +59,10 @@ class AdmissionController extends Controller
 
         if ($request->filled('search')) {
             $searchTerm = $request->search;
-            $query->where(function($q) use ($searchTerm) {
+            $query->where(function ($q) use ($searchTerm) {
                 $q->where('full_name', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('email', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('phone_number', 'LIKE', "%{$searchTerm}%");
+                    ->orWhere('email', 'LIKE', "%{$searchTerm}%")
+                    ->orWhere('phone_number', 'LIKE', "%{$searchTerm}%");
             });
         }
 
@@ -81,7 +81,7 @@ class AdmissionController extends Controller
     public function create(Enquiry $enquiry)
     {
         $courses = Course::orderBy('name')->get();
-        
+
         return view('admin.admissions.create', compact('enquiry', 'courses'));
     }
 
@@ -120,7 +120,7 @@ class AdmissionController extends Controller
         });
 
         return redirect()->route('admin.admissions.index')
-                        ->with('success', 'Admission application created successfully.');
+            ->with('success', 'Admission application created successfully.');
     }
 
     /**
@@ -129,7 +129,7 @@ class AdmissionController extends Controller
     public function show(Admission $admission)
     {
         $admission->load(['course', 'enquiry', 'followUps.user']);
-        
+
         return view('admin.admissions.show', compact('admission'));
     }
 
@@ -139,7 +139,7 @@ class AdmissionController extends Controller
     public function edit(Admission $admission)
     {
         $courses = Course::orderBy('name')->get();
-        
+
         return view('admin.admissions.edit', compact('admission', 'courses'));
     }
 
@@ -164,7 +164,7 @@ class AdmissionController extends Controller
         $admission->update($validated);
 
         return redirect()->route('admin.admissions.show', $admission)
-                        ->with('success', 'Admission updated successfully.');
+            ->with('success', 'Admission updated successfully.');
     }
 
     /**
@@ -229,7 +229,7 @@ class AdmissionController extends Controller
                 'admission_id' => $admission->id,
                 'user_id' => Auth::id(),
                 'follow_up_date' => now(),
-                'notes' => 'Admission rejected. Reason: ' . $request->rejection_reason,
+                'notes' => 'Admission rejected. Reason: '.$request->rejection_reason,
                 'status' => 'completed',
             ]);
         });
@@ -270,7 +270,7 @@ class AdmissionController extends Controller
         ]);
 
         $admission = Admission::findOrFail($validated['admission_id']);
-        
+
         return $this->approve($request, $admission);
     }
 
@@ -286,7 +286,7 @@ class AdmissionController extends Controller
         $admission->delete();
 
         return redirect()->route('admin.admissions.index')
-                        ->with('success', 'Admission deleted successfully.');
+            ->with('success', 'Admission deleted successfully.');
     }
 
     /**
@@ -320,12 +320,12 @@ class AdmissionController extends Controller
     {
         $prefix = $course->enrollment_prefix ?? 'STU';
         $year = date('Y');
-        
+
         // Get the last enrollment number for this course and year
         $lastStudent = Student::where('course_id', $course->id)
-                             ->where('enrollment_number', 'LIKE', $prefix . $year . '%')
-                             ->orderBy('enrollment_number', 'desc')
-                             ->first();
+            ->where('enrollment_number', 'LIKE', $prefix.$year.'%')
+            ->orderBy('enrollment_number', 'desc')
+            ->first();
 
         if ($lastStudent) {
             // Extract the sequence number and increment
@@ -335,6 +335,6 @@ class AdmissionController extends Controller
             $nextSequence = 1;
         }
 
-        return $prefix . $year . str_pad($nextSequence, 4, '0', STR_PAD_LEFT);
+        return $prefix.$year.str_pad($nextSequence, 4, '0', STR_PAD_LEFT);
     }
 }

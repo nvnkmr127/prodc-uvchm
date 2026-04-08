@@ -4,10 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\Models\Permission;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 
 class RoleController extends Controller
 {
@@ -17,6 +16,7 @@ class RoleController extends Controller
     public function index()
     {
         $roles = Role::withCount('users', 'permissions')->get();
+
         return view('admin.roles.index', compact('roles'));
     }
 
@@ -27,7 +27,7 @@ class RoleController extends Controller
     {
         $permissions = Permission::all();
         $groupedPermissions = $this->groupPermissions($permissions);
-        
+
         return view('admin.roles.create', compact('permissions', 'groupedPermissions'));
     }
 
@@ -40,12 +40,12 @@ class RoleController extends Controller
             'name' => 'required|string|unique:roles,name|max:255',
             'description' => 'nullable|string|max:500',
             'permissions' => 'nullable|array',
-            'permissions.*' => 'string|exists:permissions,name'
+            'permissions.*' => 'string|exists:permissions,name',
         ]);
 
         $role = Role::create([
             'name' => $validated['name'],
-            'description' => $validated['description'] ?? null
+            'description' => $validated['description'] ?? null,
         ]);
 
         // Assign permissions if provided
@@ -64,28 +64,29 @@ class RoleController extends Controller
     {
         $role = Role::with('permissions', 'users')->findOrFail($id);
         $groupedPermissions = $this->groupPermissions($role->permissions);
-        
+
         return view('admin.roles.show', compact('role', 'groupedPermissions'));
     }
-    
+
     /**
      * Show the form for editing the specified role
      */
     public function edit(Role $role)
     {
         $allPermissions = Permission::all();
-        
-        $groupedPermissions = $allPermissions->groupBy(function($permission) {
+
+        $groupedPermissions = $allPermissions->groupBy(function ($permission) {
             $parts = explode(' ', $permission->name);
+
             return $parts[1] ?? 'general';
         });
-        
+
         $rolePermissions = $role->permissions->pluck('name')->toArray();
         $allRoles = Role::all();
-        
+
         return view('admin.roles.edit', compact(
             'role',
-            'groupedPermissions', 
+            'groupedPermissions',
             'rolePermissions',
             'allRoles'
         ));
@@ -95,61 +96,61 @@ class RoleController extends Controller
      * Update the specified role
      */
     public function update(Request $request, Role $role)
-{
-    // DEBUG: Log the incoming request
-    \Log::info('Role Update Debug', [
-        'role_id' => $role->id,
-        'role_name' => $role->name,
-        'request_permissions' => $request->permissions,
-        'request_permissions_type' => gettype($request->permissions),
-        'request_all' => $request->all(),
-        'has_permissions_key' => $request->has('permissions'),
-    ]);
+    {
+        // DEBUG: Log the incoming request
+        \Log::info('Role Update Debug', [
+            'role_id' => $role->id,
+            'role_name' => $role->name,
+            'request_permissions' => $request->permissions,
+            'request_permissions_type' => gettype($request->permissions),
+            'request_all' => $request->all(),
+            'has_permissions_key' => $request->has('permissions'),
+        ]);
 
-    $request->validate([
-        'name' => [
-            'required',
-            'string',
-            'max:255',
-            Rule::unique('roles')->ignore($role->id),
-        ],
-        'description' => 'nullable|string|max:500',
-        'permissions' => 'nullable|array',
-        'permissions.*' => 'string|exists:permissions,name'
-    ]);
+        $request->validate([
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('roles')->ignore($role->id),
+            ],
+            'description' => 'nullable|string|max:500',
+            'permissions' => 'nullable|array',
+            'permissions.*' => 'string|exists:permissions,name',
+        ]);
 
-    // Update role basic info
-    $role->update([
-        'name' => $request->name,
-        'description' => $request->description
-    ]);
+        // Update role basic info
+        $role->update([
+            'name' => $request->name,
+            'description' => $request->description,
+        ]);
 
-    // DEBUG: Log before permission sync
-    \Log::info('Before Permission Sync', [
-        'role_id' => $role->id,
-        'current_permissions' => $role->permissions->pluck('name')->toArray(),
-        'incoming_permissions' => $request->permissions ?? [],
-        'permissions_to_sync' => $request->has('permissions') ? $request->permissions : []
-    ]);
+        // DEBUG: Log before permission sync
+        \Log::info('Before Permission Sync', [
+            'role_id' => $role->id,
+            'current_permissions' => $role->permissions->pluck('name')->toArray(),
+            'incoming_permissions' => $request->permissions ?? [],
+            'permissions_to_sync' => $request->has('permissions') ? $request->permissions : [],
+        ]);
 
-    // Sync permissions
-    if ($request->has('permissions')) {
-        $role->syncPermissions($request->permissions);
-    } else {
-        $role->syncPermissions([]);
+        // Sync permissions
+        if ($request->has('permissions')) {
+            $role->syncPermissions($request->permissions);
+        } else {
+            $role->syncPermissions([]);
+        }
+
+        // DEBUG: Log after permission sync
+        $role->refresh();
+        \Log::info('After Permission Sync', [
+            'role_id' => $role->id,
+            'final_permissions' => $role->permissions->pluck('name')->toArray(),
+            'permission_count' => $role->permissions->count(),
+        ]);
+
+        return redirect()->route('admin.roles.index')
+            ->with('success', 'Role updated successfully.');
     }
-
-    // DEBUG: Log after permission sync
-    $role->refresh();
-    \Log::info('After Permission Sync', [
-        'role_id' => $role->id,
-        'final_permissions' => $role->permissions->pluck('name')->toArray(),
-        'permission_count' => $role->permissions->count()
-    ]);
-
-    return redirect()->route('admin.roles.index')
-        ->with('success', 'Role updated successfully.');
-}
 
     /**
      * Remove the specified role
@@ -157,7 +158,7 @@ class RoleController extends Controller
     public function destroy($id)
     {
         $role = Role::findOrFail($id);
-        
+
         // Prevent deletion of core system roles
         if (in_array($role->name, ['super-admin', 'student', 'staff', 'college-admin', 'accountant'])) {
             return back()->with('error', 'Cannot delete core system roles.');
@@ -169,7 +170,7 @@ class RoleController extends Controller
         }
 
         $role->delete();
-        
+
         return back()->with('success', 'Role deleted successfully.');
     }
 
@@ -180,7 +181,7 @@ class RoleController extends Controller
     {
         $request->validate([
             'permissions' => 'nullable|array',
-            'permissions.*' => 'string|exists:permissions,name'
+            'permissions.*' => 'string|exists:permissions,name',
         ]);
 
         try {
@@ -193,13 +194,13 @@ class RoleController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Permissions updated successfully.',
-                'permissions_count' => $role->permissions->count()
+                'permissions_count' => $role->permissions->count(),
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to update permissions: ' . $e->getMessage()
+                'message' => 'Failed to update permissions: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -214,12 +215,12 @@ class RoleController extends Controller
                 'success' => true,
                 'role' => $role->name,
                 'permissions' => $role->permissions->pluck('name')->toArray(),
-                'permissions_count' => $role->permissions->count()
+                'permissions_count' => $role->permissions->count(),
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'error' => 'Failed to fetch role permissions: ' . $e->getMessage()
+                'error' => 'Failed to fetch role permissions: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -231,8 +232,8 @@ class RoleController extends Controller
     {
         try {
             $newRole = Role::create([
-                'name' => $role->name . ' (Copy)',
-                'description' => $role->description ? $role->description . ' (Copy)' : null
+                'name' => $role->name.' (Copy)',
+                'description' => $role->description ? $role->description.' (Copy)' : null,
             ]);
 
             // Copy all permissions
@@ -242,7 +243,7 @@ class RoleController extends Controller
                 ->with('success', 'Role cloned successfully. You can now modify the cloned role.');
 
         } catch (\Exception $e) {
-            return back()->with('error', 'Failed to clone role: ' . $e->getMessage());
+            return back()->with('error', 'Failed to clone role: '.$e->getMessage());
         }
     }
 
@@ -254,7 +255,7 @@ class RoleController extends Controller
         $request->validate([
             'action' => 'required|in:delete,clone',
             'roles' => 'required|array',
-            'roles.*' => 'exists:roles,id'
+            'roles.*' => 'exists:roles,id',
         ]);
 
         $roleIds = $request->roles;
@@ -269,14 +270,14 @@ class RoleController extends Controller
                         ->get();
 
                     $deletedCount = $rolesToDelete->count();
-                    
+
                     foreach ($rolesToDelete as $role) {
                         $role->delete();
                     }
 
                     return response()->json([
                         'success' => true,
-                        'message' => "Successfully deleted {$deletedCount} roles."
+                        'message' => "Successfully deleted {$deletedCount} roles.",
                     ]);
 
                 case 'clone':
@@ -285,8 +286,8 @@ class RoleController extends Controller
 
                     foreach ($roles as $role) {
                         $newRole = Role::create([
-                            'name' => $role->name . ' (Copy ' . now()->format('Y-m-d') . ')',
-                            'description' => $role->description ? $role->description . ' (Copy)' : null
+                            'name' => $role->name.' (Copy '.now()->format('Y-m-d').')',
+                            'description' => $role->description ? $role->description.' (Copy)' : null,
                         ]);
                         $newRole->syncPermissions($role->permissions);
                         $clonedCount++;
@@ -294,14 +295,14 @@ class RoleController extends Controller
 
                     return response()->json([
                         'success' => true,
-                        'message' => "Successfully cloned {$clonedCount} roles."
+                        'message' => "Successfully cloned {$clonedCount} roles.",
                     ]);
             }
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Bulk action failed: ' . $e->getMessage()
+                'message' => 'Bulk action failed: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -317,14 +318,14 @@ class RoleController extends Controller
                 'description' => $role->description,
                 'permissions' => $role->permissions->pluck('name')->toArray(),
                 'exported_at' => now()->toISOString(),
-                'exported_by' => auth()->user()->name
-            ]
+                'exported_by' => auth()->user()->name,
+            ],
         ];
 
-        $filename = 'role_' . str_replace(' ', '_', strtolower($role->name)) . '_' . now()->format('Y_m_d') . '.json';
+        $filename = 'role_'.str_replace(' ', '_', strtolower($role->name)).'_'.now()->format('Y_m_d').'.json';
 
         return response()->json($data)
-            ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
+            ->header('Content-Disposition', 'attachment; filename="'.$filename.'"');
     }
 
     /**
@@ -334,7 +335,7 @@ class RoleController extends Controller
     {
         $request->validate([
             'import_file' => 'required|file|mimes:json',
-            'role_id' => 'required|exists:roles,id'
+            'role_id' => 'required|exists:roles,id',
         ]);
 
         try {
@@ -342,7 +343,7 @@ class RoleController extends Controller
             $jsonContent = file_get_contents($request->file('import_file')->path());
             $data = json_decode($jsonContent, true);
 
-            if (!isset($data['role']['permissions'])) {
+            if (! isset($data['role']['permissions'])) {
                 throw new \Exception('Invalid file format. Missing permissions data.');
             }
 
@@ -363,7 +364,7 @@ class RoleController extends Controller
                 ->with('success', $message);
 
         } catch (\Exception $e) {
-            return back()->with('error', 'Import failed: ' . $e->getMessage());
+            return back()->with('error', 'Import failed: '.$e->getMessage());
         }
     }
 
@@ -381,18 +382,18 @@ class RoleController extends Controller
                 'most_permissions' => Role::withCount('permissions')->orderBy('permissions_count', 'desc')->first(),
                 'most_users' => Role::withCount('users')->orderBy('users_count', 'desc')->first(),
                 'recent_roles' => Role::latest()->take(5)->get(['id', 'name', 'created_at']),
-                'permission_distribution' => Role::withCount('permissions')->get(['name', 'permissions_count'])
+                'permission_distribution' => Role::withCount('permissions')->get(['name', 'permissions_count']),
             ];
 
             return response()->json([
                 'success' => true,
-                'statistics' => $stats
+                'statistics' => $stats,
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to fetch statistics: ' . $e->getMessage()
+                'message' => 'Failed to fetch statistics: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -403,33 +404,33 @@ class RoleController extends Controller
     private function groupPermissions($permissions)
     {
         $grouped = [];
-        
+
         foreach ($permissions as $permission) {
             // Extract module name from permission name
             // E.g., "view students" -> "students", "manage admissions" -> "admissions"
             $parts = explode(' ', $permission->name);
-            
+
             if (count($parts) >= 2) {
                 $action = $parts[0]; // view, create, edit, delete, manage
                 $module = $parts[1]; // students, courses, etc.
-                
-                if (!isset($grouped[$module])) {
+
+                if (! isset($grouped[$module])) {
                     $grouped[$module] = [];
                 }
-                
+
                 $grouped[$module][] = $permission;
             } else {
                 // Handle single word permissions
-                if (!isset($grouped['general'])) {
+                if (! isset($grouped['general'])) {
                     $grouped['general'] = [];
                 }
                 $grouped['general'][] = $permission;
             }
         }
-        
+
         // Sort modules alphabetically
         ksort($grouped);
-        
+
         return $grouped;
     }
 
@@ -440,12 +441,12 @@ class RoleController extends Controller
     {
         $request->validate([
             'template' => 'required|in:viewer,editor,manager,admin',
-            'modules' => 'nullable|array'
+            'modules' => 'nullable|array',
         ]);
 
         $modules = $request->modules ?? ['users', 'students', 'courses'];
         $template = $request->template;
-        
+
         $permissions = [];
 
         foreach ($modules as $module) {
@@ -453,31 +454,31 @@ class RoleController extends Controller
                 case 'viewer':
                     $permissions[] = "view {$module}";
                     break;
-                
+
                 case 'editor':
                     $permissions = array_merge($permissions, [
                         "view {$module}",
                         "create {$module}",
-                        "edit {$module}"
+                        "edit {$module}",
                     ]);
                     break;
-                
+
                 case 'manager':
                     $permissions = array_merge($permissions, [
                         "view {$module}",
                         "create {$module}",
                         "edit {$module}",
-                        "delete {$module}"
+                        "delete {$module}",
                     ]);
                     break;
-                
+
                 case 'admin':
                     $permissions = array_merge($permissions, [
                         "view {$module}",
                         "create {$module}",
                         "edit {$module}",
                         "delete {$module}",
-                        "manage {$module}"
+                        "manage {$module}",
                     ]);
                     break;
             }
@@ -488,7 +489,7 @@ class RoleController extends Controller
             $permissions = array_merge($permissions, [
                 'view backend',
                 'manage settings',
-                'view reports'
+                'view reports',
             ]);
         }
 
@@ -498,7 +499,7 @@ class RoleController extends Controller
         return response()->json([
             'success' => true,
             'permissions' => $validPermissions,
-            'count' => count($validPermissions)
+            'count' => count($validPermissions),
         ]);
     }
 
@@ -509,7 +510,7 @@ class RoleController extends Controller
     {
         $request->validate([
             'role1_id' => 'required|exists:roles,id',
-            'role2_id' => 'required|exists:roles,id|different:role1_id'
+            'role2_id' => 'required|exists:roles,id|different:role1_id',
         ]);
 
         try {
@@ -523,27 +524,27 @@ class RoleController extends Controller
                 'role1' => [
                     'name' => $role1->name,
                     'permissions' => $role1Permissions,
-                    'count' => count($role1Permissions)
+                    'count' => count($role1Permissions),
                 ],
                 'role2' => [
                     'name' => $role2->name,
                     'permissions' => $role2Permissions,
-                    'count' => count($role2Permissions)
+                    'count' => count($role2Permissions),
                 ],
                 'common' => array_intersect($role1Permissions, $role2Permissions),
                 'only_role1' => array_diff($role1Permissions, $role2Permissions),
-                'only_role2' => array_diff($role2Permissions, $role1Permissions)
+                'only_role2' => array_diff($role2Permissions, $role1Permissions),
             ];
 
             return response()->json([
                 'success' => true,
-                'comparison' => $comparison
+                'comparison' => $comparison,
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Comparison failed: ' . $e->getMessage()
+                'message' => 'Comparison failed: '.$e->getMessage(),
             ], 500);
         }
     }

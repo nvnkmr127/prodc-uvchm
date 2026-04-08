@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
-use App\Models\User;
 use App\Models\Setting;
+use App\Models\User;
 
 class LeadDistributionService
 {
@@ -29,10 +29,10 @@ class LeadDistributionService
         // Find out who was assigned last
         $lastAssignedId = Setting::where('key', $settingKey)->value('value');
 
-        if (!$lastAssignedId) {
+        if (! $lastAssignedId) {
             $nextUser = $users->first();
         } else {
-            $lastIndex = $users->search(fn($u) => $u->id == $lastAssignedId);
+            $lastIndex = $users->search(fn ($u) => $u->id == $lastAssignedId);
 
             if ($lastIndex === false || $lastIndex >= ($users->count() - 1)) {
                 $nextUser = $users->first();

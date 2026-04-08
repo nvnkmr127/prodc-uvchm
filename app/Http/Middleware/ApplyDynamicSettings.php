@@ -31,10 +31,10 @@ class ApplyDynamicSettings
             $this->applyMailSettings();
             $this->applySessionSettings();
             $this->applyMaintenanceMode();
-            
+
         } catch (\Exception $e) {
             // Log error but don't break the application
-            \Log::warning('Failed to apply dynamic settings: ' . $e->getMessage());
+            \Log::warning('Failed to apply dynamic settings: '.$e->getMessage());
         }
 
         return $next($request);
@@ -47,9 +47,9 @@ class ApplyDynamicSettings
     {
         // Set application name dynamically
         $appName = setting('app_name');
-    if ($appName) {
-        config(['app.name' => $appName]);
-    }
+        if ($appName) {
+            config(['app.name' => $appName]);
+        }
 
         // Set application URL if different
         $appUrl = setting('app_url');
@@ -146,8 +146,8 @@ class ApplyDynamicSettings
     private function applyMaintenanceMode()
     {
         $maintenanceMode = setting('maintenance_mode', false, 'bool');
-        
-        if ($maintenanceMode && !app()->isDownForMaintenance()) {
+
+        if ($maintenanceMode && ! app()->isDownForMaintenance()) {
             // Only apply if not already in maintenance mode
             // This is handled by the toggle-maintenance route instead
         }

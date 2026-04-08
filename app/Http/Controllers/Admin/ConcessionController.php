@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\FeeCategory;
 use App\Models\Student;
 use App\Models\StudentConcession;
 use App\Models\StudentFee;
-use App\Models\FeeCategory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -22,7 +22,7 @@ class ConcessionController extends Controller
             'pending' => StudentConcession::where('status', 'pending')->count(),
             'approved' => StudentConcession::where('status', 'approved')->count(),
             'rejected' => StudentConcession::where('status', 'rejected')->count(),
-            'total_amount' => StudentConcession::where('status', 'approved')->sum('amount')
+            'total_amount' => StudentConcession::where('status', 'approved')->sum('amount'),
         ];
 
         return view('admin.concessions.index', compact('concessions', 'stats'));
@@ -49,11 +49,11 @@ class ConcessionController extends Controller
             'concession_type' => 'required|in:scholarship,financial_aid,discount,special_case',
             'amount' => 'nullable|numeric|min:0',
             'percentage' => 'nullable|numeric|min:0|max:100',
-            'reason' => 'required|string|max:1000'
+            'reason' => 'required|string|max:1000',
         ]);
 
         $studentFee = StudentFee::find($request->student_fee_id);
-        
+
         // Calculate concession amount
         $concessionAmount = $request->amount;
         if ($request->percentage) {
@@ -76,7 +76,7 @@ class ConcessionController extends Controller
                 'percentage' => $request->percentage,
                 'reason' => $request->reason,
                 'requested_by' => auth()->id(),
-                'status' => 'pending'
+                'status' => 'pending',
             ]);
 
             DB::commit();
@@ -86,14 +86,15 @@ class ConcessionController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->with('error', 'Failed to create concession: ' . $e->getMessage());
+
+            return back()->with('error', 'Failed to create concession: '.$e->getMessage());
         }
     }
 
     public function approve(Request $request, StudentConcession $concession)
     {
         $request->validate([
-            'approval_notes' => 'nullable|string|max:500'
+            'approval_notes' => 'nullable|string|max:500',
         ]);
 
         DB::beginTransaction();
@@ -103,7 +104,7 @@ class ConcessionController extends Controller
                 'status' => 'approved',
                 'approved_by' => auth()->id(),
                 'approved_at' => now(),
-                'approval_notes' => $request->approval_notes
+                'approval_notes' => $request->approval_notes,
             ]);
 
             // Apply concession to student fee
@@ -112,7 +113,7 @@ class ConcessionController extends Controller
                 'concession_amount' => $studentFee->concession_amount + $concession->amount,
                 'concession_reason' => $concession->reason,
                 'concession_approved_by' => auth()->id(),
-                'concession_approved_at' => now()
+                'concession_approved_at' => now(),
             ]);
 
             // Update status if fully paid after concession
@@ -125,7 +126,8 @@ class ConcessionController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->with('error', 'Failed to approve concession: ' . $e->getMessage());
+
+            return back()->with('error', 'Failed to approve concession: '.$e->getMessage());
         }
     }
 }

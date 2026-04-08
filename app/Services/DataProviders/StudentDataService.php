@@ -11,7 +11,7 @@ class StudentDataService implements WidgetDataProviderInterface
     public function getData(array $params = []): array
     {
         $period = $params['period'] ?? '6_months';
-        
+
         // Get enrollment trends
         $enrollmentData = Student::selectRaw('DATE_FORMAT(created_at, "%Y-%m") as month, COUNT(*) as count')
             ->where('created_at', '>=', Carbon::now()->subMonths(6))
@@ -32,14 +32,14 @@ class StudentDataService implements WidgetDataProviderInterface
                     'data' => $enrollmentData->pluck('count')->toArray(),
                     'borderColor' => '#3B82F6',
                     'backgroundColor' => 'rgba(59, 130, 246, 0.1)',
-                    'fill' => true
-                ]
+                    'fill' => true,
+                ],
             ],
             'stats' => [
                 'total' => $totalStudents,
                 'new_this_month' => $newThisMonth,
-                'active' => $activeStudents
-            ]
+                'active' => $activeStudents,
+            ],
         ];
     }
 }

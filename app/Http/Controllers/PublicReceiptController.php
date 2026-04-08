@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Payment;
-use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 class PublicReceiptController extends Controller
@@ -11,7 +10,6 @@ class PublicReceiptController extends Controller
     /**
      * Show public receipt details based on the new component payment system.
      *
-     * @param string $receiptNumber
      * @return \Illuminate\Http\JsonResponse
      */
     public function show(string $receiptNumber)
@@ -19,12 +17,12 @@ class PublicReceiptController extends Controller
         try {
             // MODIFIED: Eager load relationships for the component-based system
             $payment = Payment::with([
-                'student:id,name,enrollment_number', 
-                'componentItems.studentFee.feeCategory:id,name'
+                'student:id,name,enrollment_number',
+                'componentItems.studentFee.feeCategory:id,name',
             ])
-            ->where('receipt_number', $receiptNumber)
-            ->where('payment_type', 'component') // Ensure it's a component payment
-            ->firstOrFail();
+                ->where('receipt_number', $receiptNumber)
+                ->where('payment_type', 'component') // Ensure it's a component payment
+                ->firstOrFail();
 
             // MODIFIED: Prepare response data from the new component relationships
             return response()->json([
@@ -52,7 +50,6 @@ class PublicReceiptController extends Controller
     /**
      * Download a PDF receipt for a component-based payment.
      *
-     * @param string $receiptNumber
      * @return \Illuminate\Http\JsonResponse
      */
     public function downloadPdf(string $receiptNumber)
@@ -60,12 +57,12 @@ class PublicReceiptController extends Controller
         try {
             // MODIFIED: Eager load relationships for the component-based system
             $payment = Payment::with([
-                'student.batch.course', 
-                'componentItems.studentFee.feeCategory'
+                'student.batch.course',
+                'componentItems.studentFee.feeCategory',
             ])
-            ->where('receipt_number', $receiptNumber)
-            ->where('payment_type', 'component') // Ensure it's a component payment
-            ->firstOrFail();
+                ->where('receipt_number', $receiptNumber)
+                ->where('payment_type', 'component') // Ensure it's a component payment
+                ->firstOrFail();
 
             // NOTE: The actual PDF generation logic would go here.
             // This placeholder response is updated to reflect the new data structure.

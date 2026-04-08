@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Admission;
+use App\Models\Student;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use App\Models\Student;
-use App\Models\Admission;
 use Illuminate\Support\Facades\Storage;
 
 class StudentRequestController extends Controller
@@ -37,7 +37,7 @@ class StudentRequestController extends Controller
         $action = $request->action; // 'approve' or 'reject'
         $profileRequest = DB::table('student_profile_requests')->find($id);
 
-        if (!$profileRequest) {
+        if (! $profileRequest) {
             return back()->with('error', 'Request not found.');
         }
 
@@ -46,7 +46,7 @@ class StudentRequestController extends Controller
                 'status' => 'rejected',
                 'admin_comment' => $request->comment,
                 'processed_by' => auth()->id(),
-                'processed_at' => now()
+                'processed_at' => now(),
             ]);
 
             // Optional: Delete proof file if rejected
@@ -66,7 +66,7 @@ class StudentRequestController extends Controller
                 $admission = $student->admission;
 
                 // If admission record is missing, try to find it by email and link it
-                if (!$admission && $student->email) {
+                if (! $admission && $student->email) {
                     $admission = \App\Models\Admission::where('email', $student->email)->first();
                     if ($admission) {
                         $student->admission_id = $admission->id;
@@ -87,18 +87,18 @@ class StudentRequestController extends Controller
 
                     // Generate a proper filename using student enrollment number
                     $extension = pathinfo($sourcePath, PATHINFO_EXTENSION);
-                    $newFilename = 'student_' . $student->enrollment_number . '_' . time() . '.' . $extension;
-                    $destinationPath = 'student_photos/' . $newFilename;
+                    $newFilename = 'student_'.$student->enrollment_number.'_'.time().'.'.$extension;
+                    $destinationPath = 'student_photos/'.$newFilename;
 
                     if (Storage::exists($sourcePath)) {
                         // Ensure the student_photos directory exists
-                        if (!Storage::exists('public/student_photos')) {
+                        if (! Storage::exists('public/student_photos')) {
                             Storage::makeDirectory('public/student_photos');
                         }
 
                         // Copy file to public storage with new name
                         $fileContents = Storage::get($sourcePath);
-                        Storage::put('public/' . $destinationPath, $fileContents);
+                        Storage::put('public/'.$destinationPath, $fileContents);
 
                         // Delete the temporary file
                         Storage::delete($sourcePath);
@@ -129,7 +129,7 @@ class StudentRequestController extends Controller
             DB::table('student_profile_requests')->where('id', $id)->update([
                 'status' => 'approved',
                 'processed_by' => auth()->id(),
-                'processed_at' => now()
+                'processed_at' => now(),
             ]);
 
             return back()->with('success', 'Request approved and data updated.');
@@ -143,7 +143,7 @@ class StudentRequestController extends Controller
         $req = DB::table('student_profile_requests')->find($id);
 
         if ($req && $req->proof_file) {
-            $path = storage_path('app/' . $req->proof_file);
+            $path = storage_path('app/'.$req->proof_file);
 
             if (file_exists($path)) {
                 return response()->file($path);

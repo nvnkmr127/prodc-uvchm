@@ -1,4 +1,5 @@
 <?php
+
 // Create this migration file: database/migrations/xxxx_xx_xx_xxxxxx_update_settings_table_structure.php
 
 use Illuminate\Database\Migrations\Migration;
@@ -14,27 +15,27 @@ return new class extends Migration
     {
         Schema::table('settings', function (Blueprint $table) {
             // Add columns if they don't exist
-            if (!Schema::hasColumn('settings', 'group')) {
+            if (! Schema::hasColumn('settings', 'group')) {
                 $table->string('group')->default('general')->index()->after('value');
             }
-            
-            if (!Schema::hasColumn('settings', 'type')) {
+
+            if (! Schema::hasColumn('settings', 'type')) {
                 $table->string('type')->default('text')->after('group');
             }
-            
-            if (!Schema::hasColumn('settings', 'description')) {
+
+            if (! Schema::hasColumn('settings', 'description')) {
                 $table->text('description')->nullable()->after('type');
             }
-            
-            if (!Schema::hasColumn('settings', 'is_public')) {
+
+            if (! Schema::hasColumn('settings', 'is_public')) {
                 $table->boolean('is_public')->default(false)->after('description');
             }
-            
-            if (!Schema::hasColumn('settings', 'is_encrypted')) {
+
+            if (! Schema::hasColumn('settings', 'is_encrypted')) {
                 $table->boolean('is_encrypted')->default(false)->after('is_public');
             }
-            
-            if (!Schema::hasColumn('settings', 'validation_rules')) {
+
+            if (! Schema::hasColumn('settings', 'validation_rules')) {
                 $table->json('validation_rules')->nullable()->after('is_encrypted');
             }
         });
@@ -50,7 +51,7 @@ return new class extends Migration
     {
         Schema::table('settings', function (Blueprint $table) {
             $columnsToCheck = ['group', 'type', 'description', 'is_public', 'is_encrypted', 'validation_rules'];
-            
+
             foreach ($columnsToCheck as $column) {
                 if (Schema::hasColumn('settings', $column)) {
                     $table->dropColumn($column);
@@ -65,48 +66,48 @@ return new class extends Migration
     private function updateExistingSettings(): void
     {
         // Only run if Settings model exists
-        if (!class_exists(\App\Models\Setting::class)) {
+        if (! class_exists(\App\Models\Setting::class)) {
             return;
         }
 
         try {
             $settings = \App\Models\Setting::all();
-            
+
             foreach ($settings as $setting) {
                 $updates = [];
-                
+
                 // Set group if empty
                 if (empty($setting->group)) {
                     $updates['group'] = $this->detectGroup($setting->key);
                 }
-                
+
                 // Set type if empty
                 if (empty($setting->type)) {
                     $updates['type'] = $this->detectType($setting->value);
                 }
-                
+
                 // Set is_public
                 if ($setting->is_public === null) {
                     $updates['is_public'] = $this->isPublicSetting($setting->key);
                 }
-                
+
                 // Set is_encrypted for password fields
                 if ($setting->is_encrypted === null) {
                     $updates['is_encrypted'] = str_contains($setting->key, 'password');
                 }
-                
+
                 // Set description if empty
                 if (empty($setting->description)) {
                     $updates['description'] = $this->getDescription($setting->key);
                 }
-                
-                if (!empty($updates)) {
+
+                if (! empty($updates)) {
                     $setting->update($updates);
                 }
             }
         } catch (\Exception $e) {
             // Log error but don't fail migration
-            \Log::warning('Failed to update existing settings: ' . $e->getMessage());
+            \Log::warning('Failed to update existing settings: '.$e->getMessage());
         }
     }
 
@@ -115,27 +116,27 @@ return new class extends Migration
         if (str_contains($key, 'mail_') || str_contains($key, 'email_')) {
             return 'email';
         }
-        
+
         if (str_contains($key, 'notification')) {
             return 'notifications';
         }
-        
+
         if (str_contains($key, 'academic_') || str_contains($key, 'fee_') || str_contains($key, 'attendance_')) {
             return 'academic';
         }
-        
+
         if (str_contains($key, 'security_') || str_contains($key, 'password_') || str_contains($key, 'auth')) {
             return 'security';
         }
-        
+
         if (str_contains($key, 'enrollment_')) {
             return 'enrollment';
         }
-        
+
         if (str_contains($key, 'backup_') || str_contains($key, 'log_') || str_contains($key, 'cache_')) {
             return 'system';
         }
-        
+
         return 'general';
     }
 
@@ -144,27 +145,27 @@ return new class extends Migration
         if (is_null($value)) {
             return 'text';
         }
-        
+
         if (in_array($value, ['0', '1', 'true', 'false'], true)) {
             return 'toggle';
         }
-        
+
         if (is_numeric($value)) {
             return 'number';
         }
-        
+
         if (filter_var($value, FILTER_VALIDATE_EMAIL)) {
             return 'email';
         }
-        
+
         if (filter_var($value, FILTER_VALIDATE_URL)) {
             return 'url';
         }
-        
+
         if (strlen($value) > 255) {
             return 'textarea';
         }
-        
+
         return 'text';
     }
 
@@ -173,9 +174,9 @@ return new class extends Migration
         $publicSettings = [
             'app_name', 'app_tagline', 'app_description', 'app_logo', 'app_favicon',
             'timezone', 'date_format', 'time_format', 'currency', 'currency_symbol',
-            'default_language', 'maintenance_mode', 'online_admission_enabled'
+            'default_language', 'maintenance_mode', 'online_admission_enabled',
         ];
-        
+
         return in_array($key, $publicSettings);
     }
 
@@ -203,7 +204,7 @@ return new class extends Migration
             'enrollment_prefix' => 'Prefix for enrollment numbers',
             'enrollment_starting_number' => 'Starting number for enrollments',
         ];
-        
+
         return $descriptions[$key] ?? ucwords(str_replace('_', ' ', $key));
     }
 };

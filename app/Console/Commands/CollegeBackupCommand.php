@@ -2,11 +2,11 @@
 
 namespace App\Console\Commands;
 
+use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
+use Illuminate\Support\Facades\Storage;
 
 class CollegeBackupCommand extends Command
 {
@@ -37,7 +37,7 @@ class CollegeBackupCommand extends Command
         $clean = $this->option('clean');
 
         $this->info("Starting {$type} backup...");
-        
+
         try {
             switch ($type) {
                 case 'database':
@@ -51,6 +51,7 @@ class CollegeBackupCommand extends Command
                     break;
                 default:
                     $this->error('Invalid backup type. Use: database, files, or full');
+
                     return 1;
             }
 
@@ -63,15 +64,17 @@ class CollegeBackupCommand extends Command
             }
 
             $this->info("{$type} backup completed successfully!");
+
             return 0;
 
         } catch (\Exception $e) {
-            $this->error("Backup failed: " . $e->getMessage());
-            \Log::error("College backup failed", [
+            $this->error('Backup failed: '.$e->getMessage());
+            \Log::error('College backup failed', [
                 'type' => $type,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
+
             return 1;
         }
     }
@@ -82,19 +85,19 @@ class CollegeBackupCommand extends Command
     private function handleDatabaseBackup()
     {
         $this->info('Creating database backup...');
-        
+
         // Check database connection
         try {
             DB::connection()->getPdo();
             $this->info('Database connection verified.');
         } catch (\Exception $e) {
-            throw new \Exception('Database connection failed: ' . $e->getMessage());
+            throw new \Exception('Database connection failed: '.$e->getMessage());
         }
 
         // Run spatie backup for database only
         $exitCode = Artisan::call('backup:run', [
             '--only-db' => true,
-            '--disable-notifications' => true
+            '--disable-notifications' => true,
         ]);
 
         if ($exitCode !== 0) {
@@ -110,14 +113,14 @@ class CollegeBackupCommand extends Command
     private function handleFilesBackup()
     {
         $this->info('Creating files backup...');
-        
+
         // Check available disk space
         $this->checkDiskSpace();
 
         // Run spatie backup for files only
         $exitCode = Artisan::call('backup:run', [
             '--only-files' => true,
-            '--disable-notifications' => true
+            '--disable-notifications' => true,
         ]);
 
         if ($exitCode !== 0) {
@@ -133,18 +136,18 @@ class CollegeBackupCommand extends Command
     private function handleFullBackup()
     {
         $this->info('Creating full backup (database + files)...');
-        
+
         // Check database connection and disk space
         try {
             DB::connection()->getPdo();
             $this->checkDiskSpace();
         } catch (\Exception $e) {
-            throw new \Exception('Pre-backup checks failed: ' . $e->getMessage());
+            throw new \Exception('Pre-backup checks failed: '.$e->getMessage());
         }
 
         // Run full spatie backup
         $exitCode = Artisan::call('backup:run', [
-            '--disable-notifications' => true
+            '--disable-notifications' => true,
         ]);
 
         if ($exitCode !== 0) {
@@ -172,7 +175,7 @@ class CollegeBackupCommand extends Command
             throw new \Exception('Disk space critically low. Cannot proceed with backup.');
         }
 
-        $this->info("Disk usage: " . round($usedPercentage, 2) . "%");
+        $this->info('Disk usage: '.round($usedPercentage, 2).'%');
     }
 
     /**
@@ -181,7 +184,7 @@ class CollegeBackupCommand extends Command
     private function cleanOldBackups()
     {
         $this->info('Cleaning old backups...');
-        
+
         try {
             $retentionDays = setting('backup_retention_days', 30);
             $cutoffDate = Carbon::now()->subDays($retentionDays);
@@ -191,26 +194,26 @@ class CollegeBackupCommand extends Command
             $disks = config('backup.backup.destination.disks', ['local']);
             $disk = Storage::disk($disks[0]);
             $appName = config('backup.backup.name', config('app.name', 'Laravel'));
-            
+
             if ($disk->exists($appName)) {
                 $files = $disk->files($appName);
-                
+
                 foreach ($files as $file) {
                     if (pathinfo($file, PATHINFO_EXTENSION) === 'zip') {
                         $fileDate = Carbon::createFromTimestamp($disk->lastModified($file));
                         if ($fileDate->lt($cutoffDate)) {
                             $disk->delete($file);
                             $deletedCount++;
-                            $this->info("Deleted old backup: " . basename($file));
+                            $this->info('Deleted old backup: '.basename($file));
                         }
                     }
                 }
             }
 
             $this->info("Cleaned up {$deletedCount} old backup files.");
-            
+
         } catch (\Exception $e) {
-            $this->warn('Backup cleanup failed: ' . $e->getMessage());
+            $this->warn('Backup cleanup failed: '.$e->getMessage());
         }
     }
 
@@ -227,10 +230,10 @@ class CollegeBackupCommand extends Command
             'files_count' => $this->getFilesCount(),
         ];
 
-        \Log::info("College backup completed", $stats);
-        
+        \Log::info('College backup completed', $stats);
+
         // Update last backup info in settings
-        setting(['last_backup_' . $type => Carbon::now()->toDateTimeString()]);
+        setting(['last_backup_'.$type => Carbon::now()->toDateTimeString()]);
     }
 
     /**
@@ -239,8 +242,9 @@ class CollegeBackupCommand extends Command
     private function getDatabaseTableCount()
     {
         try {
-            $database = config('database.connections.' . config('database.default') . '.database');
-            $tables = DB::select("SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = ?", [$database]);
+            $database = config('database.connections.'.config('database.default').'.database');
+            $tables = DB::select('SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = ?', [$database]);
+
             return $tables[0]->count ?? 0;
         } catch (\Exception $e) {
             return 'Unknown';
@@ -253,13 +257,14 @@ class CollegeBackupCommand extends Command
     private function getDatabaseSize()
     {
         try {
-            $database = config('database.connections.' . config('database.default') . '.database');
-            $result = DB::select("
+            $database = config('database.connections.'.config('database.default').'.database');
+            $result = DB::select('
                 SELECT ROUND(SUM(data_length + index_length) / 1024 / 1024, 1) AS size_mb 
                 FROM information_schema.tables 
                 WHERE table_schema = ?
-            ", [$database]);
-            return ($result[0]->size_mb ?? 0) . ' MB';
+            ', [$database]);
+
+            return ($result[0]->size_mb ?? 0).' MB';
         } catch (\Exception $e) {
             return 'Unknown';
         }
@@ -274,6 +279,7 @@ class CollegeBackupCommand extends Command
             $iterator = new \RecursiveIteratorIterator(
                 new \RecursiveDirectoryIterator(base_path(), \RecursiveDirectoryIterator::SKIP_DOTS)
             );
+
             return iterator_count($iterator);
         } catch (\Exception $e) {
             return 'Unknown';
@@ -287,12 +293,12 @@ class CollegeBackupCommand extends Command
     {
         try {
             $notificationEmail = setting('notification_email');
-            
+
             if ($notificationEmail && setting('backup_notifications', false)) {
                 // Here you can implement email notification
                 // For example, using Laravel's Mail facade
                 $this->info("Notification would be sent to: {$notificationEmail}");
-                
+
                 // Uncomment and customize as needed:
                 /*
                 \Mail::to($notificationEmail)->send(new \App\Mail\BackupNotification([
@@ -303,7 +309,7 @@ class CollegeBackupCommand extends Command
                 */
             }
         } catch (\Exception $e) {
-            $this->warn('Failed to send notification: ' . $e->getMessage());
+            $this->warn('Failed to send notification: '.$e->getMessage());
         }
     }
 }

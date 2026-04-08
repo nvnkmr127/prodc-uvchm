@@ -1,14 +1,14 @@
 <?php
 
 // App/Providers/AutoWebhookServiceProvider.php
+
 namespace App\Providers;
 
-use App\Services\WebhookEventDiscoveryService;
 use App\Listeners\UniversalWebhookListener;
-use Illuminate\Support\ServiceProvider;
+use App\Services\WebhookEventDiscoveryService;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\File;
-use Illuminate\Support\Str;
+use Illuminate\Support\ServiceProvider;
 
 class AutoWebhookServiceProvider extends ServiceProvider
 {
@@ -45,6 +45,7 @@ class AutoWebhookServiceProvider extends ServiceProvider
         // This provider will no longer register listeners automatically.
         // All event listening will be explicitly defined in EventServiceProvider.
     }
+
     /**
      * Register listeners for all events in App/Events directory
      */
@@ -52,14 +53,14 @@ class AutoWebhookServiceProvider extends ServiceProvider
     {
         $eventsPath = app_path('Events');
 
-        if (!File::exists($eventsPath)) {
+        if (! File::exists($eventsPath)) {
             return;
         }
 
         $files = File::allFiles($eventsPath);
 
         foreach ($files as $file) {
-            $className = 'App\\Events\\' . str_replace(['/', '.php'], ['\\', ''], $file->getRelativePathname());
+            $className = 'App\\Events\\'.str_replace(['/', '.php'], ['\\', ''], $file->getRelativePathname());
 
             if (class_exists($className)) {
                 Event::listen($className, UniversalWebhookListener::class);
@@ -74,7 +75,7 @@ class AutoWebhookServiceProvider extends ServiceProvider
     {
         $modelsPath = app_path('Models');
 
-        if (!File::exists($modelsPath)) {
+        if (! File::exists($modelsPath)) {
             return;
         }
 
@@ -82,7 +83,7 @@ class AutoWebhookServiceProvider extends ServiceProvider
         $eloquentEvents = ['creating', 'created', 'updating', 'updated', 'deleting', 'deleted', 'saving', 'saved'];
 
         foreach ($files as $file) {
-            $className = 'App\\Models\\' . str_replace(['/', '.php'], ['\\', ''], $file->getRelativePathname());
+            $className = 'App\\Models\\'.str_replace(['/', '.php'], ['\\', ''], $file->getRelativePathname());
 
             if (class_exists($className)) {
                 $modelName = class_basename($className);
@@ -94,7 +95,7 @@ class AutoWebhookServiceProvider extends ServiceProvider
                         if ($model) {
                             // Create a synthetic event object for the webhook listener
                             $syntheticEvent = new \App\Events\EloquentWebhookEvent($model, $eventType, $modelName);
-                            (new UniversalWebhookListener())->handle($syntheticEvent);
+                            (new UniversalWebhookListener)->handle($syntheticEvent);
                         }
                     });
                 }

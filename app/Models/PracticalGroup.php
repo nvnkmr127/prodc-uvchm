@@ -2,11 +2,11 @@
 
 namespace App\Models;
 
+use App\Traits\WebhookEnabled;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use App\Traits\WebhookEnabled;
 
 class PracticalGroup extends Model
 {
@@ -16,7 +16,7 @@ class PracticalGroup extends Model
         'name',
         'batch_id',
         'classroom_id',
-        'academic_year_id'
+        'academic_year_id',
     ];
 
     protected $casts = [
@@ -91,6 +91,7 @@ class PracticalGroup extends Model
         if ($currentYear) {
             return $query->where('academic_year_id', $currentYear->id);
         }
+
         return $query;
     }
 
@@ -99,15 +100,16 @@ class PracticalGroup extends Model
      */
     public function getUtilizationAttribute(): float
     {
-        if (!$this->classroom || $this->classroom->capacity == 0) {
+        if (! $this->classroom || $this->classroom->capacity == 0) {
             return 0;
         }
-        
+
         $studentCount = $this->students()->count();
+
         return round(($studentCount / $this->classroom->capacity) * 100, 1);
     }
 
- public function timetableEntries()
+    public function timetableEntries()
     {
         return $this->hasMany(Timetable::class);
     }
@@ -128,10 +130,10 @@ class PracticalGroup extends Model
     public function upcomingLabSessions()
     {
         return $this->labSessions()
-                   ->where('schedule_date', '>=', now()->toDateString())
-                   ->with(['subject', 'user', 'timeSlot'])
-                   ->orderBy('schedule_date')
-                   ->orderBy('time_slot_id');
+            ->where('schedule_date', '>=', now()->toDateString())
+            ->with(['subject', 'user', 'timeSlot'])
+            ->orderBy('schedule_date')
+            ->orderBy('time_slot_id');
     }
 
     /**
@@ -139,10 +141,10 @@ class PracticalGroup extends Model
      */
     public function isFullAttribute(): bool
     {
-        if (!$this->classroom) {
+        if (! $this->classroom) {
             return false;
         }
-        
+
         return $this->students()->count() >= $this->classroom->capacity;
     }
 
@@ -151,13 +153,13 @@ class PracticalGroup extends Model
      */
     public function getAvailableSpotsAttribute(): int
     {
-        if (!$this->classroom) {
+        if (! $this->classroom) {
             return 0;
         }
-        
+
         $occupiedSpots = $this->students()->count();
         $availableSpots = $this->classroom->capacity - $occupiedSpots;
-        
+
         return max(0, $availableSpots);
     }
 
@@ -167,7 +169,7 @@ class PracticalGroup extends Model
     public function getStatusAttribute(): string
     {
         $utilization = $this->utilization;
-        
+
         if ($utilization >= 95) {
             return 'full';
         } elseif ($utilization >= 80) {
@@ -184,7 +186,7 @@ class PracticalGroup extends Model
      */
     public function getStatusColorAttribute(): string
     {
-        return match($this->status) {
+        return match ($this->status) {
             'full' => 'danger',
             'high' => 'warning',
             'medium' => 'info',
@@ -201,7 +203,7 @@ class PracticalGroup extends Model
         $studentCount = $this->students()->count();
         $capacity = $this->classroom?->capacity ?? 0;
         $labName = $this->classroom?->name ?? 'Unknown Lab';
-        
+
         return "Lab: {$labName} | Students: {$studentCount}/{$capacity}";
     }
 
@@ -220,7 +222,7 @@ class PracticalGroup extends Model
                 ->withProperties([
                     'batch_name' => $practicalGroup->batch?->name,
                     'lab_name' => $practicalGroup->classroom?->name,
-                    'academic_year' => $practicalGroup->academicYear?->name
+                    'academic_year' => $practicalGroup->academicYear?->name,
                 ])
                 ->log('Practical group created');
         });
@@ -240,7 +242,7 @@ class PracticalGroup extends Model
                 ->withProperties([
                     'batch_name' => $practicalGroup->batch?->name,
                     'lab_name' => $practicalGroup->classroom?->name,
-                    'student_count' => $practicalGroup->students()->count()
+                    'student_count' => $practicalGroup->students()->count(),
                 ])
                 ->log('Practical group deleted');
         });
@@ -271,7 +273,7 @@ class PracticalGroup extends Model
         if ($student->batch_id !== $this->batch_id) {
             return [
                 'can_add' => false,
-                'reason' => 'Student is not in the same batch as this group'
+                'reason' => 'Student is not in the same batch as this group',
             ];
         }
 
@@ -279,7 +281,7 @@ class PracticalGroup extends Model
         if ($this->students()->where('student_id', $student->id)->exists()) {
             return [
                 'can_add' => false,
-                'reason' => 'Student is already in this group'
+                'reason' => 'Student is already in this group',
             ];
         }
 
@@ -293,7 +295,7 @@ class PracticalGroup extends Model
         if ($existingGroup) {
             return [
                 'can_add' => false,
-                'reason' => "Student is already assigned to '{$existingGroup->name}' for this academic year"
+                'reason' => "Student is already assigned to '{$existingGroup->name}' for this academic year",
             ];
         }
 
@@ -303,13 +305,13 @@ class PracticalGroup extends Model
             return [
                 'can_add' => true,
                 'reason' => 'Group is at full capacity but student can still be added',
-                'warning' => true
+                'warning' => true,
             ];
         }
 
         return [
             'can_add' => true,
-            'reason' => 'Student can be added to this group'
+            'reason' => 'Student can be added to this group',
         ];
     }
 }

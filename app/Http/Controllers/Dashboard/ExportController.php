@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Dashboard;
 
 use App\Http\Controllers\Controller;
-use App\Models\{Dashboard, Widget, DashboardWidget};
+use App\Models\Dashboard;
+use App\Models\Widget;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
-use Illuminate\Support\Facades\Storage;
 
 class ExportController extends Controller
 {
@@ -25,13 +25,13 @@ class ExportController extends Controller
             'format' => 'required|in:xlsx,csv,pdf',
             'instance_id' => 'nullable|string',
             'date_range' => 'nullable|array',
-            'filters' => 'nullable|array'
+            'filters' => 'nullable|array',
         ]);
 
         $user = auth()->user();
-        
+
         // Check permissions
-        if (!$user->hasPermissionTo('export reports')) {
+        if (! $user->hasPermissionTo('export reports')) {
             return response()->json(['error' => 'Insufficient permissions'], 403);
         }
 
@@ -39,22 +39,23 @@ class ExportController extends Controller
             $instanceId = $request->instance_id;
             $format = $request->format;
             $filters = $request->filters ?? [];
-            
+
             // Get widget data
             $dataService = app(\App\Services\DashboardDataService::class);
             $data = $dataService->getWidgetData($user, $widget, $filters);
-            
+
             // Generate export
             $filename = $this->generateWidgetExport($widget, $data, $format, $instanceId);
-            
+
             return response()->json([
                 'success' => true,
                 'download_url' => route('dashboard.export.download', ['file' => $filename]),
-                'filename' => $filename
+                'filename' => $filename,
             ]);
-            
+
         } catch (\Exception $e) {
-            \Log::error('Widget export failed: ' . $e->getMessage());
+            \Log::error('Widget export failed: '.$e->getMessage());
+
             return response()->json(['error' => 'Export failed'], 500);
         }
     }
@@ -67,31 +68,32 @@ class ExportController extends Controller
         $request->validate([
             'format' => 'required|in:xlsx,pdf',
             'include_charts' => 'boolean',
-            'date_range' => 'nullable|array'
+            'date_range' => 'nullable|array',
         ]);
 
         $user = auth()->user();
-        
+
         // Check permissions
-        if (!$user->hasPermissionTo('export reports')) {
+        if (! $user->hasPermissionTo('export reports')) {
             return response()->json(['error' => 'Insufficient permissions'], 403);
         }
 
         try {
             $format = $request->format;
             $includeCharts = $request->boolean('include_charts', true);
-            
+
             // Generate dashboard export
             $filename = $this->generateDashboardExport($dashboard, $user, $format, $includeCharts);
-            
+
             return response()->json([
                 'success' => true,
                 'download_url' => route('dashboard.export.download', ['file' => $filename]),
-                'filename' => $filename
+                'filename' => $filename,
             ]);
-            
+
         } catch (\Exception $e) {
-            \Log::error('Dashboard export failed: ' . $e->getMessage());
+            \Log::error('Dashboard export failed: '.$e->getMessage());
+
             return response()->json(['error' => 'Export failed'], 500);
         }
     }
@@ -105,12 +107,12 @@ class ExportController extends Controller
             'report_type' => 'required|string',
             'format' => 'required|in:xlsx,csv,pdf',
             'parameters' => 'nullable|array',
-            'date_range' => 'nullable|array'
+            'date_range' => 'nullable|array',
         ]);
 
         $user = auth()->user();
-        
-        if (!$user->hasPermissionTo('generate reports')) {
+
+        if (! $user->hasPermissionTo('generate reports')) {
             return response()->json(['error' => 'Insufficient permissions'], 403);
         }
 
@@ -118,17 +120,18 @@ class ExportController extends Controller
             $reportType = $request->report_type;
             $format = $request->format;
             $parameters = $request->parameters ?? [];
-            
+
             $filename = $this->generateCustomReport($reportType, $parameters, $format, $user);
-            
+
             return response()->json([
                 'success' => true,
                 'download_url' => route('dashboard.export.download', ['file' => $filename]),
-                'filename' => $filename
+                'filename' => $filename,
             ]);
-            
+
         } catch (\Exception $e) {
-            \Log::error('Custom report export failed: ' . $e->getMessage());
+            \Log::error('Custom report export failed: '.$e->getMessage());
+
             return response()->json(['error' => 'Report generation failed'], 500);
         }
     }
@@ -139,15 +142,15 @@ class ExportController extends Controller
     public function download(Request $request, $file)
     {
         $user = auth()->user();
-        
+
         // Validate filename and user access
-        if (!$this->validateFileAccess($user, $file)) {
+        if (! $this->validateFileAccess($user, $file)) {
             abort(404);
         }
 
         $filePath = storage_path("app/exports/{$file}");
-        
-        if (!file_exists($filePath)) {
+
+        if (! file_exists($filePath)) {
             abort(404);
         }
 
@@ -161,9 +164,9 @@ class ExportController extends Controller
     {
         $timestamp = now()->format('Y-m-d_H-i-s');
         $filename = "widget_{$widget->slug}_{$timestamp}.{$format}";
-        
+
         $export = new \App\Exports\WidgetDataExport($widget, $data, $instanceId);
-        
+
         switch ($format) {
             case 'xlsx':
                 Excel::store($export, "exports/{$filename}", 'local', \Maatwebsite\Excel\Excel::XLSX);
@@ -176,7 +179,7 @@ class ExportController extends Controller
                 $this->generateWidgetPDF($widget, $data, $filename);
                 break;
         }
-        
+
         return $filename;
     }
 
@@ -187,12 +190,12 @@ class ExportController extends Controller
     {
         $timestamp = now()->format('Y-m-d_H-i-s');
         $filename = "dashboard_{$dashboard->slug}_{$timestamp}.{$format}";
-        
+
         $dashboardService = app(\App\Services\DashboardService::class);
         $dashboardData = $dashboardService->getDashboardData($user);
-        
+
         $export = new \App\Exports\DashboardExport($dashboard, $dashboardData, $includeCharts);
-        
+
         switch ($format) {
             case 'xlsx':
                 Excel::store($export, "exports/{$filename}", 'local', \Maatwebsite\Excel\Excel::XLSX);
@@ -201,7 +204,7 @@ class ExportController extends Controller
                 $this->generateDashboardPDF($dashboard, $dashboardData, $filename, $includeCharts);
                 break;
         }
-        
+
         return $filename;
     }
 
@@ -212,12 +215,12 @@ class ExportController extends Controller
     {
         $timestamp = now()->format('Y-m-d_H-i-s');
         $filename = "report_{$reportType}_{$timestamp}.{$format}";
-        
+
         // Create report based on type
         $reportData = $this->getReportData($reportType, $parameters, $user);
-        
+
         $export = new \App\Exports\CustomReportExport($reportType, $reportData, $parameters);
-        
+
         switch ($format) {
             case 'xlsx':
                 Excel::store($export, "exports/{$filename}", 'local', \Maatwebsite\Excel\Excel::XLSX);
@@ -229,7 +232,7 @@ class ExportController extends Controller
                 $this->generateReportPDF($reportType, $reportData, $filename);
                 break;
         }
-        
+
         return $filename;
     }
 
@@ -305,7 +308,7 @@ class ExportController extends Controller
         return [
             'students' => [],
             'metrics' => [],
-            'summary' => []
+            'summary' => [],
         ];
     }
 
@@ -318,7 +321,7 @@ class ExportController extends Controller
         return [
             'revenue' => [],
             'expenses' => [],
-            'summary' => []
+            'summary' => [],
         ];
     }
 
@@ -331,7 +334,7 @@ class ExportController extends Controller
         return [
             'attendance' => [],
             'statistics' => [],
-            'trends' => []
+            'trends' => [],
         ];
     }
 
@@ -344,7 +347,7 @@ class ExportController extends Controller
         return [
             'enrollments' => [],
             'trends' => [],
-            'projections' => []
+            'projections' => [],
         ];
     }
 }

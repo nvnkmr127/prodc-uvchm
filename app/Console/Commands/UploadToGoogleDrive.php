@@ -2,9 +2,9 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
 use Google\Client;
 use Google\Service\Drive;
+use Illuminate\Console\Command;
 
 class UploadToGoogleDrive extends Command
 {
@@ -44,6 +44,7 @@ class UploadToGoogleDrive extends Command
 
             if (empty($files)) {
                 $this->warn('No suitable backup files found to upload.');
+
                 return 0;
             }
 
@@ -60,22 +61,23 @@ class UploadToGoogleDrive extends Command
             foreach ($files as $file) {
                 $fileSize = filesize($file['path']);
                 $fileSizeMB = round($fileSize / 1024 / 1024, 2);
-                
-                $this->info("Processing: " . basename($file['path']) . " ({$fileSizeMB} MB)");
-                
+
+                $this->info('Processing: '.basename($file['path'])." ({$fileSizeMB} MB)");
+
                 // Skip large files for service accounts (over 50MB)
                 if ($fileSize > 50 * 1024 * 1024) {
-                    $this->warn("  ⚠️ Skipped - File too large for service account upload");
+                    $this->warn('  ⚠️ Skipped - File too large for service account upload');
                     $skipped++;
+
                     continue;
                 }
-                
+
                 if ($this->uploadFileChunked($service, $file, $folderId)) {
                     $uploaded++;
-                    $this->line("  ✅ Success");
+                    $this->line('  ✅ Success');
                 } else {
                     $failed++;
-                    $this->line("  ❌ Failed");
+                    $this->line('  ❌ Failed');
                 }
             }
 
@@ -88,11 +90,12 @@ class UploadToGoogleDrive extends Command
             return $failed > 0 ? 1 : 0;
 
         } catch (\Exception $e) {
-            $this->error('Upload failed: ' . $e->getMessage());
+            $this->error('Upload failed: '.$e->getMessage());
             \Log::error('Google Drive upload failed', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
+
             return 1;
         }
     }
@@ -102,13 +105,13 @@ class UploadToGoogleDrive extends Command
      */
     private function initializeGoogleClient()
     {
-        $client = new Client();
-        
+        $client = new Client;
+
         // Set up service account authentication
         $credentialsPath = storage_path('app/google/service-account.json');
-        
-        if (!file_exists($credentialsPath)) {
-            throw new \Exception('Service account credentials not found: ' . $credentialsPath);
+
+        if (! file_exists($credentialsPath)) {
+            throw new \Exception('Service account credentials not found: '.$credentialsPath);
         }
 
         $client->setAuthConfig($credentialsPath);
@@ -126,31 +129,31 @@ class UploadToGoogleDrive extends Command
         $backupPath = storage_path('app/UVCHM Portal');
         $files = [];
 
-        if (!is_dir($backupPath)) {
+        if (! is_dir($backupPath)) {
             return $files;
         }
 
-        $option = $this->option('file') ? 'file' : 
-                 ($this->option('all') ? 'all' : 
+        $option = $this->option('file') ? 'file' :
+                 ($this->option('all') ? 'all' :
                  ($this->option('recent') ? 'recent' : 'recent'));
 
         switch ($option) {
             case 'file':
                 $specificFile = $this->option('file');
-                if (file_exists($backupPath . '/' . $specificFile)) {
+                if (file_exists($backupPath.'/'.$specificFile)) {
                     $files[] = [
-                        'path' => $backupPath . '/' . $specificFile,
-                        'name' => $specificFile
+                        'path' => $backupPath.'/'.$specificFile,
+                        'name' => $specificFile,
                     ];
                 }
                 break;
 
             case 'all':
-                $allFiles = glob($backupPath . '/*.{zip,gz,tar.gz}', GLOB_BRACE);
+                $allFiles = glob($backupPath.'/*.{zip,gz,tar.gz}', GLOB_BRACE);
                 foreach ($allFiles as $file) {
                     $files[] = [
                         'path' => $file,
-                        'name' => basename($file)
+                        'name' => basename($file),
                     ];
                 }
                 break;
@@ -159,13 +162,13 @@ class UploadToGoogleDrive extends Command
             default:
                 // Upload files from last 24 hours
                 $cutoff = time() - (24 * 60 * 60);
-                $allFiles = glob($backupPath . '/*.{zip,gz,tar.gz}', GLOB_BRACE);
-                
+                $allFiles = glob($backupPath.'/*.{zip,gz,tar.gz}', GLOB_BRACE);
+
                 foreach ($allFiles as $file) {
                     if (filemtime($file) > $cutoff) {
                         $files[] = [
                             'path' => $file,
-                            'name' => basename($file)
+                            'name' => basename($file),
                         ];
                     }
                 }
@@ -174,7 +177,7 @@ class UploadToGoogleDrive extends Command
 
         // Filter by size if --small-only option
         if ($this->option('small-only')) {
-            $files = array_filter($files, function($file) {
+            $files = array_filter($files, function ($file) {
                 return filesize($file['path']) <= 50 * 1024 * 1024; // 50MB limit
             });
         }
@@ -188,12 +191,12 @@ class UploadToGoogleDrive extends Command
     private function getOrCreateBackupFolder($service)
     {
         $folderName = 'UVCHM Portal Backups';
-        
+
         try {
             // Check if folder exists
             $response = $service->files->listFiles([
                 'q' => "name='{$folderName}' and mimeType='application/vnd.google-apps.folder'",
-                'spaces' => 'drive'
+                'spaces' => 'drive',
             ]);
 
             if (count($response->files) > 0) {
@@ -203,22 +206,23 @@ class UploadToGoogleDrive extends Command
             // Create folder
             $fileMetadata = new \Google\Service\Drive\DriveFile([
                 'name' => $folderName,
-                'mimeType' => 'application/vnd.google-apps.folder'
+                'mimeType' => 'application/vnd.google-apps.folder',
             ]);
 
             $folder = $service->files->create($fileMetadata, [
-                'fields' => 'id'
+                'fields' => 'id',
             ]);
 
             $this->info("Created Google Drive folder: {$folderName}");
-            
+
             return $folder->id;
-            
+
         } catch (\Exception $e) {
             // If we can't create in root, try to get the folder ID from env
             $folderId = env('GOOGLE_DRIVE_FOLDER_ID');
             if ($folderId) {
                 $this->info("Using existing folder ID from environment: {$folderId}");
+
                 return $folderId;
             }
             throw $e;
@@ -234,16 +238,16 @@ class UploadToGoogleDrive extends Command
             $fileName = $file['name'];
             $filePath = $file['path'];
             $fileSize = filesize($filePath);
-            
+
             // Check if file already exists
             $existingFiles = $service->files->listFiles([
                 'q' => "name='{$fileName}' and parents in '{$folderId}'",
-                'spaces' => 'drive'
+                'spaces' => 'drive',
             ]);
 
             $fileMetadata = new \Google\Service\Drive\DriveFile([
                 'name' => $fileName,
-                'parents' => [$folderId]
+                'parents' => [$folderId],
             ]);
 
             // For files under 5MB, use simple upload
@@ -257,34 +261,34 @@ class UploadToGoogleDrive extends Command
                     $service->files->update($fileId, $fileMetadata, [
                         'data' => $content,
                         'mimeType' => $mimeType,
-                        'uploadType' => 'multipart'
+                        'uploadType' => 'multipart',
                     ]);
                 } else {
                     // Create new file
                     $service->files->create($fileMetadata, [
                         'data' => $content,
                         'mimeType' => $mimeType,
-                        'uploadType' => 'multipart'
+                        'uploadType' => 'multipart',
                     ]);
                 }
             } else {
                 // For larger files, use resumable upload
-                $this->info("  📡 Using resumable upload for large file...");
-                
+                $this->info('  📡 Using resumable upload for large file...');
+
                 // Set chunked upload parameters
                 $chunkSizeBytes = 1 * 1024 * 1024; // 1MB chunks
                 $client = $service->getClient();
                 $client->setDefer(true);
-                
+
                 $mimeType = $this->getMimeType($filePath);
-                
+
                 if (count($existingFiles->files) > 0) {
                     $fileId = $existingFiles->files[0]->id;
                     $request = $service->files->update($fileId, $fileMetadata);
                 } else {
                     $request = $service->files->create($fileMetadata);
                 }
-                
+
                 // Create media upload
                 $media = new \Google\Http\MediaFileUpload(
                     $client,
@@ -294,18 +298,18 @@ class UploadToGoogleDrive extends Command
                     true,
                     $chunkSizeBytes
                 );
-                
+
                 $media->setFileSize($fileSize);
-                
+
                 // Upload in chunks
-                $handle = fopen($filePath, "rb");
+                $handle = fopen($filePath, 'rb');
                 $uploadStatus = false;
-                
-                while (!$uploadStatus && !feof($handle)) {
+
+                while (! $uploadStatus && ! feof($handle)) {
                     $chunk = fread($handle, $chunkSizeBytes);
                     $uploadStatus = $media->nextChunk($chunk);
                 }
-                
+
                 fclose($handle);
                 $client->setDefer(false);
             }
@@ -313,7 +317,8 @@ class UploadToGoogleDrive extends Command
             return true;
 
         } catch (\Exception $e) {
-            $this->error("Failed to upload {$file['name']}: " . $e->getMessage());
+            $this->error("Failed to upload {$file['name']}: ".$e->getMessage());
+
             return false;
         }
     }
@@ -324,12 +329,12 @@ class UploadToGoogleDrive extends Command
     private function getMimeType($filePath)
     {
         $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
-        
+
         $mimeTypes = [
             'zip' => 'application/zip',
             'gz' => 'application/gzip',
             'tar' => 'application/x-tar',
-            'sql' => 'application/sql'
+            'sql' => 'application/sql',
         ];
 
         return $mimeTypes[$extension] ?? 'application/octet-stream';
@@ -342,10 +347,10 @@ class UploadToGoogleDrive extends Command
     {
         $timestamp = now()->format('Y-m-d H:i:s');
         $logEntry = "[{$timestamp}] Google Drive Upload: {$uploaded} successful, {$failed} failed, {$skipped} skipped";
-        
+
         file_put_contents(
             storage_path('logs/gdrive-uploads.log'),
-            $logEntry . "\n",
+            $logEntry."\n",
             FILE_APPEND | LOCK_EX
         );
 
@@ -353,7 +358,7 @@ class UploadToGoogleDrive extends Command
             'uploaded' => $uploaded,
             'failed' => $failed,
             'skipped' => $skipped,
-            'timestamp' => $timestamp
+            'timestamp' => $timestamp,
         ]);
     }
 }

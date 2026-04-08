@@ -9,17 +9,17 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-public function up(): void
-{
-    Schema::create('academic_years', function (Blueprint $table) {
-        $table->id();
-        $table->string('name')->unique(); // e.g., "2025-2026"
-        $table->date('start_date');
-        $table->date('end_date');
-        $table->boolean('is_current')->default(false); // A flag to mark the current year
-        $table->timestamps();
-    });
-}
+    public function up(): void
+    {
+        Schema::create('academic_years', function (Blueprint $table) {
+            $table->id();
+            $table->string('name')->unique(); // e.g., "2025-2026"
+            $table->date('start_date');
+            $table->date('end_date');
+            $table->boolean('is_current')->default(false); // A flag to mark the current year
+            $table->timestamps();
+        });
+    }
 
     /**
      * Reverse the migrations.

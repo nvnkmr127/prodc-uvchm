@@ -2,9 +2,9 @@
 
 namespace App\Jobs\Attendance;
 
-use App\Services\Attendance\ReportingService;
 use App\Models\User;
-use App\Jobs\Attendance\ProcessNotificationJob;
+use App\Services\Attendance\ReportingService;
+use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -12,17 +12,19 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Carbon\Carbon;
 
 class ProcessReportsJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public $timeout = 1800; // 30 minutes
+
     public $tries = 2;
 
     protected $reportType;
+
     protected $parameters;
+
     protected $requestedBy;
 
     public function __construct(string $reportType, array $parameters = [], ?int $requestedBy = null)
@@ -72,9 +74,9 @@ class ProcessReportsJob implements ShouldQueue
             Log::error('Report generation job failed', [
                 'type' => $this->reportType,
                 'parameters' => $this->parameters,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
-            
+
             throw $e; // Re-throw the exception to mark the job as failed
         }
     }
@@ -86,15 +88,15 @@ class ProcessReportsJob implements ShouldQueue
     {
         $filters = $this->parameters['filters'] ?? [];
         $format = $this->parameters['format'] ?? 'pdf';
-        
+
         $reportData = $reportingService->generateGeneralReport($filters);
         $filename = $this->saveReport($reportData, 'attendance_summary', $format);
-        
+
         $this->notifyReportCompletion($filename, 'Attendance Summary Report');
-        
+
         Log::info('Attendance summary report generated', [
             'filename' => $filename,
-            'format' => $format
+            'format' => $format,
         ]);
     }
 
@@ -106,15 +108,15 @@ class ProcessReportsJob implements ShouldQueue
         $studentId = $this->parameters['student_id'];
         $filters = $this->parameters['filters'] ?? [];
         $format = $this->parameters['format'] ?? 'pdf';
-        
+
         $reportData = $reportingService->generateStudentReport($studentId, $filters);
         $filename = $this->saveReport($reportData, "student_report_{$studentId}", $format);
-        
+
         $this->notifyReportCompletion($filename, 'Student Attendance Report');
-        
+
         Log::info('Student report generated', [
             'student_id' => $studentId,
-            'filename' => $filename
+            'filename' => $filename,
         ]);
     }
 
@@ -126,15 +128,15 @@ class ProcessReportsJob implements ShouldQueue
         $batchId = $this->parameters['batch_id'];
         $filters = $this->parameters['filters'] ?? [];
         $format = $this->parameters['format'] ?? 'pdf';
-        
+
         $reportData = $reportingService->generateBatchReport($batchId, $filters);
         $filename = $this->saveReport($reportData, "batch_report_{$batchId}", $format);
-        
+
         $this->notifyReportCompletion($filename, 'Batch Attendance Report');
-        
+
         Log::info('Batch report generated', [
             'batch_id' => $batchId,
-            'filename' => $filename
+            'filename' => $filename,
         ]);
     }
 
@@ -146,21 +148,21 @@ class ProcessReportsJob implements ShouldQueue
         $month = $this->parameters['month'] ?? Carbon::now()->month;
         $year = $this->parameters['year'] ?? Carbon::now()->year;
         $format = $this->parameters['format'] ?? 'pdf';
-        
+
         $filters = [
             'date_from' => Carbon::create($year, $month, 1)->startOfMonth()->format('Y-m-d'), // Ensure Y-m-d format for filters
-            'date_to' => Carbon::create($year, $month, 1)->endOfMonth()->format('Y-m-d')     // Ensure Y-m-d format for filters
+            'date_to' => Carbon::create($year, $month, 1)->endOfMonth()->format('Y-m-d'),     // Ensure Y-m-d format for filters
         ];
-        
+
         $reportData = $reportingService->generateMonthlyReport($filters);
         $filename = $this->saveReport($reportData, "monthly_report_{$year}_{$month}", $format);
-        
+
         $this->notifyReportCompletion($filename, 'Monthly Attendance Report');
-        
+
         Log::info('Monthly report generated', [
             'month' => $month,
             'year' => $year,
-            'filename' => $filename
+            'filename' => $filename,
         ]);
     }
 
@@ -171,12 +173,12 @@ class ProcessReportsJob implements ShouldQueue
     {
         $filters = $this->parameters['filters'] ?? [];
         $format = $this->parameters['format'] ?? 'pdf';
-        
+
         $reportData = $reportingService->generateExecutiveReport($filters);
         $filename = $this->saveReport($reportData, 'executive_summary', $format);
-        
+
         $this->notifyReportCompletion($filename, 'Executive Summary Report');
-        
+
         Log::info('Executive summary generated', ['filename' => $filename]);
     }
 
@@ -188,15 +190,15 @@ class ProcessReportsJob implements ShouldQueue
         $filters = $this->parameters['filters'] ?? [];
         $complianceType = $this->parameters['compliance_type'] ?? 'general';
         $format = $this->parameters['format'] ?? 'pdf';
-        
+
         $reportData = $reportingService->generateComplianceReport($filters);
         $filename = $this->saveReport($reportData, "compliance_report_{$complianceType}", $format);
-        
+
         $this->notifyReportCompletion($filename, 'Compliance Report');
-        
+
         Log::info('Compliance report generated', [
             'type' => $complianceType,
-            'filename' => $filename
+            'filename' => $filename,
         ]);
     }
 
@@ -207,13 +209,13 @@ class ProcessReportsJob implements ShouldQueue
     {
         $reportConfig = $this->parameters['config'] ?? [];
         $format = $this->parameters['format'] ?? 'pdf';
-        
+
         // Custom report generation logic based on configuration
         $reportData = $reportingService->generateCustomReport($reportConfig);
         $filename = $this->saveReport($reportData, 'custom_report', $format);
-        
+
         $this->notifyReportCompletion($filename, 'Custom Attendance Report');
-        
+
         Log::info('Custom report generated', ['filename' => $filename]);
     }
 
@@ -225,24 +227,24 @@ class ProcessReportsJob implements ShouldQueue
         $scheduleConfig = $this->parameters['schedule'] ?? [];
         $reportType = $scheduleConfig['report_type'] ?? 'summary';
         $recipients = $scheduleConfig['recipients'] ?? [];
-        
+
         // Generate the scheduled report
-        $reportData = match($reportType) {
+        $reportData = match ($reportType) {
             'daily' => $reportingService->generateDailyReport(),
             'weekly' => $reportingService->generateWeeklyReport(),
             'monthly' => $reportingService->generateMonthlyReport(), // Assuming generateMonthlyReport can take no args or default filters
             default => $reportingService->generateGeneralReport()
         };
-        
+
         $filename = $this->saveReport($reportData, "scheduled_{$reportType}_report", 'pdf');
-        
+
         // Send to recipients
         $this->distributeScheduledReport($filename, $recipients, $reportType);
-        
+
         Log::info('Scheduled report processed', [
             'type' => $reportType,
             'filename' => $filename,
-            'recipients' => count($recipients)
+            'recipients' => count($recipients),
         ]);
     }
 
@@ -254,7 +256,7 @@ class ProcessReportsJob implements ShouldQueue
         $timestamp = now()->format('Y-m-d_H-i-s');
         $filename = "{$basename}_{$timestamp}.{$format}";
         $path = "reports/attendance/{$filename}";
-        
+
         switch ($format) {
             case 'pdf':
                 $content = $this->generatePdfContent($reportData);
@@ -268,9 +270,9 @@ class ProcessReportsJob implements ShouldQueue
             default:
                 throw new \InvalidArgumentException("Unsupported format: {$format}");
         }
-        
+
         Storage::disk('local')->put($path, $content);
-        
+
         return $filename;
     }
 
@@ -291,10 +293,10 @@ class ProcessReportsJob implements ShouldQueue
                     'data' => [
                         'filename' => $filename,
                         'report_type' => $this->reportType,
-                        'download_url' => route('reports.download', $filename)
+                        'download_url' => route('reports.download', $filename),
                     ],
                     'channels' => ['database', 'mail'],
-                    'recipient_id' => $user->id
+                    'recipient_id' => $user->id,
                 ]);
             }
         }
@@ -310,16 +312,16 @@ class ProcessReportsJob implements ShouldQueue
             // The ProcessNotificationJob should be able to handle different recipient types.
             ProcessNotificationJob::dispatch([
                 'type' => 'scheduled_report',
-                'title' => ucfirst($reportType) . ' Attendance Report',
+                'title' => ucfirst($reportType).' Attendance Report',
                 'message' => "Your scheduled {$reportType} attendance report is attached.",
                 'data' => [
                     'filename' => $filename,
                     'report_type' => $reportType,
-                    'generated_at' => now()->toISOString()
+                    'generated_at' => now()->toISOString(),
                 ],
                 'channels' => ['mail'], // Scheduled reports are typically mailed
                 'recipient' => $recipient, // This might be an email, user ID, or User object
-                'attachment' => $filename // This would typically be a path or a reference to the saved file
+                'attachment' => $filename, // This would typically be a path or a reference to the saved file
             ]);
         }
     }
@@ -338,7 +340,8 @@ class ProcessReportsJob implements ShouldQueue
         // $dompdf->render();
         // return $dompdf->output();
         Log::warning('Placeholder generatePdfContent called. Implement actual PDF generation.');
-        return "PDF content placeholder for " . json_encode($data);
+
+        return 'PDF content placeholder for '.json_encode($data);
     }
 
     private function generateExcelContent(array $data): string
@@ -353,7 +356,8 @@ class ProcessReportsJob implements ShouldQueue
         // $writer->save($filePath);
         // return file_get_contents($filePath);
         Log::warning('Placeholder generateExcelContent called. Implement actual Excel generation.');
-        return "Excel content placeholder for " . json_encode($data);
+
+        return 'Excel content placeholder for '.json_encode($data);
     }
 
     private function generateCsvContent(array $data): string
@@ -367,6 +371,7 @@ class ProcessReportsJob implements ShouldQueue
         // rewind($output);
         // return stream_get_contents($output);
         Log::warning('Placeholder generateCsvContent called. Implement actual CSV generation.');
-        return "CSV content placeholder for " . json_encode($data);
+
+        return 'CSV content placeholder for '.json_encode($data);
     }
 }

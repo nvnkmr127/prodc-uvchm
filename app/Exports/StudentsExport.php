@@ -29,9 +29,6 @@ class StudentsExport implements FromCollection, WithHeadings, WithMapping
         return $this->students;
     }
 
-    /**
-     * @return array
-     */
     public function headings(): array
     {
         // These will be the column headers in the Excel file
@@ -51,7 +48,7 @@ class StudentsExport implements FromCollection, WithHeadings, WithMapping
     }
 
     /**
-     * @var Student $student
+     * @var Student
      */
     public function map($student): array
     {

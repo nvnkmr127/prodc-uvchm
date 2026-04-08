@@ -2,16 +2,13 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Spatie\Activitylog\Traits\LogsActivity;
-use Spatie\Activitylog\LogOptions;
 use App\Traits\WebhookEnabled;
-use App\Traits\HasAcademicYear;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 
 class StudentFee extends Model
 {
-    use WebhookEnabled, HasFactory;
+    use HasFactory, WebhookEnabled;
 
     public $academic_year_column = 'academic_year'; // Keep for reference, though used manually now
 
@@ -33,7 +30,7 @@ class StudentFee extends Model
         'payment_method',
         'transaction_id',
         'remarks',
-        'invoice_id' // Keep for backward compatibility during migration
+        'invoice_id', // Keep for backward compatibility during migration
     ];
 
     protected $casts = [
@@ -44,7 +41,7 @@ class StudentFee extends Model
         'paid_amount' => 'decimal:2',
         'concession_amount' => 'decimal:2',
         'installment_number' => 'integer',
-        'total_installments' => 'integer'
+        'total_installments' => 'integer',
     ];
 
     protected static function boot()
@@ -52,12 +49,12 @@ class StudentFee extends Model
         parent::boot();
 
         // [FIX] Robust Academic Year Global Scope (Handles Strict Name & Legacy Relations)
-        if (config('app.enable_academic_year_global_scope', true) && !app()->runningInConsole() && !request()->is('api/*')) {
+        if (config('app.enable_academic_year_global_scope', true) && ! app()->runningInConsole() && ! request()->is('api/*')) {
             static::addGlobalScope('academic_year', function (\Illuminate\Database\Eloquent\Builder $builder) {
                 $yearId = session('selected_academic_year_id');
 
                 // Default to current year
-                if (!$yearId) {
+                if (! $yearId) {
                     $currentYear = \App\Models\AcademicYear::where('is_current', true)->first();
                     $yearId = $currentYear?->id;
                 }
@@ -84,19 +81,19 @@ class StudentFee extends Model
 
         static::creating(function ($studentFee) {
             // Set original amount if not provided
-            if (!$studentFee->original_amount) {
+            if (! $studentFee->original_amount) {
                 $studentFee->original_amount = $studentFee->amount;
             }
 
             // Set academic year if not provided
-            if (!$studentFee->academic_year) {
+            if (! $studentFee->academic_year) {
                 // Try to get from student's batch first
                 $student = \App\Models\Student::find($studentFee->student_id);
                 if ($student && $student->batch && $student->batch->academicYear) {
                     $studentFee->academic_year = $student->batch->academicYear->name;
                 } else {
                     // Fallback to current date logic
-                    $studentFee->academic_year = date('Y') . '-' . (date('Y') + 1);
+                    $studentFee->academic_year = date('Y').'-'.(date('Y') + 1);
                 }
             }
 
@@ -121,7 +118,7 @@ class StudentFee extends Model
 
         if ($this->paid_amount >= $netAmount) {
             $this->status = 'paid';
-            if (!$this->paid_date) {
+            if (! $this->paid_date) {
                 $this->paid_date = now();
             }
         } elseif ($this->paid_amount > 0) {
@@ -236,12 +233,13 @@ class StudentFee extends Model
     public function getPaymentPercentage()
     {
         $netAmount = $this->getNetAmount();
+
         return $netAmount > 0 ? round(($this->paid_amount / $netAmount) * 100, 2) : 100;
     }
 
     public function getOverdueDays()
     {
-        if (!$this->isOverdue()) {
+        if (! $this->isOverdue()) {
             return 0;
         }
 
@@ -255,7 +253,7 @@ class StudentFee extends Model
             ->latest('created_at')
             ->first()
             ?->payment
-                ?->payment_date;
+            ?->payment_date;
     }
 
     /**
@@ -325,7 +323,6 @@ class StudentFee extends Model
     /**
      * Format fee for display
      */
-
     public function toDisplayArray()
     {
         return [
@@ -344,7 +341,7 @@ class StudentFee extends Model
             'overdue_days' => $this->getOverdueDays(),
             'payment_percentage' => $this->getPaymentPercentage(),
             'can_pay' => $this->canMakePayment(),
-            'installment' => $this->installment_number . '/' . $this->total_installments,
+            'installment' => $this->installment_number.'/'.$this->total_installments,
             'latest_payment_date' => $this->getLatestPaymentDate()?->format('Y-m-d'),
         ];
     }
@@ -357,6 +354,7 @@ class StudentFee extends Model
         if ($this->status === 'unpaid' && $this->isOverdue()) {
             return 'overdue';
         }
+
         return $this->status;
     }
 
@@ -413,7 +411,7 @@ class StudentFee extends Model
             'collection_percentage' => $netAmount > 0 ? round(($totalPaid / $netAmount) * 100, 2) : 100,
             'fees_count' => $fees->count(),
             'paid_count' => $fees->where('status', 'paid')->count(),
-            'unpaid_count' => $fees->whereIn('status', ['unpaid', 'partial', 'overdue'])->count()
+            'unpaid_count' => $fees->whereIn('status', ['unpaid', 'partial', 'overdue'])->count(),
         ];
     }
 }

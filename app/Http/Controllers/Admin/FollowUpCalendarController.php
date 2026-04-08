@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Enquiry;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Carbon\Carbon;
 
 class FollowUpCalendarController extends Controller
 {
@@ -19,9 +19,9 @@ class FollowUpCalendarController extends Controller
 
             // Fetch Data
             $query = Enquiry::whereNotNull('next_follow_up_date')
-                            ->where('status', '!=', 'Admitted')
-                            ->whereBetween('next_follow_up_date', [$startDate, $endDate])
-                            ->select(['id', 'student_name', 'phone_number', 'status', 'next_follow_up_date']);
+                ->where('status', '!=', 'Admitted')
+                ->whereBetween('next_follow_up_date', [$startDate, $endDate])
+                ->select(['id', 'student_name', 'phone_number', 'status', 'next_follow_up_date']);
 
             // Role Check
             $user = Auth::user();
@@ -34,20 +34,20 @@ class FollowUpCalendarController extends Controller
             // Format Events
             $events = $enquiries->map(function ($enquiry) {
                 $date = $enquiry->next_follow_up_date;
-                
+
                 // Safe Date Parsing
                 if ($date instanceof Carbon) {
                     $cDate = $date;
                 } else {
                     $cDate = Carbon::parse($date);
                 }
-                
+
                 $start = $cDate->format('Y-m-d');
                 $isOverdue = $cDate->endOfDay()->isPast();
                 $isToday = $cDate->isToday();
 
                 // Color Logic
-                if ($isOverdue && !$isToday) {
+                if ($isOverdue && ! $isToday) {
                     $color = '#e74a3b'; // Red
                 } elseif ($isToday) {
                     $color = '#f6c23e'; // Orange
@@ -57,7 +57,7 @@ class FollowUpCalendarController extends Controller
 
                 return [
                     'id' => $enquiry->id,
-                    'title' => $enquiry->student_name . ' (' . $enquiry->phone_number . ')',
+                    'title' => $enquiry->student_name.' ('.$enquiry->phone_number.')',
                     'start' => $start,
                     'url' => route('admin.enquiries.edit', $enquiry->id),
                     'backgroundColor' => $color,
@@ -66,8 +66,8 @@ class FollowUpCalendarController extends Controller
                     'allDay' => true,
                     'extendedProps' => [
                         'phone' => $enquiry->phone_number,
-                        'status' => $enquiry->status
-                    ]
+                        'status' => $enquiry->status,
+                    ],
                 ];
             });
 
@@ -75,16 +75,16 @@ class FollowUpCalendarController extends Controller
         }
 
         // 2. Handle Initial Page Load (View Response)
-        
+
         // Re-fetch enquiries if you need a list in the sidebar
         $query = Enquiry::whereNotNull('next_follow_up_date')
-                        ->where('status', '!=', 'Admitted');
-                        
+            ->where('status', '!=', 'Admitted');
+
         $user = Auth::user();
         if ($user->hasRole('Counselor')) {
             $query->where('assigned_to_user_id', $user->id);
         }
-        
+
         $enquiries = $query->orderBy('next_follow_up_date', 'asc')
             ->select(['id', 'student_name', 'phone_number', 'status', 'next_follow_up_date'])
             ->limit(500)
@@ -92,9 +92,9 @@ class FollowUpCalendarController extends Controller
 
         // Logic corrected: If admin view exists, return ADMIN view.
         if (view()->exists('admin.calendar.index')) {
-             return view('admin.calendar.index', compact('enquiries'));
+            return view('admin.calendar.index', compact('enquiries'));
         }
-        
+
         // Fallback
         return view('calendar.index', compact('enquiries'));
     }

@@ -3,18 +3,15 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\SystemNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Log;
-use App\Models\SystemNotification;
-use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
 
 class NotificationController extends Controller
 {
-
-/**
+    /**
      * Get all notifications for index
      */
     public function index(Request $request)
@@ -41,21 +38,21 @@ class NotificationController extends Controller
             'academic' => 'Academic',
             'attendance' => 'Attendance',
             'system' => 'System',
-            'general' => 'General'
+            'general' => 'General',
         ];
 
         $types = [
             'info' => 'Info',
             'success' => 'Success',
             'warning' => 'Warning',
-            'error' => 'Error'
+            'error' => 'Error',
         ];
 
         $priorities = [
             'low' => 'Low',
             'normal' => 'Normal',
             'high' => 'High',
-            'urgent' => 'Urgent'
+            'urgent' => 'Urgent',
         ];
 
         // Pass everything to the view
@@ -69,28 +66,29 @@ class NotificationController extends Controller
     {
         try {
             $userId = Auth::id();
-            
+
             // Get unread notifications first
             $notifications = SystemNotification::forUser($userId)
                 ->unread($userId) // Use the scope from your model
                 ->orderBy('created_at', 'desc')
                 ->limit(5)
                 ->get();
-                
+
             // Get total unread count
             $unreadCount = SystemNotification::getUnreadCountForUser($userId);
 
             return response()->json([
                 'success' => true,
                 'notifications' => $notifications,
-                'unread_count' => $unreadCount
+                'unread_count' => $unreadCount,
             ]);
         } catch (\Exception $e) {
-            Log::error('Recent notifications error: ' . $e->getMessage());
+            Log::error('Recent notifications error: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
                 'notifications' => [],
-                'unread_count' => 0
+                'unread_count' => 0,
             ]);
         }
     }
@@ -105,10 +103,11 @@ class NotificationController extends Controller
 
             return response()->json([
                 'success' => true,
-                'count' => $count
+                'count' => $count,
             ]);
         } catch (\Exception $e) {
-            Log::error('Notification count error: ' . $e->getMessage());
+            Log::error('Notification count error: '.$e->getMessage());
+
             return response()->json(['success' => false, 'count' => 0]);
         }
     }
@@ -124,17 +123,18 @@ class NotificationController extends Controller
             // Check if user is authorized to read this
             if ($notification->canBeViewedBy(Auth::id())) {
                 $notification->markAsReadBy(Auth::id());
-                
+
                 return response()->json([
                     'success' => true,
-                    'message' => 'Notification marked as read'
+                    'message' => 'Notification marked as read',
                 ]);
             }
 
             return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
 
         } catch (\Exception $e) {
-            Log::error('Mark as read error: ' . $e->getMessage());
+            Log::error('Mark as read error: '.$e->getMessage());
+
             return response()->json(['success' => false, 'message' => 'Error marking as read']);
         }
     }
@@ -146,7 +146,7 @@ class NotificationController extends Controller
     {
         try {
             $userId = Auth::id();
-            
+
             // Get all unread notifications for this user
             $unreadNotifications = SystemNotification::forUser($userId)
                 ->unread($userId)
@@ -158,14 +158,15 @@ class NotificationController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'All notifications marked as read'
+                'message' => 'All notifications marked as read',
             ]);
         } catch (\Exception $e) {
-            Log::error('Mark all as read error: ' . $e->getMessage());
+            Log::error('Mark all as read error: '.$e->getMessage());
+
             return response()->json(['success' => false, 'message' => 'Error processing request']);
         }
     }
-    
+
     /**
      * Display the specified notification
      */
@@ -175,7 +176,7 @@ class NotificationController extends Controller
             $notification = SystemNotification::findOrFail($id);
 
             // Check permission
-            if (!$notification->canBeViewedBy(Auth::id())) {
+            if (! $notification->canBeViewedBy(Auth::id())) {
                 abort(403);
             }
 
@@ -186,7 +187,8 @@ class NotificationController extends Controller
             return view('admin.notifications.show', compact('notification'));
 
         } catch (\Exception $e) {
-            Log::error('Show notification error: ' . $e->getMessage());
+            Log::error('Show notification error: '.$e->getMessage());
+
             return redirect()->route('admin.notifications.index')->with('error', 'Notification not found');
         }
     }
@@ -207,7 +209,7 @@ class NotificationController extends Controller
         // Logic to update preferences would go here
         return back()->with('success', 'Preferences updated successfully');
     }
-    
+
     /**
      * Dashboard view
      */
@@ -215,7 +217,7 @@ class NotificationController extends Controller
     {
         return view('admin.notifications.dashboard');
     }
-    
+
     /**
      * Settings view
      */

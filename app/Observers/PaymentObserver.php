@@ -22,16 +22,16 @@ class PaymentObserver
     {
         try {
             // Ensure student relation is loaded
-            if (!$payment->relationLoaded('student')) {
+            if (! $payment->relationLoaded('student')) {
                 $payment->load('student');
             }
 
             $student = $payment->student;
-            if (!$student) {
+            if (! $student) {
                 return;
             }
 
-            $amount = '₹' . number_format((float) $payment->amount, 2);
+            $amount = '₹'.number_format((float) $payment->amount, 2);
             $date = ($payment->payment_date instanceof \Carbon\Carbon) ? $payment->payment_date->format('d-m-Y') : now()->format('d-m-Y');
 
             // Prepare template data for WhatsAppService
@@ -40,7 +40,7 @@ class PaymentObserver
                 'student_name' => $student->name,
                 'amount' => $amount,
                 'due_date' => $date, // Using payment date as transaction date
-                'fee_type' => 'Fee Payment'
+                'fee_type' => 'Fee Payment',
             ];
 
             $message = "Payment Received: {$amount} for {$student->name}";
@@ -58,7 +58,7 @@ class PaymentObserver
             }
 
         } catch (\Exception $e) {
-            Log::error("Error sending payment notification: " . $e->getMessage(), ['payment_id' => $payment->id]);
+            Log::error('Error sending payment notification: '.$e->getMessage(), ['payment_id' => $payment->id]);
         }
     }
 }

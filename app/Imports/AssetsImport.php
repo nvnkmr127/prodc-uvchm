@@ -6,26 +6,22 @@ use App\Models\Asset;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\WithValidation;
-use Illuminate\Support\Facades\Log;
-
 
 class AssetsImport implements ToModel, WithHeadingRow, WithValidation
 {
     /**
-    * @param array $row
-    *
-    * @return \Illuminate\Database\Eloquent\Model|null
-    */
+     * @return \Illuminate\Database\Eloquent\Model|null
+     */
     public function model(array $row)
     {
         // This method is called for each row in the spreadsheet
         return new Asset([
-            'name'              => $row['name'],
+            'name' => $row['name'],
             'asset_category_id' => $row['asset_category_id'],
-            'purchase_date'     => $row['purchase_date'],
-            'cost'              => $row['cost'],
-            'serial_number'     => $row['serial_number'],
-            'status'            => 'available', // Set a default status
+            'purchase_date' => $row['purchase_date'],
+            'cost' => $row['cost'],
+            'serial_number' => $row['serial_number'],
+            'status' => 'available', // Set a default status
         ]);
     }
 

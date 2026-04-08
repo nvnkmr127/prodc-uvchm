@@ -2,14 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\WebhookEnabled;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Traits\WebhookEnabled;
 
 class CertificateTemplate extends Model
 {
-    use WebhookEnabled;
     use HasFactory;
+    use WebhookEnabled;
 
     protected $fillable = [
         'name',
@@ -23,6 +23,6 @@ class CertificateTemplate extends Model
         'margin_right',
         'margin_bottom',
         'margin_left',
-        'filename_format'
+        'filename_format',
     ];
 }

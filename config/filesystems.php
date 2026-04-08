@@ -45,7 +45,7 @@ return [
         'backup' => [
             'driver' => 'local',
             'root' => storage_path('app/backups'),
-            'url' => env('APP_URL') . '/storage/backups',
+            'url' => env('APP_URL').'/storage/backups',
             'visibility' => 'private',
             'permissions' => [
                 'file' => [
@@ -63,7 +63,7 @@ return [
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),
-            'url' => env('APP_URL') . '/storage',
+            'url' => env('APP_URL').'/storage',
             'visibility' => 'public',
             'throw' => false,
         ],
@@ -72,7 +72,7 @@ return [
         'student-files' => [
             'driver' => 'local',
             'root' => storage_path('app/students'),
-            'url' => env('APP_URL') . '/storage/students',
+            'url' => env('APP_URL').'/storage/students',
             'visibility' => 'private',
             'permissions' => [
                 'file' => [
@@ -91,7 +91,7 @@ return [
         'college-documents' => [
             'driver' => 'local',
             'root' => storage_path('app/documents'),
-            'url' => env('APP_URL') . '/storage/documents',
+            'url' => env('APP_URL').'/storage/documents',
             'visibility' => 'private',
             'permissions' => [
                 'file' => [

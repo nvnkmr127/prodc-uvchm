@@ -9,6 +9,7 @@ use Maatwebsite\Excel\Concerns\WithMapping;
 class FinancialReportExport implements FromCollection, WithHeadings, WithMapping
 {
     protected $data;
+
     protected $type;
 
     public function __construct($data, $type)
@@ -25,11 +26,12 @@ class FinancialReportExport implements FromCollection, WithHeadings, WithMapping
     public function headings(): array
     {
         if ($this->type === 'defaulters') {
-            return ["Enrollment #", "Student Name", "Course", "Batch", "Total Amount Due"];
+            return ['Enrollment #', 'Student Name', 'Course', 'Batch', 'Total Amount Due'];
         }
         if ($this->type === 'collections') {
-            return ["Payment Date", "Receipt #", "Student Name", "Amount Paid", "Method"];
+            return ['Payment Date', 'Receipt #', 'Student Name', 'Amount Paid', 'Method'];
         }
+
         // Add more headings for other report types if needed
         return [];
     }
@@ -54,6 +56,7 @@ class FinancialReportExport implements FromCollection, WithHeadings, WithMapping
                 $row->payment_method,
             ];
         }
+
         return [];
     }
 }

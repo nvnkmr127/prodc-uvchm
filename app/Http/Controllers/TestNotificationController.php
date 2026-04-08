@@ -21,10 +21,10 @@ class TestNotificationController extends Controller
     public function sendTest(Request $request)
     {
         $type = $request->get('type', 'general');
-        
+
         try {
             $testData = $this->getTestData($type);
-            
+
             if (str_starts_with($type, 'financial_')) {
                 $financialType = str_replace('financial_', '', $type);
                 $notification = $this->notificationService->sendFinancialAlert($financialType, $testData);
@@ -41,7 +41,7 @@ class TestNotificationController extends Controller
                 // Default test notification
                 $notification = $this->notificationService->send([
                     'title' => 'Test Notification',
-                    'message' => 'This is a test notification sent at ' . now()->format('H:i:s'),
+                    'message' => 'This is a test notification sent at '.now()->format('H:i:s'),
                     'type' => 'info',
                     'category' => 'general',
                     'priority' => 'normal',
@@ -49,17 +49,17 @@ class TestNotificationController extends Controller
                     'roles' => ['super-admin'],
                 ]);
             }
-            
+
             return response()->json([
                 'success' => true,
                 'notification' => $notification,
-                'message' => 'Test notification sent successfully!'
+                'message' => 'Test notification sent successfully!',
             ]);
-            
+
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to send notification: ' . $e->getMessage()
+                'message' => 'Failed to send notification: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -69,7 +69,7 @@ class TestNotificationController extends Controller
      */
     private function getTestData($type): array
     {
-        return match($type) {
+        return match ($type) {
             'financial_payment_received' => [
                 'payment_id' => 123,
                 'student_id' => 1,
@@ -119,7 +119,7 @@ class TestNotificationController extends Controller
             default => [
                 'message' => 'This is a test notification',
                 'priority' => 'normal',
-                'data' => []
+                'data' => [],
             ]
         };
     }

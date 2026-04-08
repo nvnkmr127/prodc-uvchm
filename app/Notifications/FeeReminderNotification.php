@@ -2,9 +2,9 @@
 
 namespace App\Notifications;
 
+use App\Models\StudentFee;
 use Illuminate\Bus\Queueable;
-use Illuminate\Notifications\Notification;
-use App\Models\StudentFee; // MODIFIED: Replaced Invoice with StudentFee
+use Illuminate\Notifications\Notification; // MODIFIED: Replaced Invoice with StudentFee
 
 class FeeReminderNotification extends Notification
 {
@@ -19,8 +19,6 @@ class FeeReminderNotification extends Notification
 
     /**
      * Create a new notification instance.
-     *
-     * @param \App\Models\StudentFee $studentFee
      */
     public function __construct(StudentFee $studentFee)
     {
@@ -30,9 +28,6 @@ class FeeReminderNotification extends Notification
 
     /**
      * Get the notification's delivery channels.
-     *
-     * @param object $notifiable
-     * @return array
      */
     public function via(object $notifiable): array
     {
@@ -41,9 +36,6 @@ class FeeReminderNotification extends Notification
 
     /**
      * Get the array representation of the notification.
-     *
-     * @param object $notifiable
-     * @return array
      */
     public function toArray(object $notifiable): array
     {
@@ -57,7 +49,7 @@ class FeeReminderNotification extends Notification
             'fee_category' => $feeCategoryName,
             'amount_due' => $remainingAmount,
             'due_date' => $dueDateFormatted,
-            'message' => "Reminder: Payment for {$feeCategoryName} of {$remainingAmount} is due on {$dueDateFormatted}."
+            'message' => "Reminder: Payment for {$feeCategoryName} of {$remainingAmount} is due on {$dueDateFormatted}.",
         ];
     }
 }

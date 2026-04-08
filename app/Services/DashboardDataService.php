@@ -2,10 +2,13 @@
 
 namespace App\Services;
 
-use App\Models\{Student, Course, Batch, Enquiry, User};
-use App\Services\ComponentPaymentService;
-use Illuminate\Support\Facades\DB;
+use App\Models\Batch;
+use App\Models\Course;
+use App\Models\Enquiry;
+use App\Models\Student;
+use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class DashboardDataService
 {
@@ -22,46 +25,44 @@ class DashboardDataService
 
     /**
      * Get fee collection status using component system
-   
      */
     protected function getFeeCollectionStatusData(): array
     {
         $collectionSummary = $this->componentPaymentService->getCollectionSummary();
         $financialData = $this->componentPaymentService->getDashboardFinancialData();
-        
+
         return [
             'total_expected' => $collectionSummary['total_expected'],
             'total_collected' => $collectionSummary['total_collected'],
             'pending_amount' => $financialData['pending_amount'],
             'overdue_amount' => $financialData['overdue_amount'],
             'collection_rate' => $collectionSummary['collection_percentage'],
-            'pending_percentage' => $collectionSummary['total_expected'] > 0 ? 
+            'pending_percentage' => $collectionSummary['total_expected'] > 0 ?
                 round(($financialData['pending_amount'] / $collectionSummary['total_expected']) * 100, 1) : 0,
-            'overdue_percentage' => $collectionSummary['total_expected'] > 0 ? 
+            'overdue_percentage' => $collectionSummary['total_expected'] > 0 ?
                 round(($financialData['overdue_amount'] / $collectionSummary['total_expected']) * 100, 1) : 0,
-            'status' => $collectionSummary['collection_percentage'] >= 80 ? 'good' : 
+            'status' => $collectionSummary['collection_percentage'] >= 80 ? 'good' :
                        ($collectionSummary['collection_percentage'] >= 60 ? 'warning' : 'danger'),
-            'concessions_given' => $financialData['total_concessions']
+            'concessions_given' => $financialData['total_concessions'],
         ];
     }
 
     /**
      * Get defaulter students data using component system
-
      */
     protected function getDefaulterStudentsData(): array
     {
         $studentsWithOverdue = $this->componentPaymentService->getStudentsWithOverdueFees();
-        $defaulters = $studentsWithOverdue->with(['batch.course', 'studentFees' => function($q) {
+        $defaulters = $studentsWithOverdue->with(['batch.course', 'studentFees' => function ($q) {
             $q->whereRaw('amount - concession_amount - paid_amount > 0')
-              ->with('feeCategory');
+                ->with('feeCategory');
         }])->limit(20)->get();
 
         return [
             'defaulters' => $defaulters->map(function ($student) {
                 $overdueAmount = $student->getTotalOverdueAmount();
                 $oldestDue = $student->getOverdueFees()->min('due_date');
-                
+
                 return [
                     'id' => $student->id,
                     'name' => $student->name,
@@ -69,31 +70,30 @@ class DashboardDataService
                     'course' => $student->batch->course->name ?? 'N/A',
                     'batch' => $student->batch->name ?? 'N/A',
                     'overdue_amount' => $overdueAmount,
-                    'formatted_amount' => '₹' . number_format($overdueAmount, 2),
+                    'formatted_amount' => '₹'.number_format($overdueAmount, 2),
                     'days_overdue' => $student->getDaysOverdue(),
                     'oldest_due_date' => $oldestDue ? Carbon::parse($oldestDue)->format('M j, Y') : 'N/A',
                     'overdue_fees_count' => $student->getOverdueFeesCount(),
                     'payment_history' => $student->getRecentComponentPayments(3),
-                    'severity' => $this->calculateDefaulterSeverity($student)
+                    'severity' => $this->calculateDefaulterSeverity($student),
                 ];
             })->toArray(),
             'total_defaulters' => $studentsWithOverdue->count(),
-            'total_overdue_amount' => $defaulters->sum(fn($student) => $student->getTotalOverdueAmount()),
-            'severity_breakdown' => $this->getDefaulterSeverityBreakdown($defaulters)
+            'total_overdue_amount' => $defaulters->sum(fn ($student) => $student->getTotalOverdueAmount()),
+            'severity_breakdown' => $this->getDefaulterSeverityBreakdown($defaulters),
         ];
     }
 
     /**
      * Get monthly revenue data using component system
-
      */
     protected function getMonthlyRevenueData(): array
     {
         $trends = $this->componentPaymentService->getMonthlyCollectionTrends(2);
-        
+
         $currentMonth = end($trends)['amount'] ?? 0;
         $lastMonth = count($trends) > 1 ? $trends[count($trends) - 2]['amount'] : 0;
-        
+
         $change = $lastMonth > 0 ? (($currentMonth - $lastMonth) / $lastMonth) * 100 : 0;
 
         return [
@@ -101,45 +101,43 @@ class DashboardDataService
             'last_month' => $lastMonth,
             'change_percentage' => round($change, 1),
             'trend' => $change >= 0 ? 'up' : 'down',
-            'formatted_amount' => '₹' . number_format($currentMonth, 2),
-            'target_achievement' => $this->getMonthlyTargetAchievement($currentMonth)
+            'formatted_amount' => '₹'.number_format($currentMonth, 2),
+            'target_achievement' => $this->getMonthlyTargetAchievement($currentMonth),
         ];
     }
 
     /**
      * Get pending payments data using component system
-
      */
     protected function getPendingPaymentsData(): array
     {
         $financialData = $this->componentPaymentService->getDashboardFinancialData();
         $outstanding = $this->componentPaymentService->getOutstandingFeesSummary();
-        
+
         return [
             'total_pending' => $financialData['pending_amount'],
             'overdue_amount' => $financialData['overdue_amount'],
             'current_due' => $financialData['pending_amount'] - $financialData['overdue_amount'],
-            'overdue_percentage' => $financialData['pending_amount'] > 0 ? 
+            'overdue_percentage' => $financialData['pending_amount'] > 0 ?
                 round(($financialData['overdue_amount'] / $financialData['pending_amount']) * 100, 1) : 0,
-            'formatted_pending' => '₹' . number_format($financialData['pending_amount'], 2),
-            'formatted_overdue' => '₹' . number_format($financialData['overdue_amount'], 2),
+            'formatted_pending' => '₹'.number_format($financialData['pending_amount'], 2),
+            'formatted_overdue' => '₹'.number_format($financialData['overdue_amount'], 2),
             'aging_breakdown' => $outstanding['by_aging'],
-            'category_breakdown' => $outstanding['by_category']
+            'category_breakdown' => $outstanding['by_category'],
         ];
     }
 
     /**
      * Get collection trends using component system
-
      */
     protected function getCollectionTrendsData(): array
     {
         $trends = $this->componentPaymentService->getMonthlyCollectionTrends(12);
         $statistics = $this->componentPaymentService->getPaymentStatistics([
             'start_date' => now()->subYear(),
-            'end_date' => now()
+            'end_date' => now(),
         ]);
-        
+
         return [
             'monthly_trends' => $trends,
             'labels' => array_column($trends, 'month'),
@@ -147,20 +145,19 @@ class DashboardDataService
             'growth_analysis' => $this->calculateGrowthAnalysis($trends),
             'seasonal_patterns' => $this->identifySeasonalPatterns($trends),
             'payment_frequency' => $statistics['by_month'],
-            'forecasting' => $this->generateCollectionForecast($trends)
+            'forecasting' => $this->generateCollectionForecast($trends),
         ];
     }
 
     /**
      * Get revenue overview using component system
-
      */
     protected function getRevenueOverviewData(): array
     {
         $financialData = $this->componentPaymentService->getDashboardFinancialData();
         $collectionSummary = $this->componentPaymentService->getCollectionSummary();
         $trends = $this->componentPaymentService->getMonthlyCollectionTrends(12);
-        
+
         return [
             'total_revenue' => $financialData['total_revenue'],
             'monthly_revenue' => $financialData['monthly_collection'],
@@ -169,7 +166,7 @@ class DashboardDataService
             'growth_rate' => $this->calculateRevenueGrowthRate($trends),
             'revenue_sources' => $this->getRevenueSourceBreakdown(),
             'collection_efficiency' => $collectionSummary['collection_percentage'],
-            'revenue_forecast' => $this->generateRevenueForecast($trends)
+            'revenue_forecast' => $this->generateRevenueForecast($trends),
         ];
     }
 
@@ -182,7 +179,7 @@ class DashboardDataService
         $total = Student::count();
         $thisMonth = Student::whereMonth('created_at', now()->month)->count();
         $lastMonth = Student::whereMonth('created_at', now()->subMonth()->month)->count();
-        
+
         $change = $lastMonth > 0 ? (($thisMonth - $lastMonth) / $lastMonth) * 100 : 0;
 
         return [
@@ -192,7 +189,7 @@ class DashboardDataService
             'trend' => $change >= 0 ? 'up' : 'down',
             'active_students' => Student::active()->count(),
             'with_outstanding_fees' => Student::withOutstandingFees()->count(), // UPDATED: Component scope
-            'payment_compliance_rate' => $this->calculatePaymentComplianceRate($total)
+            'payment_compliance_rate' => $this->calculatePaymentComplianceRate($total),
         ];
     }
 
@@ -209,7 +206,7 @@ class DashboardDataService
             'inactive' => $total - $active,
             'activity_rate' => $total > 0 ? round(($active / $total) * 100, 1) : 0,
             'new_this_month' => User::role('staff')
-                ->whereMonth('created_at', now()->month)->count()
+                ->whereMonth('created_at', now()->month)->count(),
         ];
     }
 
@@ -227,7 +224,7 @@ class DashboardDataService
             'active_batches' => $batches,
             'utilization_rate' => $total > 0 ? round(($active / $total) * 100, 1) : 0,
             'popular_courses' => $this->getPopularCoursesData(),
-            'enrollment_trends' => $this->getEnrollmentTrendsData()
+            'enrollment_trends' => $this->getEnrollmentTrendsData(),
         ];
     }
 
@@ -239,7 +236,7 @@ class DashboardDataService
             ->get();
 
         return [
-            'enquiries' => $recentEnquiries->map(function($enquiry) {
+            'enquiries' => $recentEnquiries->map(function ($enquiry) {
                 return [
                     'id' => $enquiry->id,
                     'name' => $enquiry->full_name,
@@ -248,12 +245,12 @@ class DashboardDataService
                     'source' => $enquiry->source ?? 'N/A',
                     'status' => $enquiry->status,
                     'created_at' => $enquiry->created_at->format('M j, Y'),
-                    'time_ago' => $enquiry->created_at->diffForHumans()
+                    'time_ago' => $enquiry->created_at->diffForHumans(),
                 ];
             })->toArray(),
             'total_today' => Enquiry::whereDate('created_at', today())->count(),
             'pending_count' => Enquiry::where('status', 'pending')->count(),
-            'conversion_rate' => $this->calculateEnquiryConversionRate()
+            'conversion_rate' => $this->calculateEnquiryConversionRate(),
         ];
     }
 
@@ -265,22 +262,29 @@ class DashboardDataService
     {
         $daysOverdue = $student->getDaysOverdue();
         $overdueAmount = $student->getTotalOverdueAmount();
-        
-        if ($daysOverdue > 60 || $overdueAmount > 25000) return 'critical';
-        if ($daysOverdue > 30 || $overdueAmount > 15000) return 'high';
-        if ($daysOverdue > 7 || $overdueAmount > 5000) return 'medium';
+
+        if ($daysOverdue > 60 || $overdueAmount > 25000) {
+            return 'critical';
+        }
+        if ($daysOverdue > 30 || $overdueAmount > 15000) {
+            return 'high';
+        }
+        if ($daysOverdue > 7 || $overdueAmount > 5000) {
+            return 'medium';
+        }
+
         return 'low';
     }
 
     private function getDefaulterSeverityBreakdown($defaulters): array
     {
         $breakdown = ['critical' => 0, 'high' => 0, 'medium' => 0, 'low' => 0];
-        
+
         foreach ($defaulters as $student) {
             $severity = $this->calculateDefaulterSeverity($student);
             $breakdown[$severity]++;
         }
-        
+
         return $breakdown;
     }
 
@@ -288,33 +292,35 @@ class DashboardDataService
     {
         $monthlyTarget = 833333; // Sample target (10L/12)
         $achievement = $monthlyTarget > 0 ? ($currentMonth / $monthlyTarget) * 100 : 0;
-        
+
         return [
             'target' => $monthlyTarget,
             'achievement_percentage' => round($achievement, 1),
-            'status' => $achievement >= 100 ? 'exceeded' : 
-                       ($achievement >= 80 ? 'on_track' : 'behind')
+            'status' => $achievement >= 100 ? 'exceeded' :
+                       ($achievement >= 80 ? 'on_track' : 'behind'),
         ];
     }
 
     private function calculateGrowthAnalysis(array $trends): array
     {
-        if (count($trends) < 2) return ['growth_rate' => 0, 'trend' => 'stable'];
-        
+        if (count($trends) < 2) {
+            return ['growth_rate' => 0, 'trend' => 'stable'];
+        }
+
         $growthRates = [];
         for ($i = 1; $i < count($trends); $i++) {
             $current = $trends[$i]['amount'];
-            $previous = $trends[$i-1]['amount'];
+            $previous = $trends[$i - 1]['amount'];
             $growthRates[] = $previous > 0 ? (($current - $previous) / $previous) * 100 : 0;
         }
-        
+
         $avgGrowth = array_sum($growthRates) / count($growthRates);
-        
+
         return [
             'average_growth_rate' => round($avgGrowth, 1),
             'trend' => $avgGrowth > 2 ? 'growing' : ($avgGrowth < -2 ? 'declining' : 'stable'),
             'volatility' => $this->calculateVolatility($growthRates),
-            'consistency' => $this->calculateGrowthConsistency($growthRates)
+            'consistency' => $this->calculateGrowthConsistency($growthRates),
         ];
     }
 
@@ -323,50 +329,53 @@ class DashboardDataService
         // Analyze seasonal patterns in the data
         $monthlyData = [];
         foreach ($trends as $trend) {
-            $month = date('n', strtotime($trend['date'] . '-01'));
-            if (!isset($monthlyData[$month])) {
+            $month = date('n', strtotime($trend['date'].'-01'));
+            if (! isset($monthlyData[$month])) {
                 $monthlyData[$month] = [];
             }
             $monthlyData[$month][] = $trend['amount'];
         }
-        
+
         $monthlyAverages = [];
         foreach ($monthlyData as $month => $amounts) {
             $monthlyAverages[$month] = array_sum($amounts) / count($amounts);
         }
-        
+
         $peakMonths = array_keys($monthlyAverages, max($monthlyAverages));
         $lowMonths = array_keys($monthlyAverages, min($monthlyAverages));
-        
+
         return [
-            'peak_months' => array_map(fn($m) => date('F', mktime(0, 0, 0, $m, 1)), $peakMonths),
-            'low_months' => array_map(fn($m) => date('F', mktime(0, 0, 0, $m, 1)), $lowMonths),
-            'seasonal_variance' => $this->calculateSeasonalVariance($monthlyAverages)
+            'peak_months' => array_map(fn ($m) => date('F', mktime(0, 0, 0, $m, 1)), $peakMonths),
+            'low_months' => array_map(fn ($m) => date('F', mktime(0, 0, 0, $m, 1)), $lowMonths),
+            'seasonal_variance' => $this->calculateSeasonalVariance($monthlyAverages),
         ];
     }
 
     private function generateCollectionForecast(array $trends): array
     {
-        if (count($trends) < 3) return ['next_month' => 0, 'confidence' => 'low'];
-        
+        if (count($trends) < 3) {
+            return ['next_month' => 0, 'confidence' => 'low'];
+        }
+
         // Simple linear regression forecast
         $recentTrends = array_slice($trends, -6); // Last 6 months
         $amounts = array_column($recentTrends, 'amount');
         $avgGrowth = $this->calculateAverageGrowth($amounts);
         $lastAmount = end($amounts);
-        
+
         return [
             'next_month' => $lastAmount * (1 + ($avgGrowth / 100)),
             'next_quarter' => $lastAmount * 3 * (1 + ($avgGrowth / 100)),
             'confidence' => count($recentTrends) >= 6 ? 'high' : 'medium',
-            'trend_direction' => $avgGrowth > 0 ? 'upward' : ($avgGrowth < 0 ? 'downward' : 'stable')
+            'trend_direction' => $avgGrowth > 0 ? 'upward' : ($avgGrowth < 0 ? 'downward' : 'stable'),
         ];
     }
 
     private function calculatePaymentComplianceRate(int $totalStudents): float
     {
         $studentsWithOutstanding = Student::withOutstandingFees()->count();
-        return $totalStudents > 0 ? 
+
+        return $totalStudents > 0 ?
             round((($totalStudents - $studentsWithOutstanding) / $totalStudents) * 100, 1) : 0;
     }
 
@@ -380,29 +389,31 @@ class DashboardDataService
     {
         $annualTarget = $this->getAnnualRevenueTarget();
         $currentRevenue = $financialData['total_revenue'];
-        
+
         return [
             'annual_target' => $annualTarget,
             'current_revenue' => $currentRevenue,
             'achievement_percentage' => round(($currentRevenue / $annualTarget) * 100, 1),
-            'remaining_target' => $annualTarget - $currentRevenue
+            'remaining_target' => $annualTarget - $currentRevenue,
         ];
     }
 
     private function calculateRevenueGrowthRate(array $trends): float
     {
-        if (count($trends) < 2) return 0;
-        
+        if (count($trends) < 2) {
+            return 0;
+        }
+
         $latest = end($trends)['amount'];
         $previous = prev($trends)['amount'];
-        
+
         return $previous > 0 ? round((($latest - $previous) / $previous) * 100, 1) : 0;
     }
 
     private function getRevenueSourceBreakdown(): array
     {
         $outstanding = $this->componentPaymentService->getOutstandingFeesSummary();
-        
+
         return $outstanding['by_category'];
     }
 
@@ -417,44 +428,53 @@ class DashboardDataService
 
     private function calculateVolatility(array $values): float
     {
-        if (count($values) < 2) return 0;
-        
+        if (count($values) < 2) {
+            return 0;
+        }
+
         $mean = array_sum($values) / count($values);
-        $variance = array_sum(array_map(fn($v) => pow($v - $mean, 2), $values)) / count($values);
-        
+        $variance = array_sum(array_map(fn ($v) => pow($v - $mean, 2), $values)) / count($values);
+
         return round(sqrt($variance), 1);
     }
 
     private function calculateGrowthConsistency(array $growthRates): float
     {
-        if (empty($growthRates)) return 0;
-        
-        $positiveCount = count(array_filter($growthRates, fn($rate) => $rate > 0));
+        if (empty($growthRates)) {
+            return 0;
+        }
+
+        $positiveCount = count(array_filter($growthRates, fn ($rate) => $rate > 0));
+
         return round(($positiveCount / count($growthRates)) * 100, 1);
     }
 
     private function calculateSeasonalVariance(array $monthlyAverages): float
     {
-        if (count($monthlyAverages) < 2) return 0;
-        
+        if (count($monthlyAverages) < 2) {
+            return 0;
+        }
+
         $max = max($monthlyAverages);
         $min = min($monthlyAverages);
         $avg = array_sum($monthlyAverages) / count($monthlyAverages);
-        
+
         return $avg > 0 ? round((($max - $min) / $avg) * 100, 1) : 0;
     }
 
     private function calculateAverageGrowth(array $amounts): float
     {
-        if (count($amounts) < 2) return 0;
-        
+        if (count($amounts) < 2) {
+            return 0;
+        }
+
         $growthRates = [];
         for ($i = 1; $i < count($amounts); $i++) {
             $current = $amounts[$i];
-            $previous = $amounts[$i-1];
+            $previous = $amounts[$i - 1];
             $growthRates[] = $previous > 0 ? (($current - $previous) / $previous) * 100 : 0;
         }
-        
+
         return count($growthRates) > 0 ? array_sum($growthRates) / count($growthRates) : 0;
     }
 
@@ -464,11 +484,11 @@ class DashboardDataService
             ->orderByDesc('students_count')
             ->limit(5)
             ->get()
-            ->map(function($course) {
+            ->map(function ($course) {
                 return [
                     'name' => $course->name,
                     'students' => $course->students_count,
-                    'revenue' => $this->getCourseRevenue($course->id)
+                    'revenue' => $this->getCourseRevenue($course->id),
                 ];
             })
             ->toArray();
@@ -477,20 +497,20 @@ class DashboardDataService
     private function getEnrollmentTrendsData(): array
     {
         $monthlyEnrollments = Student::select(
-                DB::raw('YEAR(created_at) as year'),
-                DB::raw('MONTH(created_at) as month'),
-                DB::raw('COUNT(*) as enrollments')
-            )
+            DB::raw('YEAR(created_at) as year'),
+            DB::raw('MONTH(created_at) as month'),
+            DB::raw('COUNT(*) as enrollments')
+        )
             ->where('created_at', '>=', now()->subMonths(12))
             ->groupBy('year', 'month')
             ->orderBy('year')
             ->orderBy('month')
             ->get();
 
-        return $monthlyEnrollments->map(function($enrollment) {
+        return $monthlyEnrollments->map(function ($enrollment) {
             return [
                 'period' => Carbon::createFromDate($enrollment->year, $enrollment->month, 1)->format('M Y'),
-                'enrollments' => $enrollment->enrollments
+                'enrollments' => $enrollment->enrollments,
             ];
         })->toArray();
     }
@@ -499,19 +519,19 @@ class DashboardDataService
     {
         $totalEnquiries = Enquiry::where('created_at', '>=', now()->subMonths(3))->count();
         $convertedEnquiries = Student::where('created_at', '>=', now()->subMonths(3))->count();
-        
+
         return $totalEnquiries > 0 ? round(($convertedEnquiries / $totalEnquiries) * 100, 1) : 0;
     }
 
     private function getCourseRevenue(int $courseId): float
     {
         // Get revenue for a specific course through student fees
-        $students = Student::whereHas('batch', function($q) use ($courseId) {
+        $students = Student::whereHas('batch', function ($q) use ($courseId) {
             $q->where('course_id', $courseId);
         })->pluck('id');
-        
+
         return $this->componentPaymentService->getPaymentStatistics([
-            'student_ids' => $students->toArray()
+            'student_ids' => $students->toArray(),
         ])['total_amount'] ?? 0;
     }
 
@@ -528,7 +548,7 @@ class DashboardDataService
             'students' => $this->getTotalStudentsData(),
             'courses' => $this->getActiveCoursesData(),
             'staff' => $this->getTotalStaffData(),
-            'enquiries' => $this->getRecentEnquiriesData()
+            'enquiries' => $this->getRecentEnquiriesData(),
         ];
 
         switch ($role) {
@@ -538,7 +558,7 @@ class DashboardDataService
                     'collection_status' => $this->getFeeCollectionStatusData(),
                     'defaulters' => $this->getDefaulterStudentsData(),
                     'trends' => $this->getCollectionTrendsData(),
-                    'system_metrics' => $this->getSystemMetricsData()
+                    'system_metrics' => $this->getSystemMetricsData(),
                 ]);
 
             case 'accountant':
@@ -548,14 +568,14 @@ class DashboardDataService
                     'defaulters' => $this->getDefaulterStudentsData(),
                     'pending_payments' => $this->getPendingPaymentsData(),
                     'monthly_revenue' => $this->getMonthlyRevenueData(),
-                    'trends' => $this->getCollectionTrendsData()
+                    'trends' => $this->getCollectionTrendsData(),
                 ]);
 
             case 'college-admin':
                 return array_merge($baseData, [
                     'financial_summary' => $this->getBasicFinancialSummary(),
                     'collection_status' => $this->getFeeCollectionStatusData(),
-                    'academic_metrics' => $this->getAcademicMetricsData()
+                    'academic_metrics' => $this->getAcademicMetricsData(),
                 ]);
 
             default:
@@ -571,22 +591,22 @@ class DashboardDataService
         switch ($widgetType) {
             case 'fee_collection_status':
                 return $this->getFeeCollectionStatusData();
-            
+
             case 'monthly_revenue':
                 return $this->getMonthlyRevenueData();
-            
+
             case 'defaulter_students':
                 return $this->getDefaulterStudentsData();
-            
+
             case 'pending_payments':
                 return $this->getPendingPaymentsData();
-            
+
             case 'collection_trends':
                 return $this->getCollectionTrendsData();
-            
+
             case 'revenue_overview':
                 return $this->getRevenueOverviewData();
-            
+
             default:
                 return [];
         }
@@ -598,12 +618,12 @@ class DashboardDataService
     private function getBasicFinancialSummary(): array
     {
         $financialData = $this->componentPaymentService->getDashboardFinancialData();
-        
+
         return [
             'total_revenue' => $financialData['total_revenue'],
             'monthly_collection' => $financialData['monthly_collection'],
             'collection_rate' => $financialData['collection_rate'],
-            'pending_amount' => $financialData['pending_amount']
+            'pending_amount' => $financialData['pending_amount'],
         ];
     }
 
@@ -616,7 +636,7 @@ class DashboardDataService
             'database_performance' => $this->getDatabasePerformanceMetrics(),
             'user_activity' => $this->getUserActivityMetrics(),
             'system_health' => $this->getSystemHealthMetrics(),
-            'component_system_status' => $this->getComponentSystemStatus()
+            'component_system_status' => $this->getComponentSystemStatus(),
         ];
     }
 
@@ -629,7 +649,7 @@ class DashboardDataService
             'enrollment_trends' => $this->getEnrollmentTrendsData(),
             'course_performance' => $this->getCoursePerformanceData(),
             'batch_analytics' => $this->getBatchAnalyticsData(),
-            'attendance_overview' => $this->getAttendanceOverviewData()
+            'attendance_overview' => $this->getAttendanceOverviewData(),
         ];
     }
 
@@ -643,7 +663,7 @@ class DashboardDataService
             'query_performance' => 'optimal',
             'connection_count' => 45,
             'cache_hit_rate' => 95.5,
-            'response_time' => '2ms'
+            'response_time' => '2ms',
         ];
     }
 
@@ -653,7 +673,7 @@ class DashboardDataService
             'active_users_today' => User::whereDate('last_login_at', today())->count(),
             'peak_usage_time' => '10:00 AM - 12:00 PM',
             'most_active_role' => 'faculty',
-            'session_duration_avg' => '45 minutes'
+            'session_duration_avg' => '45 minutes',
         ];
     }
 
@@ -664,7 +684,7 @@ class DashboardDataService
             'memory_usage' => 65,
             'cpu_usage' => 35,
             'storage_usage' => 78,
-            'error_rate' => 0.1
+            'error_rate' => 0.1,
         ];
     }
 
@@ -674,7 +694,7 @@ class DashboardDataService
             'migration_progress' => 85,
             'data_integrity' => 'verified',
             'performance_improvement' => '+25%',
-            'active_components' => $this->componentPaymentService->getCollectionEfficiency()['total_fees']
+            'active_components' => $this->componentPaymentService->getCollectionEfficiency()['total_fees'],
         ];
     }
 
@@ -682,13 +702,13 @@ class DashboardDataService
     {
         return Course::withCount(['students', 'batches'])
             ->get()
-            ->map(function($course) {
+            ->map(function ($course) {
                 return [
                     'name' => $course->name,
                     'enrollment' => $course->students_count,
                     'batches' => $course->batches_count,
                     'completion_rate' => rand(80, 95), // Placeholder
-                    'satisfaction_score' => rand(4, 5) // Placeholder
+                    'satisfaction_score' => rand(4, 5), // Placeholder
                 ];
             })
             ->toArray();
@@ -699,15 +719,15 @@ class DashboardDataService
         return Batch::withCount('students')
             ->with('course')
             ->get()
-            ->map(function($batch) {
+            ->map(function ($batch) {
                 $stats = $this->componentPaymentService->getBatchComponentStats($batch->id);
-                
+
                 return [
                     'name' => $batch->name,
                     'course' => $batch->course->name,
                     'students' => $batch->students_count,
                     'collection_rate' => $stats['collection_percentage'],
-                    'outstanding_amount' => $stats['due_amount']
+                    'outstanding_amount' => $stats['due_amount'],
                 ];
             })
             ->toArray();
@@ -720,7 +740,7 @@ class DashboardDataService
             'overall_attendance' => 87.5,
             'today_attendance' => 92.3,
             'low_attendance_count' => 15,
-            'perfect_attendance_count' => 45
+            'perfect_attendance_count' => 45,
         ];
     }
 }

@@ -23,14 +23,14 @@ class PaymentReminderTemplate extends Model
         'character_limit',
         'template_settings',
         'created_by',
-        'updated_by'
+        'updated_by',
     ];
 
     protected $casts = [
         'available_variables' => 'array',
         'template_settings' => 'array',
         'is_active' => 'boolean',
-        'is_default' => 'boolean'
+        'is_default' => 'boolean',
     ];
 
     /**
@@ -71,12 +71,12 @@ class PaymentReminderTemplate extends Model
     public function renderMessage(array $variables = []): string
     {
         $message = $this->message_template;
-        
+
         foreach ($variables as $key => $value) {
-            $placeholder = '{' . $key . '}';
+            $placeholder = '{'.$key.'}';
             $message = str_replace($placeholder, $value, $message);
         }
-        
+
         return $message;
     }
 
@@ -85,17 +85,17 @@ class PaymentReminderTemplate extends Model
      */
     public function renderSubject(array $variables = []): ?string
     {
-        if (!$this->subject_template) {
+        if (! $this->subject_template) {
             return null;
         }
-        
+
         $subject = $this->subject_template;
-        
+
         foreach ($variables as $key => $value) {
-            $placeholder = '{' . $key . '}';
+            $placeholder = '{'.$key.'}';
             $subject = str_replace($placeholder, $value, $subject);
         }
-        
+
         return $subject;
     }
 
@@ -117,7 +117,7 @@ class PaymentReminderTemplate extends Model
             'college_name',
             'contact_number',
             'contact_email',
-            'final_deadline'
+            'final_deadline',
         ];
     }
 
@@ -126,10 +126,10 @@ class PaymentReminderTemplate extends Model
      */
     public function validateMessageLength(string $message): bool
     {
-        if (!$this->character_limit) {
+        if (! $this->character_limit) {
             return true;
         }
-        
+
         return strlen($message) <= $this->character_limit;
     }
 
@@ -195,7 +195,7 @@ class PaymentReminderTemplate extends Model
         $defaults = [
             'sms' => 160,
             'whatsapp' => 4096,
-            'email' => null
+            'email' => null,
         ];
 
         return $defaults[$this->channel] ?? null;
@@ -219,14 +219,14 @@ class PaymentReminderTemplate extends Model
             'college_name' => 'ABC College',
             'contact_number' => '+91-1234567890',
             'contact_email' => 'accounts@college.edu',
-            'final_deadline' => '20 Aug 2024'
+            'final_deadline' => '20 Aug 2024',
         ];
 
         return [
             'subject' => $this->renderSubject($sampleVariables),
             'message' => $this->renderMessage($sampleVariables),
             'character_count' => strlen($this->renderMessage($sampleVariables)),
-            'within_limit' => $this->validateMessageLength($this->renderMessage($sampleVariables))
+            'within_limit' => $this->validateMessageLength($this->renderMessage($sampleVariables)),
         ];
     }
 }

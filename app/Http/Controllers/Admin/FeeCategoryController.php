@@ -12,6 +12,7 @@ class FeeCategoryController extends Controller
     public function index()
     {
         $categories = FeeCategory::all();
+
         return view('admin.fee_categories.index', compact('categories'));
     }
 
@@ -31,15 +32,16 @@ class FeeCategoryController extends Controller
             'recurrence_type' => 'nullable|string',
             'late_fee_percentage' => 'nullable|numeric|min:0|max:100',
             'reminder_days_before' => 'nullable|integer|min:0',
-            'escalation_days_after' => 'nullable|integer|min:0'
+            'escalation_days_after' => 'nullable|integer|min:0',
         ]);
-        
+
         // Auto-generate category_code if not provided
         if (empty($validated['category_code'])) {
             $validated['category_code'] = $this->generateCategoryCode($validated['name']);
         }
-        
+
         FeeCategory::create($validated);
+
         return redirect()->route('admin.fee-categories.index')
             ->with('success', 'Fee Category created successfully.');
     }
@@ -60,10 +62,11 @@ class FeeCategoryController extends Controller
             'recurrence_type' => 'nullable|string',
             'late_fee_percentage' => 'nullable|numeric|min:0|max:100',
             'reminder_days_before' => 'nullable|integer|min:0',
-            'escalation_days_after' => 'nullable|integer|min:0'
+            'escalation_days_after' => 'nullable|integer|min:0',
         ]);
-        
+
         $feeCategory->update($validated);
+
         return redirect()->route('admin.fee-categories.index')
             ->with('success', 'Fee Category updated successfully.');
     }
@@ -71,6 +74,7 @@ class FeeCategoryController extends Controller
     public function destroy(FeeCategory $feeCategory)
     {
         $feeCategory->delete();
+
         return redirect()->route('admin.fee-categories.index')
             ->with('success', 'Fee Category deleted successfully.');
     }
@@ -78,7 +82,8 @@ class FeeCategoryController extends Controller
     private function generateCategoryCode($name)
     {
         $code = strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $name), 0, 3));
-        $count = FeeCategory::where('category_code', 'like', $code . '%')->count();
-        return $code . '-' . str_pad($count + 1, 3, '0', STR_PAD_LEFT);
+        $count = FeeCategory::where('category_code', 'like', $code.'%')->count();
+
+        return $code.'-'.str_pad($count + 1, 3, '0', STR_PAD_LEFT);
     }
 }

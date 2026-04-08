@@ -2,9 +2,12 @@
 
 namespace App\Services;
 
-use App\Models\{User, Student, Payment, Attendance};
-use Illuminate\Support\Facades\DB;
+use App\Models\Attendance;
+use App\Models\Payment;
+use App\Models\Student;
+use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class AnalyticsService
 {
@@ -124,7 +127,7 @@ class AnalyticsService
     private function getAttendanceTrends(): array
     {
         $trends = [];
-        
+
         for ($i = 6; $i >= 0; $i--) {
             $date = Carbon::now()->subDays($i)->format('Y-m-d');
             $trends[$date] = Attendance::whereDate('date', $date)
@@ -141,7 +144,7 @@ class AnalyticsService
     public function getRevenueTrends(int $days = 30): array
     {
         $trends = [];
-        
+
         for ($i = $days - 1; $i >= 0; $i--) {
             $date = Carbon::now()->subDays($i)->format('Y-m-d');
             $trends[$date] = Payment::whereDate('created_at', $date)

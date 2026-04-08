@@ -1,9 +1,10 @@
 <?php
+
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
 use App\Models\SalaryComponent;
+use App\Models\User;
 use App\Models\UserSalaryStructure;
 use Illuminate\Http\Request;
 
@@ -13,6 +14,7 @@ class UserSalaryController extends Controller
     {
         $salaryStructure = $user->salaryStructure()->with('salaryComponent')->get();
         $components = SalaryComponent::all();
+
         return view('admin.user_salary.show', compact('user', 'salaryStructure', 'components'));
     }
 
@@ -32,19 +34,20 @@ class UserSalaryController extends Controller
 
         $validated = $request->validate([
             'salary_component_id' => 'required|exists:salary_components,id',
-            'amount' => 'required|numeric|min:0|max:9999999.99'
+            'amount' => 'required|numeric|min:0|max:9999999.99',
         ]);
 
         // Prevent adding the same component twice
         $exists = $user->salaryStructure()
             ->where('salary_component_id', $validated['salary_component_id'])
             ->exists();
-            
+
         if ($exists) {
             return redirect()->back()->withErrors(['salary_component_id' => 'This component already exists for this user.']);
         }
 
         $user->salaryStructure()->create($validated);
+
         return redirect()->route('admin.faculty.salary.show', $user)->with('success', 'Component added.');
     }
 
@@ -52,6 +55,7 @@ class UserSalaryController extends Controller
     {
         $user = $structure->user;
         $structure->delete();
+
         return redirect()->route('admin.faculty.salary.show', $user)->with('success', 'Component removed.');
     }
 }

@@ -3,8 +3,8 @@
 namespace App\Listeners;
 
 // ✅ CHANGED: Imported new component-based events
-use App\Events\StudentFeePaid;
 use App\Events\StudentFeeCreated;
+use App\Events\StudentFeePaid;
 // ✅ CHANGED: Using the new component-based reminder service
 use App\Services\ComponentPaymentReminderService;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -18,8 +18,6 @@ class PaymentReminderListener implements ShouldQueue
 
     /**
      * Create the event listener.
-     *
-     * @param ComponentPaymentReminderService $reminderService
      */
     // ✅ CHANGED: Injected the new component-based service
     public function __construct(ComponentPaymentReminderService $reminderService)
@@ -30,7 +28,6 @@ class PaymentReminderListener implements ShouldQueue
     /**
      * Handle the StudentFeePaid event.
      *
-     * @param StudentFeePaid $event
      * @return void
      */
     // ✅ CHANGED: Renamed handler and updated to use StudentFeePaid event
@@ -43,7 +40,6 @@ class PaymentReminderListener implements ShouldQueue
     /**
      * Handle the StudentFeeCreated event.
      *
-     * @param StudentFeeCreated $event
      * @return void
      */
     // ✅ CHANGED: Renamed handler and updated to use StudentFeeCreated event
@@ -56,7 +52,7 @@ class PaymentReminderListener implements ShouldQueue
     /**
      * Register the listeners for the subscriber.
      *
-     * @param \Illuminate\Events\Dispatcher $events
+     * @param  \Illuminate\Events\Dispatcher  $events
      */
     public function subscribe($events)
     {

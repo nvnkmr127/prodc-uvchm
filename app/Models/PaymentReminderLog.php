@@ -19,13 +19,13 @@ class PaymentReminderLog extends Model
         'performed_by',
         'ip_address',
         'user_agent',
-        'action_timestamp'
+        'action_timestamp',
     ];
 
     protected $casts = [
         'metadata' => 'array',
         'response_data' => 'array',
-        'action_timestamp' => 'datetime'
+        'action_timestamp' => 'datetime',
     ];
 
     /**
@@ -104,7 +104,7 @@ class PaymentReminderLog extends Model
             }
 
             // Set action timestamp if not provided
-            if (!$log->action_timestamp) {
+            if (! $log->action_timestamp) {
                 $log->action_timestamp = now();
             }
         });
@@ -116,7 +116,7 @@ class PaymentReminderLog extends Model
     public static function createLog(
         PaymentReminder $reminder,
         string $action,
-        string $details = null,
+        ?string $details = null,
         array $metadata = [],
         array $responseData = []
     ): self {
@@ -128,9 +128,9 @@ class PaymentReminderLog extends Model
                 'reminder_type' => $reminder->reminder_type,
                 'channel' => $reminder->channel,
                 'student_id' => $reminder->student_id,
-                'invoice_id' => $reminder->invoice_id
+                'invoice_id' => $reminder->invoice_id,
             ], $metadata),
-            'response_data' => $responseData
+            'response_data' => $responseData,
         ]);
     }
 
@@ -187,7 +187,7 @@ class PaymentReminderLog extends Model
             'failed_count' => $query->clone()->where('action', 'failed')->count(),
             'cancelled_count' => $query->clone()->where('action', 'cancelled')->count(),
             'retry_count' => $query->clone()->where('action', 'retried')->count(),
-            'success_rate' => $query->clone()->where('action', 'sent')->count() > 0 ? 
+            'success_rate' => $query->clone()->where('action', 'sent')->count() > 0 ?
                 round(($query->clone()->where('action', 'sent')->count() / $query->count()) * 100, 2) : 0,
             'actions_by_day' => $query->selectRaw('DATE(action_timestamp) as date, COUNT(*) as count')
                 ->groupBy('date')
@@ -197,7 +197,7 @@ class PaymentReminderLog extends Model
             'actions_by_type' => $query->selectRaw('action, COUNT(*) as count')
                 ->groupBy('action')
                 ->pluck('count', 'action')
-                ->toArray()
+                ->toArray(),
         ];
     }
 
@@ -206,7 +206,7 @@ class PaymentReminderLog extends Model
      */
     public function getErrorDetailsAttribute(): ?string
     {
-        if ($this->action !== 'failed' || !$this->response_data) {
+        if ($this->action !== 'failed' || ! $this->response_data) {
             return null;
         }
 

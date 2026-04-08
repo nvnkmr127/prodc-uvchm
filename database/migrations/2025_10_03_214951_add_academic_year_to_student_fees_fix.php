@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         // Only proceed if student_fees table exists and doesn't have academic_year_id
-        if (Schema::hasTable('student_fees') && !Schema::hasColumn('student_fees', 'academic_year_id')) {
+        if (Schema::hasTable('student_fees') && ! Schema::hasColumn('student_fees', 'academic_year_id')) {
             // Add academic_year_id column
             Schema::table('student_fees', function (Blueprint $table) {
                 $table->foreignId('academic_year_id')

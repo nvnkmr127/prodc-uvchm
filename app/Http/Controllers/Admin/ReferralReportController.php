@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Carbon\Carbon;
 use App\Models\Student;
 use App\Models\StudentFee;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class ReferralReportController extends Controller
@@ -16,6 +16,7 @@ class ReferralReportController extends Controller
         // 1. Handle Export Request
         if ($request->input('export') === 'excel') {
             $data = $this->fetchData($request);
+
             return $this->streamCsv($data['students']);
         }
 
@@ -60,7 +61,7 @@ class ReferralReportController extends Controller
                     ->whereDate('admission_date', '<=', $endDate);
             })
             ->when($courseId, function ($q) use ($courseId) {
-                $q->whereHas('batch', fn($b) => $b->where('course_id', $courseId));
+                $q->whereHas('batch', fn ($b) => $b->where('course_id', $courseId));
             })
             ->when($batchId, function ($q) use ($batchId) {
                 $q->where('batch_id', $batchId);
@@ -110,18 +111,18 @@ class ReferralReportController extends Controller
 
             // Commission Status
             $commissionPaidAt = $student->referral_commission_paid_at;
-            $isCommissionPaid = !is_null($commissionPaidAt);
+            $isCommissionPaid = ! is_null($commissionPaidAt);
 
             // --- Stats Processing ---
             if ($referralName) {
                 $totalReferrals++;
-                if (!isset($referralStats[$referralName])) {
+                if (! isset($referralStats[$referralName])) {
                     $referralStats[$referralName] = ['referral_name' => $referralName, 'total_admissions' => 0];
                 }
                 $referralStats[$referralName]['total_admissions']++;
             }
 
-            if (!isset($sourceStats[$src])) {
+            if (! isset($sourceStats[$src])) {
                 $sourceStats[$src] = ['source' => $src, 'total_admissions' => 0];
             }
             $sourceStats[$src]['total_admissions']++;
@@ -147,14 +148,14 @@ class ReferralReportController extends Controller
                 'commission_paid_at' => $commissionPaidAt ? $commissionPaidAt->format('d M, Y') : null,
                 'commission_amount' => $student->referral_commission_amount,
                 'payment_mode' => $student->referral_payment_mode,
-                'student_id' => $student->id
+                'student_id' => $student->id,
             ];
         }
 
         // 4. Calculate Stats & Shares
         $totalStudents = $students->count();
 
-        usort($referralStats, fn($a, $b) => $b['total_admissions'] <=> $a['total_admissions']);
+        usort($referralStats, fn ($a, $b) => $b['total_admissions'] <=> $a['total_admissions']);
         foreach ($referralStats as &$stat) {
             $stat['share'] = ($totalReferrals > 0) ? round(($stat['total_admissions'] / $totalReferrals) * 100, 1) : 0;
 
@@ -165,7 +166,7 @@ class ReferralReportController extends Controller
             $stat['total_payout'] = $referralStudents->sum('commission_amount');
         }
 
-        usort($sourceStats, fn($a, $b) => $b['total_admissions'] <=> $a['total_admissions']);
+        usort($sourceStats, fn ($a, $b) => $b['total_admissions'] <=> $a['total_admissions']);
         foreach ($sourceStats as &$stat) {
             $stat['share'] = ($totalStudents > 0) ? round(($stat['total_admissions'] / $totalStudents) * 100, 1) : 0;
         }
@@ -175,7 +176,7 @@ class ReferralReportController extends Controller
             'total_referrals' => $totalReferrals,
             'source_stats' => array_values($sourceStats),
             'referral_stats' => array_values($referralStats),
-            'students' => $detailedAdmissions
+            'students' => $detailedAdmissions,
         ];
     }
 
@@ -184,7 +185,7 @@ class ReferralReportController extends Controller
         $headers = [
             'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
             'Content-type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename=referral_report_' . Carbon::now()->format('Y_m_d_H_i') . '.csv',
+            'Content-Disposition' => 'attachment; filename=referral_report_'.Carbon::now()->format('Y_m_d_H_i').'.csv',
             'Expires' => '0',
             'Pragma' => 'public',
         ];
@@ -193,7 +194,7 @@ class ReferralReportController extends Controller
             $file = fopen('php://output', 'w');
 
             // Add BOM for Excel compatibility
-            fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
+            fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
 
             // Header Row
             fputcsv($file, [
@@ -208,7 +209,7 @@ class ReferralReportController extends Controller
                 'Total Fee',
                 'Concession',
                 'Paid Amount',
-                'Due Amount'
+                'Due Amount',
             ]);
 
             foreach ($data as $row) {
@@ -224,7 +225,7 @@ class ReferralReportController extends Controller
                     str_replace(',', '', $row['total_amount']), // Remove commas for calculations
                     str_replace(',', '', $row['concession']),
                     str_replace(',', '', $row['paid']),
-                    str_replace(',', '', $row['remaining'])
+                    str_replace(',', '', $row['remaining']),
                 ]);
             }
             fclose($file);
@@ -239,7 +240,7 @@ class ReferralReportController extends Controller
         $request->validate([
             'amount' => 'required|numeric|min:0',
             'payment_mode' => 'required|string',
-            'remarks' => 'nullable|string'
+            'remarks' => 'nullable|string',
         ]);
 
         // Update Student Commission Details
@@ -247,7 +248,7 @@ class ReferralReportController extends Controller
             'referral_commission_paid_at' => Carbon::now(),
             'referral_commission_amount' => $request->amount,
             'referral_payment_mode' => $request->payment_mode,
-            'referral_payment_remarks' => $request->remarks
+            'referral_payment_remarks' => $request->remarks,
         ]);
 
         $message = 'Commission marked as paid successfully';
@@ -267,7 +268,7 @@ class ReferralReportController extends Controller
                     ->first();
 
                 // Fallback: any fee record if no unpaid found
-                if (!$feeRecord) {
+                if (! $feeRecord) {
                     $feeRecord = StudentFee::withoutGlobalScope('academic_year')
                         ->where('student_id', $referrer->id)
                         ->orderBy('created_at', 'desc')
@@ -277,7 +278,7 @@ class ReferralReportController extends Controller
                 if ($feeRecord) {
                     $appliedAmount = $feeRecord->applyConcession(
                         $request->amount,
-                        "Referral Reward for referred student: " . $student->name
+                        'Referral Reward for referred student: '.$student->name
                     );
 
                     // Log a StudentConcession record so it appears in the activity timeline.
@@ -291,7 +292,7 @@ class ReferralReportController extends Controller
                             'concession_type' => 'fixed',
                             'concession_value' => $appliedAmount,
                             'concession_amount' => $appliedAmount,
-                            'notes' => 'Referral Reward for: ' . $student->name . '. Applied via Referral Commission (Fee Discount mode)',
+                            'notes' => 'Referral Reward for: '.$student->name.'. Applied via Referral Commission (Fee Discount mode)',
                             'applied_by' => auth()->id(),
                             'applied_at' => $now,
                             'created_at' => $now,
@@ -299,10 +300,10 @@ class ReferralReportController extends Controller
                         ]);
                     }
 
-                    $message .= ". Discount of ₹" . number_format($appliedAmount, 2) . " applied to referrer {$referrer->name}.";
+                    $message .= '. Discount of ₹'.number_format($appliedAmount, 2)." applied to referrer {$referrer->name}.";
 
                     if ($appliedAmount < $request->amount) {
-                        $warning = "Only ₹" . number_format($appliedAmount, 2) . " applied (requested ₹" . number_format($request->amount, 2) . "). Fee balance was insufficient for the full amount.";
+                        $warning = 'Only ₹'.number_format($appliedAmount, 2).' applied (requested ₹'.number_format($request->amount, 2).'). Fee balance was insufficient for the full amount.';
                     }
                 } else {
                     $warning = "Referrer found ({$referrer->name}), but no fee record exists to apply discount.";
@@ -318,7 +319,7 @@ class ReferralReportController extends Controller
             'warning' => $warning,
             'paid_date' => Carbon::now()->format('d M, Y'),
             'amount' => number_format($request->amount, 2),
-            'mode' => $request->payment_mode
+            'mode' => $request->payment_mode,
         ]);
     }
 }

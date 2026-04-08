@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         // Create payment_reminders table
-        if (!Schema::hasTable('payment_reminders')) {
+        if (! Schema::hasTable('payment_reminders')) {
             Schema::create('payment_reminders', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('student_id')->constrained()->onDelete('cascade');
@@ -40,7 +40,7 @@ return new class extends Migration
         }
 
         // Create payment_defaulters table
-        if (!Schema::hasTable('payment_defaulters')) {
+        if (! Schema::hasTable('payment_defaulters')) {
             Schema::create('payment_defaulters', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('student_id')->constrained()->onDelete('cascade');
@@ -49,12 +49,12 @@ return new class extends Migration
                 $table->integer('overdue_days');
                 $table->integer('overdue_invoice_count');
                 $table->enum('current_status', [
-                    'active', 
-                    'contact_pending', 
-                    'payment_promised', 
-                    'escalated', 
+                    'active',
+                    'contact_pending',
+                    'payment_promised',
+                    'escalated',
                     'resolved',
-                    'suspended'
+                    'suspended',
                 ])->default('active');
                 $table->foreignId('assigned_to')->nullable()->constrained('users')->onDelete('set null');
                 $table->date('next_action_date')->nullable();
@@ -76,7 +76,7 @@ return new class extends Migration
         }
 
         // Create payment_reminder_templates table for customizable messages
-        if (!Schema::hasTable('payment_reminder_templates')) {
+        if (! Schema::hasTable('payment_reminder_templates')) {
             Schema::create('payment_reminder_templates', function (Blueprint $table) {
                 $table->id();
                 $table->string('name');
@@ -94,7 +94,7 @@ return new class extends Migration
         }
 
         // Create payment_reminder_logs table for detailed tracking
-        if (!Schema::hasTable('payment_reminder_logs')) {
+        if (! Schema::hasTable('payment_reminder_logs')) {
             Schema::create('payment_reminder_logs', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('payment_reminder_id')->constrained()->onDelete('cascade');

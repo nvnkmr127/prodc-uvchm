@@ -3,14 +3,13 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-
+use App\Models\Payment;
 // ✅ CORRECT IMPORTS - Add these at the top of your controller
-use App\Models\ComponentPaymentItem;  // ✅ CORRECT: Model namespace
-use App\Models\Payment;               // ✅ CORRECT: Model namespace
+// ✅ CORRECT: Model namespace
 use App\Models\Student;               // ✅ CORRECT: Model namespace
-use App\Models\StudentFee;            // ✅ CORRECT: Model namespace
-use App\Services\ComponentPaymentService; // ✅ CORRECT: Service namespace
+use App\Services\ComponentPaymentService;               // ✅ CORRECT: Model namespace
+// ✅ CORRECT: Model namespace
+use Illuminate\Http\Request; // ✅ CORRECT: Service namespace
 
 // ❌ REMOVE any incorrect imports like:
 // use App\Http\Controllers\Admin\ComponentPaymentItem; // ❌ WRONG NAMESPACE
@@ -40,17 +39,17 @@ class PaymentController extends Controller
                 'notes' => 'nullable|string',
                 'components' => 'required|array',
                 'components.*.selected' => 'required|boolean',
-                'components.*.amount' => 'required_if:components.*.selected,1|numeric|min:0.01'
+                'components.*.amount' => 'required_if:components.*.selected,1|numeric|min:0.01',
             ]);
 
             $student = Student::findOrFail($validated['student_id']);
 
             // Filter selected components
             $selectedComponents = collect($validated['components'])
-                ->filter(fn($component) => $component['selected'] == '1')
-                ->map(fn($component, $studentFeeId) => [
+                ->filter(fn ($component) => $component['selected'] == '1')
+                ->map(fn ($component, $studentFeeId) => [
                     'student_fee_id' => $studentFeeId,
-                    'amount' => (float) $component['amount']
+                    'amount' => (float) $component['amount'],
                 ])
                 ->values()
                 ->toArray();
@@ -67,7 +66,7 @@ class PaymentController extends Controller
                     'payment_method' => $validated['payment_method'],
                     'payment_date' => $validated['payment_date'],
                     'transaction_id' => $validated['transaction_id'],
-                    'notes' => $validated['notes']
+                    'notes' => $validated['notes'],
                 ]
             );
 
@@ -85,7 +84,7 @@ class PaymentController extends Controller
                 'line' => $e->getLine(),
                 'file' => $e->getFile(),
                 'student_id' => $request->student_id,
-                'request_data' => $request->all()
+                'request_data' => $request->all(),
             ]);
 
             return back()->withErrors(['payment' => 'Payment processing failed. Please try again.']);
@@ -99,7 +98,7 @@ class PaymentController extends Controller
     {
         $payment = Payment::with([
             'student',
-            'componentItems.studentFee.feeCategory'
+            'componentItems.studentFee.feeCategory',
         ])->findOrFail($paymentId);
 
         return view('admin.payments.show', compact('payment'));
@@ -109,16 +108,17 @@ class PaymentController extends Controller
     {
         $payment = Payment::with([
             'student.batch.course',
-            'componentItems.studentFee.feeCategory'
+            'componentItems.studentFee.feeCategory',
         ])->findOrFail($paymentId);
 
-        if (!$payment->isComponentPayment()) {
+        if (! $payment->isComponentPayment()) {
             abort(404, 'Receipt not available for this payment type.');
         }
 
         // ✅ Use component-compatible view
         return view('admin.receipts.component-show', compact('payment'));
     }
+
     /**
      * Manually trigger the payment webhook
      */
@@ -167,9 +167,10 @@ class PaymentController extends Controller
         } catch (\Exception $e) {
             \Log::error('Manual webhook trigger failed', [
                 'error' => $e->getMessage(),
-                'payment_id' => $paymentId
+                'payment_id' => $paymentId,
             ]);
-            return back()->with('error', 'Failed to trigger webhook: ' . $e->getMessage());
+
+            return back()->with('error', 'Failed to trigger webhook: '.$e->getMessage());
         }
     }
 }

@@ -11,13 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-       Schema::create('fee_structures', function (Blueprint $table) {
-    $table->id();
-    $table->foreignId('course_id')->constrained()->onDelete('cascade');
-    $table->integer('semester');
-    $table->string('description');
-    $table->decimal('amount', 10, 2);
-    $table->timestamps();
+        Schema::create('fee_structures', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('course_id')->constrained()->onDelete('cascade');
+            $table->integer('semester');
+            $table->string('description');
+            $table->decimal('amount', 10, 2);
+            $table->timestamps();
 
         });
     }

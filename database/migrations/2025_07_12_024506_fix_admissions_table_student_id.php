@@ -14,7 +14,7 @@ return new class extends Migration
         // Check if admissions table exists and add student_id column if missing
         if (Schema::hasTable('admissions')) {
             Schema::table('admissions', function (Blueprint $table) {
-                if (!Schema::hasColumn('admissions', 'student_id')) {
+                if (! Schema::hasColumn('admissions', 'student_id')) {
                     $table->unsignedBigInteger('student_id')->nullable()->after('id');
                     $table->foreign('student_id')->references('id')->on('students')->onDelete('cascade');
                 }

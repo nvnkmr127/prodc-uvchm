@@ -2,8 +2,8 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -16,10 +16,10 @@ return new class extends Migration
 
             // Add the new batch_id foreign key
             $table->foreignId('batch_id')
-                  ->after('id')
-                  ->unique() // Each batch can only have one fee structure
-                  ->constrained('batches')
-                  ->onDelete('cascade');
+                ->after('id')
+                ->unique() // Each batch can only have one fee structure
+                ->constrained('batches')
+                ->onDelete('cascade');
         });
     }
 

@@ -2,8 +2,8 @@
 
 namespace Database\Factories;
 
-use Illuminate\Database\Eloquent\Factories\Factory;
 use App\Models\Setting;
+use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Setting>
@@ -26,11 +26,11 @@ class SettingFactory extends Factory
     {
         $types = ['text', 'textarea', 'email', 'url', 'number', 'toggle', 'select', 'file', 'password'];
         $groups = ['general', 'college', 'academic', 'financial', 'attendance', 'notifications', 'security', 'backup'];
-        
+
         $type = $this->faker->randomElement($types);
-        
+
         return [
-            'key' => $this->faker->unique()->slug(2) . '_setting',
+            'key' => $this->faker->unique()->slug(2).'_setting',
             'value' => $this->generateValueForType($type),
             'group' => $this->faker->randomElement($groups),
             'type' => $type,
@@ -49,31 +49,31 @@ class SettingFactory extends Factory
         switch ($type) {
             case 'text':
                 return $this->faker->words(3, true);
-            
+
             case 'textarea':
                 return $this->faker->paragraph();
-            
+
             case 'email':
                 return $this->faker->safeEmail();
-            
+
             case 'url':
                 return $this->faker->url();
-            
+
             case 'number':
                 return (string) $this->faker->numberBetween(1, 1000);
-            
+
             case 'toggle':
                 return $this->faker->boolean() ? '1' : '0';
-            
+
             case 'select':
                 return $this->faker->randomElement(['option1', 'option2', 'option3']);
-            
+
             case 'file':
                 return 'uploads/test-file.jpg';
-            
+
             case 'password':
                 return bcrypt('password');
-            
+
             default:
                 return $this->faker->word();
         }
@@ -87,25 +87,25 @@ class SettingFactory extends Factory
         switch ($type) {
             case 'email':
                 return ['email', 'max:255'];
-            
+
             case 'url':
                 return ['url', 'max:500'];
-            
+
             case 'number':
                 return ['numeric', 'min:0'];
-            
+
             case 'toggle':
                 return ['boolean'];
-            
+
             case 'password':
                 return ['string', 'min:6'];
-            
+
             case 'text':
                 return ['string', 'max:255'];
-            
+
             case 'textarea':
                 return ['string', 'max:5000'];
-            
+
             default:
                 return null;
         }
@@ -259,7 +259,7 @@ class SettingFactory extends Factory
             } else {
                 $rules = ['required'];
             }
-            
+
             return [
                 'validation_rules' => $rules,
             ];
@@ -303,7 +303,7 @@ class SettingFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'key' => 'app_name',
-            'value' => $this->faker->company() . ' Management System',
+            'value' => $this->faker->company().' Management System',
             'group' => 'general',
             'type' => 'text',
             'description' => 'Application name displayed throughout the system',
@@ -319,7 +319,7 @@ class SettingFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'key' => 'college_name',
-            'value' => $this->faker->company() . ' College',
+            'value' => $this->faker->company().' College',
             'group' => 'college',
             'type' => 'text',
             'description' => 'Official college name',

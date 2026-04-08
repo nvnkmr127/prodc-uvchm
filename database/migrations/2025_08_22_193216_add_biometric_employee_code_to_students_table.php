@@ -14,13 +14,13 @@ return new class extends Migration
         Schema::table('students', function (Blueprint $table) {
             // Add biometric employee code field after enrollment_number
             $table->string('biometric_employee_code', 50)
-                  ->nullable()
-                  ->after('enrollment_number')
-                  ->comment('Employee code used by biometric devices');
-            
+                ->nullable()
+                ->after('enrollment_number')
+                ->comment('Employee code used by biometric devices');
+
             // Add unique index for fast lookups and prevent duplicates
             $table->unique('biometric_employee_code', 'idx_students_biometric_code');
-            
+
             // Add regular index for fast searching
             $table->index('biometric_employee_code', 'idx_students_biometric_search');
         });
@@ -35,7 +35,7 @@ return new class extends Migration
             // Drop indexes first
             $table->dropUnique('idx_students_biometric_code');
             $table->dropIndex('idx_students_biometric_search');
-            
+
             // Drop the column
             $table->dropColumn('biometric_employee_code');
         });

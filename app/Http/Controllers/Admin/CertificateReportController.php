@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Student;
-use App\Models\Course;
 use App\Models\Batch;
+use App\Models\Course;
+use App\Models\Student;
 use Illuminate\Http\Request;
 
 class CertificateReportController extends Controller
@@ -137,8 +137,8 @@ class CertificateReportController extends Controller
                     'received' => $receivedCount,
                     'pending' => $pendingCount,
                     'typeStats' => $certTypeStats,
-                    'coursePendingStats' => $coursePendingStats
-                ]
+                    'coursePendingStats' => $coursePendingStats,
+                ],
             ]);
         }
 
@@ -167,17 +167,17 @@ class CertificateReportController extends Controller
     {
         $request->validate([
             'is_certificate_received' => 'required|boolean',
-            'certificate_type' => 'nullable|string|max:255'
+            'certificate_type' => 'nullable|string|max:255',
         ]);
 
         $student->update([
             'is_certificate_received' => $request->is_certificate_received,
-            'certificate_type' => $request->certificate_type
+            'certificate_type' => $request->certificate_type,
         ]);
 
         return response()->json([
             'success' => true,
-            'message' => 'Certificate status updated successfully.'
+            'message' => 'Certificate status updated successfully.',
         ]);
     }
 }

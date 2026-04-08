@@ -2,9 +2,8 @@
 
 namespace App\Services;
 
-use App\Models\SystemNotification;
-use App\Models\NotificationPreference;
 use App\Events\RealTimeNotification;
+use App\Models\SystemNotification;
 use Illuminate\Support\Facades\Log;
 
 class NotificationService
@@ -26,7 +25,7 @@ class NotificationService
         try {
             // Validate and clean data
             $cleanData = $this->validateData($data);
-            
+
             // Create notification record
             $notification = SystemNotification::create($cleanData);
 
@@ -40,7 +39,7 @@ class NotificationService
             Log::info('Notification sent successfully', [
                 'notification_id' => $notification->id,
                 'title' => $notification->title,
-                'category' => $notification->category
+                'category' => $notification->category,
             ]);
 
             return $notification;
@@ -48,7 +47,7 @@ class NotificationService
         } catch (\Exception $e) {
             Log::error('Failed to send notification', [
                 'error' => $e->getMessage(),
-                'data' => $data
+                'data' => $data,
             ]);
             throw $e;
         }
@@ -133,12 +132,12 @@ class NotificationService
         $config = array_merge($baseConfig, [
             'category' => 'financial',
             'data' => $data,
-            'sound_file' => $this->getSoundFile($configType)
+            'sound_file' => $this->getSoundFile($configType),
         ]);
 
         return $this->send($config);
     }
-    
+
     /**
      * ✅ FIXED: Send academic notification compatible with older PHP
      */
@@ -192,7 +191,7 @@ class NotificationService
         } else {
             $baseConfig = [
                 'title' => 'Academic Notification',
-                'message' => 'Academic update for ' . $studentName,
+                'message' => 'Academic update for '.$studentName,
                 'type' => 'info',
                 'priority' => 'normal',
                 'play_sound' => false,
@@ -204,7 +203,7 @@ class NotificationService
         $config = array_merge($baseConfig, [
             'category' => 'academic',
             'data' => $data,
-            'sound_file' => $this->getSoundFile($configType)
+            'sound_file' => $this->getSoundFile($configType),
         ]);
 
         return $this->send($config);
@@ -228,7 +227,7 @@ class NotificationService
             'requires_action' => $priority === 'urgent',
         ]);
     }
-    
+
     /**
      * Fixed method to handle attendance notifications safely
      */
@@ -237,7 +236,7 @@ class NotificationService
         try {
             // Safely get attendance percentage with fallback
             $attendancePercentage = 0;
-            
+
             if (isset($attendanceData['attendance_percentage'])) {
                 $attendancePercentage = $attendanceData['attendance_percentage'];
             } elseif (isset($student->attendance_percentage)) {
@@ -245,33 +244,33 @@ class NotificationService
             } else {
                 $attendancePercentage = $this->calculateAttendancePercentage($student);
             }
-            
+
             if (empty($attendancePercentage)) {
                 $attendancePercentage = 0;
             }
-            
+
             // Get threshold from settings
             $threshold = $this->getSetting('low_attendance_threshold', 75);
-            
+
             // Only send notification if attendance is below threshold
             if ($attendancePercentage < $threshold) {
                 $this->sendLowAttendanceNotification($student, $attendancePercentage, $threshold);
             }
-            
+
             return true;
-            
+
         } catch (\Exception $e) {
             $studentId = isset($student->id) ? $student->id : 'unknown';
             Log::error('Attendance notification failed', [
                 'student_id' => $studentId,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
-            
+
             return false;
         }
     }
-    
+
     /**
      * Validate notification data
      */
@@ -302,6 +301,7 @@ class NotificationService
     private function validateType($type)
     {
         $validTypes = ['success', 'error', 'warning', 'info'];
+
         return in_array($type, $validTypes) ? $type : 'info';
     }
 
@@ -311,6 +311,7 @@ class NotificationService
     private function validateCategory($category)
     {
         $validCategories = ['financial', 'academic', 'system', 'attendance', 'general'];
+
         return in_array($category, $validCategories) ? $category : 'general';
     }
 
@@ -320,6 +321,7 @@ class NotificationService
     private function validatePriority($priority)
     {
         $validPriorities = ['low', 'normal', 'high', 'urgent'];
+
         return in_array($priority, $validPriorities) ? $priority : 'normal';
     }
 
@@ -340,6 +342,7 @@ class NotificationService
             if ($parameter) {
                 return route($route, $parameter);
             }
+
             return route($route);
         } catch (\Exception $e) {
             return '#';
@@ -358,6 +361,7 @@ class NotificationService
 
             if (class_exists(\App\Models\Setting::class)) {
                 $setting = \App\Models\Setting::where('key', $key)->first();
+
                 return $setting ? $setting->value : $default;
             }
 
@@ -365,19 +369,20 @@ class NotificationService
         } catch (\Exception $e) {
             Log::warning('Failed to get setting', [
                 'key' => $key,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
+
             return $default;
         }
     }
-    
+
     /**
      * Calculate attendance percentage for a student
      */
     private function calculateAttendancePercentage($student)
     {
         try {
-            if (!$student) {
+            if (! $student) {
                 return 0;
             }
 
@@ -391,24 +396,24 @@ class NotificationService
             } else {
                 return 0;
             }
-            
+
             if ($totalClasses === 0) {
                 return 0;
             }
-            
+
             return round(($presentClasses / $totalClasses) * 100, 2);
-            
+
         } catch (\Exception $e) {
             $studentId = isset($student->id) ? $student->id : 'unknown';
             Log::warning('Failed to calculate attendance percentage', [
                 'student_id' => $studentId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
-            
+
             return 0;
         }
     }
-    
+
     /**
      * Send low attendance notification
      */
@@ -416,38 +421,38 @@ class NotificationService
     {
         try {
             $message = "Low attendance alert for {$student->name}. Current attendance: {$attendancePercentage}% (Required: {$threshold}%)";
-            
+
             // Send the notification using the academic notification method
             $this->sendAcademicNotification('low_attendance', [
                 'student_id' => $student->id,
                 'student_name' => $student->name,
                 'attendance_percentage' => $attendancePercentage,
-                'threshold' => $threshold
+                'threshold' => $threshold,
             ]);
-            
+
             // Send email notification if enabled
             if ($this->getSetting('email_notifications', true)) {
                 $this->sendEmailNotification($student, $message);
             }
-            
+
             // Send SMS notification if enabled
             if ($this->getSetting('sms_notifications', false)) {
                 $this->sendSMSNotification($student, $message);
             }
-            
+
             return true;
-            
+
         } catch (\Exception $e) {
             $studentId = isset($student->id) ? $student->id : 'unknown';
             Log::error('Failed to send low attendance notification', [
                 'student_id' => $studentId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
-            
+
             return false;
         }
     }
-    
+
     /**
      * Send email notification
      */
@@ -456,21 +461,21 @@ class NotificationService
         try {
             // Add your email sending logic here
             // Example: Mail::to($student->email)->send(new AttendanceNotificationMail($student, $message));
-            
+
             $email = isset($student->email) ? $student->email : 'No email';
             Log::info('Email notification sent', [
                 'student_id' => $student->id,
-                'email' => $email
+                'email' => $email,
             ]);
-            
+
         } catch (\Exception $e) {
             Log::error('Email notification failed', [
                 'student_id' => $student->id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
     }
-    
+
     /**
      * Send SMS notification
      */
@@ -479,17 +484,17 @@ class NotificationService
         try {
             // Add your SMS sending logic here
             // Example: SMS::send($student->phone, $message);
-            
+
             $phone = isset($student->student_mobile) ? $student->student_mobile : 'No phone';
             Log::info('SMS notification sent', [
                 'student_id' => $student->id,
-                'phone' => $phone
+                'phone' => $phone,
             ]);
-            
+
         } catch (\Exception $e) {
             Log::error('SMS notification failed', [
                 'student_id' => $student->id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
     }
@@ -498,13 +503,16 @@ class NotificationService
 /**
  * Helper function to get setting value safely.
  */
-if (!function_exists('setting')) {
-    function setting($key, $default = null) {
+if (! function_exists('setting')) {
+    function setting($key, $default = null)
+    {
         try {
             if (class_exists(\App\Models\Setting::class)) {
                 $setting = \App\Models\Setting::where('key', $key)->first();
+
                 return $setting ? $setting->value : $default;
             }
+
             return $default;
         } catch (\Exception $e) {
             return $default;

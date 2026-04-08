@@ -9,12 +9,12 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
- public function up(): void
-{
-    Schema::table('payments', function (Blueprint $table) {
-        $table->string('receipt_number')->unique()->nullable()->after('id');
-    });
-}
+    public function up(): void
+    {
+        Schema::table('payments', function (Blueprint $table) {
+            $table->string('receipt_number')->unique()->nullable()->after('id');
+        });
+    }
 
     /**
      * Reverse the migrations.

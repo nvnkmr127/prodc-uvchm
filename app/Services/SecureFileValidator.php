@@ -15,16 +15,16 @@ class SecureFileValidator
         'xlsx' => [
             '504B0304', // ZIP signature (XLSX is a ZIP file)
             '504B0506', // ZIP empty archive
-            '504B0708'  // ZIP spanned archive
+            '504B0708',  // ZIP spanned archive
         ],
         'xls' => [
             'D0CF11E0A1B11AE1', // OLE2 signature
             '09080600',          // Alternative XLS signature
-            'FD377A58'           // Alternative XLS signature
+            'FD377A58',           // Alternative XLS signature
         ],
         'csv' => [
             // CSV files are plain text, so we'll validate content structure
-        ]
+        ],
     ];
 
     /**
@@ -35,19 +35,19 @@ class SecureFileValidator
         try {
             // Basic validation
             $basicValidation = $this->performBasicValidation($file, $allowedTypes);
-            if (!$basicValidation['valid']) {
+            if (! $basicValidation['valid']) {
                 return $basicValidation;
             }
 
             // Magic byte validation
             $magicByteValidation = $this->validateMagicBytes($file);
-            if (!$magicByteValidation['valid']) {
+            if (! $magicByteValidation['valid']) {
                 return $magicByteValidation;
             }
 
             // Content structure validation
             $contentValidation = $this->validateFileContent($file);
-            if (!$contentValidation['valid']) {
+            if (! $contentValidation['valid']) {
                 return $contentValidation;
             }
 
@@ -56,12 +56,12 @@ class SecureFileValidator
         } catch (\Exception $e) {
             Log::error('File validation error:', [
                 'file' => $file->getClientOriginalName(),
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
-            
+
             return [
                 'valid' => false,
-                'error' => 'File validation failed due to security concerns'
+                'error' => 'File validation failed due to security concerns',
             ];
         }
     }
@@ -75,16 +75,16 @@ class SecureFileValidator
         if ($file->getSize() > 5 * 1024 * 1024) {
             return [
                 'valid' => false,
-                'error' => 'File size exceeds maximum allowed size of 5MB'
+                'error' => 'File size exceeds maximum allowed size of 5MB',
             ];
         }
 
         // Check file extension
         $extension = strtolower($file->getClientOriginalExtension());
-        if (!in_array($extension, $allowedTypes)) {
+        if (! in_array($extension, $allowedTypes)) {
             return [
                 'valid' => false,
-                'error' => 'Invalid file format. Allowed formats: ' . implode(', ', $allowedTypes)
+                'error' => 'Invalid file format. Allowed formats: '.implode(', ', $allowedTypes),
             ];
         }
 
@@ -94,13 +94,13 @@ class SecureFileValidator
             'application/csv',
             'text/plain',
             'application/vnd.ms-excel',
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ];
 
-        if (!in_array($file->getMimeType(), $allowedMimes)) {
+        if (! in_array($file->getMimeType(), $allowedMimes)) {
             return [
                 'valid' => false,
-                'error' => 'Invalid MIME type detected'
+                'error' => 'Invalid MIME type detected',
             ];
         }
 
@@ -113,17 +113,17 @@ class SecureFileValidator
     private function validateMagicBytes(UploadedFile $file): array
     {
         $extension = strtolower($file->getClientOriginalExtension());
-        
+
         // Skip magic byte validation for CSV as it's plain text
         if ($extension === 'csv') {
             return ['valid' => true];
         }
 
         $handle = fopen($file->getPathname(), 'rb');
-        if (!$handle) {
+        if (! $handle) {
             return [
                 'valid' => false,
-                'error' => 'Unable to read file for validation'
+                'error' => 'Unable to read file for validation',
             ];
         }
 
@@ -144,7 +144,7 @@ class SecureFileValidator
 
         return [
             'valid' => false,
-            'error' => 'File content does not match expected format'
+            'error' => 'File content does not match expected format',
         ];
     }
 
@@ -154,7 +154,7 @@ class SecureFileValidator
     private function validateFileContent(UploadedFile $file): array
     {
         $extension = strtolower($file->getClientOriginalExtension());
-        
+
         switch ($extension) {
             case 'csv':
                 return $this->validateCsvContent($file);
@@ -172,26 +172,27 @@ class SecureFileValidator
     private function validateCsvContent(UploadedFile $file): array
     {
         $handle = fopen($file->getPathname(), 'r');
-        if (!$handle) {
+        if (! $handle) {
             return [
                 'valid' => false,
-                'error' => 'Unable to read CSV file'
+                'error' => 'Unable to read CSV file',
             ];
         }
 
         // Read first few lines to validate structure
         $lineCount = 0;
         $headerCount = 0;
-        
+
         while (($line = fgets($handle)) !== false && $lineCount < 10) {
             $lineCount++;
-            
+
             // Check for suspicious content
             if ($this->containsSuspiciousContent($line)) {
                 fclose($handle);
+
                 return [
                     'valid' => false,
-                    'error' => 'File contains suspicious content'
+                    'error' => 'File contains suspicious content',
                 ];
             }
 
@@ -200,15 +201,17 @@ class SecureFileValidator
                 $headerCount = count(str_getcsv($line));
                 if ($headerCount < 2) {
                     fclose($handle);
+
                     return [
                         'valid' => false,
-                        'error' => 'CSV file must have at least 2 columns'
+                        'error' => 'CSV file must have at least 2 columns',
                     ];
                 }
             }
         }
 
         fclose($handle);
+
         return ['valid' => true];
     }
 
@@ -222,41 +225,41 @@ class SecureFileValidator
             $reader = \PhpOffice\PhpSpreadsheet\IOFactory::createReaderForFile($file->getPathname());
             $reader->setReadDataOnly(true);
             $reader->setReadEmptyCells(false);
-            
+
             // Only read first worksheet and first few rows
             $spreadsheet = $reader->load($file->getPathname());
             $worksheet = $spreadsheet->getActiveSheet();
-            
+
             // Check if file has data
             $highestRow = min($worksheet->getHighestRow(), 10); // Limit to first 10 rows
             $highestColumn = $worksheet->getHighestColumn();
-            
+
             if ($highestRow < 1) {
                 return [
                     'valid' => false,
-                    'error' => 'Excel file appears to be empty'
+                    'error' => 'Excel file appears to be empty',
                 ];
             }
 
             // Check for suspicious content in first few cells
             for ($row = 1; $row <= min($highestRow, 5); $row++) {
                 for ($col = 'A'; $col <= $highestColumn && $col <= 'J'; $col++) {
-                    $cellValue = $worksheet->getCell($col . $row)->getCalculatedValue();
+                    $cellValue = $worksheet->getCell($col.$row)->getCalculatedValue();
                     if ($this->containsSuspiciousContent($cellValue)) {
                         return [
                             'valid' => false,
-                            'error' => 'File contains suspicious content'
+                            'error' => 'File contains suspicious content',
                         ];
                     }
                 }
             }
 
             return ['valid' => true];
-            
+
         } catch (\Exception $e) {
             return [
                 'valid' => false,
-                'error' => 'Invalid Excel file format'
+                'error' => 'Invalid Excel file format',
             ];
         }
     }
@@ -266,7 +269,7 @@ class SecureFileValidator
      */
     private function containsSuspiciousContent($content): bool
     {
-        if (!is_string($content)) {
+        if (! is_string($content)) {
             $content = (string) $content;
         }
 
@@ -307,17 +310,17 @@ class SecureFileValidator
     {
         // Remove path traversal attempts
         $filename = basename($filename);
-        
+
         // Remove or replace dangerous characters
         $filename = preg_replace('/[^a-zA-Z0-9._-]/', '_', $filename);
-        
+
         // Limit length
         if (strlen($filename) > 100) {
             $extension = pathinfo($filename, PATHINFO_EXTENSION);
             $name = pathinfo($filename, PATHINFO_FILENAME);
-            $filename = substr($name, 0, 95 - strlen($extension)) . '.' . $extension;
+            $filename = substr($name, 0, 95 - strlen($extension)).'.'.$extension;
         }
-        
+
         return $filename;
     }
 }

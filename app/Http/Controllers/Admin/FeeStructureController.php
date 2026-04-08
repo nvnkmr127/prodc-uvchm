@@ -18,6 +18,7 @@ class FeeStructureController extends Controller
         $feeStructures = FeeStructure::with('batch.course', 'feeCategories')
             ->whereHas('batch') // This filters through batch's HasAcademicYear trait
             ->get();
+
         return view('admin.fee_structures.index', compact('feeStructures'));
     }
 
@@ -25,6 +26,7 @@ class FeeStructureController extends Controller
     {
         $courses = Course::orderBy('name')->get();
         $categories = FeeCategory::orderBy('name')->get();
+
         return view('admin.fee_structures.create', compact('courses', 'categories'));
     }
 
@@ -68,7 +70,7 @@ class FeeStructureController extends Controller
         $feeStructure->load('batch.course', 'feeCategories');
         $chartLabels = $feeStructure->feeCategories->pluck('name');
         $chartData = $feeStructure->feeCategories->pluck('pivot.amount');
-        
+
         return view('admin.fee_structures.show', compact('feeStructure', 'chartLabels', 'chartData'));
     }
 
@@ -128,6 +130,7 @@ class FeeStructureController extends Controller
     public function destroy(FeeStructure $feeStructure)
     {
         $feeStructure->delete();
+
         return redirect()->route('admin.fee-structures.index')->with('success', 'Fee structure deleted successfully.');
     }
 }

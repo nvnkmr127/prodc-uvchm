@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Exports\AttendanceSampleExport;
 use App\Http\Controllers\Controller;
+use App\Imports\AttendancesImport;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
-use App\Exports\AttendanceSampleExport;
-use App\Imports\AttendancesImport;
 
 class AttendanceImportController extends Controller
 {
@@ -14,19 +14,19 @@ class AttendanceImportController extends Controller
     {
         return view('admin.attendance_import.index');
     }
-    
-public function downloadSample()
+
+    public function downloadSample()
     {
         try {
             $headers = [
                 'Student ID',
-                'Enrollment Number', 
+                'Enrollment Number',
                 'Student Name',
                 'Date',
                 'Status', // Present, Absent, Late
                 'Time In',
                 'Time Out',
-                'Remarks'
+                'Remarks',
             ];
 
             $sampleData = [
@@ -36,13 +36,13 @@ public function downloadSample()
             ];
 
             $filename = 'attendance_import_sample.xlsx';
-            
+
             return Excel::download(
-                new AttendanceSampleExport($headers, $sampleData), 
+                new AttendanceSampleExport($headers, $sampleData),
                 $filename
             );
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Failed to download sample: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Failed to download sample: '.$e->getMessage());
         }
     }
 
@@ -54,21 +54,21 @@ public function downloadSample()
 
         try {
             Excel::import(new AttendancesImport, $request->file('attendance_file'));
-            
+
             return redirect()
                 ->route('admin.daily-attendance.show')
                 ->with('success', 'Attendance data imported successfully!');
-                
+
         } catch (\Maatwebsite\Excel\Validators\ValidationException $e) {
             $failures = $e->failures();
-            $errorString = "";
+            $errorString = '';
             foreach ($failures as $failure) {
-                $errorString .= "Row " . $failure->row() . ": " . implode(', ', $failure->errors()) . ". ";
+                $errorString .= 'Row '.$failure->row().': '.implode(', ', $failure->errors()).'. ';
             }
-            
+
             return redirect()
                 ->route('admin.attendance.import.show')
-                ->with('error', 'There were errors in your file: ' . $errorString);
+                ->with('error', 'There were errors in your file: '.$errorString);
         }
     }
 }

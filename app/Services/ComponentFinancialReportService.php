@@ -2,12 +2,8 @@
 
 namespace App\Services;
 
-use App\Models\Student;
-use App\Models\StudentFee;
 use App\Models\Payment;
-use App\Models\FeeCategory;
-use App\Models\ComponentPaymentItem;
-use Illuminate\Support\Facades\DB;
+use App\Models\Student;
 use Carbon\Carbon;
 
 class ComponentFinancialReportService
@@ -21,30 +17,30 @@ class ComponentFinancialReportService
         $query = Student::with(['batch.course', 'studentFees.feeCategory'])
             ->whereHas('studentFees', function ($q) {
                 $q->whereIn('status', ['unpaid', 'partial'])
-                  ->whereRaw('amount - concession_amount - paid_amount > 0');
+                    ->whereRaw('amount - concession_amount - paid_amount > 0');
             });
 
         // Apply filters
-        if (!empty($filters['fee_category_id'])) {
+        if (! empty($filters['fee_category_id'])) {
             $query->whereHas('studentFees', function ($q) use ($filters) {
                 $q->where('fee_category_id', $filters['fee_category_id']);
             });
         }
 
-        if (!empty($filters['batch_id'])) {
+        if (! empty($filters['batch_id'])) {
             $query->where('batch_id', $filters['batch_id']);
         }
 
-        if (!empty($filters['min_amount'])) {
+        if (! empty($filters['min_amount'])) {
             $query->whereHas('studentFees', function ($q) use ($filters) {
                 $q->whereRaw('amount - concession_amount - paid_amount >= ?', [$filters['min_amount']]);
             });
         }
 
-        if (!empty($filters['overdue_only'])) {
+        if (! empty($filters['overdue_only'])) {
             $query->whereHas('studentFees', function ($q) {
                 $q->whereIn('status', ['unpaid', 'partial'])
-                  ->where('due_date', '<', now());
+                    ->where('due_date', '<', now());
             });
         }
 
@@ -55,7 +51,7 @@ class ComponentFinancialReportService
                 ->with('feeCategory')
                 ->get();
 
-            if (!empty($filters['fee_category_id'])) {
+            if (! empty($filters['fee_category_id'])) {
                 $studentFees = $studentFees->where('fee_category_id', $filters['fee_category_id']);
             }
 
@@ -75,7 +71,7 @@ class ComponentFinancialReportService
                     'paid_amount' => $paidAmount,
                     'outstanding_amount' => $outstandingAmount,
                     'fees_count' => $fees->count(),
-                    'overdue_fees_count' => $fees->filter(fn($fee) => $fee->due_date < now())->count(),
+                    'overdue_fees_count' => $fees->filter(fn ($fee) => $fee->due_date < now())->count(),
                     'oldest_due_date' => $fees->min('due_date'),
                     'latest_due_date' => $fees->max('due_date'),
                 ];
@@ -89,12 +85,12 @@ class ComponentFinancialReportService
             }
 
             // Apply minimum amount filter
-            if (!empty($filters['min_amount']) && $totalOutstanding < $filters['min_amount']) {
+            if (! empty($filters['min_amount']) && $totalOutstanding < $filters['min_amount']) {
                 return null;
             }
 
             // Calculate days overdue (oldest overdue fee)
-            $oldestOverdueFee = $studentFees->filter(fn($fee) => $fee->due_date < now())->sortBy('due_date')->first();
+            $oldestOverdueFee = $studentFees->filter(fn ($fee) => $fee->due_date < now())->sortBy('due_date')->first();
             $daysOverdue = $oldestOverdueFee ? now()->diffInDays($oldestOverdueFee->due_date) : 0;
 
             // Get last payment date for this student
@@ -141,29 +137,29 @@ class ComponentFinancialReportService
     {
         $query = Payment::with([
             'student.batch.course',
-            'componentItems.studentFee.feeCategory'
+            'componentItems.studentFee.feeCategory',
         ])
-        ->where('payment_type', 'component')
-        ->whereBetween('payment_date', [$startDate, $endDate]);
+            ->where('payment_type', 'component')
+            ->whereBetween('payment_date', [$startDate, $endDate]);
 
         // Apply filters
-        if (!empty($filters['fee_category_id'])) {
+        if (! empty($filters['fee_category_id'])) {
             $query->whereHas('componentItems.studentFee', function ($q) use ($filters) {
                 $q->where('fee_category_id', $filters['fee_category_id']);
             });
         }
 
-        if (!empty($filters['batch_id'])) {
+        if (! empty($filters['batch_id'])) {
             $query->whereHas('student', function ($q) use ($filters) {
                 $q->where('batch_id', $filters['batch_id']);
             });
         }
 
-        if (!empty($filters['payment_method'])) {
+        if (! empty($filters['payment_method'])) {
             $query->where('payment_method', $filters['payment_method']);
         }
 
-        if (!empty($filters['min_amount'])) {
+        if (! empty($filters['min_amount'])) {
             $query->where('amount', '>=', $filters['min_amount']);
         }
 
@@ -236,7 +232,7 @@ class ComponentFinancialReportService
         foreach ($defaulters as $defaulter) {
             foreach ($defaulter['component_breakdown'] as $component) {
                 $categoryName = $component['category_name'];
-                if (!$componentBreakdown->has($categoryName)) {
+                if (! $componentBreakdown->has($categoryName)) {
                     $componentBreakdown[$categoryName] = [
                         'category_name' => $categoryName,
                         'category_type' => $component['category_type'],
@@ -300,7 +296,7 @@ class ComponentFinancialReportService
         foreach ($payments as $payment) {
             foreach ($payment->componentItems as $item) {
                 $categoryName = $item->studentFee->feeCategory->name;
-                if (!$componentCollections->has($categoryName)) {
+                if (! $componentCollections->has($categoryName)) {
                     $componentCollections[$categoryName] = [
                         'category_name' => $categoryName,
                         'category_type' => $item->studentFee->feeCategory->category_type ?? 'other',
@@ -319,6 +315,7 @@ class ComponentFinancialReportService
         $componentCollections = $componentCollections->map(function ($component) use ($totalAmount) {
             $component['students_count'] = $component['students_count']->unique()->count();
             $component['percentage'] = $totalAmount > 0 ? round(($component['total_amount'] / $totalAmount) * 100, 2) : 0;
+
             return $component;
         })->sortByDesc('total_amount')->values();
 
@@ -356,22 +353,36 @@ class ComponentFinancialReportService
     private function calculateRiskCategory($amount, $daysOverdue, $componentsCount)
     {
         $score = 0;
-        
+
         // Amount factor
-        if ($amount >= 50000) $score += 3;
-        elseif ($amount >= 25000) $score += 2;
-        elseif ($amount >= 10000) $score += 1;
-        
+        if ($amount >= 50000) {
+            $score += 3;
+        } elseif ($amount >= 25000) {
+            $score += 2;
+        } elseif ($amount >= 10000) {
+            $score += 1;
+        }
+
         // Days overdue factor
-        if ($daysOverdue >= 90) $score += 3;
-        elseif ($daysOverdue >= 60) $score += 2;
-        elseif ($daysOverdue >= 30) $score += 1;
-        
+        if ($daysOverdue >= 90) {
+            $score += 3;
+        } elseif ($daysOverdue >= 60) {
+            $score += 2;
+        } elseif ($daysOverdue >= 30) {
+            $score += 1;
+        }
+
         // Multiple components factor
-        if ($componentsCount >= 3) $score += 1;
-        
-        if ($score >= 5) return 'high_risk';
-        elseif ($score >= 3) return 'medium_risk';
-        else return 'low_risk';
+        if ($componentsCount >= 3) {
+            $score += 1;
+        }
+
+        if ($score >= 5) {
+            return 'high_risk';
+        } elseif ($score >= 3) {
+            return 'medium_risk';
+        } else {
+            return 'low_risk';
+        }
     }
 }

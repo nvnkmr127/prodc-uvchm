@@ -9,15 +9,15 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-public function up(): void
-{
-    Schema::table('enquiries', function (Blueprint $table) {
-        // Add the new column first
-        $table->string('referral_name')->nullable()->after('source');
-        // Then drop the old one
-        $table->dropColumn('email');
-    });
-}
+    public function up(): void
+    {
+        Schema::table('enquiries', function (Blueprint $table) {
+            // Add the new column first
+            $table->string('referral_name')->nullable()->after('source');
+            // Then drop the old one
+            $table->dropColumn('email');
+        });
+    }
 
     /**
      * Reverse the migrations.

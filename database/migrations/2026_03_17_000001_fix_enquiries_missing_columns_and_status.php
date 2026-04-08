@@ -2,8 +2,8 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -11,12 +11,12 @@ return new class extends Migration
     {
         Schema::table('enquiries', function (Blueprint $table) {
             // Re-add email column (was dropped in a previous migration but is still used in code)
-            if (!Schema::hasColumn('enquiries', 'email')) {
+            if (! Schema::hasColumn('enquiries', 'email')) {
                 $table->string('email')->nullable()->after('phone_number');
             }
 
             // Add date_of_birth column (referenced in model, validation, and forms but never migrated)
-            if (!Schema::hasColumn('enquiries', 'date_of_birth')) {
+            if (! Schema::hasColumn('enquiries', 'date_of_birth')) {
                 $table->date('date_of_birth')->nullable()->after('gender');
             }
         });

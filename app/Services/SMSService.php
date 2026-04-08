@@ -8,7 +8,9 @@ use Illuminate\Support\Facades\Log;
 class SMSService
 {
     protected $apiUrl;
+
     protected $apiKey;
+
     protected $senderId;
 
     public function __construct()
@@ -30,7 +32,7 @@ class SMSService
                 'message' => $message,
                 'sender' => $this->senderId,
                 'route' => 4, // Transactional route
-                'country' => 91
+                'country' => 91,
             ]);
 
             if ($response->successful()) {
@@ -38,23 +40,26 @@ class SMSService
                 if ($responseData['type'] === 'success') {
                     Log::info('SMS reminder sent successfully', [
                         'phone' => $phoneNumber,
-                        'message_id' => $responseData['message_id'] ?? null
+                        'message_id' => $responseData['message_id'] ?? null,
                     ]);
+
                     return true;
                 }
             }
 
             Log::error('SMS reminder failed', [
                 'phone' => $phoneNumber,
-                'error' => $response->body()
+                'error' => $response->body(),
             ]);
+
             return false;
 
         } catch (\Exception $e) {
             Log::error('SMS service error', [
                 'phone' => $phoneNumber,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
+
             return false;
         }
     }
@@ -63,11 +68,11 @@ class SMSService
     {
         // Remove all non-numeric characters and ensure 10 digits
         $phone = preg_replace('/[^0-9]/', '', $phone);
-        
+
         if (strlen($phone) === 11 && substr($phone, 0, 1) === '0') {
             $phone = substr($phone, 1); // Remove leading 0
         }
-        
+
         return strlen($phone) === 10 ? $phone : null;
     }
-} 
+}

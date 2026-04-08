@@ -10,8 +10,8 @@ class CheckPaymentAccess
     public function handle(Request $request, Closure $next)
     {
         $user = auth()->user();
-        
-        if (!$user) {
+
+        if (! $user) {
             return redirect()->route('login');
         }
 
@@ -20,7 +20,7 @@ class CheckPaymentAccess
             'view financials',
             'manage financials',
             'view reports',
-            'manage settings'
+            'manage settings',
         ];
 
         $hasAccess = false;
@@ -31,7 +31,7 @@ class CheckPaymentAccess
             }
         }
 
-        if (!$hasAccess) {
+        if (! $hasAccess) {
             abort(403, 'Access denied to payment management features.');
         }
 

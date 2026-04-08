@@ -22,7 +22,7 @@ class RevenueDataService implements WidgetDataProviderInterface
         $currentMonth = Payment::where('status', 'completed')
             ->whereMonth('created_at', Carbon::now()->month)
             ->sum('amount');
-            
+
         $lastMonth = Payment::where('status', 'completed')
             ->whereMonth('created_at', Carbon::now()->subMonth()->month)
             ->sum('amount');
@@ -35,12 +35,12 @@ class RevenueDataService implements WidgetDataProviderInterface
                     'data' => $revenueData->pluck('revenue')->toArray(),
                     'borderColor' => '#10B981',
                     'backgroundColor' => 'rgba(16, 185, 129, 0.1)',
-                    'fill' => true
-                ]
+                    'fill' => true,
+                ],
             ],
             'current_month' => $currentMonth,
             'last_month' => $lastMonth,
-            'growth' => $lastMonth > 0 ? (($currentMonth - $lastMonth) / $lastMonth) * 100 : 0
+            'growth' => $lastMonth > 0 ? (($currentMonth - $lastMonth) / $lastMonth) * 100 : 0,
         ];
     }
 }

@@ -2,16 +2,16 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\DB;
-use App\Models\Student;
-use App\Models\Payment;
 use App\Models\Attendance;
+use App\Models\Payment;
+use App\Models\Student;
 use App\Models\Webhook;
 use Carbon\Carbon;
 use Exception;
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class SendDailySummaryWebhook extends Command
 {
@@ -36,8 +36,9 @@ class SendDailySummaryWebhook extends Command
             $this->info("📅 Report Date: {$reportDate->format('Y-m-d (l)')}");
 
             // Check working day (skip Sundays unless forced)
-            if (!$this->option('force') && $reportDate->isSunday()) {
+            if (! $this->option('force') && $reportDate->isSunday()) {
                 $this->warn('⏸️  Skipping: Sunday is not a working day');
+
                 return self::SUCCESS;
             }
 
@@ -51,6 +52,7 @@ class SendDailySummaryWebhook extends Command
             if ($webhooks->isEmpty()) {
                 $this->warn('⚠️  No active daily summary webhooks found');
                 $this->info('💡 Create webhooks with event "daily.summary" to receive reports');
+
                 return self::SUCCESS;
             }
 
@@ -67,6 +69,7 @@ class SendDailySummaryWebhook extends Command
                 if ($this->option('test')) {
                     $this->warn('  🧪 TEST MODE - Not actually sent');
                     $successCount++;
+
                     continue;
                 }
 
@@ -99,8 +102,9 @@ class SendDailySummaryWebhook extends Command
             $this->error("❌ Fatal Error: {$e->getMessage()}");
             Log::error('Daily webhook summary failed', [
                 'error' => $e->getMessage(),
-                'date' => $reportDate ?? null
+                'date' => $reportDate ?? null,
             ]);
+
             return self::FAILURE;
         }
     }
@@ -123,12 +127,12 @@ class SendDailySummaryWebhook extends Command
         $paymentsData = [
             'total_amount' => (float) $paymentsQuery->sum('amount') ?: 0.0,
             'total_payers' => $paymentsQuery->distinct('student_id')->count() ?: 0,
-            'calculation_method' => 'by_creation_date' // Track which method was used
+            'calculation_method' => 'by_creation_date', // Track which method was used
         ];
 
         // Debug information to show the difference
         if ($this->option('debug')) {
-            $this->line("🔍 Payment Query Comparison:");
+            $this->line('🔍 Payment Query Comparison:');
 
             // Original method (by payment_date)
             $originalQuery = Payment::whereDate('payment_date', $date);
@@ -183,7 +187,7 @@ class SendDailySummaryWebhook extends Command
 
         // Debug information for attendance
         if ($this->option('debug')) {
-            $this->line("🔍 Attendance Debug Info:");
+            $this->line('🔍 Attendance Debug Info:');
             $this->line("  - Date: {$date->format('Y-m-d')}");
             $this->line("  - Total Active Students: {$totalActiveStudents}");
             $this->line("  - Present Count: {$presentCount}");
@@ -192,7 +196,7 @@ class SendDailySummaryWebhook extends Command
 
             // Show available statuses in attendance table
             $availableStatuses = Attendance::distinct('status')->pluck('status');
-            $this->line("  - Available Status Values: " . $availableStatuses->implode(', '));
+            $this->line('  - Available Status Values: '.$availableStatuses->implode(', '));
         }
 
         // Calculate attendance based on system behavior
@@ -202,7 +206,7 @@ class SendDailySummaryWebhook extends Command
                 'absent' => 0,
                 'total_students' => $totalActiveStudents,
                 'attendance_percentage' => 0.0,
-                'notes' => 'No attendance records found for this date'
+                'notes' => 'No attendance records found for this date',
             ];
         } elseif ($absentCount === 0 && $presentCount > 0 && $presentCount < $totalActiveStudents) {
             $calculatedAbsent = $totalActiveStudents - $presentCount;
@@ -218,7 +222,7 @@ class SendDailySummaryWebhook extends Command
                 'attendance_percentage' => $totalActiveStudents > 0
                     ? (float) number_format(($presentCount / $totalActiveStudents) * 100, 1)
                     : 0.0,
-                'calculation_method' => 'absent_calculated_from_missing_records'
+                'calculation_method' => 'absent_calculated_from_missing_records',
             ];
         } elseif ($absentCount === 0 && $presentCount === $totalActiveStudents) {
             $attendanceData = [
@@ -226,7 +230,7 @@ class SendDailySummaryWebhook extends Command
                 'absent' => 0,
                 'total_students' => $totalActiveStudents,
                 'attendance_percentage' => 100.0,
-                'calculation_method' => 'perfect_attendance'
+                'calculation_method' => 'perfect_attendance',
             ];
         } else {
             $totalForCalculation = max($totalMarkedAttendance, $totalActiveStudents);
@@ -238,7 +242,7 @@ class SendDailySummaryWebhook extends Command
                 'attendance_percentage' => $totalForCalculation > 0
                     ? (float) number_format(($presentCount / $totalForCalculation) * 100, 1)
                     : 0.0,
-                'calculation_method' => 'explicit_marking'
+                'calculation_method' => 'explicit_marking',
             ];
         }
 
@@ -246,13 +250,13 @@ class SendDailySummaryWebhook extends Command
         $payload = [
             'date' => $date->format('Y-m-d'),
             'report_day' => $date->format('l'),
-            'report_generated_at' => $date->format('Y-m-d') . ' Time: ' . $reportTimestamp->format('h:i A'),
+            'report_generated_at' => $date->format('Y-m-d').' Time: '.$reportTimestamp->format('h:i A'),
             'payments' => $paymentsData,
             'attendance' => $attendanceData,
             'metadata' => [
                 'portal_name' => config('app.name', 'UVCHM Portal'),
                 'report_version' => '1.2', // Updated version
-                'working_day' => !$date->isSunday(),
+                'working_day' => ! $date->isSunday(),
                 'generated_by' => 'automated_scheduler',
                 'timezone' => $timezone,
                 'server_time' => $reportTimestamp->format('Y-m-d H:i:s T'),
@@ -260,13 +264,14 @@ class SendDailySummaryWebhook extends Command
                 'command_options' => [
                     'test_mode' => $this->option('test'),
                     'forced' => $this->option('force'),
-                    'debug' => $this->option('debug')
-                ]
-            ]
+                    'debug' => $this->option('debug'),
+                ],
+            ],
         ];
 
         return $payload;
     }
+
     protected function getActiveDailySummaryWebhooks()
     {
         return Webhook::where('is_active', true)
@@ -283,16 +288,16 @@ class SendDailySummaryWebhook extends Command
             // Prepare headers
             $headers = [
                 'Content-Type' => 'application/json',
-                'User-Agent' => config('app.name', 'Laravel') . '/Daily-Summary-Webhook',
+                'User-Agent' => config('app.name', 'Laravel').'/Daily-Summary-Webhook',
                 'X-Webhook-Event' => 'daily.summary',
-                'X-Webhook-Delivery' => uniqid('delivery_')
+                'X-Webhook-Delivery' => uniqid('delivery_'),
             ];
 
             // Add signature if secret key exists
             if ($webhook->secret_key || $webhook->signing_secret) {
                 $secret = $webhook->secret_key ?? $webhook->signing_secret;
                 $signature = hash_hmac('sha256', json_encode($payload), $secret);
-                $headers['X-Webhook-Signature'] = 'sha256=' . $signature;
+                $headers['X-Webhook-Signature'] = 'sha256='.$signature;
             }
 
             // Make HTTP request with timeout
@@ -309,7 +314,7 @@ class SendDailySummaryWebhook extends Command
                     'response_body' => $response->body(),
                     'success' => $response->successful(),
                     'execution_time_ms' => 0, // Simplified for now
-                    'created_at' => now()
+                    'created_at' => now(),
                 ]);
             }
 
@@ -324,7 +329,7 @@ class SendDailySummaryWebhook extends Command
                 'success' => $response->successful(),
                 'status_code' => $response->status(),
                 'response_time' => 0, // Simplified for now
-                'error' => $response->successful() ? null : "HTTP {$response->status()}: {$response->body()}"
+                'error' => $response->successful() ? null : "HTTP {$response->status()}: {$response->body()}",
             ];
 
         } catch (Exception $e) {
@@ -337,7 +342,7 @@ class SendDailySummaryWebhook extends Command
                     'response_body' => $e->getMessage(),
                     'success' => false,
                     'execution_time_ms' => 0,
-                    'created_at' => now()
+                    'created_at' => now(),
                 ]);
             }
 
@@ -345,7 +350,7 @@ class SendDailySummaryWebhook extends Command
 
             return [
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ];
         }
     }
@@ -357,7 +362,7 @@ class SendDailySummaryWebhook extends Command
 
         $attendanceNote = isset($data['attendance']['calculation_method'])
             ? " ({$data['attendance']['calculation_method']})"
-            : "";
+            : '';
         $this->line("   👥 Attendance: {$data['attendance']['present']}/{$data['attendance']['total_students']} present ({$data['attendance']['attendance_percentage']}%){$attendanceNote}");
 
         if (isset($data['attendance']['notes'])) {
@@ -374,7 +379,7 @@ class SendDailySummaryWebhook extends Command
     protected function debugAttendanceData(Carbon $date): void
     {
         $this->line("\n🔍 Debugging Attendance Data:");
-        $this->line("================================");
+        $this->line('================================');
 
         // Check total students
         $totalStudents = Student::count();
@@ -384,12 +389,12 @@ class SendDailySummaryWebhook extends Command
 
         // Check attendance table structure
         $tableExists = DB::getSchemaBuilder()->hasTable('attendances');
-        $this->line("Attendance Table Exists: " . ($tableExists ? 'Yes' : 'No'));
+        $this->line('Attendance Table Exists: '.($tableExists ? 'Yes' : 'No'));
 
         if ($tableExists) {
             // Check columns
             $columns = DB::getSchemaBuilder()->getColumnListing('attendances');
-            $this->line("Attendance Columns: " . implode(', ', $columns));
+            $this->line('Attendance Columns: '.implode(', ', $columns));
 
             // Check total attendance records
             $totalRecords = Attendance::count();
@@ -417,7 +422,7 @@ class SendDailySummaryWebhook extends Command
                 ->limit(5)
                 ->get();
 
-            $this->line("Recent Dates with Attendance:");
+            $this->line('Recent Dates with Attendance:');
             foreach ($recentDates as $dateRecord) {
                 $this->line("  - {$dateRecord->attendance_date}: {$dateRecord->count} records");
             }

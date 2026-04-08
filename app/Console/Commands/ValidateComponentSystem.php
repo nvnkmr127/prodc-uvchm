@@ -2,23 +2,26 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
-use App\Models\Student;
-use App\Models\Payment;
-use App\Models\StudentFee;
 use App\Models\ComponentPaymentItem;
 use App\Models\FeeCategory;
+use App\Models\Payment;
+use App\Models\Student;
+use App\Models\StudentFee;
 use App\Services\ComponentPaymentService;
+use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class ValidateComponentSystem extends Command
 {
     protected $signature = 'validate:component-system {--fix : Attempt to fix found issues} {--detailed : Show detailed output}';
+
     protected $description = 'Validate component system integrity and performance';
 
     private $errors = [];
+
     private $warnings = [];
+
     private $fixes = [];
 
     public function handle()
@@ -54,15 +57,15 @@ class ValidateComponentSystem extends Command
         // Check required tables exist
         $requiredTables = [
             'students',
-            'student_fees', 
+            'student_fees',
             'payments',
             'component_payment_items',
             'fee_categories',
-            'fee_structures'
+            'fee_structures',
         ];
 
         foreach ($requiredTables as $table) {
-            if (!Schema::hasTable($table)) {
+            if (! Schema::hasTable($table)) {
                 $this->errors[] = "Missing required table: {$table}";
             }
         }
@@ -70,22 +73,22 @@ class ValidateComponentSystem extends Command
         // Check required columns exist
         $requiredColumns = [
             'student_fees' => [
-                'student_id', 'fee_category_id', 'amount', 'paid_amount', 
-                'concession_amount', 'status', 'academic_year'
+                'student_id', 'fee_category_id', 'amount', 'paid_amount',
+                'concession_amount', 'status', 'academic_year',
             ],
             'payments' => [
-                'student_id', 'amount', 'payment_date', 'payment_method', 
-                'payment_type', 'receipt_number'
+                'student_id', 'amount', 'payment_date', 'payment_method',
+                'payment_type', 'receipt_number',
             ],
             'component_payment_items' => [
-                'payment_id', 'student_fee_id', 'amount_paid'
-            ]
+                'payment_id', 'student_fee_id', 'amount_paid',
+            ],
         ];
 
         foreach ($requiredColumns as $table => $columns) {
             if (Schema::hasTable($table)) {
                 foreach ($columns as $column) {
-                    if (!Schema::hasColumn($table, $column)) {
+                    if (! Schema::hasColumn($table, $column)) {
                         $this->errors[] = "Missing required column: {$table}.{$column}";
                     }
                 }
@@ -128,9 +131,9 @@ class ValidateComponentSystem extends Command
 
         // Check for negative amounts
         $negativeAmounts = StudentFee::where('amount', '<', 0)
-                                   ->orWhere('paid_amount', '<', 0)
-                                   ->orWhere('concession_amount', '<', 0)
-                                   ->count();
+            ->orWhere('paid_amount', '<', 0)
+            ->orWhere('concession_amount', '<', 0)
+            ->count();
         if ($negativeAmounts > 0) {
             $this->errors[] = "Found {$negativeAmounts} fees with negative amounts";
             $this->fixes[] = 'fix_negative_amounts';
@@ -144,17 +147,17 @@ class ValidateComponentSystem extends Command
         $this->info('💰 Validating Payment Consistency...');
 
         // Check for payment mismatches
-        $inconsistentFees = DB::select("
+        $inconsistentFees = DB::select('
             SELECT sf.id, sf.student_id, sf.amount, sf.paid_amount,
                    COALESCE(SUM(cpi.amount_paid), 0) as calculated_paid
             FROM student_fees sf
             LEFT JOIN component_payment_items cpi ON sf.id = cpi.student_fee_id
             GROUP BY sf.id, sf.student_id, sf.amount, sf.paid_amount
             HAVING ABS(sf.paid_amount - calculated_paid) > 0.01
-        ");
+        ');
 
         if (count($inconsistentFees) > 0) {
-            $this->errors[] = 'Found ' . count($inconsistentFees) . ' fees with payment inconsistencies';
+            $this->errors[] = 'Found '.count($inconsistentFees).' fees with payment inconsistencies';
             $this->fixes[] = 'fix_payment_inconsistencies';
 
             if ($this->option('detailed')) {
@@ -187,24 +190,24 @@ class ValidateComponentSystem extends Command
         try {
             // Test student -> studentFees relationship
             $studentWithFees = Student::with('studentFees')->first();
-            if ($studentWithFees && !$studentWithFees->relationLoaded('studentFees')) {
+            if ($studentWithFees && ! $studentWithFees->relationLoaded('studentFees')) {
                 $this->errors[] = 'Student -> StudentFees relationship not working';
             }
 
             // Test payment -> componentItems relationship
             $paymentWithItems = Payment::with('componentItems')->where('payment_type', 'component')->first();
-            if ($paymentWithItems && !$paymentWithItems->relationLoaded('componentItems')) {
+            if ($paymentWithItems && ! $paymentWithItems->relationLoaded('componentItems')) {
                 $this->errors[] = 'Payment -> ComponentItems relationship not working';
             }
 
             // Test studentFee -> feeCategory relationship
             $feeWithCategory = StudentFee::with('feeCategory')->first();
-            if ($feeWithCategory && !$feeWithCategory->relationLoaded('feeCategory')) {
+            if ($feeWithCategory && ! $feeWithCategory->relationLoaded('feeCategory')) {
                 $this->errors[] = 'StudentFee -> FeeCategory relationship not working';
             }
 
         } catch (\Exception $e) {
-            $this->errors[] = 'Relationship validation error: ' . $e->getMessage();
+            $this->errors[] = 'Relationship validation error: '.$e->getMessage();
         }
 
         $this->info('✅ Relationship validation completed');
@@ -217,12 +220,12 @@ class ValidateComponentSystem extends Command
         $requiredIndexes = [
             'student_fees' => ['idx_student_status', 'idx_category_year'],
             'payments' => ['idx_student_type', 'idx_type_date'],
-            'component_payment_items' => ['idx_payment_fee']
+            'component_payment_items' => ['idx_payment_fee'],
         ];
 
         foreach ($requiredIndexes as $table => $indexes) {
             foreach ($indexes as $index) {
-                if (!$this->indexExists($table, $index)) {
+                if (! $this->indexExists($table, $index)) {
                     $this->warnings[] = "Missing recommended index: {$table}.{$index}";
                     $this->fixes[] = "add_index_{$table}_{$index}";
                 }
@@ -237,7 +240,7 @@ class ValidateComponentSystem extends Command
         $this->info('📈 Validating Financial Summary...');
 
         // Get overall financial summary
-        $summary = DB::select("
+        $summary = DB::select('
             SELECT 
                 COUNT(DISTINCT s.id) as total_students,
                 COALESCE(SUM(sf.amount), 0) as total_fees,
@@ -246,15 +249,15 @@ class ValidateComponentSystem extends Command
                 COALESCE(SUM(sf.concession_amount), 0) as total_concessions
             FROM students s
             LEFT JOIN student_fees sf ON s.id = sf.student_id
-        ")[0];
+        ')[0];
 
         if ($this->option('detailed')) {
             $this->table(['Metric', 'Value'], [
                 ['Total Students', number_format($summary->total_students)],
-                ['Total Fees', '₹' . number_format($summary->total_fees, 2)],
-                ['Total Collected', '₹' . number_format($summary->total_paid, 2)],
-                ['Total Due', '₹' . number_format($summary->total_due, 2)],
-                ['Total Concessions', '₹' . number_format($summary->total_concessions, 2)],
+                ['Total Fees', '₹'.number_format($summary->total_fees, 2)],
+                ['Total Collected', '₹'.number_format($summary->total_paid, 2)],
+                ['Total Due', '₹'.number_format($summary->total_due, 2)],
+                ['Total Concessions', '₹'.number_format($summary->total_concessions, 2)],
             ]);
         }
 
@@ -287,8 +290,8 @@ class ValidateComponentSystem extends Command
 
         // Check for very old unpaid fees (business rule dependent)
         $veryOldUnpaid = StudentFee::where('status', 'unpaid')
-                                  ->where('due_date', '<', now()->subYear())
-                                  ->count();
+            ->where('due_date', '<', now()->subYear())
+            ->count();
         if ($veryOldUnpaid > 0) {
             $this->warnings[] = "Found {$veryOldUnpaid} fees unpaid for over a year";
         }
@@ -304,26 +307,26 @@ class ValidateComponentSystem extends Command
 
         // Test common queries
         $queries = [
-            'Student fees by status' => function() {
+            'Student fees by status' => function () {
                 return StudentFee::where('status', 'unpaid')->count();
             },
-            'Component payments this month' => function() {
+            'Component payments this month' => function () {
                 return Payment::where('payment_type', 'component')
-                             ->whereBetween('payment_date', [now()->startOfMonth(), now()])
-                             ->count();
+                    ->whereBetween('payment_date', [now()->startOfMonth(), now()])
+                    ->count();
             },
-            'Outstanding amounts' => function() {
+            'Outstanding amounts' => function () {
                 return StudentFee::whereRaw('amount - concession_amount - paid_amount > 0')->count();
-            }
+            },
         ];
 
         foreach ($queries as $name => $query) {
             $start = microtime(true);
             $result = $query();
             $time = (microtime(true) - $start) * 1000;
-            
-            $performanceResults[] = [$name, $result, number_format($time, 2) . 'ms'];
-            
+
+            $performanceResults[] = [$name, $result, number_format($time, 2).'ms'];
+
             if ($time > 1000) { // Queries taking over 1 second
                 $this->warnings[] = "Slow query detected: {$name} ({$time}ms)";
             }
@@ -365,34 +368,34 @@ class ValidateComponentSystem extends Command
                             StudentFee::where('paid_amount', '<', 0)->update(['paid_amount' => 0]);
                             StudentFee::where('concession_amount', '<', 0)->update(['concession_amount' => 0]);
                             DB::commit();
-                            $this->info("  ✅ Fixed negative amounts");
+                            $this->info('  ✅ Fixed negative amounts');
                         } catch (\Exception $e) {
                             DB::rollback();
-                            $this->error("  ❌ Failed to fix negative amounts: " . $e->getMessage());
+                            $this->error('  ❌ Failed to fix negative amounts: '.$e->getMessage());
                         }
                         break;
 
                     case 'fix_payment_inconsistencies':
                         DB::beginTransaction();
                         try {
-                            $inconsistentFees = DB::select("
+                            $inconsistentFees = DB::select('
                                 SELECT sf.id, COALESCE(SUM(cpi.amount_paid), 0) as calculated_paid
                                 FROM student_fees sf
                                 LEFT JOIN component_payment_items cpi ON sf.id = cpi.student_fee_id
                                 GROUP BY sf.id
                                 HAVING ABS(sf.paid_amount - calculated_paid) > 0.01
-                            ");
+                            ');
 
                             foreach ($inconsistentFees as $fee) {
                                 StudentFee::where('id', $fee->id)
-                                         ->update(['paid_amount' => $fee->calculated_paid]);
+                                    ->update(['paid_amount' => $fee->calculated_paid]);
                             }
 
                             DB::commit();
-                            $this->info("  ✅ Fixed " . count($inconsistentFees) . " payment inconsistencies");
+                            $this->info('  ✅ Fixed '.count($inconsistentFees).' payment inconsistencies');
                         } catch (\Exception $e) {
                             DB::rollback();
-                            $this->error("  ❌ Failed to fix payment inconsistencies: " . $e->getMessage());
+                            $this->error('  ❌ Failed to fix payment inconsistencies: '.$e->getMessage());
                         }
                         break;
 
@@ -403,7 +406,7 @@ class ValidateComponentSystem extends Command
                         break;
                 }
             } catch (\Exception $e) {
-                $this->error("  ❌ Failed to apply fix {$fix}: " . $e->getMessage());
+                $this->error("  ❌ Failed to apply fix {$fix}: ".$e->getMessage());
             }
         }
     }
@@ -416,27 +419,28 @@ class ValidateComponentSystem extends Command
 
         if (count($this->errors) === 0 && count($this->warnings) === 0) {
             $this->info('🎉 All validations passed! Component system is healthy.');
+
             return;
         }
 
         if (count($this->errors) > 0) {
-            $this->error('❌ Errors Found (' . count($this->errors) . '):');
+            $this->error('❌ Errors Found ('.count($this->errors).'):');
             foreach ($this->errors as $error) {
-                $this->line('  • ' . $error);
+                $this->line('  • '.$error);
             }
             $this->newLine();
         }
 
         if (count($this->warnings) > 0) {
-            $this->warn('⚠️  Warnings (' . count($this->warnings) . '):');
+            $this->warn('⚠️  Warnings ('.count($this->warnings).'):');
             foreach ($this->warnings as $warning) {
-                $this->line('  • ' . $warning);
+                $this->line('  • '.$warning);
             }
             $this->newLine();
         }
 
-        if (count($this->fixes) > 0 && !$this->option('fix')) {
-            $this->info('💡 Available fixes (' . count($this->fixes) . '):');
+        if (count($this->fixes) > 0 && ! $this->option('fix')) {
+            $this->info('💡 Available fixes ('.count($this->fixes).'):');
             $this->line('   Run with --fix option to automatically apply fixes');
             $this->newLine();
         }
@@ -474,7 +478,7 @@ class ValidateComponentSystem extends Command
             $connection = Schema::getConnection();
             $schemaManager = $connection->getDoctrineSchemaManager();
             $doctrineTable = $schemaManager->listTableDetails($table);
-            
+
             return $doctrineTable->hasIndex($index);
         } catch (\Exception $e) {
             return false;
@@ -486,6 +490,7 @@ class ValidateComponentSystem extends Command
 class TestComponentSystem extends Command
 {
     protected $signature = 'test:component-system {--student=} {--create-test-data}';
+
     protected $description = 'Test component system functionality with sample data';
 
     public function handle()
@@ -534,12 +539,12 @@ class TestComponentSystem extends Command
                 [
                     'student_id' => $student->id,
                     'fee_category_id' => $category->id,
-                    'academic_year' => date('Y') . '-' . (date('Y') + 1)
+                    'academic_year' => date('Y').'-'.(date('Y') + 1),
                 ],
                 [
                     'amount' => rand(5000, 25000),
                     'due_date' => now()->addDays(30),
-                    'status' => 'unpaid'
+                    'status' => 'unpaid',
                 ]
             );
         }
@@ -553,8 +558,9 @@ class TestComponentSystem extends Command
 
         // Test model relationships
         $student = Student::with(['studentFees.feeCategory'])->first();
-        if (!$student) {
+        if (! $student) {
             $this->error('No test student found');
+
             return;
         }
 
@@ -576,8 +582,9 @@ class TestComponentSystem extends Command
         $student = Student::first();
         $unpaidFee = $student->studentFees()->unpaid()->first();
 
-        if (!$unpaidFee) {
+        if (! $unpaidFee) {
             $this->warn('No unpaid fees found for testing');
+
             return;
         }
 
@@ -586,14 +593,14 @@ class TestComponentSystem extends Command
         $components = [
             [
                 'fee_category_id' => $unpaidFee->fee_category_id,
-                'amount' => min(1000, $unpaidFee->getRemainingAmount())
-            ]
+                'amount' => min(1000, $unpaidFee->getRemainingAmount()),
+            ],
         ];
 
         $paymentData = [
             'payment_method' => 'cash',
             'payment_date' => now(),
-            'notes' => 'Test payment'
+            'notes' => 'Test payment',
         ];
 
         $result = $paymentService->processPayment($student, $components, $paymentData);
@@ -612,8 +619,9 @@ class TestComponentSystem extends Command
         $student = Student::first();
         $unpaidFee = $student->studentFees()->unpaid()->first();
 
-        if (!$unpaidFee) {
+        if (! $unpaidFee) {
             $this->warn('No unpaid fees found for concession testing');
+
             return;
         }
 
@@ -627,7 +635,7 @@ class TestComponentSystem extends Command
         );
 
         if ($result['success']) {
-            $this->info("✅ Concession applied: ₹100");
+            $this->info('✅ Concession applied: ₹100');
         } else {
             $this->error("❌ Concession failed: {$result['error']}");
         }
@@ -642,7 +650,7 @@ class TestComponentSystem extends Command
         // Test statistics
         $stats = $paymentService->getPaymentStatistics([
             'start_date' => now()->startOfMonth(),
-            'end_date' => now()
+            'end_date' => now(),
         ]);
 
         $this->line("  Total payments: {$stats['total_payments']}");

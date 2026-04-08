@@ -1,5 +1,7 @@
 <?php
+
 namespace App\Http\Controllers\Admin;
+
 use App\Http\Controllers\Controller;
 use App\Models\Visitor;
 use Illuminate\Http\Request;
@@ -9,6 +11,7 @@ class VisitorController extends Controller
     public function index()
     {
         $visitors = Visitor::latest()->paginate(25);
+
         return view('admin.visitors.index', compact('visitors'));
     }
 
@@ -35,6 +38,7 @@ class VisitorController extends Controller
             'notes' => 'nullable|string|max:255',
         ]);
         Visitor::create($validated);
+
         return redirect()->route('admin.visitors.index')->with('success', 'Visitor entry created.');
     }
 
@@ -62,12 +66,14 @@ class VisitorController extends Controller
             'notes' => 'nullable|string|max:255',
         ]);
         $visitor->update($validated);
+
         return redirect()->route('admin.visitors.index')->with('success', 'Visitor entry updated.');
     }
 
     public function destroy(Visitor $visitor)
     {
         $visitor->delete();
+
         return redirect()->route('admin.visitors.index')->with('success', 'Visitor entry deleted.');
     }
 }

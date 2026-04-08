@@ -2,11 +2,11 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
 use App\Models\Student;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Session;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
 
 class StudentPortalProfileTest extends TestCase
 {
@@ -29,13 +29,13 @@ class StudentPortalProfileTest extends TestCase
                 'country' => 'India',
                 'city' => 'Hyderabad',
                 'lat' => 17.3850,
-                'lon' => 78.4867
-            ], 200)
+                'lon' => 78.4867,
+            ], 200),
         ]);
 
         $student = Student::factory()->create([
             'student_mobile' => '9876543210',
-            'enrollment_number' => 'TEST001'
+            'enrollment_number' => 'TEST001',
         ]);
 
         // Simulate login session
@@ -45,7 +45,7 @@ class StudentPortalProfileTest extends TestCase
         $response = $this->postJson(route('student.request.update'), [
             'field_group' => 'personal',
             'mobile_type' => 'student',
-            'mobile_number' => '1234567890'
+            'mobile_number' => '1234567890',
         ]);
 
         $response->assertStatus(200)
@@ -55,13 +55,13 @@ class StudentPortalProfileTest extends TestCase
         $this->assertDatabaseHas('student_profile_requests', [
             'student_id' => $student->id,
             'field_group' => 'personal',
-            'status' => 'pending'
+            'status' => 'pending',
         ]);
 
         // Check if activity was logged
         $this->assertDatabaseHas('student_portal_activity_logs', [
             'student_id' => $student->id,
-            'action' => 'profile_update_request'
+            'action' => 'profile_update_request',
         ]);
     }
 
@@ -70,13 +70,13 @@ class StudentPortalProfileTest extends TestCase
         // Mock the geolocation API to timeout
         Http::fake([
             'ip-api.com/*' => function () {
-                throw new \Illuminate\Http\Client\ConnectionException("Connection timed out", 0);
-            }
+                throw new \Illuminate\Http\Client\ConnectionException('Connection timed out', 0);
+            },
         ]);
 
         $student = Student::factory()->create([
             'student_mobile' => '9876543210',
-            'enrollment_number' => 'TEST002'
+            'enrollment_number' => 'TEST002',
         ]);
 
         // Simulate login session
@@ -85,7 +85,7 @@ class StudentPortalProfileTest extends TestCase
         $response = $this->postJson(route('student.request.update'), [
             'field_group' => 'personal',
             'mobile_type' => 'student',
-            'mobile_number' => '1234567890'
+            'mobile_number' => '1234567890',
         ]);
 
         // The user's request should STILL succeed even if logging the location fails/times out
@@ -94,7 +94,7 @@ class StudentPortalProfileTest extends TestCase
 
         $this->assertDatabaseHas('student_profile_requests', [
             'student_id' => $student->id,
-            'field_group' => 'personal'
+            'field_group' => 'personal',
         ]);
     }
 }

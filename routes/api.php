@@ -1,14 +1,13 @@
 <?php
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Schema;
-use App\Http\Controllers\Api\GlobalSearchController;
-use App\Http\Controllers\Api\WebhookController;
+use App\Http\Controllers\Admin\NotificationController;
 use App\Http\Controllers\Api\AttendanceController;
 use App\Http\Controllers\Api\BiometricWebhookController;
-use App\Http\Controllers\Admin\NotificationController;
 use App\Http\Controllers\Api\CollegeAdminDashboardController;
+use App\Http\Controllers\Api\GlobalSearchController;
+use App\Http\Controllers\Api\WebhookController;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
@@ -33,7 +32,7 @@ Route::get('/ping', function () {
         'status' => 'success',
         'message' => 'PONG',
         'timestamp' => now(),
-        'server_time' => date('Y-m-d H:i:s')
+        'server_time' => date('Y-m-d H:i:s'),
     ]);
 });
 
@@ -42,7 +41,7 @@ Route::get('/test', function () {
         'status' => 'success',
         'message' => 'API is working',
         'timestamp' => now(),
-        'server_time' => date('Y-m-d H:i:s')
+        'server_time' => date('Y-m-d H:i:s'),
     ]);
 });
 
@@ -50,12 +49,12 @@ Route::get('/test', function () {
 Route::middleware(['auth:sanctum', 'throttle:10,1'])->group(function () {
     Route::any('/debug-realtime', function (\Illuminate\Http\Request $request) {
         // Only allow in local environment
-        if (!app()->environment('local')) {
+        if (! app()->environment('local')) {
             abort(404);
         }
 
         // Only allow super-admin users
-        if (!$request->user() || !$request->user()->hasRole('super-admin')) {
+        if (! $request->user() || ! $request->user()->hasRole('super-admin')) {
             abort(403, 'Unauthorized access to debug endpoint');
         }
 
@@ -63,7 +62,7 @@ Route::middleware(['auth:sanctum', 'throttle:10,1'])->group(function () {
             'timestamp' => now(),
             'method' => $request->method(),
             'user_id' => $request->user()->id,
-            'ip' => $request->ip()
+            'ip' => $request->ip(),
             // Removed sensitive data logging
         ]);
 
@@ -72,7 +71,7 @@ Route::middleware(['auth:sanctum', 'throttle:10,1'])->group(function () {
             'Status' => 'Debug endpoint working (secured)',
             'timestamp' => now(),
             'method' => $request->method(),
-            'environment' => app()->environment()
+            'environment' => app()->environment(),
         ]);
     });
 });
@@ -98,7 +97,6 @@ Route::post('/biometric/webhook', [BiometricWebhookController::class, 'handleBio
 // Deprecated endpoints - return 410 Gone
 Route::post('/biometric/realtime', [BiometricWebhookController::class, 'handleRealtime'])
     ->name('api.biometric.realtime.deprecated');
-
 
 /*
 |--------------------------------------------------------------------------

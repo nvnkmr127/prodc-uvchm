@@ -1,15 +1,17 @@
 <?php
+
 namespace App\Console\Commands;
 
+use App\Models\Widget;
+use Exception;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
-use App\Models\Widget;
-use Exception;
 
 class SyncDashboardWidgets extends Command
 {
     protected $signature = 'dashboard:sync-widgets {--clean : Remove widgets that no longer have blade files}';
+
     protected $description = 'Sync dashboard widgets from Blade template files';
 
     public function handle()
@@ -17,8 +19,8 @@ class SyncDashboardWidgets extends Command
         $this->info('🔄 Syncing dashboard widgets from Blade files...');
 
         $widgetPath = resource_path('views/dashboard/widgets');
-        
-        if (!File::isDirectory($widgetPath)) {
+
+        if (! File::isDirectory($widgetPath)) {
             $this->warn("Directory not found. Creating: {$widgetPath}");
             File::makeDirectory($widgetPath, 0755, true, true);
         }
@@ -27,13 +29,13 @@ class SyncDashboardWidgets extends Command
         $foundViewPaths = [];
         $syncedCount = 0;
 
-        $this->info("Found " . count($widgetFiles) . " widget files to process.");
+        $this->info('Found '.count($widgetFiles).' widget files to process.');
 
         foreach ($widgetFiles as $file) {
             $fileName = Str::before(basename($file), '.blade.php');
-            $viewPath = 'dashboard.widgets.' . $fileName;
+            $viewPath = 'dashboard.widgets.'.$fileName;
             $widgetName = Str::title(str_replace(['-', '_'], ' ', $fileName));
-            
+
             $foundViewPaths[] = $viewPath;
 
             try {
@@ -44,14 +46,14 @@ class SyncDashboardWidgets extends Command
                         'slug' => Str::slug($fileName),
                         'type' => $this->guessWidgetType($fileName),
                         'description' => "Auto-generated widget: {$widgetName}",
-                        'is_active' => true
+                        'is_active' => true,
                     ]
                 );
-                
+
                 $this->line("  [OK] Synced: {$widgetName} ({$viewPath})");
                 $syncedCount++;
             } catch (Exception $e) {
-                $this->error("  [ERROR] Failed to sync {$widgetName}: " . $e->getMessage());
+                $this->error("  [ERROR] Failed to sync {$widgetName}: ".$e->getMessage());
             }
         }
 
@@ -62,7 +64,7 @@ class SyncDashboardWidgets extends Command
             $removedCount = 0;
 
             if ($obsoleteWidgets->isEmpty()) {
-                $this->info("No obsolete widgets found.");
+                $this->info('No obsolete widgets found.');
             } else {
                 foreach ($obsoleteWidgets as $widget) {
                     if ($this->confirm("Remove obsolete widget: {$widget->name} ({$widget->component})?")) {
@@ -75,36 +77,36 @@ class SyncDashboardWidgets extends Command
         }
 
         $this->info("\n✅ Sync Complete!");
-        $this->info("Summary: {$syncedCount} widgets synced" . 
-                   ($this->option('clean') ? ", {$removedCount} widgets removed" : ""));
-        
+        $this->info("Summary: {$syncedCount} widgets synced".
+                   ($this->option('clean') ? ", {$removedCount} widgets removed" : ''));
+
         return Command::SUCCESS;
     }
 
     private function guessWidgetType($fileName)
     {
         $fileName = strtolower($fileName);
-        
+
         if (Str::contains($fileName, ['chart', 'graph', 'analytics'])) {
             return 'chart';
         }
-        
+
         if (Str::contains($fileName, ['total', 'count', 'kpi', 'metric'])) {
             return 'kpi';
         }
-        
+
         if (Str::contains($fileName, ['list', 'table', 'recent'])) {
             return 'list';
         }
-        
+
         if (Str::contains($fileName, ['action', 'quick', 'button'])) {
             return 'action';
         }
-        
+
         if (Str::contains($fileName, ['status', 'progress', 'health'])) {
             return 'status';
         }
-        
+
         return 'general';
     }
 }

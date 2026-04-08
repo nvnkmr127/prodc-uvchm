@@ -1,4 +1,5 @@
 <?php
+
 use Illuminate\Database\Migrations\Migration;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -11,10 +12,10 @@ return new class extends Migration
         $permissions = [
             'view attendance',
             'manage attendance',
-            'take attendance', 
+            'take attendance',
             'edit attendance',
             'delete attendance',
-            'export attendance'
+            'export attendance',
         ];
 
         foreach ($permissions as $permission) {
@@ -38,11 +39,11 @@ return new class extends Migration
     {
         $permissions = [
             'view attendance',
-            'manage attendance', 
+            'manage attendance',
             'take attendance',
             'edit attendance',
             'delete attendance',
-            'export attendance'
+            'export attendance',
         ];
 
         foreach ($permissions as $permission) {

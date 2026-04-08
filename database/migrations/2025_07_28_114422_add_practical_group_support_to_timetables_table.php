@@ -14,14 +14,14 @@ return new class extends Migration
         Schema::table('timetables', function (Blueprint $table) {
             // Add practical group support - NULLABLE because regular classes don't use groups
             $table->foreignId('practical_group_id')->nullable()->after('batch_id')
-                  ->constrained('practical_groups')->onDelete('cascade');
-            
+                ->constrained('practical_groups')->onDelete('cascade');
+
             // Add flag to distinguish lab sessions from regular classes
             $table->boolean('is_lab_session')->default(false)->after('classroom_id');
-            
+
             // Add notes field for additional information
             $table->text('notes')->nullable()->after('is_lab_session');
-            
+
             // Add indexes for better performance
             $table->index(['schedule_date', 'time_slot_id', 'classroom_id'], 'timetable_schedule_idx');
             $table->index(['batch_id', 'practical_group_id'], 'timetable_batch_group_idx');

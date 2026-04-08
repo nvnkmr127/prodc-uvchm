@@ -19,14 +19,14 @@ return new class extends Migration
         Schema::table('biometric_logs', function (Blueprint $table) {
             // Add status column if you need backward compatibility
             $table->enum('status', ['processed', 'failed', 'duplicate', 'pending'])
-                  ->after('sync_status')
-                  ->nullable()
-                  ->comment('Legacy status field for backward compatibility');
-            
+                ->after('sync_status')
+                ->nullable()
+                ->comment('Legacy status field for backward compatibility');
+
             // Create index for better performance
             $table->index('status');
         });
-        
+
         // Update existing records to populate the new status field
         DB::statement("
             UPDATE biometric_logs 

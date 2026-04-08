@@ -3,18 +3,19 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\SendPaymentReminder;
+use App\Models\FeeCategory;
+use App\Models\PaymentReminder;
+use App\Models\Student;
 use App\Services\ComponentPaymentService;
-use App\Models\{PaymentReminder, PaymentReminderTemplate, Student, StudentFee, FeeCategory};
-use App\Jobs\{SendPaymentReminder, ProcessPendingReminders};
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
-use Illuminate\Http\Response;
-use Carbon\Carbon;
 
 class PaymentReminderController extends Controller
 {
     protected $reminderService;
+
     protected $paymentService;
 
     public function __construct(ComponentPaymentService $paymentService)
@@ -49,7 +50,7 @@ class PaymentReminderController extends Controller
             $stats = array_merge($stats, $serviceStats);
             $stats['total'] = $stats['total_reminders'];
         } catch (\Exception $e) {
-            \Log::error('Error in payment reminder dashboard: ' . $e->getMessage());
+            \Log::error('Error in payment reminder dashboard: '.$e->getMessage());
         }
 
         $dashboardData = [
@@ -89,7 +90,7 @@ class PaymentReminderController extends Controller
             $stats['total'] = $stats['total_reminders'];
 
         } catch (\Exception $e) {
-            \Log::error('Error calculating payment reminder stats: ' . $e->getMessage());
+            \Log::error('Error calculating payment reminder stats: '.$e->getMessage());
         }
 
         $reminders = collect();
@@ -118,7 +119,7 @@ class PaymentReminderController extends Controller
             $reminders = $remindersQuery->paginate(20);
 
         } catch (\Exception $e) {
-            \Log::error('Error fetching payment reminders: ' . $e->getMessage());
+            \Log::error('Error fetching payment reminders: '.$e->getMessage());
         }
 
         $feeCategories = FeeCategory::all();
@@ -149,7 +150,7 @@ class PaymentReminderController extends Controller
             $stats = array_merge($stats, $serviceStats);
             $stats['total_amount'] = $stats['total_overdue_amount'];
         } catch (\Exception $e) {
-            \Log::error('Error getting defaulter stats: ' . $e->getMessage());
+            \Log::error('Error getting defaulter stats: '.$e->getMessage());
         }
 
         return view('admin.payment-defaulters.index', compact('stats'));
@@ -193,7 +194,7 @@ class PaymentReminderController extends Controller
             'channel' => 'required|in:email,sms,whatsapp,phone_call',
             'scheduled_date' => 'required|date|after_or_equal:now',
             'status' => 'required|in:pending,scheduled',
-            'message_content' => 'nullable|string|max:1000'
+            'message_content' => 'nullable|string|max:1000',
         ]);
 
         $student = Student::findOrFail($validated['student_id']);
@@ -203,7 +204,7 @@ class PaymentReminderController extends Controller
             'email' => $student->email,
             'phone' => $student->student_mobile ?: $student->father_mobile,
             'student_name' => $student->name,
-            'enrollment_number' => $student->enrollment_number
+            'enrollment_number' => $student->enrollment_number,
         ];
 
         // Get overdue amount for specific component or total
@@ -218,7 +219,7 @@ class PaymentReminderController extends Controller
         $reminder = PaymentReminder::create(array_merge($validated, [
             'recipient_details' => $recipientDetails,
             'overdue_amount' => $overdueAmount,
-            'status' => $request->has('send_now') ? 'pending' : $validated['status']
+            'status' => $request->has('send_now') ? 'pending' : $validated['status'],
         ]));
 
         // If send_now is requested, attempt to send immediately
@@ -230,7 +231,7 @@ class PaymentReminderController extends Controller
                     ->with('success', 'Reminder created and sent successfully!');
             } else {
                 return redirect()->route('admin.payment-reminders.index')
-                    ->with('warning', 'Reminder created but failed to send: ' . $result['error']);
+                    ->with('warning', 'Reminder created but failed to send: '.$result['error']);
             }
         }
 
@@ -271,7 +272,7 @@ class PaymentReminderController extends Controller
             'channel' => 'required|in:email,sms,whatsapp,phone_call',
             'scheduled_date' => 'required|date',
             'status' => 'required|in:pending,scheduled,sent,failed,cancelled',
-            'message_content' => 'nullable|string|max:1000'
+            'message_content' => 'nullable|string|max:1000',
         ]);
 
         $paymentReminder->update($validated);
@@ -286,7 +287,7 @@ class PaymentReminderController extends Controller
                     ->with('success', "Reminder updated and {$action} successfully!");
             } else {
                 return redirect()->route('admin.payment-reminders.show', $paymentReminder)
-                    ->with('warning', "Reminder updated but failed to {$action}: " . $result['error']);
+                    ->with('warning', "Reminder updated but failed to {$action}: ".$result['error']);
             }
         }
 
@@ -302,7 +303,7 @@ class PaymentReminderController extends Controller
         $paymentReminder->load([
             'student.batch.course',
             'student.studentFees.feeCategory',
-            'feeCategory'
+            'feeCategory',
         ]);
 
         return view('admin.payment-reminders.show', compact('paymentReminder'));
@@ -347,16 +348,15 @@ class PaymentReminderController extends Controller
         }
     }
 
-
     /**
      * Send a specific reminder
      */
     public function send(PaymentReminder $paymentReminder): JsonResponse
     {
-        if (!$this->reminderService) {
+        if (! $this->reminderService) {
             return response()->json([
                 'success' => false,
-                'message' => 'Reminder service not available'
+                'message' => 'Reminder service not available',
             ], 500);
         }
 
@@ -365,12 +365,12 @@ class PaymentReminderController extends Controller
 
             return response()->json([
                 'success' => $result['success'],
-                'message' => $result['success'] ? 'Reminder sent successfully!' : $result['error']
+                'message' => $result['success'] ? 'Reminder sent successfully!' : $result['error'],
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to send reminder: ' . $e->getMessage()
+                'message' => 'Failed to send reminder: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -385,12 +385,12 @@ class PaymentReminderController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Reminder cancelled successfully!'
+                'message' => 'Reminder cancelled successfully!',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to cancel reminder: ' . $e->getMessage()
+                'message' => 'Failed to cancel reminder: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -407,18 +407,18 @@ class PaymentReminderController extends Controller
 
                 return response()->json([
                     'success' => true,
-                    'message' => 'Reminder queued successfully'
+                    'message' => 'Reminder queued successfully',
                 ]);
             } else {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Queue job not available'
+                    'message' => 'Queue job not available',
                 ], 500);
             }
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to queue reminder: ' . $e->getMessage()
+                'message' => 'Failed to queue reminder: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -428,10 +428,10 @@ class PaymentReminderController extends Controller
      */
     public function processPending(): JsonResponse
     {
-        if (!$this->reminderService) {
+        if (! $this->reminderService) {
             return response()->json([
                 'success' => false,
-                'message' => 'Reminder service not available'
+                'message' => 'Reminder service not available',
             ], 500);
         }
 
@@ -442,18 +442,18 @@ class PaymentReminderController extends Controller
                 return response()->json([
                     'success' => true,
                     'message' => 'Processing completed',
-                    'data' => $result
+                    'data' => $result,
                 ]);
             } else {
                 return response()->json([
                     'success' => false,
-                    'message' => 'processPendingReminders method not available'
+                    'message' => 'processPendingReminders method not available',
                 ], 500);
             }
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to process reminders: ' . $e->getMessage()
+                'message' => 'Failed to process reminders: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -549,7 +549,7 @@ class PaymentReminderController extends Controller
                         'count' => $overdueFees->count(),
                         'amount' => $overdueFees->sum(function ($fee) {
                             return ($fee->amount ?? 0) - ($fee->paid_amount ?? 0);
-                        })
+                        }),
                     ];
                 })
                 ->toArray();
@@ -578,14 +578,14 @@ class PaymentReminderController extends Controller
                 'overall_effectiveness' => round($effectiveness, 2),
                 'total_sent' => $totalSent,
                 'total_responses' => $totalResponses,
-                'by_channel' => $this->getEffectivenessByChannel()
+                'by_channel' => $this->getEffectivenessByChannel(),
             ];
         } catch (\Exception $e) {
             return [
                 'overall_effectiveness' => 0,
                 'total_sent' => 0,
                 'total_responses' => 0,
-                'by_channel' => []
+                'by_channel' => [],
             ];
         }
     }
@@ -613,8 +613,8 @@ class PaymentReminderController extends Controller
                             'total_sent' => $item->total_sent,
                             'successful_sent' => $item->successful_sent,
                             'failed' => $item->failed,
-                            'success_rate' => round($successRate, 2)
-                        ]
+                            'success_rate' => round($successRate, 2),
+                        ],
                     ];
                 })
                 ->toArray();
@@ -655,13 +655,13 @@ class PaymentReminderController extends Controller
             return [
                 'this_month' => 0,
                 'last_month' => 0,
-                'trend' => 'stable'
+                'trend' => 'stable',
             ];
         } catch (\Exception $e) {
             return [
                 'this_month' => 0,
                 'last_month' => 0,
-                'trend' => 'stable'
+                'trend' => 'stable',
             ];
         }
     }
@@ -681,13 +681,15 @@ class PaymentReminderController extends Controller
 
                 case 'cancel':
                     $reminder->update(['status' => 'cancelled']);
+
                     return ['success' => true, 'message' => 'Reminder cancelled'];
 
                 case 'reschedule':
                     $reminder->update([
                         'status' => 'scheduled',
-                        'scheduled_date' => now()->addHours(24)
+                        'scheduled_date' => now()->addHours(24),
                     ]);
+
                     return ['success' => true, 'message' => 'Reminder rescheduled'];
 
                 default:
@@ -721,7 +723,6 @@ class PaymentReminderController extends Controller
         return back()->with('success', 'Reminder rescheduled successfully.');
     }
 
-
     /**
      * Bulk operations
      */
@@ -730,7 +731,7 @@ class PaymentReminderController extends Controller
         $validated = $request->validate([
             'reminder_ids' => 'required|array',
             'reminder_ids.*' => 'exists:payment_reminders,id',
-            'action' => 'required|in:send,cancel,delete,reschedule'
+            'action' => 'required|in:send,cancel,delete,reschedule',
         ]);
 
         try {
@@ -751,7 +752,7 @@ class PaymentReminderController extends Controller
                                 }
                             } else {
                                 $results['failed']++;
-                                $results['errors'][] = "Reminder service not available";
+                                $results['errors'][] = 'Reminder service not available';
                             }
                             break;
 
@@ -768,7 +769,7 @@ class PaymentReminderController extends Controller
                         case 'reschedule':
                             $reminder->update([
                                 'status' => 'scheduled',
-                                'scheduled_date' => now()->addHours(24)
+                                'scheduled_date' => now()->addHours(24),
                             ]);
                             $results['success']++;
                             break;
@@ -782,13 +783,13 @@ class PaymentReminderController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => "Bulk action completed. Success: {$results['success']}, Failed: {$results['failed']}",
-                'results' => $results
+                'results' => $results,
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Bulk action failed: ' . $e->getMessage()
+                'message' => 'Bulk action failed: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -812,7 +813,7 @@ class PaymentReminderController extends Controller
 
             return back()->with('success', $result['message']);
         } catch (\Exception $e) {
-            return back()->with('error', 'Failed to update defaulters: ' . $e->getMessage());
+            return back()->with('error', 'Failed to update defaulters: '.$e->getMessage());
         }
     }
 
@@ -826,15 +827,16 @@ class PaymentReminderController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $healthData
+                'data' => $healthData,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Health check failed: ' . $e->getMessage()
+                'message' => 'Health check failed: '.$e->getMessage(),
             ]);
         }
     }
+
     /**
      * Export reminders
      */
@@ -863,7 +865,7 @@ class PaymentReminderController extends Controller
             $reminders = $query->get();
 
             // Create CSV export
-            $filename = 'payment_reminders_' . now()->format('Y_m_d_His') . '.csv';
+            $filename = 'payment_reminders_'.now()->format('Y_m_d_His').'.csv';
             $headers = [
                 'Content-Type' => 'text/csv',
                 'Content-Disposition' => "attachment; filename=\"{$filename}\"",
@@ -884,7 +886,7 @@ class PaymentReminderController extends Controller
                     'Scheduled Date',
                     'Sent Date',
                     'Overdue Amount',
-                    'Message Content'
+                    'Message Content',
                 ]);
 
                 // CSV data
@@ -900,7 +902,7 @@ class PaymentReminderController extends Controller
                         $reminder->scheduled_date,
                         $reminder->sent_at,
                         $reminder->overdue_amount,
-                        $reminder->message_content
+                        $reminder->message_content,
                     ]);
                 }
 
@@ -910,7 +912,7 @@ class PaymentReminderController extends Controller
             return response()->stream($callback, 200, $headers);
 
         } catch (\Exception $e) {
-            return back()->with('error', 'Export failed: ' . $e->getMessage());
+            return back()->with('error', 'Export failed: '.$e->getMessage());
         }
     }
 }

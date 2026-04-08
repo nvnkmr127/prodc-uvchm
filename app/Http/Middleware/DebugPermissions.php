@@ -13,12 +13,13 @@ class DebugPermissions
     public function handle(Request $request, Closure $next, ...$permissions)
     {
         $user = auth()->user();
-        
-        if (!$user) {
+
+        if (! $user) {
             Log::info('403 Debug: No authenticated user', [
                 'route' => $request->route()->getName(),
                 'url' => $request->url(),
             ]);
+
             return $next($request);
         }
 
@@ -30,9 +31,9 @@ class DebugPermissions
             'required_permissions' => $permissions,
             'user_roles' => $user->roles->pluck('name')->toArray(),
             'user_permissions' => $user->getAllPermissions()->pluck('name')->toArray(),
-            'permission_checks' => collect($permissions)->mapWithKeys(function($perm) use ($user) {
+            'permission_checks' => collect($permissions)->mapWithKeys(function ($perm) use ($user) {
                 return [$perm => $user->can($perm)];
-            })->toArray()
+            })->toArray(),
         ]);
 
         return $next($request);

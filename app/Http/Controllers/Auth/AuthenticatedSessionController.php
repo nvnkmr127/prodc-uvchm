@@ -4,12 +4,12 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Models\Setting;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\View\View;
-use App\Models\Setting; // <-- Import the Setting model
+use Illuminate\View\View; // <-- Import the Setting model
 
 class AuthenticatedSessionController extends Controller
 {
@@ -22,7 +22,7 @@ class AuthenticatedSessionController extends Controller
             // Fetch all settings and key them by their name for easy access
             $settings = Setting::all()->keyBy('key');
         } catch (\Throwable $e) {
-            \Log::warning('AuthenticatedSessionController: Failed to load settings: ' . $e->getMessage());
+            \Log::warning('AuthenticatedSessionController: Failed to load settings: '.$e->getMessage());
             $settings = collect();
         }
 

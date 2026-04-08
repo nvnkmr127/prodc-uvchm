@@ -4,7 +4,6 @@ namespace App\Events\Attendance;
 
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
-use Illuminate\Broadcasting\PresenceChannel;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
@@ -15,7 +14,9 @@ class AnalyticsEvent implements ShouldBroadcast
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     public string $type;
+
     public array $analytics;
+
     public array $metadata;
 
     public function __construct(string $type, array $analytics, array $metadata = [])
@@ -32,7 +33,7 @@ class AnalyticsEvent implements ShouldBroadcast
     {
         return [
             new PrivateChannel('analytics.updates'),
-            new Channel('dashboard.updates')
+            new Channel('dashboard.updates'),
         ];
     }
 
@@ -45,7 +46,7 @@ class AnalyticsEvent implements ShouldBroadcast
             'type' => $this->type,
             'analytics' => $this->analytics,
             'metadata' => $this->metadata,
-            'timestamp' => now()->toISOString()
+            'timestamp' => now()->toISOString(),
         ];
     }
 
@@ -54,6 +55,6 @@ class AnalyticsEvent implements ShouldBroadcast
      */
     public function broadcastAs(): string
     {
-        return 'analytics.' . $this->type;
+        return 'analytics.'.$this->type;
     }
 }

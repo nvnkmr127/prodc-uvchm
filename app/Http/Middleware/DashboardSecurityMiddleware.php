@@ -4,9 +4,8 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
-use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\Cache;
-
+use Symfony\Component\HttpFoundation\Response;
 
 class DashboardSecurityMiddleware
 {
@@ -17,7 +16,7 @@ class DashboardSecurityMiddleware
     {
         $user = auth()->user();
 
-        if (!$user) {
+        if (! $user) {
             return $next($request);
         }
 
@@ -27,7 +26,7 @@ class DashboardSecurityMiddleware
 
             return response()->json([
                 'error' => 'Suspicious activity detected',
-                'message' => 'Your session has been flagged for review'
+                'message' => 'Your session has been flagged for review',
             ], 429);
         }
 
@@ -37,7 +36,7 @@ class DashboardSecurityMiddleware
 
             return response()->json([
                 'error' => 'Session security compromised',
-                'message' => 'Please log in again'
+                'message' => 'Please log in again',
             ], 401);
         }
 

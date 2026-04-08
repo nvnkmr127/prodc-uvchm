@@ -4,10 +4,8 @@ namespace App\Events\Attendance;
 
 use App\Models\Attendance\BiometricLog;
 use App\Models\BiometricDevice;
-
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
-use Illuminate\Broadcasting\PresenceChannel;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
@@ -18,8 +16,11 @@ class BiometricEvent implements ShouldBroadcast
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     public string $action;
+
     public ?BiometricLog $log;
+
     public ?BiometricDevice $device;
+
     public array $data;
 
     public function __construct(string $action, array $data = [], ?BiometricLog $log = null, ?BiometricDevice $device = null)
@@ -38,11 +39,11 @@ class BiometricEvent implements ShouldBroadcast
         $channels = [new Channel('biometric.updates')];
 
         if ($this->device) {
-            $channels[] = new PrivateChannel('biometric.device.' . $this->device->id);
+            $channels[] = new PrivateChannel('biometric.device.'.$this->device->id);
         }
 
         if ($this->log && $this->log->student_id) {
-            $channels[] = new PrivateChannel('student.' . $this->log->student_id);
+            $channels[] = new PrivateChannel('student.'.$this->log->student_id);
         }
 
         return $channels;
@@ -56,7 +57,7 @@ class BiometricEvent implements ShouldBroadcast
         $broadcastData = [
             'action' => $this->action,
             'data' => $this->data,
-            'timestamp' => now()->toISOString()
+            'timestamp' => now()->toISOString(),
         ];
 
         if ($this->log) {
@@ -66,7 +67,7 @@ class BiometricEvent implements ShouldBroadcast
                 'employee_code' => $this->log->employee_code,
                 'scan_datetime' => $this->log->scan_datetime->toISOString(),
                 'status' => $this->log->status,
-                'student_name' => $this->log->student->name ?? 'Unknown'
+                'student_name' => $this->log->student->name ?? 'Unknown',
             ];
         }
 
@@ -76,7 +77,7 @@ class BiometricEvent implements ShouldBroadcast
                 'device_name' => $this->device->device_name,
                 'device_id' => $this->device->device_id,
                 'status' => $this->device->status,
-                'location' => $this->device->location
+                'location' => $this->device->location,
             ];
         }
 
@@ -88,6 +89,6 @@ class BiometricEvent implements ShouldBroadcast
      */
     public function broadcastAs(): string
     {
-        return 'biometric.' . $this->action;
+        return 'biometric.'.$this->action;
     }
 }

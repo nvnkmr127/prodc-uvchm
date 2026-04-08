@@ -1,10 +1,11 @@
 <?php
 
 // App/Events/EloquentWebhookEvent.php
+
 namespace App\Events;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Broadcasting\InteractsWithSockets;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
@@ -65,9 +66,9 @@ class EloquentWebhookEvent
         $this->model = $model;
         $this->eventType = $eventType;
         $this->modelName = $modelName;
-        $this->webhookEventName = str_starts_with($eventType, strtolower($modelName) . '.')
+        $this->webhookEventName = str_starts_with($eventType, strtolower($modelName).'.')
             ? $eventType
-            : strtolower($modelName) . '.' . $eventType;
+            : strtolower($modelName).'.'.$eventType;
         $this->additionalData = $additionalData;
         $this->occurredAt = now();
 
@@ -166,7 +167,7 @@ class EloquentWebhookEvent
      */
     public function getTriggeredByData(): ?array
     {
-        if (!$this->triggeredBy) {
+        if (! $this->triggeredBy) {
             return null;
         }
 
@@ -189,6 +190,7 @@ class EloquentWebhookEvent
     public function setAdditionalData(array $data): self
     {
         $this->additionalData = array_merge($this->additionalData, $data);
+
         return $this;
     }
 
@@ -198,6 +200,7 @@ class EloquentWebhookEvent
     public function addData(string $key, $value): self
     {
         $this->additionalData[$key] = $value;
+
         return $this;
     }
 
@@ -276,14 +279,12 @@ class EloquentWebhookEvent
         ];
     }
 
-
-
     /**
      * Get clean model data without Laravel internals
      */
     public function getCleanModelData(): array
     {
-        if (!$this->model) {
+        if (! $this->model) {
             return [];
         }
 
@@ -294,7 +295,7 @@ class EloquentWebhookEvent
             'pivot',
             'laravel_through_key',
             'created_at',
-            'updated_at'
+            'updated_at',
         ];
 
         foreach ($fieldsToRemove as $field) {
@@ -317,7 +318,7 @@ class EloquentWebhookEvent
      */
     public function getCleanTriggeredByData(): ?array
     {
-        if (!$this->triggeredBy) {
+        if (! $this->triggeredBy) {
             return null;
         }
 
@@ -344,7 +345,7 @@ class EloquentWebhookEvent
             'fee_status',
             'student_status',
             'notification_sent',
-            'metadata'
+            'metadata',
         ];
 
         foreach ($this->additionalData as $key => $value) {
@@ -369,7 +370,7 @@ class EloquentWebhookEvent
             'triggered_by' => $this->getCleanTriggeredByData(),
             'additional_data' => $this->getCleanAdditionalData(),
             'occurred_at' => $this->occurredAt->toISOString(),
-            'webhook_event_name' => $this->webhookEventName
+            'webhook_event_name' => $this->webhookEventName,
         ];
     }
 
@@ -378,7 +379,7 @@ class EloquentWebhookEvent
      */
     public function buildPaymentData(): array
     {
-        if (!$this->model || !($this->model instanceof \App\Models\Payment)) {
+        if (! $this->model || ! ($this->model instanceof \App\Models\Payment)) {
             return [];
         }
 
@@ -387,7 +388,7 @@ class EloquentWebhookEvent
         $data = [
             'id' => $payment->id,
             'amount' => (float) $payment->amount,
-            'formatted_amount' => '₹' . number_format($payment->amount, 2),
+            'formatted_amount' => '₹'.number_format($payment->amount, 2),
             'payment_method' => $payment->payment_method,
             'payment_date' => $payment->payment_date,
             'receipt_number' => $payment->receipt_number,
@@ -403,7 +404,7 @@ class EloquentWebhookEvent
                 'name' => $student->name,
                 'enrollment_number' => $student->enrollment_number,
                 'email' => $student->email,
-                'mobile' => $student->student_mobile
+                'mobile' => $student->student_mobile,
             ];
         }
 
@@ -426,7 +427,7 @@ class EloquentWebhookEvent
      */
     public function buildStudentData(): array
     {
-        if (!$this->model || !($this->model instanceof \App\Models\Student)) {
+        if (! $this->model || ! ($this->model instanceof \App\Models\Student)) {
             return [];
         }
 
@@ -439,14 +440,14 @@ class EloquentWebhookEvent
             'enrollment_number' => $student->enrollment_number,
             'mobile' => $student->student_mobile,
             'status' => $student->status,
-            'admission_date' => $student->admission_date
+            'admission_date' => $student->admission_date,
         ];
 
         // Add batch info if available
         if ($student->batch) {
             $data['batch'] = [
                 'id' => $student->batch->id,
-                'name' => $student->batch->name
+                'name' => $student->batch->name,
             ];
         }
 
@@ -458,7 +459,7 @@ class EloquentWebhookEvent
      */
     public function buildStudentFeeData(): array
     {
-        if (!$this->model || !($this->model instanceof \App\Models\StudentFee)) {
+        if (! $this->model || ! ($this->model instanceof \App\Models\StudentFee)) {
             return [];
         }
 
@@ -499,7 +500,7 @@ class EloquentWebhookEvent
      */
     public function buildConcessionData(): array
     {
-        if (!$this->model || !($this->model instanceof \App\Models\StudentConcession)) {
+        if (! $this->model || ! ($this->model instanceof \App\Models\StudentConcession)) {
             return [];
         }
 
@@ -537,13 +538,12 @@ class EloquentWebhookEvent
         return $data;
     }
 
-
     /**
      * Get model-specific optimized data based on model type
      */
     public function getModelSpecificData(): array
     {
-        if (!$this->model) {
+        if (! $this->model) {
             return [];
         }
 
@@ -563,6 +563,7 @@ class EloquentWebhookEvent
                 return $this->getCleanModelData();
         }
     }
+
     /**
      * Handle dynamic property access
      */

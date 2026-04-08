@@ -3,15 +3,15 @@
 namespace App\Services\Attendance;
 
 use App\Models\Attendance;
-use App\Models\Student;
-use App\Models\Batch;
 use App\Models\Attendance\AttendanceCache;
 use App\Models\Attendance\BiometricLog;
 use App\Models\Attendance\NotificationLog;
+use App\Models\Batch;
+use App\Models\Student;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class AnalyticsService
 {
@@ -19,51 +19,51 @@ class AnalyticsService
      * Get comprehensive attendance analytics for dashboard
      */
     public function getDashboardAnalytics($filters = [])
-{
-    try {
-        $dateFrom = $filters['date_from'] ?? now()->subDays(30);
-        $dateTo = $filters['date_to'] ?? now();
-        
-        // ✅ FIX: Prefix 'status' with table name
-        $batchStats = \DB::table('attendances')
-            ->join('students', 'attendances.student_id', '=', 'students.id')
-            ->join('batches', 'students.batch_id', '=', 'batches.id')
-            ->select([
-                'batches.id as batch_id',
-                'batches.name as batch_name',
-                \DB::raw('COUNT(*) as total_records'),
-                \DB::raw("SUM(CASE WHEN attendances.status = 'present' THEN 1 ELSE 0 END) as present_count"),
-                \DB::raw("SUM(CASE WHEN attendances.status = 'absent' THEN 1 ELSE 0 END) as absent_count"),
-                \DB::raw("SUM(CASE WHEN attendances.status = 'late' THEN 1 ELSE 0 END) as late_count"),
-            ])
-            ->whereBetween('attendances.attendance_date', [$dateFrom, $dateTo])
-            ->groupBy('batches.id', 'batches.name')
-            ->get();
+    {
+        try {
+            $dateFrom = $filters['date_from'] ?? now()->subDays(30);
+            $dateTo = $filters['date_to'] ?? now();
 
-        return [
-            'batch_stats' => $batchStats,
-            'overview' => [
-                'total_students' => 100,
-                'present_today' => 85,
-                'absent_today' => 15,
-                'attendance_percentage' => 85.0
-            ]
-        ];
+            // ✅ FIX: Prefix 'status' with table name
+            $batchStats = \DB::table('attendances')
+                ->join('students', 'attendances.student_id', '=', 'students.id')
+                ->join('batches', 'students.batch_id', '=', 'batches.id')
+                ->select([
+                    'batches.id as batch_id',
+                    'batches.name as batch_name',
+                    \DB::raw('COUNT(*) as total_records'),
+                    \DB::raw("SUM(CASE WHEN attendances.status = 'present' THEN 1 ELSE 0 END) as present_count"),
+                    \DB::raw("SUM(CASE WHEN attendances.status = 'absent' THEN 1 ELSE 0 END) as absent_count"),
+                    \DB::raw("SUM(CASE WHEN attendances.status = 'late' THEN 1 ELSE 0 END) as late_count"),
+                ])
+                ->whereBetween('attendances.attendance_date', [$dateFrom, $dateTo])
+                ->groupBy('batches.id', 'batches.name')
+                ->get();
 
-    } catch (\Exception $e) {
-        \Log::error('Analytics error: ' . $e->getMessage());
-        
-        return [
-            'batch_stats' => collect(),
-            'overview' => [
-                'total_students' => 0,
-                'present_today' => 0,
-                'absent_today' => 0,
-                'attendance_percentage' => 0
-            ]
-        ];
+            return [
+                'batch_stats' => $batchStats,
+                'overview' => [
+                    'total_students' => 100,
+                    'present_today' => 85,
+                    'absent_today' => 15,
+                    'attendance_percentage' => 85.0,
+                ],
+            ];
+
+        } catch (\Exception $e) {
+            \Log::error('Analytics error: '.$e->getMessage());
+
+            return [
+                'batch_stats' => collect(),
+                'overview' => [
+                    'total_students' => 0,
+                    'present_today' => 0,
+                    'absent_today' => 0,
+                    'attendance_percentage' => 0,
+                ],
+            ];
+        }
     }
-}
 
     /**
      * Get attendance overview statistics
@@ -78,7 +78,7 @@ class AnalyticsService
         $absentCount = $query->clone()->where('status', 'absent')->count();
         $lateCount = $query->clone()->where('status', 'late')->count();
         $excusedCount = $query->clone()->where('status', 'excused')->count();
-        
+
         // Calculate percentages
         $attendancePercentage = $totalRecords > 0 ? round(($presentCount + $lateCount + $excusedCount) / $totalRecords * 100, 2) : 0;
         $punctualityPercentage = $totalRecords > 0 ? round($presentCount / $totalRecords * 100, 2) : 0;
@@ -112,11 +112,11 @@ class AnalyticsService
         $dateFrom = $filters['date_from'] ?? now()->subDays(30);
         $dateTo = $filters['date_to'] ?? now();
 
-        $groupBy = match($period) {
-            'daily' => "DATE(attendance_date)",
-            'weekly' => "YEARWEEK(attendance_date)",
+        $groupBy = match ($period) {
+            'daily' => 'DATE(attendance_date)',
+            'weekly' => 'YEARWEEK(attendance_date)',
             'monthly' => "DATE_FORMAT(attendance_date, '%Y-%m')",
-            default => "DATE(attendance_date)",
+            default => 'DATE(attendance_date)',
         };
 
         $trends = Attendance::selectRaw("
@@ -168,15 +168,16 @@ class AnalyticsService
             ");
 
         $this->applyFiltersToQuery($query, $filters, 'attendances');
-        
+
         $batchStats = $query->groupBy('batches.id', 'batches.name')
-                           ->orderBy('attendance_percentage', 'desc')
-                           ->get();
+            ->orderBy('attendance_percentage', 'desc')
+            ->get();
 
         // Add performance rankings
         $batchStats = $batchStats->map(function ($batch, $index) {
             $batch->rank = $index + 1;
             $batch->performance_level = $this->getPerformanceLevel($batch->attendance_percentage);
+
             return $batch;
         });
 
@@ -193,7 +194,7 @@ class AnalyticsService
     public function getLowAttendanceStudents(array $filters = []): Collection
     {
         $threshold = $filters['threshold'] ?? 75;
-        
+
         return AttendanceCache::current()
             ->with(['student.batch'])
             ->where('attendance_percentage', '<', $threshold)
@@ -231,10 +232,10 @@ class AnalyticsService
             ");
 
         $this->applyFilters($patterns, $filters);
-        
+
         $dailyStats = $patterns->groupBy(DB::raw('DAYOFWEEK(attendance_date)'), DB::raw('DAYNAME(attendance_date)'))
-                             ->orderBy(DB::raw('DAYOFWEEK(attendance_date)'))
-                             ->get();
+            ->orderBy(DB::raw('DAYOFWEEK(attendance_date)'))
+            ->get();
 
         // Find peak and low days
         $peakDay = $dailyStats->sortByDesc('avg_attendance')->first();
@@ -257,17 +258,17 @@ class AnalyticsService
         $dateTo = $filters['date_to'] ?? now();
 
         $biometricQuery = BiometricLog::whereBetween('scan_datetime', [$dateFrom, $dateTo]);
-        
+
         $totalScans = $biometricQuery->count();
         $processedScans = $biometricQuery->clone()->where('processed', true)->count();
         $failedScans = $biometricQuery->clone()->where('processed', false)->whereNotNull('failure_reason')->count();
-        
-        $deviceStats = BiometricLog::selectRaw("
+
+        $deviceStats = BiometricLog::selectRaw('
                 device_id,
                 COUNT(*) as total_scans,
                 SUM(CASE WHEN processed = 1 THEN 1 ELSE 0 END) as successful_scans,
                 SUM(CASE WHEN processed = 0 AND failure_reason IS NOT NULL THEN 1 ELSE 0 END) as failed_scans
-            ")
+            ')
             ->whereBetween('scan_datetime', [$dateFrom, $dateTo])
             ->groupBy('device_id')
             ->get();
@@ -302,7 +303,7 @@ class AnalyticsService
     public function getRealTimeData(array $filters = []): array
     {
         $today = now()->toDateString();
-        
+
         $todayStats = Attendance::where('attendance_date', $today)
             ->selectRaw("
                 COUNT(*) as total,
@@ -340,13 +341,13 @@ class AnalyticsService
 
         // Get attendance data for the student
         $attendanceData = $this->calculateStudentAttendanceData($studentId, $options);
-        
+
         // Get or create cache entry
         $cache = AttendanceCache::getOrCreateForStudent($studentId, $cacheType, $periodType, $periodValue);
-        
+
         // Update with fresh data
         $cache->updateWithAttendanceData($attendanceData);
-        
+
         return $cache;
     }
 
@@ -360,7 +361,7 @@ class AnalyticsService
 
         $attendances = $query->get();
         $totalClasses = $attendances->count();
-        
+
         $stats = [
             'total_classes' => $totalClasses,
             'present_classes' => $attendances->where('status', 'present')->count(),
@@ -371,11 +372,11 @@ class AnalyticsService
 
         // Calculate consecutive absences
         $consecutiveAbsents = $this->calculateConsecutiveAbsences($attendances);
-        
+
         // Get last attendance date
         $lastAttendance = $attendances->where('status', '!=', 'absent')
-                                    ->sortByDesc('attendance_date')
-                                    ->first();
+            ->sortByDesc('attendance_date')
+            ->first();
 
         return array_merge($stats, [
             'consecutive_absents' => $consecutiveAbsents,
@@ -463,21 +464,28 @@ class AnalyticsService
 
     private function calculateTrendDirection(Collection $percentages): string
     {
-        if ($percentages->count() < 2) return 'stable';
-        
+        if ($percentages->count() < 2) {
+            return 'stable';
+        }
+
         $recent = $percentages->slice(-5)->avg();
         $previous = $percentages->slice(-10, 5)->avg();
-        
+
         $difference = $recent - $previous;
-        
-        if ($difference > 2) return 'improving';
-        if ($difference < -2) return 'declining';
+
+        if ($difference > 2) {
+            return 'improving';
+        }
+        if ($difference < -2) {
+            return 'declining';
+        }
+
         return 'stable';
     }
 
     private function formatChartData(Collection $trends, string $period): array
     {
-        return $trends->map(function ($trend) use ($period) {
+        return $trends->map(function ($trend) {
             return [
                 'period' => $trend->period,
                 'attendance_percentage' => $trend->attendance_percentage,
@@ -491,26 +499,42 @@ class AnalyticsService
 
     private function getPerformanceLevel(float $percentage): string
     {
-        if ($percentage >= 90) return 'excellent';
-        if ($percentage >= 80) return 'good';
-        if ($percentage >= 75) return 'satisfactory';
+        if ($percentage >= 90) {
+            return 'excellent';
+        }
+        if ($percentage >= 80) {
+            return 'good';
+        }
+        if ($percentage >= 75) {
+            return 'satisfactory';
+        }
+
         return 'needs_improvement';
     }
 
     private function calculateRiskLevel(AttendanceCache $cache): string
     {
         $score = 0;
-        
-        if ($cache->attendance_percentage < 60) $score += 3;
-        elseif ($cache->attendance_percentage < 75) $score += 2;
-        elseif ($cache->attendance_percentage < 85) $score += 1;
-        
-        if ($cache->consecutive_absents >= 5) $score += 2;
-        elseif ($cache->consecutive_absents >= 3) $score += 1;
-        
-        if ($cache->trend_direction === 'declining') $score += 1;
-        
-        return match(true) {
+
+        if ($cache->attendance_percentage < 60) {
+            $score += 3;
+        } elseif ($cache->attendance_percentage < 75) {
+            $score += 2;
+        } elseif ($cache->attendance_percentage < 85) {
+            $score += 1;
+        }
+
+        if ($cache->consecutive_absents >= 5) {
+            $score += 2;
+        } elseif ($cache->consecutive_absents >= 3) {
+            $score += 1;
+        }
+
+        if ($cache->trend_direction === 'declining') {
+            $score += 1;
+        }
+
+        return match (true) {
             $score >= 4 => 'critical',
             $score >= 2 => 'high',
             $score >= 1 => 'medium',
@@ -522,7 +546,7 @@ class AnalyticsService
     {
         $recentAttendances = $attendances->sortByDesc('attendance_date');
         $consecutive = 0;
-        
+
         foreach ($recentAttendances as $attendance) {
             if ($attendance->status === 'absent') {
                 $consecutive++;
@@ -530,7 +554,7 @@ class AnalyticsService
                 break;
             }
         }
-        
+
         return $consecutive;
     }
 
@@ -541,6 +565,7 @@ class AnalyticsService
         })->map(function ($monthAttendances) {
             $total = $monthAttendances->count();
             $present = $monthAttendances->where('status', 'present')->count();
+
             return [
                 'total' => $total,
                 'present' => $present,
@@ -558,16 +583,16 @@ class AnalyticsService
     private function getRecentPattern(Collection $attendances): array
     {
         return $attendances->sortByDesc('attendance_date')
-                          ->take(10)
-                          ->pluck('status', 'attendance_date')
-                          ->toArray();
+            ->take(10)
+            ->pluck('status', 'attendance_date')
+            ->toArray();
     }
 
     private function getWeekdayWeekendComparison(Collection $dailyStats): array
     {
         $weekdays = $dailyStats->whereIn('day_of_week', [2, 3, 4, 5, 6]); // Mon-Fri
         $weekends = $dailyStats->whereIn('day_of_week', [1, 7]); // Sun, Sat
-        
+
         return [
             'weekday_avg' => $weekdays->avg('avg_attendance') ?? 0,
             'weekend_avg' => $weekends->avg('avg_attendance') ?? 0,

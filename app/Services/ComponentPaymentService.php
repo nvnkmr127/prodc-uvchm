@@ -2,18 +2,15 @@
 
 namespace App\Services;
 
+use App\Models\Batch;
+use App\Models\FeeCategory;
+use App\Models\Payment;
+use App\Models\PaymentReminder;
 use App\Models\Student;
 use App\Models\StudentFee;
-use App\Models\Payment;
-use App\Models\FeeCategory;
-use App\Models\PaymentReminder;
-use App\Models\StudentConcession;
-use App\Models\ComponentPaymentItem;
-use App\Models\Batch;
+use Exception;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Exception;
-use Carbon\Carbon;
 
 class ComponentPaymentService
 {
@@ -65,7 +62,7 @@ class ComponentPaymentService
                     'payment_id' => $payment->id,
                     'receipt_number' => $payment->receipt_number,
                     'amount' => $payment->amount,
-                    'components' => $components
+                    'components' => $components,
                 ])
                 ->log("Component payment of ₹{$payment->amount} processed");
 
@@ -75,7 +72,7 @@ class ComponentPaymentService
                 'success' => true,
                 'payment' => $payment,
                 'applied_amounts' => $appliedAmounts,
-                'message' => "Payment of ₹{$payment->amount} processed successfully."
+                'message' => "Payment of ₹{$payment->amount} processed successfully.",
             ];
 
         } catch (Exception $e) {
@@ -83,13 +80,13 @@ class ComponentPaymentService
             Log::error('Component payment failed:', [
                 'student_id' => $student->id,
                 'error' => $e->getMessage(),
-                'components' => $components
+                'components' => $components,
             ]);
 
             return [
                 'success' => false,
                 'error' => $e->getMessage(),
-                'message' => 'Payment processing failed: ' . $e->getMessage()
+                'message' => 'Payment processing failed: '.$e->getMessage(),
             ];
         }
     }
@@ -114,8 +111,9 @@ class ComponentPaymentService
             $remainingConcession = $amount;
 
             foreach ($studentFees as $fee) {
-                if ($remainingConcession <= 0)
+                if ($remainingConcession <= 0) {
                     break;
+                }
 
                 $maxConcessionForThisFee = $fee->amount - $fee->concession_amount - $fee->paid_amount;
                 $concessionToApply = min($remainingConcession, $maxConcessionForThisFee);
@@ -125,7 +123,7 @@ class ComponentPaymentService
                         'concession_amount' => $fee->concession_amount + $concessionToApply,
                         'concession_reason' => $reason,
                         'concession_approved_by' => $approvedBy ?? auth()->id(),
-                        'concession_approved_at' => now()
+                        'concession_approved_at' => now(),
                     ]);
 
                     $totalConcessionApplied += $concessionToApply;
@@ -138,14 +136,15 @@ class ComponentPaymentService
             return [
                 'success' => true,
                 'amount_applied' => $totalConcessionApplied,
-                'message' => "Concession of ₹{$totalConcessionApplied} applied successfully."
+                'message' => "Concession of ₹{$totalConcessionApplied} applied successfully.",
             ];
 
         } catch (Exception $e) {
             DB::rollback();
+
             return [
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ];
         }
     }
@@ -167,7 +166,8 @@ class ComponentPaymentService
                 'recent_activity' => $this->getRecentReminderActivity(),
             ];
         } catch (\Exception $e) {
-            \Log::error('Error getting component reminder overview: ' . $e->getMessage());
+            \Log::error('Error getting component reminder overview: '.$e->getMessage());
+
             return [
                 'total_reminders' => 0,
                 'pending_reminders' => 0,
@@ -180,7 +180,6 @@ class ComponentPaymentService
             ];
         }
     }
-
 
     /**
      * Calculate reminder success rate
@@ -205,14 +204,14 @@ class ComponentPaymentService
             'total_components' => $fees->count(),
             'total_amount' => $fees->sum('amount'),
             'paid_amount' => $fees->sum('paid_amount'),
-            'due_amount' => $fees->sum(fn($fee) => $fee->getRemainingAmount()),
+            'due_amount' => $fees->sum(fn ($fee) => $fee->getRemainingAmount()),
             'pending_count' => $fees->whereIn('status', ['unpaid', 'partial'])->count(),
             'paid_count' => $fees->where('status', 'paid')->count(),
             'overdue_count' => $fees->where('status', 'overdue')->count(),
             'concession_amount' => $fees->sum('concession_amount'),
-            'net_amount' => $fees->sum(fn($fee) => $fee->getNetAmount()),
+            'net_amount' => $fees->sum(fn ($fee) => $fee->getNetAmount()),
             'collection_percentage' => $fees->sum('amount') > 0 ?
-                round(($fees->sum('paid_amount') / $fees->sum('amount')) * 100, 2) : 0
+                round(($fees->sum('paid_amount') / $fees->sum('amount')) * 100, 2) : 0,
         ];
     }
 
@@ -232,7 +231,7 @@ class ComponentPaymentService
                 ->whereMonth('payment_date', now()->month)
                 ->sum('amount'),
             'total_concessions' => $studentFees->sum('concession_amount'),
-            'collection_rate' => $this->calculateCollectionRate()
+            'collection_rate' => $this->calculateCollectionRate(),
         ];
     }
 
@@ -301,6 +300,7 @@ class ComponentPaymentService
             ->map(function ($item) {
                 $item->success_rate = $item->total_sent > 0 ?
                     round(($item->successful / $item->total_sent) * 100, 2) : 0;
+
                 return $item;
             })
             ->toArray();
@@ -328,7 +328,6 @@ class ComponentPaymentService
             ->toArray();
     }
 
-
     /**
      * Get monthly collection trends
      */
@@ -346,7 +345,7 @@ class ComponentPaymentService
             $trends[] = [
                 'month' => $date->format('M Y'),
                 'amount' => $amount,
-                'date' => $date->format('Y-m-d')
+                'date' => $date->format('Y-m-d'),
             ];
         }
 
@@ -387,7 +386,6 @@ class ComponentPaymentService
                 return max(0, $fee->amount - $fee->concession_amount - $fee->paid_amount);
             });
     }
-
 
     /**
      * Check if student has outstanding fees (replaces hasUnpaidFees)
@@ -441,7 +439,7 @@ class ComponentPaymentService
             'collection_rate' => round($collectionRate, 2),
             'timeliness_score' => $this->calculateTimelinessScore(),
             'consistency_score' => $this->calculateConsistencyScore(),
-            'overall_score' => round(($collectionRate + $this->calculateTimelinessScore() + $this->calculateConsistencyScore()) / 3, 2)
+            'overall_score' => round(($collectionRate + $this->calculateTimelinessScore() + $this->calculateConsistencyScore()) / 3, 2),
         ];
     }
 
@@ -450,7 +448,6 @@ class ComponentPaymentService
         // Placeholder - implement based on payment consistency logic
         return 85.0;
     }
-
 
     private function calculateTimelinessScore(): float
     {
@@ -463,7 +460,6 @@ class ComponentPaymentService
 
         return $totalPayments > 0 ? round(($onTimePayments / $totalPayments) * 100, 2) : 100;
     }
-
 
     /**
      * Get payment behavior analytics
@@ -478,7 +474,7 @@ class ComponentPaymentService
             'average_days_to_pay' => round($avgDaysToPay, 1),
             'payment_frequency' => $this->getPaymentFrequency(),
             'preferred_methods' => $this->getPreferredPaymentMethods(),
-            'seasonal_patterns' => $this->getSeasonalPatterns()
+            'seasonal_patterns' => $this->getSeasonalPatterns(),
         ];
     }
 
@@ -491,24 +487,24 @@ class ComponentPaymentService
 
         $byCategory = $outstandingFees->groupBy('fee_category_id')->map(function ($fees, $categoryId) {
             $category = FeeCategory::find($categoryId);
+
             return [
                 'category_name' => $category ? $category->name : 'Unknown',
-                'total_amount' => $fees->sum(fn($f) => $f->amount - $f->concession_amount - $f->paid_amount),
-                'count' => $fees->count()
+                'total_amount' => $fees->sum(fn ($f) => $f->amount - $f->concession_amount - $f->paid_amount),
+                'count' => $fees->count(),
             ];
         });
 
         $byAging = $this->calculateAgingAnalysis($outstandingFees);
 
         return [
-            'total_outstanding' => $outstandingFees->sum(fn($f) => $f->amount - $f->concession_amount - $f->paid_amount),
-            'total_overdue' => $outstandingFees->where('status', 'overdue')->sum(fn($f) => $f->amount - $f->concession_amount - $f->paid_amount),
+            'total_outstanding' => $outstandingFees->sum(fn ($f) => $f->amount - $f->concession_amount - $f->paid_amount),
+            'total_overdue' => $outstandingFees->where('status', 'overdue')->sum(fn ($f) => $f->amount - $f->concession_amount - $f->paid_amount),
             'total_amount' => $outstandingFees->sum('amount'),
             'by_category' => $byCategory->toArray(),
-            'by_aging' => $byAging
+            'by_aging' => $byAging,
         ];
     }
-
 
     private function calculateAgingAnalysis($outstandingFees): array
     {
@@ -516,12 +512,13 @@ class ComponentPaymentService
             '0-30' => 0,
             '31-60' => 0,
             '61-90' => 0,
-            '90+' => 0
+            '90+' => 0,
         ];
 
         foreach ($outstandingFees as $fee) {
-            if (!$fee->due_date)
+            if (! $fee->due_date) {
                 continue;
+            }
 
             $daysOverdue = now()->diffInDays($fee->due_date, false);
             $amount = $fee->amount - $fee->concession_amount - $fee->paid_amount;
@@ -539,7 +536,6 @@ class ComponentPaymentService
 
         return $aging;
     }
-
 
     /**
      * Update overdue fee statuses (replaces updateOverdueInvoices)
@@ -607,7 +603,7 @@ class ComponentPaymentService
                         ->whereIn('status', ['unpaid', 'partial'])
                         ->whereRaw('amount - concession_amount - paid_amount > 0')
                         ->with('feeCategory');
-                }
+                },
             ])
             ->get();
     }
@@ -688,14 +684,12 @@ class ComponentPaymentService
         return $trends;
     }
 
-
-
     /**
      * Calculate recovery rate
      */
     private function calculateRecoveryRate($recovery, $outstanding): float
     {
-        if (!$recovery || !$outstanding) {
+        if (! $recovery || ! $outstanding) {
             return 0;
         }
 
@@ -707,8 +701,6 @@ class ComponentPaymentService
 
         return round((($recovery->total_amount ?? 0) / $totalDue) * 100, 2);
     }
-
-
 
     /**
      * Get fee category wise collection summary
@@ -739,7 +731,6 @@ class ComponentPaymentService
             ->toArray();
     }
 
-
     /**
      * Get collection summary
      */
@@ -755,7 +746,7 @@ class ComponentPaymentService
             'total_concessions' => $totalConcessions,
             'net_expected' => $totalExpected,
             'remaining' => $totalExpected - $totalCollected,
-            'collection_percentage' => $totalExpected > 0 ? round(($totalCollected / $totalExpected) * 100, 2) : 0
+            'collection_percentage' => $totalExpected > 0 ? round(($totalCollected / $totalExpected) * 100, 2) : 0,
         ];
     }
 
@@ -767,12 +758,12 @@ class ComponentPaymentService
         return Student::whereHas('studentFees', function ($q) {
             $q->whereRaw('amount - concession_amount - paid_amount > 0');
         })->with([
-                    'batch.course',
-                    'studentFees' => function ($q) {
-                        $q->whereRaw('amount - concession_amount - paid_amount > 0')
-                            ->with('feeCategory');
-                    }
-                ]);
+            'batch.course',
+            'studentFees' => function ($q) {
+                $q->whereRaw('amount - concession_amount - paid_amount > 0')
+                    ->with('feeCategory');
+            },
+        ]);
     }
 
     /**
@@ -789,17 +780,17 @@ class ComponentPaymentService
                     });
             });
         })->with([
-                    'batch.course',
-                    'studentFees' => function ($q) {
-                        $q->where(function ($subQ) {
-                            $subQ->where('status', 'overdue')
-                                ->orWhere(function ($deepQ) {
-                                    $deepQ->whereIn('status', ['unpaid', 'partial'])
-                                        ->where('due_date', '<', now());
-                                });
-                        })->with('feeCategory');
-                    }
-                ]);
+            'batch.course',
+            'studentFees' => function ($q) {
+                $q->where(function ($subQ) {
+                    $subQ->where('status', 'overdue')
+                        ->orWhere(function ($deepQ) {
+                            $deepQ->whereIn('status', ['unpaid', 'partial'])
+                                ->where('due_date', '<', now());
+                        });
+                })->with('feeCategory');
+            },
+        ]);
     }
 
     /**
@@ -838,9 +829,9 @@ class ComponentPaymentService
                     'components' => $payment->componentItems->map(function ($item) {
                         return [
                             'category' => $item->studentFee->feeCategory->name,
-                            'amount_paid' => $item->amount_paid
+                            'amount_paid' => $item->amount_paid,
                         ];
-                    })
+                    }),
                 ];
             }),
             'summary' => [
@@ -850,10 +841,10 @@ class ComponentPaymentService
                 'by_method' => $payments->groupBy('payment_method')->map(function ($group) {
                     return [
                         'count' => $group->count(),
-                        'amount' => $group->sum('amount')
+                        'amount' => $group->sum('amount'),
                     ];
-                })
-            ]
+                }),
+            ],
         ];
     }
 
@@ -866,7 +857,7 @@ class ComponentPaymentService
         try {
             $batch = Batch::with(['students', 'feeStructure.feeCategories'])->find($batchId);
 
-            if (!$batch) {
+            if (! $batch) {
                 throw new Exception('Batch not found');
             }
 
@@ -874,11 +865,11 @@ class ComponentPaymentService
                 \App\Models\FeeStructure::with('feeCategories')->find($feeStructureId) :
                 $batch->feeStructure;
 
-            if (!$feeStructure) {
+            if (! $feeStructure) {
                 throw new Exception('Fee Structure not found');
             }
 
-            $academicYear = $academicYear ?? date('Y') . '-' . (date('Y') + 1);
+            $academicYear = $academicYear ?? date('Y').'-'.(date('Y') + 1);
             $createdCount = 0;
 
             foreach ($batch->students as $student) {
@@ -887,10 +878,10 @@ class ComponentPaymentService
                     $existingFee = StudentFee::where([
                         'student_id' => $student->id,
                         'fee_category_id' => $category->id,
-                        'academic_year' => $academicYear
+                        'academic_year' => $academicYear,
                     ])->first();
 
-                    if (!$existingFee) {
+                    if (! $existingFee) {
                         StudentFee::create([
                             'student_id' => $student->id,
                             'fee_structure_id' => $feeStructure->id,
@@ -900,7 +891,7 @@ class ComponentPaymentService
                             'due_date' => now()->addDays(30),
                             'status' => 'unpaid',
                             'installment_number' => 1,
-                            'total_installments' => $feeStructure->payment_terms ?? 1
+                            'total_installments' => $feeStructure->payment_terms ?? 1,
                         ]);
                         $createdCount++;
                     }
@@ -912,18 +903,18 @@ class ComponentPaymentService
             return [
                 'success' => true,
                 'created_count' => $createdCount,
-                'message' => "Created {$createdCount} fee components successfully."
+                'message' => "Created {$createdCount} fee components successfully.",
             ];
 
         } catch (Exception $e) {
             DB::rollback();
+
             return [
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ];
         }
     }
-
 
     private function getPaymentFrequency(): array
     {
@@ -931,7 +922,7 @@ class ComponentPaymentService
         $frequencies = DB::table('students')
             ->join('batches', 'students.batch_id', '=', 'batches.id')
             ->join('fee_structures', 'batches.id', '=', 'fee_structures.batch_id') // Assuming generic association
-            // Note: Schema might technically link fee_structure to batch via batch_id in fee_structures table, 
+            // Note: Schema might technically link fee_structure to batch via batch_id in fee_structures table,
             // or batch has fee_structure_id. Let's verify schema if this fails.
             // Based on earlier view, Batch 'has' feeStructure.
             ->select('fee_structures.payment_terms')
@@ -941,7 +932,7 @@ class ComponentPaymentService
             'monthly' => 0,
             'quarterly' => 0,
             'annually' => 0,
-            'other' => 0
+            'other' => 0,
         ];
 
         foreach ($frequencies as $freq) {
@@ -982,7 +973,7 @@ class ComponentPaymentService
         if ($monthlyTotals->isEmpty()) {
             return [
                 'peak_months' => [],
-                'low_months' => []
+                'low_months' => [],
             ];
         }
 
@@ -999,18 +990,18 @@ class ComponentPaymentService
             9 => 'September',
             10 => 'October',
             11 => 'November',
-            12 => 'December'
+            12 => 'December',
         ];
 
         // Top 3 are peak
-        $peaks = $monthlyTotals->take(3)->map(fn($item) => $monthNames[$item->month])->values()->toArray();
+        $peaks = $monthlyTotals->take(3)->map(fn ($item) => $monthNames[$item->month])->values()->toArray();
 
         // Bottom 3 are low (reverse sort first)
-        $lows = $monthlyTotals->sortBy('total')->take(3)->map(fn($item) => $monthNames[$item->month])->values()->toArray();
+        $lows = $monthlyTotals->sortBy('total')->take(3)->map(fn ($item) => $monthNames[$item->month])->values()->toArray();
 
         return [
             'peak_months' => $peaks,
-            'low_months' => $lows
+            'low_months' => $lows,
         ];
     }
 
@@ -1026,7 +1017,7 @@ class ComponentPaymentService
                     'amount' => $payment->amount,
                     'date' => $payment->payment_date->format('Y-m-d'),
                     'method' => $payment->payment_method,
-                    'receipt_number' => $payment->receipt_number
+                    'receipt_number' => $payment->receipt_number,
                 ];
             })
             ->toArray();
@@ -1044,7 +1035,7 @@ class ComponentPaymentService
                 return [
                     'category' => $fee->feeCategory->name,
                     'amount' => $fee->amount - $fee->concession_amount - $fee->paid_amount,
-                    'due_date' => $fee->due_date->format('Y-m-d')
+                    'due_date' => $fee->due_date->format('Y-m-d'),
                 ];
             })
             ->toArray();
@@ -1064,7 +1055,7 @@ class ComponentPaymentService
                 ->where('fee_category_id', $component['fee_category_id'])
                 ->whereIn('status', ['unpaid', 'partial'])
                 ->get()
-                ->sum(fn($fee) => $fee->getRemainingAmount());
+                ->sum(fn ($fee) => $fee->getRemainingAmount());
 
             if ($component['amount'] > $availableAmount) {
                 $category = FeeCategory::find($component['fee_category_id']);
@@ -1085,8 +1076,9 @@ class ComponentPaymentService
         $appliedTotal = 0;
 
         foreach ($studentFees as $fee) {
-            if ($remainingAmount <= 0)
+            if ($remainingAmount <= 0) {
                 break;
+            }
 
             $appliedAmount = $fee->applyPayment($remainingAmount, $payment);
             $remainingAmount -= $appliedAmount;

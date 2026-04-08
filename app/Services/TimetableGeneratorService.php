@@ -2,31 +2,28 @@
 
 namespace App\Services;
 
-use App\Models\Course;
-use App\Models\Subject;
-use App\Models\Batch;
-use App\Models\User;
-use App\Models\Classroom;
-use App\Models\Timetable;
-use App\Models\TimeSlot;
-use App\Models\PracticalGroup;
 use App\Models\AcademicYear;
+use App\Models\Batch;
+use App\Models\Classroom;
+use App\Models\Course;
 use App\Models\Setting;
+use App\Models\Subject;
+use App\Models\TimeSlot;
+use App\Models\Timetable;
+use App\Models\User;
 use Carbon\Carbon;
-use Carbon\CarbonPeriod;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Collection;
 
 class TimetableGeneratorService
 {
     /**
      * Generate weekly timetable with configurable working days
-     * 
-     * @param array $courseIds
-     * @param AcademicYear $academicYear
-     * @param Carbon $weekStart
-     * @param array $options
+     *
+     * @param  array  $courseIds
+     * @param  AcademicYear  $academicYear
+     * @param  Carbon  $weekStart
+     * @param  array  $options
      * @return array
      */
     public function generateWeeklyTimetable($courseIds, $academicYear, $weekStart, $options = [])
@@ -35,7 +32,7 @@ class TimetableGeneratorService
             Log::info('Starting timetable generation', [
                 'course_ids' => $courseIds,
                 'week_start' => $weekStart->format('Y-m-d'),
-                'options' => $options
+                'options' => $options,
             ]);
 
             DB::beginTransaction();
@@ -49,13 +46,13 @@ class TimetableGeneratorService
                 'conflicts' => 0,
                 'skipped' => 0,
                 'report' => '',
-                'details' => []
+                'details' => [],
             ];
 
             // Get working days configuration
             $workingDays = $this->getWorkingDaysConfig();
-            $result['report'] .= "📅 Working Days: " . implode(', ', array_map('ucfirst', $workingDays)) . "\n";
-            $result['report'] .= str_repeat("=", 60) . "\n\n";
+            $result['report'] .= '📅 Working Days: '.implode(', ', array_map('ucfirst', $workingDays))."\n";
+            $result['report'] .= str_repeat('=', 60)."\n\n";
 
             // Process each course
             foreach ($courseIds as $courseId) {
@@ -70,14 +67,14 @@ class TimetableGeneratorService
                 $result['theory_sessions'] += $courseResult['theory_sessions'];
                 $result['conflicts'] += $courseResult['conflicts'];
                 $result['skipped'] += $courseResult['skipped'];
-                $result['report'] .= $courseResult['report'] . "\n";
+                $result['report'] .= $courseResult['report']."\n";
                 $result['details'] = array_merge($result['details'], $courseResult['details']);
             }
 
             DB::commit();
 
-            $result['message'] = "✅ Timetable generated successfully! Created {$result['sessions_created']} sessions " .
-                "({$result['theory_sessions']} theory, {$result['lab_sessions']} lab). " .
+            $result['message'] = "✅ Timetable generated successfully! Created {$result['sessions_created']} sessions ".
+                "({$result['theory_sessions']} theory, {$result['lab_sessions']} lab). ".
                 "Conflicts: {$result['conflicts']}, Skipped: {$result['skipped']}";
 
             Log::info('Timetable generation completed', $result);
@@ -88,19 +85,19 @@ class TimetableGeneratorService
             DB::rollBack();
             Log::error('Timetable generation failed', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return [
                 'success' => false,
-                'message' => 'Timetable generation failed: ' . $e->getMessage(),
+                'message' => 'Timetable generation failed: '.$e->getMessage(),
                 'sessions_created' => 0,
                 'lab_sessions' => 0,
                 'theory_sessions' => 0,
                 'conflicts' => 0,
                 'skipped' => 0,
-                'report' => "❌ Error: " . $e->getMessage(),
-                'details' => []
+                'report' => '❌ Error: '.$e->getMessage(),
+                'details' => [],
             ];
         }
     }
@@ -116,8 +113,8 @@ class TimetableGeneratorService
             'theory_sessions' => 0,
             'conflicts' => 0,
             'skipped' => 0,
-            'report' => "",
-            'details' => []
+            'report' => '',
+            'details' => [],
         ];
 
         // Get course subjects
@@ -133,6 +130,7 @@ class TimetableGeneratorService
 
         if ($batches->isEmpty()) {
             $result['report'] .= "  ⚠️  No batches found for this course\n";
+
             return $result;
         }
 
@@ -174,8 +172,8 @@ class TimetableGeneratorService
             'theory_sessions' => 0,
             'conflicts' => 0,
             'skipped' => 0,
-            'report' => "",
-            'details' => []
+            'report' => '',
+            'details' => [],
         ];
 
         // Get week dates based on working days
@@ -184,15 +182,16 @@ class TimetableGeneratorService
 
         if ($timeSlots->isEmpty()) {
             $result['report'] .= "      ⚠️  No time slots configured\n";
+
             return $result;
         }
 
-        $result['report'] .= "      📅 Week dates: " . $weekDates->map(fn($d) => $d->format('M d'))->join(', ') . "\n";
+        $result['report'] .= '      📅 Week dates: '.$weekDates->map(fn ($d) => $d->format('M d'))->join(', ')."\n";
         $result['report'] .= "      ⏰ Time slots: {$timeSlots->count()}\n";
 
         // Generate sessions for each subject
         foreach ($subjects as $subject) {
-            if (!$this->shouldGenerateSubject($subject, $options)) {
+            if (! $this->shouldGenerateSubject($subject, $options)) {
                 continue;
             }
 
@@ -229,15 +228,15 @@ class TimetableGeneratorService
             'theory_sessions' => 0,
             'conflicts' => 0,
             'skipped' => 0,
-            'report' => "",
-            'details' => []
+            'report' => '',
+            'details' => [],
         ];
 
         $isLabSubject = $subject->requires_lab ?? false;
         $sessionsNeeded = $subject->weekly_hours ?? 2; // Default 2 sessions per week
 
-        $result['report'] .= "        📖 Subject: {$subject->name} " .
-            ($isLabSubject ? "(LAB)" : "(THEORY)") .
+        $result['report'] .= "        📖 Subject: {$subject->name} ".
+            ($isLabSubject ? '(LAB)' : '(THEORY)').
             " - Need {$sessionsNeeded} sessions\n";
 
         $sessionsScheduled = 0;
@@ -303,31 +302,31 @@ class TimetableGeneratorService
             // Check for conflicts first
             $conflicts = $this->checkForConflicts($batch, $date, $timeSlot, $options);
 
-            if (!empty($conflicts) && !($options['allow_conflicts'] ?? false)) {
+            if (! empty($conflicts) && ! ($options['allow_conflicts'] ?? false)) {
                 return [
                     'success' => false,
                     'conflict' => true,
-                    'message' => 'Conflicts detected: ' . implode(', ', $conflicts)
+                    'message' => 'Conflicts detected: '.implode(', ', $conflicts),
                 ];
             }
 
             // Find available faculty
             $faculty = $this->findAvailableFaculty($subject, $date, $timeSlot);
-            if (!$faculty) {
+            if (! $faculty) {
                 return [
                     'success' => false,
                     'conflict' => false,
-                    'message' => 'No available faculty'
+                    'message' => 'No available faculty',
                 ];
             }
 
             // Find available classroom
             $classroom = $this->findAvailableClassroom($date, $timeSlot, $isLabSession);
-            if (!$classroom) {
+            if (! $classroom) {
                 return [
                     'success' => false,
                     'conflict' => false,
-                    'message' => 'No available classroom'
+                    'message' => 'No available classroom',
                 ];
             }
 
@@ -341,7 +340,7 @@ class TimetableGeneratorService
                 'schedule_date' => $date->format('Y-m-d'),
                 'academic_year_id' => $academicYear->id,
                 'is_lab_session' => $isLabSession,
-                'notes' => "Auto-generated on " . now()->format('Y-m-d H:i:s')
+                'notes' => 'Auto-generated on '.now()->format('Y-m-d H:i:s'),
             ]);
 
             return [
@@ -353,9 +352,9 @@ class TimetableGeneratorService
                     'faculty' => $faculty->name,
                     'classroom' => $classroom->name,
                     'date' => $date->format('Y-m-d'),
-                    'time' => $timeSlot->start_time . '-' . $timeSlot->end_time,
-                    'type' => $isLabSession ? 'Lab' : 'Theory'
-                ]
+                    'time' => $timeSlot->start_time.'-'.$timeSlot->end_time,
+                    'type' => $isLabSession ? 'Lab' : 'Theory',
+                ],
             ];
 
         } catch (\Exception $e) {
@@ -364,13 +363,13 @@ class TimetableGeneratorService
                 'batch_id' => $batch->id,
                 'subject_id' => $subject->id,
                 'date' => $date->format('Y-m-d'),
-                'time_slot_id' => $timeSlot->id
+                'time_slot_id' => $timeSlot->id,
             ]);
 
             return [
                 'success' => false,
                 'conflict' => false,
-                'message' => 'Database error: ' . $e->getMessage()
+                'message' => 'Database error: '.$e->getMessage(),
             ];
         }
     }
@@ -418,7 +417,7 @@ class TimetableGeneratorService
                 ->where('time_slot_id', $timeSlot->id)
                 ->exists();
 
-            if (!$isBusy) {
+            if (! $isBusy) {
                 return $faculty;
             }
         }
@@ -448,7 +447,7 @@ class TimetableGeneratorService
                 ->where('time_slot_id', $timeSlot->id)
                 ->exists();
 
-            if (!$isOccupied) {
+            if (! $isOccupied) {
                 return $classroom;
             }
         }
@@ -465,6 +464,7 @@ class TimetableGeneratorService
 
         if ($workingDays && $workingDays->value) {
             $configured = json_decode($workingDays->value, true);
+
             return is_array($configured) ? $configured : ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
         }
 
@@ -504,11 +504,11 @@ class TimetableGeneratorService
     {
         $isLab = $subject->requires_lab ?? false;
 
-        if ($isLab && !($options['generate_labs'] ?? true)) {
+        if ($isLab && ! ($options['generate_labs'] ?? true)) {
             return false;
         }
 
-        if (!$isLab && !($options['generate_theory'] ?? true)) {
+        if (! $isLab && ! ($options['generate_theory'] ?? true)) {
             return false;
         }
 
@@ -531,7 +531,7 @@ class TimetableGeneratorService
 
             Log::info('Cleared existing timetable entries', [
                 'deleted_count' => $deleted,
-                'week_start' => $weekStart->format('Y-m-d')
+                'week_start' => $weekStart->format('Y-m-d'),
             ]);
 
             return $deleted;
@@ -589,7 +589,7 @@ class TimetableGeneratorService
 
         return [
             'valid' => empty($issues),
-            'issues' => $issues
+            'issues' => $issues,
         ];
     }
 }

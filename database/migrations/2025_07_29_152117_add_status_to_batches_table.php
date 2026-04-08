@@ -13,9 +13,9 @@ return new class extends Migration
     {
         Schema::table('batches', function (Blueprint $table) {
             $table->enum('status', ['active', 'inactive', 'completed', 'cancelled'])
-                  ->default('active')
-                  ->after('end_date');
-            
+                ->default('active')
+                ->after('end_date');
+
             // Add index for better query performance
             $table->index(['course_id', 'status']);
         });

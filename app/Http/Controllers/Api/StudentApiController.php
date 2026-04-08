@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Student;
 use App\Models\Attendance;
-use App\Models\StudentFee; // Replaced Invoice with StudentFee
-use App\Models\Payment;    // Added Payment model
-use Illuminate\Http\Request;
+use App\Models\Payment;
+use App\Models\Student; // Replaced Invoice with StudentFee
+use App\Models\StudentFee;    // Added Payment model
 use Carbon\Carbon;
+use Illuminate\Http\Request;
 
 class StudentApiController extends Controller
 {
@@ -20,12 +20,12 @@ class StudentApiController extends Controller
         $student->load([
             'batch.course',
             // MODIFIED: Eager load studentFees instead of invoices
-            'studentFees' => function($query) {
+            'studentFees' => function ($query) {
                 $query->latest('due_date')->limit(5);
             },
-            'attendances' => function($query) {
+            'attendances' => function ($query) {
                 $query->latest()->limit(10);
-            }
+            },
         ]);
 
         // MODIFIED: Calculate financial summary from studentFees
@@ -63,7 +63,7 @@ class StudentApiController extends Controller
                     'total_concession' => $totalConcession,
                     'total_due' => $totalDue,
                     // MODIFIED: Show recent fee components instead of invoices
-                    'recent_fees' => $student->studentFees->map(function($fee) {
+                    'recent_fees' => $student->studentFees->map(function ($fee) {
                         return [
                             'id' => $fee->id,
                             'fee_category' => $fee->feeCategory->name ?? 'N/A',
@@ -73,17 +73,17 @@ class StudentApiController extends Controller
                             'status' => $fee->status,
                             'due_date' => $fee->due_date->format('Y-m-d'),
                         ];
-                    })
+                    }),
                 ],
                 'attendance_summary' => [
                     'total_classes' => $student->attendances->count(),
                     'present_days' => $student->attendances->where('status', 'present')->count(),
                     'absent_days' => $student->attendances->where('status', 'absent')->count(),
-                    'attendance_percentage' => $student->attendances->count() > 0 
+                    'attendance_percentage' => $student->attendances->count() > 0
                         ? round(($student->attendances->where('status', 'present')->count() / $student->attendances->count()) * 100, 2)
                         : 0,
-                ]
-            ]
+                ],
+            ],
         ]);
     }
 
@@ -94,7 +94,7 @@ class StudentApiController extends Controller
     {
         $request->validate([
             'month' => 'nullable|date_format:Y-m',
-            'limit' => 'nullable|integer|min:1|max:100'
+            'limit' => 'nullable|integer|min:1|max:100',
         ]);
 
         $month = $request->month ?? now()->format('Y-m');
@@ -115,15 +115,15 @@ class StudentApiController extends Controller
                 'total_records' => $attendances->count(),
                 'present_days' => $attendances->where('status', 'present')->count(),
                 'absent_days' => $attendances->where('status', 'absent')->count(),
-                'attendance_records' => $attendances->map(function($attendance) {
+                'attendance_records' => $attendances->map(function ($attendance) {
                     return [
                         'date' => $attendance->attendance_date,
                         'status' => $attendance->status,
                         'faculty' => $attendance->faculty->name ?? 'Unknown',
                         'batch' => $attendance->batch->name ?? 'Unknown',
                     ];
-                })
-            ]
+                }),
+            ],
         ]);
     }
 
@@ -151,10 +151,10 @@ class StudentApiController extends Controller
                     'total_billed' => $fees->sum('amount'),
                     'total_paid' => $fees->sum('paid_amount'),
                     'total_concession' => $fees->sum('concession_amount'),
-                    'total_due' => $fees->sum(fn($fee) => $fee->getRemainingAmount()),
+                    'total_due' => $fees->sum(fn ($fee) => $fee->getRemainingAmount()),
                     'total_fee_components' => $fees->count(),
                 ],
-                'fee_components' => $fees->map(function($fee) {
+                'fee_components' => $fees->map(function ($fee) {
                     return [
                         'id' => $fee->id,
                         'category' => $fee->feeCategory->name ?? 'N/A',
@@ -166,7 +166,7 @@ class StudentApiController extends Controller
                         'status' => $fee->status,
                     ];
                 }),
-                'payments' => $payments->map(function($payment) {
+                'payments' => $payments->map(function ($payment) {
                     return [
                         'id' => $payment->id,
                         'receipt_number' => $payment->receipt_number,
@@ -175,15 +175,15 @@ class StudentApiController extends Controller
                         'payment_method' => $payment->payment_method,
                         'transaction_id' => $payment->transaction_id,
                         'notes' => $payment->notes,
-                        'items' => $payment->componentItems->map(function($item) {
+                        'items' => $payment->componentItems->map(function ($item) {
                             return [
                                 'category' => $item->studentFee->feeCategory->name ?? 'N/A',
                                 'amount_paid' => $item->amount_paid,
                             ];
                         }),
                     ];
-                })
-            ]
+                }),
+            ],
         ]);
     }
 
@@ -196,20 +196,20 @@ class StudentApiController extends Controller
             'student_mobile' => 'nullable|string|max:15',
             'father_mobile' => 'nullable|string|max:15',
             'village' => 'nullable|string|max:255',
-            'email' => 'nullable|email|unique:students,email,' . $student->id,
+            'email' => 'nullable|email|unique:students,email,'.$student->id,
         ]);
 
         $student->update($request->only([
             'student_mobile',
-            'father_mobile', 
+            'father_mobile',
             'village',
-            'email'
+            'email',
         ]));
 
         return response()->json([
             'success' => true,
             'message' => 'Profile updated successfully',
-            'data' => $student->fresh()
+            'data' => $student->fresh(),
         ]);
     }
 
@@ -236,20 +236,20 @@ class StudentApiController extends Controller
         $overdueFees = StudentFee::where('student_id', $student->id)
             ->where(function ($query) use ($today) {
                 $query->where('status', 'overdue')
-                      ->orWhere(function ($subQuery) use ($today) {
-                          $subQuery->whereIn('status', ['unpaid', 'partial'])
-                                   ->where('due_date', '<', $today);
-                      });
+                    ->orWhere(function ($subQuery) use ($today) {
+                        $subQuery->whereIn('status', ['unpaid', 'partial'])
+                            ->where('due_date', '<', $today);
+                    });
             })
             ->get();
-            
+
         // Calculate attendance percentage for current month
         $monthlyAttendance = Attendance::where('student_id', $student->id)
             ->whereYear('attendance_date', substr($currentMonth, 0, 4))
             ->whereMonth('attendance_date', substr($currentMonth, 5, 2))
             ->get();
 
-        $attendancePercentage = $monthlyAttendance->count() > 0 
+        $attendancePercentage = $monthlyAttendance->count() > 0
             ? round(($monthlyAttendance->where('status', 'present')->count() / $monthlyAttendance->count()) * 100, 2)
             : 0;
 
@@ -266,16 +266,16 @@ class StudentApiController extends Controller
                     'current_month_percentage' => $attendancePercentage,
                     'total_present' => $monthlyAttendance->where('status', 'present')->count(),
                     'total_classes' => $monthlyAttendance->count(),
-                    'recent_attendance' => $recentAttendance->map(function($att) {
+                    'recent_attendance' => $recentAttendance->map(function ($att) {
                         return [
                             'date' => $att->attendance_date,
                             'status' => $att->status,
                         ];
-                    })
+                    }),
                 ],
                 'financial_stats' => [
-                    'pending_amount' => $pendingFees->sum(fn($fee) => $fee->getRemainingAmount()),
-                    'overdue_amount' => $overdueFees->sum(fn($fee) => $fee->getRemainingAmount()),
+                    'pending_amount' => $pendingFees->sum(fn ($fee) => $fee->getRemainingAmount()),
+                    'overdue_amount' => $overdueFees->sum(fn ($fee) => $fee->getRemainingAmount()),
                     'pending_fees_count' => $pendingFees->count(),
                     'overdue_fees_count' => $overdueFees->count(),
                 ],
@@ -283,8 +283,8 @@ class StudentApiController extends Controller
                     'low_attendance' => $attendancePercentage < 75,
                     'overdue_payments' => $overdueFees->count() > 0,
                     'upcoming_due_dates' => $pendingFees->where('due_date', '<=', $today->addDays(7))->count(),
-                ]
-            ]
+                ],
+            ],
         ]);
     }
 }

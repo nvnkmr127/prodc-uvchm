@@ -17,20 +17,20 @@ class AttendancesImport implements ToModel, WithHeadingRow, WithValidation
         $student = Student::where('enrollment_number', $row['enrollment_number'])->first();
 
         // 2. If no student is found, skip this row
-        if (!$student) {
+        if (! $student) {
             return null;
         }
 
         // 3. Use updateOrCreate to prevent duplicates for the same student on the same day
         return Attendance::updateOrCreate(
             [
-                'student_id'      => $student->id,
+                'student_id' => $student->id,
                 'attendance_date' => \Carbon\Carbon::parse($row['attendance_date'])->format('Y-m-d'),
             ],
             [
-                'batch_id'        => $student->batch_id,
-                'faculty_id'      => Auth::id(), // Attribute the import to the logged-in admin
-                'status'          => strtolower($row['status']),
+                'batch_id' => $student->batch_id,
+                'faculty_id' => Auth::id(), // Attribute the import to the logged-in admin
+                'status' => strtolower($row['status']),
             ]
         );
     }

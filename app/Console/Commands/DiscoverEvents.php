@@ -4,8 +4,8 @@ namespace App\Console\Commands;
 
 use App\Services\WebhookEventDiscoveryService;
 use Illuminate\Console\Command;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Str;
 
 class DiscoverEvents extends Command
 {
@@ -57,16 +57,19 @@ class DiscoverEvents extends Command
         // Handle different output modes
         if ($this->option('json')) {
             $this->outputJson($filtered);
+
             return self::SUCCESS;
         }
 
         if ($this->option('stats')) {
             $this->showStatisticsOnly($filtered);
+
             return self::SUCCESS;
         }
 
         if ($this->option('validate')) {
             $this->validateEvents($filtered);
+
             return self::SUCCESS;
         }
 
@@ -92,7 +95,7 @@ class DiscoverEvents extends Command
         if ($categoryFilter = $this->option('category')) {
             $filtered['categories'] = array_filter(
                 $filtered['categories'],
-                fn($name) => Str::contains(strtolower($name), strtolower($categoryFilter)),
+                fn ($name) => Str::contains(strtolower($name), strtolower($categoryFilter)),
                 ARRAY_FILTER_USE_KEY
             );
 
@@ -122,7 +125,7 @@ class DiscoverEvents extends Command
         if ($typeFilter = $this->option('type')) {
             $filtered['events'] = array_filter(
                 $filtered['events'],
-                fn($eventData) => ($eventData['type'] ?? '') === $typeFilter
+                fn ($eventData) => ($eventData['type'] ?? '') === $typeFilter
             );
             $filtered['total_count'] = count($filtered['events']);
         }
@@ -143,15 +146,15 @@ class DiscoverEvents extends Command
      */
     protected function showStatisticsOnly(array $data): void
     {
-        $this->info("📊 Event Discovery Statistics:");
+        $this->info('📊 Event Discovery Statistics:');
         $this->table([
             'Metric',
-            'Value'
+            'Value',
         ], [
             ['Total Events', $data['total_count']],
             ['Categories', count($data['categories'])],
-            ['Auto-discovered', count(array_filter($data['events'], fn($e) => $e['auto_discovered'] ?? false))],
-            ['Manual Events', count(array_filter($data['events'], fn($e) => !($e['auto_discovered'] ?? false)))],
+            ['Auto-discovered', count(array_filter($data['events'], fn ($e) => $e['auto_discovered'] ?? false))],
+            ['Manual Events', count(array_filter($data['events'], fn ($e) => ! ($e['auto_discovered'] ?? false)))],
         ]);
     }
 
@@ -172,7 +175,7 @@ class DiscoverEvents extends Command
             }
 
             // Check for valid event names
-            if (!preg_match('/^[a-z0-9._-]+$/', $eventKey)) {
+            if (! preg_match('/^[a-z0-9._-]+$/', $eventKey)) {
                 $errors[] = "Event '{$eventKey}' has invalid name format";
             }
 
@@ -185,14 +188,14 @@ class DiscoverEvents extends Command
         if (empty($errors) && empty($warnings)) {
             $this->info('✅ All events passed validation!');
         } else {
-            if (!empty($errors)) {
+            if (! empty($errors)) {
                 $this->error('❌ Validation errors found:');
                 foreach ($errors as $error) {
                     $this->line("   • {$error}");
                 }
             }
 
-            if (!empty($warnings)) {
+            if (! empty($warnings)) {
                 $this->warn('⚠️  Validation warnings:');
                 foreach ($warnings as $warning) {
                     $this->line("   • {$warning}");
@@ -206,26 +209,26 @@ class DiscoverEvents extends Command
      */
     protected function displayFormattedResults(array $discovered): void
     {
-        $this->info("📊 Discovery Results:");
+        $this->info('📊 Discovery Results:');
         $this->info("   Total Events: {$discovered['total_count']}");
-        $this->info("   Categories: " . count($discovered['categories']));
+        $this->info('   Categories: '.count($discovered['categories']));
         $this->newLine();
 
         $categoryFilter = $this->option('category');
 
         foreach ($discovered['categories'] as $categoryName => $categoryData) {
-            if ($categoryFilter && !Str::contains(strtolower($categoryName), strtolower($categoryFilter))) {
+            if ($categoryFilter && ! Str::contains(strtolower($categoryName), strtolower($categoryFilter))) {
                 continue;
             }
 
             $emoji = $categoryData['emoji'] ?? '📋';
-            $this->info("{$emoji} {$categoryName} (" . count($categoryData['events']) . " events)");
+            $this->info("{$emoji} {$categoryName} (".count($categoryData['events']).' events)');
 
             foreach ($categoryData['events'] as $eventKey => $eventData) {
                 $autoFlag = ($eventData['auto_discovered'] ?? false) ? '🤖' : '👤';
                 $this->line("   {$autoFlag} {$eventKey}");
 
-                if (!empty($eventData['description'])) {
+                if (! empty($eventData['description'])) {
                     $this->line("      📝 {$eventData['description']}");
                 }
             }
@@ -242,7 +245,7 @@ class DiscoverEvents extends Command
         $path = storage_path("exports/{$filename}");
 
         // Ensure directory exists
-        if (!File::exists(dirname($path))) {
+        if (! File::exists(dirname($path))) {
             File::makeDirectory(dirname($path), 0755, true);
         }
 

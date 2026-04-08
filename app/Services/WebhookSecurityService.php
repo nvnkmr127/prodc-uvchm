@@ -1,4 +1,5 @@
 <?php
+
 // In app/Services/WebhookSecurityService.php
 
 namespace App\Services;
@@ -10,8 +11,8 @@ class WebhookSecurityService
     /**
      * Verify the HMAC-SHA256 signature of an incoming webhook request.
      *
-     * @param Request $request The incoming HTTP request.
-     * @param string $secret The signing secret used to generate the signature.
+     * @param  Request  $request  The incoming HTTP request.
+     * @param  string  $secret  The signing secret used to generate the signature.
      * @return bool True if the signature is valid, false otherwise.
      */
     public function verify(Request $request, string $secret): bool
@@ -19,7 +20,7 @@ class WebhookSecurityService
         // Get the signature from the request header.
         $sentSignature = $request->header('X-App-Signature');
 
-        if (!$sentSignature) {
+        if (! $sentSignature) {
             // Abort if no signature is present.
             return false;
         }

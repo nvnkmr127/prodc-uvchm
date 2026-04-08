@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Enquiry;
 use App\Models\Course;
+use App\Models\Enquiry;
 use App\Services\NotificationService; // ADD THIS IMPORT
 use Illuminate\Http\Request;
 
@@ -21,6 +21,7 @@ class PublicEnquiryController extends Controller
     public function create()
     {
         $courses = Course::orderBy('name')->get();
+
         return view('public.enquiry_form', compact('courses'));
     }
 
@@ -65,7 +66,7 @@ class PublicEnquiryController extends Controller
                 'source' => $enquiry->source,
                 'referral_name' => $enquiry->referral_name,
                 'message' => $enquiry->message,
-            ]
+            ],
         ]);
 
         // 🔔 SPECIAL NOTIFICATION for referral enquiries
@@ -85,7 +86,7 @@ class PublicEnquiryController extends Controller
                     'referral_name' => $enquiry->referral_name,
                     'student_name' => $enquiry->student_name,
                     'course_name' => $course->name,
-                ]
+                ],
             ]);
         }
 

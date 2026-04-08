@@ -14,9 +14,9 @@ return new class extends Migration
         Schema::table('invoice_items', function (Blueprint $table) {
             // Add fee_category_id column with foreign key constraint
             $table->foreignId('fee_category_id')->nullable()->after('invoice_id')->constrained()->onDelete('cascade');
-            
+
             // Add quantity column if it doesn't exist
-            if (!Schema::hasColumn('invoice_items', 'quantity')) {
+            if (! Schema::hasColumn('invoice_items', 'quantity')) {
                 $table->integer('quantity')->default(1)->after('amount');
             }
         });
@@ -30,7 +30,7 @@ return new class extends Migration
         Schema::table('invoice_items', function (Blueprint $table) {
             $table->dropForeign(['fee_category_id']);
             $table->dropColumn('fee_category_id');
-            
+
             if (Schema::hasColumn('invoice_items', 'quantity')) {
                 $table->dropColumn('quantity');
             }

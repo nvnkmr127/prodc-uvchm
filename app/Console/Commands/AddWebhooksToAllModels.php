@@ -19,61 +19,66 @@ class AddWebhooksToAllModels extends Command
     public function handle(): int
     {
         $this->info('🔍 Scanning for Eloquent models...');
-        
+
         $modelsPath = app_path('Models');
-        if (!File::exists($modelsPath)) {
-            $this->error('Models directory not found at: ' . $modelsPath);
+        if (! File::exists($modelsPath)) {
+            $this->error('Models directory not found at: '.$modelsPath);
+
             return self::FAILURE;
         }
 
         // Check if WebhookEnabled trait exists
         $traitPath = app_path('Traits/WebhookEnabled.php');
-        if (!File::exists($traitPath)) {
-            $this->error('WebhookEnabled trait not found at: ' . $traitPath);
+        if (! File::exists($traitPath)) {
+            $this->error('WebhookEnabled trait not found at: '.$traitPath);
             $this->info('Please create the WebhookEnabled trait first.');
+
             return self::FAILURE;
         }
 
         $models = $this->discoverModels($modelsPath);
         $excludedModels = $this->option('exclude');
         $specificModels = $this->option('models');
-        
+
         // Filter by excluded models
-        if (!empty($excludedModels)) {
-            $models = array_filter($models, function($model) use ($excludedModels) {
-                return !in_array($model['name'], $excludedModels);
+        if (! empty($excludedModels)) {
+            $models = array_filter($models, function ($model) use ($excludedModels) {
+                return ! in_array($model['name'], $excludedModels);
             });
         }
 
         // Filter by specific models if provided
-        if (!empty($specificModels)) {
-            $models = array_filter($models, function($model) use ($specificModels) {
+        if (! empty($specificModels)) {
+            $models = array_filter($models, function ($model) use ($specificModels) {
                 return in_array($model['name'], $specificModels);
             });
         }
 
         if (empty($models)) {
             $this->warn('No models found to process.');
+
             return self::SUCCESS;
         }
 
-        $this->info("📋 Found " . count($models) . " models to process:");
-        $this->table(['Model', 'File Path', 'Has Webhooks'], array_map(function($model) {
+        $this->info('📋 Found '.count($models).' models to process:');
+        $this->table(['Model', 'File Path', 'Has Webhooks'], array_map(function ($model) {
             return [
                 $model['name'],
                 $model['relative_path'],
-                $model['has_webhooks'] ? '✅ Yes' : '❌ No'
+                $model['has_webhooks'] ? '✅ Yes' : '❌ No',
             ];
         }, $models));
 
         if ($this->option('dry-run')) {
             $this->warn('🔍 DRY RUN MODE - No files will be modified');
             $this->showWhatWouldChange($models);
+
             return self::SUCCESS;
         }
 
-        if (!$this->confirm('Do you want to add WebhookEnabled trait to these models?')) {
+        if (! $this->confirm('Do you want to add WebhookEnabled trait to these models?')) {
             $this->info('Operation cancelled.');
+
             return self::SUCCESS;
         }
 
@@ -91,24 +96,24 @@ class AddWebhooksToAllModels extends Command
             }
 
             $relativePath = $file->getRelativePathname();
-            $className = 'App\\Models\\' . str_replace(['/', '.php'], ['\\', ''], $relativePath);
+            $className = 'App\\Models\\'.str_replace(['/', '.php'], ['\\', ''], $relativePath);
             $modelName = str_replace('.php', '', $file->getFilename());
 
             // Skip if not a valid class
-            if (!class_exists($className)) {
+            if (! class_exists($className)) {
                 continue;
             }
 
             try {
                 $reflection = new \ReflectionClass($className);
-                
+
                 // Skip abstract classes and interfaces
                 if ($reflection->isAbstract() || $reflection->isInterface()) {
                     continue;
                 }
 
                 // Check if it extends Model
-                if (!$reflection->isSubclassOf(\Illuminate\Database\Eloquent\Model::class)) {
+                if (! $reflection->isSubclassOf(\Illuminate\Database\Eloquent\Model::class)) {
                     continue;
                 }
 
@@ -122,11 +127,12 @@ class AddWebhooksToAllModels extends Command
                     'relative_path' => $relativePath,
                     'content' => $fileContent,
                     'has_webhooks' => $hasWebhooks,
-                    'reflection' => $reflection
+                    'reflection' => $reflection,
                 ];
 
             } catch (\Exception $e) {
-                $this->warn("Skipped {$modelName}: " . $e->getMessage());
+                $this->warn("Skipped {$modelName}: ".$e->getMessage());
+
                 continue;
             }
         }
@@ -143,10 +149,10 @@ class AddWebhooksToAllModels extends Command
 
     protected function showWhatWouldChange(array $models): void
     {
-        $toUpdate = array_filter($models, fn($model) => !$model['has_webhooks']);
-        $alreadyHave = array_filter($models, fn($model) => $model['has_webhooks']);
+        $toUpdate = array_filter($models, fn ($model) => ! $model['has_webhooks']);
+        $alreadyHave = array_filter($models, fn ($model) => $model['has_webhooks']);
 
-        if (!empty($toUpdate)) {
+        if (! empty($toUpdate)) {
             $this->info('➕ Models that would get WebhookEnabled trait:');
             foreach ($toUpdate as $model) {
                 $this->line("   • {$model['name']} ({$model['relative_path']})");
@@ -154,7 +160,7 @@ class AddWebhooksToAllModels extends Command
             $this->newLine();
         }
 
-        if (!empty($alreadyHave)) {
+        if (! empty($alreadyHave)) {
             $this->info('✅ Models that already have webhooks:');
             foreach ($alreadyHave as $model) {
                 $this->line("   • {$model['name']} ({$model['relative_path']})");
@@ -174,9 +180,10 @@ class AddWebhooksToAllModels extends Command
         $errors = 0;
 
         foreach ($models as $model) {
-            if ($model['has_webhooks'] && !$this->option('force')) {
+            if ($model['has_webhooks'] && ! $this->option('force')) {
                 $this->line("⏭️  Skipped {$model['name']} (already has webhooks)");
                 $skipped++;
+
                 continue;
             }
 
@@ -189,13 +196,13 @@ class AddWebhooksToAllModels extends Command
                     $errors++;
                 }
             } catch (\Exception $e) {
-                $this->error("❌ Error updating {$model['name']}: " . $e->getMessage());
+                $this->error("❌ Error updating {$model['name']}: ".$e->getMessage());
                 $errors++;
             }
         }
 
         $this->newLine();
-        $this->info("📊 Summary:");
+        $this->info('📊 Summary:');
         $this->info("   ✅ Updated: {$updated}");
         $this->info("   ⏭️  Skipped: {$skipped}");
         $this->info("   ❌ Errors: {$errors}");
@@ -215,12 +222,12 @@ class AddWebhooksToAllModels extends Command
         $className = $model['name'];
 
         // Check if we need to add the import
-        $needsImport = !Str::contains($content, 'use App\Traits\WebhookEnabled');
-        
-        // Check if we need to add the trait usage
-        $needsTraitUsage = !preg_match('/use\s+.*WebhookEnabled/', $content);
+        $needsImport = ! Str::contains($content, 'use App\Traits\WebhookEnabled');
 
-        if (!$needsImport && !$needsTraitUsage) {
+        // Check if we need to add the trait usage
+        $needsTraitUsage = ! preg_match('/use\s+.*WebhookEnabled/', $content);
+
+        if (! $needsImport && ! $needsTraitUsage) {
             return true; // Already has everything
         }
 
@@ -235,9 +242,9 @@ class AddWebhooksToAllModels extends Command
             $trimmedLine = trim($line);
 
             // Add import after the last use statement
-            if ($needsImport && !$importAdded && Str::startsWith($trimmedLine, 'use ') && 
-                !Str::startsWith($trimmedLine, 'use App\Traits\WebhookEnabled')) {
-                
+            if ($needsImport && ! $importAdded && Str::startsWith($trimmedLine, 'use ') &&
+                ! Str::startsWith($trimmedLine, 'use App\Traits\WebhookEnabled')) {
+
                 // Look ahead to see if this is the last use statement
                 $isLastUse = true;
                 for ($j = $i + 1; $j < count($lines); $j++) {
@@ -246,7 +253,7 @@ class AddWebhooksToAllModels extends Command
                         $isLastUse = false;
                         break;
                     }
-                    if (!empty($nextTrimmed) && !Str::startsWith($nextTrimmed, '//')) {
+                    if (! empty($nextTrimmed) && ! Str::startsWith($nextTrimmed, '//')) {
                         break;
                     }
                 }
@@ -256,21 +263,23 @@ class AddWebhooksToAllModels extends Command
                     $newLines[] = 'use App\Traits\WebhookEnabled;';
                     $importAdded = true;
                 }
+
                 continue;
             }
 
             // Detect class declaration
-            if (preg_match('/^class\s+' . preg_quote($className) . '\s/', $trimmedLine)) {
+            if (preg_match('/^class\s+'.preg_quote($className).'\s/', $trimmedLine)) {
                 $inClass = true;
                 $classLineFound = true;
                 $newLines[] = $line;
+
                 continue;
             }
 
             // Add trait usage after the opening brace of the class
-            if ($needsTraitUsage && !$traitAdded && $inClass && $trimmedLine === '{') {
+            if ($needsTraitUsage && ! $traitAdded && $inClass && $trimmedLine === '{') {
                 $newLines[] = $line;
-                
+
                 // Look for existing use statements in class
                 $hasExistingTraits = false;
                 for ($j = $i + 1; $j < count($lines); $j++) {
@@ -279,7 +288,7 @@ class AddWebhooksToAllModels extends Command
                         $hasExistingTraits = true;
                         break;
                     }
-                    if (!empty($nextTrimmed) && !Str::startsWith($nextTrimmed, '//')) {
+                    if (! empty($nextTrimmed) && ! Str::startsWith($nextTrimmed, '//')) {
                         break;
                     }
                 }
@@ -293,6 +302,7 @@ class AddWebhooksToAllModels extends Command
                     $newLines[] = '';
                 }
                 $traitAdded = true;
+
                 continue;
             }
 
@@ -300,7 +310,7 @@ class AddWebhooksToAllModels extends Command
         }
 
         // If we couldn't add the import (no existing use statements), add it after namespace
-        if ($needsImport && !$importAdded) {
+        if ($needsImport && ! $importAdded) {
             $newContent = [];
             foreach ($newLines as $line) {
                 $newContent[] = $line;
@@ -316,10 +326,10 @@ class AddWebhooksToAllModels extends Command
         $newContent = implode("\n", $newLines);
 
         // Create backup before modifying
-        if (!$this->option('dry-run')) {
-            $backupPath = $model['file_path'] . '.backup.' . date('Y-m-d-H-i-s');
+        if (! $this->option('dry-run')) {
+            $backupPath = $model['file_path'].'.backup.'.date('Y-m-d-H-i-s');
             File::copy($model['file_path'], $backupPath);
-            $this->line("   📁 Created backup: " . basename($backupPath));
+            $this->line('   📁 Created backup: '.basename($backupPath));
         }
 
         // Write new content
@@ -335,7 +345,7 @@ class AddWebhooksToAllModels extends Command
     {
         $modelsPath = app_path('Models');
         $models = [];
-        
+
         if (File::exists($modelsPath)) {
             $files = File::allFiles($modelsPath);
             foreach ($files as $file) {
@@ -344,7 +354,7 @@ class AddWebhooksToAllModels extends Command
                 }
             }
         }
-        
+
         return $models;
     }
 }

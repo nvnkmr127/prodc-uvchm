@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use App\Models\Student;
-use App\Models\Course;
 use App\Models\Batch;
+use App\Models\Course;
+use App\Models\Payment;
+use App\Models\Student;
 use App\Models\User;
-use App\Models\Payment; // ✅ CHANGED: Replaced Invoice with Payment model
+use Illuminate\Http\Request; // ✅ CHANGED: Replaced Invoice with Payment model
 
 class SessionSearchController extends Controller
 {
@@ -18,14 +18,14 @@ class SessionSearchController extends Controller
     public function search(Request $request)
     {
         $query = $request->input('q');
-        
+
         if (empty($query) || strlen($query) < 2) {
             return response()->json([
                 'students' => [],
                 'courses' => [],
                 'batches' => [],
                 'faculty' => [],
-                'payments' => [] // ✅ CHANGED: 'invoices' key is now 'payments'
+                'payments' => [], // ✅ CHANGED: 'invoices' key is now 'payments'
             ]);
         }
 
@@ -46,23 +46,23 @@ class SessionSearchController extends Controller
     private function searchStudents($query)
     {
         return Student::where('name', 'LIKE', "%{$query}%")
-                     ->orWhere('enrollment_number', 'LIKE', "%{$query}%")
-                     ->orWhere('student_mobile', 'LIKE', "%{$query}%")
-                     ->orWhere('email', 'LIKE', "%{$query}%")
-                     ->with('batch.course')
-                     ->limit(5)
-                     ->get()
-                     ->map(function ($student) {
-                         return [
-                             'id' => $student->id,
-                             'name' => $student->name,
-                             'enrollment_number' => $student->enrollment_number,
-                             'course' => $student->batch->course->name ?? 'N/A',
-                             'batch' => $student->batch->name ?? 'N/A',
-                             'url' => route('admin.students.show', $student),
-                             'type' => 'student'
-                         ];
-                     });
+            ->orWhere('enrollment_number', 'LIKE', "%{$query}%")
+            ->orWhere('student_mobile', 'LIKE', "%{$query}%")
+            ->orWhere('email', 'LIKE', "%{$query}%")
+            ->with('batch.course')
+            ->limit(5)
+            ->get()
+            ->map(function ($student) {
+                return [
+                    'id' => $student->id,
+                    'name' => $student->name,
+                    'enrollment_number' => $student->enrollment_number,
+                    'course' => $student->batch->course->name ?? 'N/A',
+                    'batch' => $student->batch->name ?? 'N/A',
+                    'url' => route('admin.students.show', $student),
+                    'type' => 'student',
+                ];
+            });
     }
 
     /**
@@ -71,17 +71,17 @@ class SessionSearchController extends Controller
     private function searchCourses($query)
     {
         return Course::where('name', 'LIKE', "%{$query}%")
-                    ->limit(3)
-                    ->get()
-                    ->map(function ($course) {
-                        return [
-                            'id' => $course->id,
-                            'name' => $course->name,
-                            'duration' => $course->duration_in_years . ' years',
-                            'url' => route('admin.courses.show', $course),
-                            'type' => 'course'
-                        ];
-                    });
+            ->limit(3)
+            ->get()
+            ->map(function ($course) {
+                return [
+                    'id' => $course->id,
+                    'name' => $course->name,
+                    'duration' => $course->duration_in_years.' years',
+                    'url' => route('admin.courses.show', $course),
+                    'type' => 'course',
+                ];
+            });
     }
 
     /**
@@ -90,19 +90,19 @@ class SessionSearchController extends Controller
     private function searchBatches($query)
     {
         return Batch::where('name', 'LIKE', "%{$query}%")
-                   ->with('course')
-                   ->limit(3)
-                   ->get()
-                   ->map(function ($batch) {
-                       return [
-                           'id' => $batch->id,
-                           'name' => $batch->name,
-                           'course' => $batch->course->name,
-                           'students_count' => $batch->students()->count(),
-                           'url' => route('admin.batches.show', $batch),
-                           'type' => 'batch'
-                       ];
-                   });
+            ->with('course')
+            ->limit(3)
+            ->get()
+            ->map(function ($batch) {
+                return [
+                    'id' => $batch->id,
+                    'name' => $batch->name,
+                    'course' => $batch->course->name,
+                    'students_count' => $batch->students()->count(),
+                    'url' => route('admin.batches.show', $batch),
+                    'type' => 'batch',
+                ];
+            });
     }
 
     /**
@@ -111,20 +111,20 @@ class SessionSearchController extends Controller
     private function searchFaculty($query)
     {
         return User::role(['staff', 'admin', 'college-admin'])
-                  ->where('name', 'LIKE', "%{$query}%")
-                  ->orWhere('email', 'LIKE', "%{$query}%")
-                  ->limit(3)
-                  ->get()
-                  ->map(function ($faculty) {
-                      return [
-                          'id' => $faculty->id,
-                          'name' => $faculty->name,
-                          'email' => $faculty->email,
-                          'roles' => $faculty->getRoleNames()->implode(', '),
-                          'url' => route('admin.faculty.edit', $faculty),
-                          'type' => 'faculty'
-                      ];
-                  });
+            ->where('name', 'LIKE', "%{$query}%")
+            ->orWhere('email', 'LIKE', "%{$query}%")
+            ->limit(3)
+            ->get()
+            ->map(function ($faculty) {
+                return [
+                    'id' => $faculty->id,
+                    'name' => $faculty->name,
+                    'email' => $faculty->email,
+                    'roles' => $faculty->getRoleNames()->implode(', '),
+                    'url' => route('admin.faculty.edit', $faculty),
+                    'type' => 'faculty',
+                ];
+            });
     }
 
     /**
@@ -134,20 +134,20 @@ class SessionSearchController extends Controller
     private function searchPayments($query)
     {
         return Payment::where('payment_type', 'component')
-                     ->where('receipt_number', 'LIKE', "%{$query}%")
-                     ->with('student')
-                     ->limit(3)
-                     ->get()
-                     ->map(function ($payment) {
-                         return [
-                             'id' => $payment->id,
-                             'name' => 'Receipt: ' . $payment->receipt_number,
-                             'student_name' => $payment->student->name,
-                             'amount' => $payment->amount,
-                             'date' => $payment->payment_date->format('d M, Y'),
-                             'url' => route('admin.payments.receipt.show', $payment),
-                             'type' => 'payment'
-                         ];
-                     });
+            ->where('receipt_number', 'LIKE', "%{$query}%")
+            ->with('student')
+            ->limit(3)
+            ->get()
+            ->map(function ($payment) {
+                return [
+                    'id' => $payment->id,
+                    'name' => 'Receipt: '.$payment->receipt_number,
+                    'student_name' => $payment->student->name,
+                    'amount' => $payment->amount,
+                    'date' => $payment->payment_date->format('d M, Y'),
+                    'url' => route('admin.payments.receipt.show', $payment),
+                    'type' => 'payment',
+                ];
+            });
     }
 }

@@ -1,4 +1,5 @@
 <?php
+
 // app/Http/Middleware/DashboardAccessMiddleware.php
 
 namespace App\Http\Middleware;
@@ -15,27 +16,27 @@ class DashboardAccessMiddleware
     public function handle(Request $request, Closure $next, $dashboard = null): Response
     {
         $user = auth()->user();
-        
-        if (!$user) {
+
+        if (! $user) {
             return redirect()->route('login');
         }
-        
+
         // Check if user has basic dashboard access
-        if (!$user->hasPermissionTo('view dashboard')) {
+        if (! $user->hasPermissionTo('view dashboard')) {
             abort(403, 'Dashboard access denied. Contact administrator for permissions.');
         }
-        
+
         // Check role-specific dashboard access if specified
-        if ($dashboard && !$this->canAccessDashboard($user, $dashboard)) {
+        if ($dashboard && ! $this->canAccessDashboard($user, $dashboard)) {
             abort(403, 'Insufficient permissions for this dashboard section.');
         }
-        
+
         // Log dashboard access for analytics
         $this->logDashboardAccess($user, $dashboard);
-        
+
         return $next($request);
     }
-    
+
     /**
      * Check if user can access specific dashboard type
      */
@@ -46,18 +47,18 @@ class DashboardAccessMiddleware
             'college-admin' => ['college-admin'],
             'accountant' => ['accountant', 'super-admin', 'college-admin'],
             'staff' => ['staff'],
-            'student' => ['student']
+            'student' => ['student'],
         ];
-        
+
         foreach ($user->roles as $role) {
             if (in_array($dashboardType, $allowedDashboards[$role->name] ?? [])) {
                 return true;
             }
         }
-        
+
         return false;
     }
-    
+
     /**
      * Log dashboard access for analytics
      */
@@ -70,7 +71,7 @@ class DashboardAccessMiddleware
             'dashboard_type' => $dashboard,
             'ip_address' => request()->ip(),
             'user_agent' => request()->userAgent(),
-            'timestamp' => now()
+            'timestamp' => now(),
         ]);
     }
 }

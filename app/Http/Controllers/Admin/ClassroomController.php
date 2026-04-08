@@ -11,6 +11,7 @@ class ClassroomController extends Controller
     public function index()
     {
         $classrooms = Classroom::latest()->get();
+
         return view('admin.classrooms.index', compact('classrooms'));
     }
 
@@ -24,7 +25,7 @@ class ClassroomController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'capacity' => 'nullable|integer',
-            'type' => 'required|in:lecture,lab'
+            'type' => 'required|in:lecture,lab',
         ]);
 
         $validated = $request->validate([
@@ -33,9 +34,9 @@ class ClassroomController extends Controller
             'type' => 'required|in:lecture,lab,auditorium',
         ]);
         Classroom::create($validated);
+
         return redirect()->route('admin.classrooms.index')->with('success', 'Classroom created successfully.');
     }
-    
 
     public function edit(Classroom $classroom)
     {
@@ -47,7 +48,7 @@ class ClassroomController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'capacity' => 'nullable|integer',
-            'type' => 'required|in:lecture,lab'
+            'type' => 'required|in:lecture,lab',
         ]);
 
         $validated = $request->validate([
@@ -56,12 +57,14 @@ class ClassroomController extends Controller
             'type' => 'required|in:lecture,lab,auditorium',
         ]);
         $classroom->update($validated);
+
         return redirect()->route('admin.classrooms.index')->with('success', 'Classroom updated successfully.');
     }
 
     public function destroy(Classroom $classroom)
     {
         $classroom->delete();
+
         return redirect()->route('admin.classrooms.index')->with('success', 'Classroom deleted successfully.');
     }
 }

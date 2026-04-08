@@ -2,24 +2,23 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Exports\AttendanceExport;
+use App\Exports\SyncLogsExport;
+use App\Exports\TodayAttendanceExport;
+use App\Helpers\ErrorHandler;  // ✅ FIXED: Correct namespace
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
+use App\Models\Attendance\Attendance;
+use App\Models\Batch;  // ✅ ADD: Missing import
 use App\Models\Setting;
-use App\Models\Attendance\Attendance;  // ✅ FIXED: Correct namespace
 use App\Models\Student;
 use App\Models\User;
-use App\Models\Batch;  // ✅ ADD: Missing import
-use Maatwebsite\Excel\Facades\Excel;
-use Carbon\Carbon;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
-use App\Exports\TodayAttendanceExport;
-use App\Exports\SyncLogsExport;
-use App\Exports\AttendanceExport;
 use Barryvdh\DomPDF\Facade\Pdf as PDF;
-use App\Helpers\ErrorHandler;
-
+use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
+use Maatwebsite\Excel\Facades\Excel;
 
 class AttendanceSettingsController extends Controller
 {
@@ -78,18 +77,18 @@ class AttendanceSettingsController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => $settings,
-                'live_attendances' => $liveAttendances
+                'live_attendances' => $liveAttendances,
             ]);
         } catch (\Exception $e) {
             Log::error('Failed to load attendance settings', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to load current configuration',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
-
 
     public function update(Request $request)
     {
@@ -104,14 +103,14 @@ class AttendanceSettingsController extends Controller
                 'faculty_late_cutoff_time' => ['sometimes', 'nullable'],
                 'college_end_time' => ['sometimes', 'nullable'],
                 'grace_period_minutes' => 'sometimes|integer|min:0|max:60',
-                'weekend_enabled' => 'sometimes|boolean'
+                'weekend_enabled' => 'sometimes|boolean',
             ]);
 
             if ($validator->fails()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Validation failed.',
-                    'errors' => $validator->errors()
+                    'errors' => $validator->errors(),
                 ], 422);
             }
 
@@ -123,7 +122,7 @@ class AttendanceSettingsController extends Controller
                 'faculty_college_start_time',
                 'faculty_present_cutoff_time',
                 'faculty_late_cutoff_time',
-                'college_end_time'
+                'college_end_time',
             ];
 
             $normalizedData = [];
@@ -132,7 +131,7 @@ class AttendanceSettingsController extends Controller
                     $time = $request->$field;
                     // Add seconds if missing (e.g., "09:30" -> "09:30:00")
                     if (preg_match('/^\d{2}:\d{2}$/', $time)) {
-                        $normalizedData[$field] = $time . ':00';
+                        $normalizedData[$field] = $time.':00';
                     } else {
                         $normalizedData[$field] = $time;
                     }
@@ -147,7 +146,7 @@ class AttendanceSettingsController extends Controller
 
             // 3. Save Settings to Database
             foreach ($normalizedData as $field => $value) {
-                $settingKey = 'attendance_' . $field;
+                $settingKey = 'attendance_'.$field;
                 \App\Models\Setting::updateOrCreate(
                     ['key' => $settingKey],
                     ['value' => $value]
@@ -172,15 +171,16 @@ class AttendanceSettingsController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Settings saved successfully!',
-                'timestamp' => now()->toDateTimeString()
+                'timestamp' => now()->toDateTimeString(),
             ]);
 
         } catch (\Exception $e) {
-            \Log::error('Attendance settings update error: ' . $e->getMessage());
+            \Log::error('Attendance settings update error: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
                 'message' => 'Server error occurred.',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -207,7 +207,7 @@ class AttendanceSettingsController extends Controller
             if ($request->expectsJson()) {
                 return response()->json([
                     'success' => true,
-                    'data' => $settings
+                    'data' => $settings,
                 ]);
             }
 
@@ -216,7 +216,7 @@ class AttendanceSettingsController extends Controller
         } catch (\Exception $e) {
             \Log::error('Failed to load eTimeOffice settings', [
                 'error' => $e->getMessage(),
-                'user_id' => auth()->id()
+                'user_id' => auth()->id(),
             ]);
 
             if ($request->expectsJson()) {
@@ -245,7 +245,7 @@ class AttendanceSettingsController extends Controller
             $validatedData = $request->validate([
                 'etimeoffice_api_url' => 'nullable|url',
                 'etimeoffice_corporate_id' => 'nullable|string|max:100',  // matches form
-                'etimeoffice_username' => 'nullable|string|max:255',      // matches form  
+                'etimeoffice_username' => 'nullable|string|max:255',      // matches form
                 'etimeoffice_password' => 'nullable|string|max:255',      // matches form
                 'etimeoffice_sync_frequency' => 'nullable|integer|min:5|max:1440',
             ]);
@@ -261,23 +261,23 @@ class AttendanceSettingsController extends Controller
 
             \Log::info('eTimeOffice settings updated', [
                 'user_id' => auth()->id(),
-                'settings' => array_keys($validatedData)
+                'settings' => array_keys($validatedData),
             ]);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Settings saved successfully!'
+                'message' => 'Settings saved successfully!',
             ]);
 
         } catch (\Exception $e) {
             \Log::error('eTimeOffice settings update failed', [
                 'error' => $e->getMessage(),
-                'user_id' => auth()->id()
+                'user_id' => auth()->id(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to save settings: ' . $e->getMessage()
+                'message' => 'Failed to save settings: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -298,20 +298,24 @@ class AttendanceSettingsController extends Controller
 
             // Validate required fields
             $missingFields = [];
-            if (empty($apiUrl))
+            if (empty($apiUrl)) {
                 $missingFields[] = 'API URL';
-            if (empty($corporateId))
+            }
+            if (empty($corporateId)) {
                 $missingFields[] = 'Corporate ID';
-            if (empty($username))
+            }
+            if (empty($username)) {
                 $missingFields[] = 'Username';
-            if (empty($password))
+            }
+            if (empty($password)) {
                 $missingFields[] = 'Password';
+            }
 
-            if (!empty($missingFields)) {
+            if (! empty($missingFields)) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'eTimeOffice configuration is incomplete. Missing: ' . implode(', ', $missingFields),
-                    'missing_fields' => $missingFields
+                    'message' => 'eTimeOffice configuration is incomplete. Missing: '.implode(', ', $missingFields),
+                    'missing_fields' => $missingFields,
                 ], 400);
             }
 
@@ -321,14 +325,14 @@ class AttendanceSettingsController extends Controller
             return response()->json([
                 'success' => $testResult['success'],
                 'message' => $testResult['message'],
-                'data' => $testResult['data'] ?? null
+                'data' => $testResult['data'] ?? null,
             ]);
 
         } catch (\Exception $e) {
             \Log::error('eTimeOffice connection test failed', [
                 'error' => $e->getMessage(),
                 'user_id' => auth()->id(),
-                'api_url' => $apiUrl ?? 'not set'
+                'api_url' => $apiUrl ?? 'not set',
             ]);
 
             return ErrorHandler::handleApiException(
@@ -349,7 +353,7 @@ class AttendanceSettingsController extends Controller
         \Log::info('🚀 triggerManualSync called', [
             'user_id' => auth()->id(),
             'request_data' => $request->all(),
-            'timestamp' => now()
+            'timestamp' => now(),
         ]);
 
         $this->authorize('manage attendance settings');
@@ -358,11 +362,12 @@ class AttendanceSettingsController extends Controller
             $enabled = $this->getSetting('etimeoffice_enabled', false);
             \Log::info('📋 ETimeOffice enabled check', ['enabled' => $enabled]);
 
-            if (!$enabled) {
+            if (! $enabled) {
                 \Log::warning('❌ ETimeOffice integration is not enabled');
+
                 return response()->json([
                     'success' => false,
-                    'message' => 'eTimeOffice integration is not enabled'
+                    'message' => 'eTimeOffice integration is not enabled',
                 ], 400);
             }
 
@@ -374,7 +379,7 @@ class AttendanceSettingsController extends Controller
                 'date_range_type' => 'today',
                 'date_range_start' => now()->startOfDay(),
                 'date_range_end' => now()->endOfDay(),
-                'test_mode' => false
+                'test_mode' => false,
             ]);
 
             \Log::info('✅ performETimeOfficeSync returned', ['result' => $syncResult]);
@@ -386,20 +391,20 @@ class AttendanceSettingsController extends Controller
             return response()->json([
                 'success' => $syncResult['success'],
                 'message' => $syncResult['message'],
-                'data' => $syncResult['data'] ?? null
+                'data' => $syncResult['data'] ?? null,
             ]);
 
         } catch (\Exception $e) {
             \Log::error('💥 triggerManualSync failed', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
-                'user_id' => auth()->id()
+                'user_id' => auth()->id(),
             ]);
 
             return response()->json([
                 'success' => false,
                 'message' => 'Manual sync failed',
-                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
+                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error',
             ], 500);
         }
     }
@@ -420,7 +425,7 @@ class AttendanceSettingsController extends Controller
                 'unique_users_today' => 0,
                 'last_sync' => $this->getSetting('etimeoffice_last_sync', null),
                 'sync_status' => $this->getSetting('etimeoffice_enabled', false) ? 'enabled' : 'disabled',
-                'sync_health' => 'good'
+                'sync_health' => 'good',
             ];
 
             // Try to get actual attendance data if table exists
@@ -431,12 +436,12 @@ class AttendanceSettingsController extends Controller
                         ->distinct('student_id')->count('student_id');
                 }
             } catch (\Exception $e) {
-                \Log::warning('Could not get attendance stats: ' . $e->getMessage());
+                \Log::warning('Could not get attendance stats: '.$e->getMessage());
             }
 
             return response()->json([
                 'success' => true,
-                'data' => $stats
+                'data' => $stats,
             ]);
 
         } catch (\Exception $e) {
@@ -445,10 +450,11 @@ class AttendanceSettingsController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to load biometric statistics',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
+
     /**
      * Show data pulling interface
      */
@@ -473,7 +479,7 @@ class AttendanceSettingsController extends Controller
             ));
 
         } catch (\Exception $e) {
-            return back()->with('error', 'Failed to load data puller: ' . $e->getMessage());
+            return back()->with('error', 'Failed to load data puller: '.$e->getMessage());
         }
     }
 
@@ -486,7 +492,7 @@ class AttendanceSettingsController extends Controller
                 'end_date' => 'nullable|date|required_if:date_range,custom|after_or_equal:start_date',
                 'employee_codes' => 'nullable|array',
                 'employee_codes.*' => 'string|max:50',
-                'test_mode' => 'nullable'
+                'test_mode' => 'nullable',
             ]);
 
             // Convert checkbox value
@@ -504,7 +510,7 @@ class AttendanceSettingsController extends Controller
 
                 return response()->json([
                     'success' => true,
-                    'message' => 'Test mode: Found ' . $simulatedRecords . ' records (no data saved)',
+                    'message' => 'Test mode: Found '.$simulatedRecords.' records (no data saved)',
                     'data' => [
                         'total_records' => $simulatedRecords,
                         'processed_records' => $simulatedRecords,
@@ -514,10 +520,10 @@ class AttendanceSettingsController extends Controller
                         'errors' => [],
                         'date_range' => [
                             'start' => $dateRange['start']->format('Y-m-d H:i:s'),
-                            'end' => $dateRange['end']->format('Y-m-d H:i:s')
+                            'end' => $dateRange['end']->format('Y-m-d H:i:s'),
                         ],
-                        'test_mode' => true
-                    ]
+                        'test_mode' => true,
+                    ],
                 ]);
             }
 
@@ -530,20 +536,20 @@ class AttendanceSettingsController extends Controller
             \Log::error('ETimeOffice data pull failed', [
                 'error' => $e->getMessage(),
                 'user_id' => auth()->id(),
-                'request_data' => $request->all()
+                'request_data' => $request->all(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Data pull failed: ' . $e->getMessage(),
+                'message' => 'Data pull failed: '.$e->getMessage(),
                 'data' => [
                     'total_records' => 0,
                     'processed_records' => 0,
                     'created_records' => 0,
                     'updated_records' => 0,
                     'skipped_records' => 0,
-                    'errors' => [$e->getMessage()]
-                ]
+                    'errors' => [$e->getMessage()],
+                ],
             ], 500);
         }
     }
@@ -565,7 +571,7 @@ class AttendanceSettingsController extends Controller
             $username = $this->getSetting('etimeoffice_username');
             $password = $this->getSetting('etimeoffice_password');
 
-            if (!$apiUrl || !$corporateId || !$username || !$password) {
+            if (! $apiUrl || ! $corporateId || ! $username || ! $password) {
                 return [
                     'success' => false,
                     'message' => 'ETimeOffice API credentials are incomplete',
@@ -575,8 +581,8 @@ class AttendanceSettingsController extends Controller
                         'created_records' => 0,
                         'updated_records' => 0,
                         'skipped_records' => 0,
-                        'errors' => ['API credentials not configured']
-                    ]
+                        'errors' => ['API credentials not configured'],
+                    ],
                 ];
             }
 
@@ -590,28 +596,29 @@ class AttendanceSettingsController extends Controller
             \Log::channel('attendance-webhook')->info('Fetching data from ETimeOffice API', [
                 'from_date' => $fromDate,
                 'to_date' => $toDate,
-                'api_url' => $apiUrl
+                'api_url' => $apiUrl,
             ]);
 
             // Call ETimeOffice API
             $response = \Http::timeout(15)
                 ->withHeaders([
-                    'Authorization' => 'Basic ' . $authToken,
+                    'Authorization' => 'Basic '.$authToken,
                     'Accept' => 'application/json',
-                    'Content-Type' => 'application/json'
+                    'Content-Type' => 'application/json',
                 ])
-                ->get($apiUrl . '/DownloadPunchData', [
+                ->get($apiUrl.'/DownloadPunchData', [
                     'Empcode' => 'ALL',
                     'FromDate' => $fromDate,
-                    'ToDate' => $toDate
+                    'ToDate' => $toDate,
                 ]);
 
-            if (!$response->successful()) {
-                \Log::channel('attendance-webhook')->error("ETimeOffice API request failed", [
+            if (! $response->successful()) {
+                \Log::channel('attendance-webhook')->error('ETimeOffice API request failed', [
                     'status' => $response->status(),
                     'from' => $fromDate,
-                    'to' => $toDate
+                    'to' => $toDate,
                 ]);
+
                 return [
                     'success' => false,
                     'message' => "ETimeOffice API request failed: HTTP {$response->status()}",
@@ -621,8 +628,8 @@ class AttendanceSettingsController extends Controller
                         'created_records' => 0,
                         'updated_records' => 0,
                         'skipped_records' => 0,
-                        'errors' => ["API HTTP Error: {$response->status()}"]
-                    ]
+                        'errors' => ["API HTTP Error: {$response->status()}"],
+                    ],
                 ];
             }
 
@@ -631,7 +638,7 @@ class AttendanceSettingsController extends Controller
             \Log::channel('attendance-webhook')->info('Raw ETimeOffice API Response', [
                 'response_body' => $responseBody,
                 'content_type' => $response->header('Content-Type'),
-                'response_size' => strlen($responseBody)
+                'response_size' => strlen($responseBody),
             ]);
 
             // Try to decode JSON
@@ -640,8 +647,9 @@ class AttendanceSettingsController extends Controller
             } catch (\Exception $e) {
                 \Log::channel('attendance-webhook')->error('Invalid JSON response from ETimeOffice API', [
                     'error' => $e->getMessage(),
-                    'response' => substr($responseBody, 0, 500)
+                    'response' => substr($responseBody, 0, 500),
                 ]);
+
                 return [
                     'success' => false,
                     'message' => 'Invalid JSON response from ETimeOffice API',
@@ -651,27 +659,28 @@ class AttendanceSettingsController extends Controller
                         'created_records' => 0,
                         'updated_records' => 0,
                         'skipped_records' => 0,
-                        'errors' => ['JSON decode error: ' . $e->getMessage()]
-                    ]
+                        'errors' => ['JSON decode error: '.$e->getMessage()],
+                    ],
                 ];
             }
 
             // Check for API errors
             if (is_array($apiData) && isset($apiData['Error']) && $apiData['Error'] === true) {
                 \Log::channel('attendance-webhook')->error('ETimeOffice API Error Response', [
-                    'msg' => $apiData['Msg'] ?? 'Unknown error'
+                    'msg' => $apiData['Msg'] ?? 'Unknown error',
                 ]);
+
                 return [
                     'success' => false,
-                    'message' => 'ETimeOffice API Error: ' . ($apiData['Msg'] ?? 'Unknown error'),
+                    'message' => 'ETimeOffice API Error: '.($apiData['Msg'] ?? 'Unknown error'),
                     'data' => [
                         'total_records' => 0,
                         'processed_records' => 0,
                         'created_records' => 0,
                         'updated_records' => 0,
                         'skipped_records' => 0,
-                        'errors' => [$apiData['Msg'] ?? 'Unknown API error']
-                    ]
+                        'errors' => [$apiData['Msg'] ?? 'Unknown API error'],
+                    ],
                 ];
             }
 
@@ -711,12 +720,12 @@ class AttendanceSettingsController extends Controller
                 'punch_data_type' => gettype($punchData),
                 'punch_data_count' => is_array($punchData) ? count($punchData) : 0,
                 'punch_data_is_empty' => empty($punchData),
-                'first_record_exists' => is_array($punchData) && !empty($punchData),
-                'first_record_sample' => (is_array($punchData) && !empty($punchData)) ? $punchData[0] : null,
-                'first_record_keys' => (is_array($punchData) && !empty($punchData) && is_array($punchData[0])) ? array_keys($punchData[0]) : 'no_keys'
+                'first_record_exists' => is_array($punchData) && ! empty($punchData),
+                'first_record_sample' => (is_array($punchData) && ! empty($punchData)) ? $punchData[0] : null,
+                'first_record_keys' => (is_array($punchData) && ! empty($punchData) && is_array($punchData[0])) ? array_keys($punchData[0]) : 'no_keys',
             ]);
 
-            if (empty($punchData) || !is_array($punchData)) {
+            if (empty($punchData) || ! is_array($punchData)) {
 
                 // ✅ FIX: Update last sync time even if no data found
                 $this->updateSetting('etimeoffice_last_sync', now()->toDateTimeString());
@@ -734,20 +743,20 @@ class AttendanceSettingsController extends Controller
                         'debug_info' => [
                             'api_response_structure' => is_array($apiData) ? array_keys($apiData) : gettype($apiData),
                             'punch_data_type' => gettype($punchData),
-                            'response_sample' => is_array($apiData) ? array_slice($apiData, 0, 2, true) : $apiData
+                            'response_sample' => is_array($apiData) ? array_slice($apiData, 0, 2, true) : $apiData,
                         ],
                         'date_range' => [
                             'start' => $dateRange['start']->format('Y-m-d H:i:s'),
-                            'end' => $dateRange['end']->format('Y-m-d H:i:s')
+                            'end' => $dateRange['end']->format('Y-m-d H:i:s'),
                         ],
-                        'test_mode' => false
-                    ]
+                        'test_mode' => false,
+                    ],
                 ];
             }
 
             \Log::channel('attendance-webhook')->info('Processing ETimeOffice punch data', [
                 'total_records' => count($punchData),
-                'sample_record' => $punchData[0] ?? 'no_first_record'
+                'sample_record' => $punchData[0] ?? 'no_first_record',
             ]);
 
             // Get default faculty ID
@@ -757,9 +766,10 @@ class AttendanceSettingsController extends Controller
             foreach ($punchData as $index => $punch) {
                 try {
                     // Ensure we have a valid array record
-                    if (!is_array($punch)) {
-                        $errors[] = "Record #{$index} is not an array: " . gettype($punch);
+                    if (! is_array($punch)) {
+                        $errors[] = "Record #{$index} is not an array: ".gettype($punch);
                         $skippedRecords++;
+
                         continue;
                     }
 
@@ -792,18 +802,19 @@ class AttendanceSettingsController extends Controller
                         'name' => $employeeName,
                         'punch_date' => $punchDateStr,
                         'manual_flag' => $manualFlag,
-                        'available_keys' => array_keys($punch)
+                        'available_keys' => array_keys($punch),
                     ]);
 
-                    if (!$empCode || !$punchDateStr) {
+                    if (! $empCode || ! $punchDateStr) {
                         $errors[] = "Missing employee code or punch date for: {$employeeName} (Record #{$index})";
                         $skippedRecords++;
                         \Log::warning("Skipping record {$index}: missing required data", [
                             'empcode' => $empCode,
                             'punch_date' => $punchDateStr,
                             'available_fields' => array_keys($punch),
-                            'record' => $punch
+                            'record' => $punch,
                         ]);
+
                         continue;
                     }
 
@@ -815,7 +826,7 @@ class AttendanceSettingsController extends Controller
                         'd-m-Y H:i:s',  // Alternative format
                         'm/d/Y H:i:s',  // US format
                         'd/m/Y H:i',    // Without seconds
-                        'Y-m-d H:i'     // Without seconds
+                        'Y-m-d H:i',     // Without seconds
                     ];
 
                     foreach ($dateFormats as $format) {
@@ -830,7 +841,7 @@ class AttendanceSettingsController extends Controller
                     }
 
                     // If format parsing failed, try generic parsing
-                    if (!$punchDateTime) {
+                    if (! $punchDateTime) {
                         try {
                             $punchDateTime = \Carbon\Carbon::parse($punchDateStr);
                         } catch (\Exception $e) {
@@ -840,8 +851,9 @@ class AttendanceSettingsController extends Controller
                                 'punch_date_str' => $punchDateStr,
                                 'employee_name' => $employeeName,
                                 'tried_formats' => $dateFormats,
-                                'error' => $e->getMessage()
+                                'error' => $e->getMessage(),
                             ]);
+
                             continue;
                         }
                     }
@@ -851,14 +863,15 @@ class AttendanceSettingsController extends Controller
                         ->orWhere('enrollment_number', $empCode)
                         ->first();
 
-                    if (!$student) {
+                    if (! $student) {
                         $errors[] = "Student not found for employee code: {$empCode} (Name: {$employeeName})";
                         $skippedRecords++;
-                        \Log::info("No student found for employee code", [
+                        \Log::info('No student found for employee code', [
                             'empcode' => $empCode,
                             'employee_name' => $employeeName,
-                            'searched_fields' => ['biometric_employee_code', 'enrollment_number']
+                            'searched_fields' => ['biometric_employee_code', 'enrollment_number'],
                         ]);
+
                         continue;
                     }
 
@@ -867,11 +880,11 @@ class AttendanceSettingsController extends Controller
                     // Check if attendance already exists for this student and date
                     $existingAttendance = Attendance::where([
                         'student_id' => $student->id,
-                        'attendance_date' => $attendanceDate
+                        'attendance_date' => $attendanceDate,
                     ])->first();
 
                     // Calculate late minutes
-                    $collegeStartTime = \Carbon\Carbon::parse($attendanceDate . ' ' . $this->getSetting('attendance_student_college_start_time', '09:30:00'));
+                    $collegeStartTime = \Carbon\Carbon::parse($attendanceDate.' '.$this->getSetting('attendance_student_college_start_time', '09:30:00'));
                     $lateMinutes = $punchDateTime->gt($collegeStartTime) ? $punchDateTime->diffInMinutes($collegeStartTime) : 0;
 
                     // Determine attendance status
@@ -888,20 +901,20 @@ class AttendanceSettingsController extends Controller
                         'status' => $status,
                         'marked_at' => $punchDateTime,
                         'marked_by' => auth()->id() ?? $defaultFacultyId,
-                        'notes' => "ETimeOffice: {$employeeName}" . ($manualFlag ? ' (Manual)' : ''),
+                        'notes' => "ETimeOffice: {$employeeName}".($manualFlag ? ' (Manual)' : ''),
                         'late_minutes' => $lateMinutes > 0 ? $lateMinutes : null,
                         'location' => null,
                         'device_id' => 'etimeoffice-api',
-                        'biometric_log_id' => null
+                        'biometric_log_id' => null,
                     ];
 
                     if ($existingAttendance) {
                         // Update logic
                         $shouldUpdate = false;
 
-                        if (!$existingAttendance->check_in_time || $punchDateTime->lt($existingAttendance->marked_at)) {
+                        if (! $existingAttendance->check_in_time || $punchDateTime->lt($existingAttendance->marked_at)) {
                             $shouldUpdate = true;
-                        } elseif ($existingAttendance->check_in_time && !$existingAttendance->check_out_time && $punchDateTime->gt($existingAttendance->marked_at)) {
+                        } elseif ($existingAttendance->check_in_time && ! $existingAttendance->check_out_time && $punchDateTime->gt($existingAttendance->marked_at)) {
                             $attendanceData['check_out_time'] = $punchDateTime->format('H:i:s');
                             $attendanceData['check_in_time'] = $existingAttendance->check_in_time;
                             $attendanceData['marked_at'] = $existingAttendance->marked_at;
@@ -917,7 +930,7 @@ class AttendanceSettingsController extends Controller
                                 'employee_code' => $empCode,
                                 'date' => $attendanceDate,
                                 'punch_time' => $punchDateTime->format('H:i:s'),
-                                'status' => $status
+                                'status' => $status,
                             ]);
                         } else {
                             $skippedRecords++;
@@ -933,18 +946,18 @@ class AttendanceSettingsController extends Controller
                             'date' => $attendanceDate,
                             'punch_time' => $punchDateTime->format('H:i:s'),
                             'status' => $status,
-                            'late_minutes' => $lateMinutes
+                            'late_minutes' => $lateMinutes,
                         ]);
                     }
 
                 } catch (\Exception $e) {
                     $empCode = isset($punch) && is_array($punch) ? ($punch['Empcode'] ?? 'unknown') : 'unknown';
-                    $errors[] = "Error processing punch for {$empCode}: " . $e->getMessage();
+                    $errors[] = "Error processing punch for {$empCode}: ".$e->getMessage();
                     $skippedRecords++;
                     \Log::channel('attendance-webhook')->error('Error processing ETimeOffice punch', [
                         'record_index' => $index,
                         'punch_data' => $punch ?? 'null',
-                        'error' => $e->getMessage()
+                        'error' => $e->getMessage(),
                     ]);
                 }
             }
@@ -966,10 +979,10 @@ class AttendanceSettingsController extends Controller
                     'errors' => $errors,
                     'date_range' => [
                         'start' => $dateRange['start']->format('Y-m-d H:i:s'),
-                        'end' => $dateRange['end']->format('Y-m-d H:i:s')
+                        'end' => $dateRange['end']->format('Y-m-d H:i:s'),
                     ],
-                    'test_mode' => false
-                ]
+                    'test_mode' => false,
+                ],
             ];
 
         } catch (\Exception $e) {
@@ -977,20 +990,20 @@ class AttendanceSettingsController extends Controller
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
                 'line' => $e->getLine(),
-                'file' => $e->getFile()
+                'file' => $e->getFile(),
             ]);
 
             return [
                 'success' => false,
-                'message' => 'ETimeOffice sync failed: ' . $e->getMessage(),
+                'message' => 'ETimeOffice sync failed: '.$e->getMessage(),
                 'data' => [
                     'total_records' => 0,
                     'processed_records' => 0,
                     'created_records' => $createdRecords,
                     'updated_records' => $updatedRecords,
                     'skipped_records' => $skippedRecords,
-                    'errors' => array_merge($errors, [$e->getMessage()])
-                ]
+                    'errors' => array_merge($errors, [$e->getMessage()]),
+                ],
             ];
         }
     }
@@ -1006,7 +1019,7 @@ class AttendanceSettingsController extends Controller
         $originalData = $punches[0]['original_data'];
 
         // Calculate late minutes
-        $collegeStartTime = \Carbon\Carbon::parse($date . ' ' . $this->getSetting('attendance_student_college_start_time', '09:30:00'));
+        $collegeStartTime = \Carbon\Carbon::parse($date.' '.$this->getSetting('attendance_student_college_start_time', '09:30:00'));
         $lateMinutes = $firstPunch->gt($collegeStartTime) ? $firstPunch->diffInMinutes($collegeStartTime) : 0;
 
         // Determine attendance status
@@ -1015,7 +1028,7 @@ class AttendanceSettingsController extends Controller
         // Check if attendance record already exists
         $existingAttendance = Attendance::where([
             'student_id' => $student->id,
-            'attendance_date' => $date
+            'attendance_date' => $date,
         ])->first();
 
         $attendanceData = [
@@ -1028,22 +1041,22 @@ class AttendanceSettingsController extends Controller
             'status' => $status,
             'marked_at' => $firstPunch,
             'marked_by' => auth()->id() ?? $defaultFacultyId,
-            'notes' => "ETimeOffice API: " . ($originalData['Name'] ?? 'Auto-sync'),
+            'notes' => 'ETimeOffice API: '.($originalData['Name'] ?? 'Auto-sync'),
             'late_minutes' => $lateMinutes > 0 ? $lateMinutes : null,
             'location' => $originalData['Location'] ?? null,
             'device_id' => 'etimeoffice-api',
-            'biometric_log_id' => $originalData['LogId'] ?? null
+            'biometric_log_id' => $originalData['LogId'] ?? null,
         ];
 
         if ($existingAttendance) {
             // Update existing record only if new data is more complete or earlier
             $shouldUpdate = false;
 
-            if (!$existingAttendance->check_in_time || $firstPunch->lt($existingAttendance->marked_at)) {
+            if (! $existingAttendance->check_in_time || $firstPunch->lt($existingAttendance->marked_at)) {
                 $shouldUpdate = true;
             }
 
-            if (count($punches) > 1 && !$existingAttendance->check_out_time) {
+            if (count($punches) > 1 && ! $existingAttendance->check_out_time) {
                 $shouldUpdate = true;
             }
 
@@ -1056,7 +1069,7 @@ class AttendanceSettingsController extends Controller
                     'date' => $date,
                     'check_in' => $firstPunch->format('H:i:s'),
                     'check_out' => $attendanceData['check_out_time'],
-                    'status' => $status
+                    'status' => $status,
                 ]);
 
                 return ['action' => 'updated'];
@@ -1074,7 +1087,7 @@ class AttendanceSettingsController extends Controller
                 'check_in' => $firstPunch->format('H:i:s'),
                 'check_out' => $attendanceData['check_out_time'],
                 'status' => $status,
-                'late_minutes' => $lateMinutes
+                'late_minutes' => $lateMinutes,
             ]);
 
             return ['action' => 'created'];
@@ -1118,12 +1131,13 @@ class AttendanceSettingsController extends Controller
                 $punchRecord['InOut'] ??
                 $punchRecord['PunchType'] ?? 'IN';
 
-            if (!$empCode || !$punchDateTime) {
+            if (! $empCode || ! $punchDateTime) {
                 \Log::warning('ETimeOffice record missing essential data', [
                     'record' => $punchRecord,
                     'emp_code' => $empCode,
-                    'punch_datetime' => $punchDateTime
+                    'punch_datetime' => $punchDateTime,
                 ]);
+
                 return null;
             }
 
@@ -1150,15 +1164,16 @@ class AttendanceSettingsController extends Controller
             }
 
             // If still not parsed, try generic parse
-            if (!$carbonDateTime) {
+            if (! $carbonDateTime) {
                 try {
                     $carbonDateTime = \Carbon\Carbon::parse($punchDateTime);
                 } catch (\Exception $e) {
                     \Log::error('Could not parse ETimeOffice datetime', [
                         'punch_datetime' => $punchDateTime,
                         'formats_tried' => $dateFormats,
-                        'error' => $e->getMessage()
+                        'error' => $e->getMessage(),
                     ]);
+
                     return null;
                 }
             }
@@ -1170,14 +1185,15 @@ class AttendanceSettingsController extends Controller
                 'location' => $location,
                 'log_id' => $logId,
                 'direction' => strtoupper($direction),
-                'original_data' => $punchRecord
+                'original_data' => $punchRecord,
             ];
 
         } catch (\Exception $e) {
             \Log::error('Error mapping ETimeOffice data', [
                 'record' => $punchRecord,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
+
             return null;
         }
     }
@@ -1193,36 +1209,36 @@ class AttendanceSettingsController extends Controller
             $empCode = $punch['Empcode'] ?? $punch['EmpCode'] ?? $punch['EmployeeCode'] ?? null;
             $punchDateTime = $punch['PunchDate'] ?? $punch['LogDateTime'] ?? $punch['DateTime'] ?? null;
 
-            if (!$empCode || !$punchDateTime) {
+            if (! $empCode || ! $punchDateTime) {
                 continue;
             }
 
             try {
                 // Parse the date/time
                 $carbonDateTime = \Carbon\Carbon::createFromFormat('d/m/Y H:i:s', $punchDateTime);
-                if (!$carbonDateTime) {
+                if (! $carbonDateTime) {
                     $carbonDateTime = \Carbon\Carbon::parse($punchDateTime);
                 }
 
                 $date = $carbonDateTime->format('Y-m-d');
 
-                if (!isset($grouped[$empCode])) {
+                if (! isset($grouped[$empCode])) {
                     $grouped[$empCode] = [];
                 }
 
-                if (!isset($grouped[$empCode][$date])) {
+                if (! isset($grouped[$empCode][$date])) {
                     $grouped[$empCode][$date] = [];
                 }
 
                 $grouped[$empCode][$date][] = [
                     'datetime' => $carbonDateTime,
-                    'original_data' => $punch
+                    'original_data' => $punch,
                 ];
 
             } catch (\Exception $e) {
                 \Log::warning('Could not parse punch datetime', [
                     'punch_datetime' => $punchDateTime,
-                    'error' => $e->getMessage()
+                    'error' => $e->getMessage(),
                 ]);
             }
         }
@@ -1239,7 +1255,6 @@ class AttendanceSettingsController extends Controller
         return $grouped;
     }
 
-
     /**
      * Determine attendance status based on punch time
      */
@@ -1249,7 +1264,7 @@ class AttendanceSettingsController extends Controller
         $officeStartTime = $this->getSetting('office_start_time', '09:00');
         $lateThreshold = (int) $this->getSetting('late_threshold_minutes', 30);
 
-        $startTime = \Carbon\Carbon::parse($punchTime->format('Y-m-d') . ' ' . $officeStartTime);
+        $startTime = \Carbon\Carbon::parse($punchTime->format('Y-m-d').' '.$officeStartTime);
         $lateTime = $startTime->copy()->addMinutes($lateThreshold);
 
         if ($punchTime->lte($startTime)) {
@@ -1274,7 +1289,7 @@ class AttendanceSettingsController extends Controller
                 'date_from' => 'required_if:date_range_type,custom|date',
                 'date_to' => 'required_if:date_range_type,custom|date|after_or_equal:date_from',
                 'employee_codes' => 'nullable|array',
-                'employee_codes.*' => 'string|max:50'
+                'employee_codes.*' => 'string|max:50',
             ]);
 
             // Calculate date range
@@ -1287,21 +1302,21 @@ class AttendanceSettingsController extends Controller
                 'date_range_start' => $dateRange['start'],
                 'date_range_end' => $dateRange['end'],
                 'test_mode' => true,
-                'employee_codes' => $validated['employee_codes'] ?? null
+                'employee_codes' => $validated['employee_codes'] ?? null,
             ]);
 
             return response()->json([
                 'success' => $syncResult['success'],
                 'message' => $syncResult['message'],
                 'data' => $syncResult['data'],
-                'test_mode' => true
+                'test_mode' => true,
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Test sync failed',
-                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
+                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error',
             ], 500);
         }
     }
@@ -1318,10 +1333,10 @@ class AttendanceSettingsController extends Controller
             $username = $this->getSetting('etimeoffice_username');
             $password = $this->getSetting('etimeoffice_password');
 
-            if (!$apiUrl || !$corporateId || !$username || !$password) {
+            if (! $apiUrl || ! $corporateId || ! $username || ! $password) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'ETimeOffice credentials not configured'
+                    'message' => 'ETimeOffice credentials not configured',
                 ], 400);
             }
 
@@ -1330,20 +1345,20 @@ class AttendanceSettingsController extends Controller
             // Test with today's data
             $response = \Http::timeout(30)
                 ->withHeaders([
-                    'Authorization' => 'Basic ' . $authToken,
-                    'Accept' => 'application/json'
+                    'Authorization' => 'Basic '.$authToken,
+                    'Accept' => 'application/json',
                 ])
-                ->get($apiUrl . '/DownloadPunchData', [
+                ->get($apiUrl.'/DownloadPunchData', [
                     'Empcode' => 'ALL',
                     'FromDate' => now()->format('d/m/Y_H:i'),
-                    'ToDate' => now()->format('d/m/Y_H:i')
+                    'ToDate' => now()->format('d/m/Y_H:i'),
                 ]);
 
-            if (!$response->successful()) {
+            if (! $response->successful()) {
                 return response()->json([
                     'success' => false,
                     'message' => "API request failed: HTTP {$response->status()}",
-                    'response_body' => $response->body()
+                    'response_body' => $response->body(),
                 ]);
             }
 
@@ -1352,8 +1367,8 @@ class AttendanceSettingsController extends Controller
             if (isset($data['Error']) && $data['Error'] === true) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'API Error: ' . ($data['Msg'] ?? 'Unknown error'),
-                    'api_response' => $data
+                    'message' => 'API Error: '.($data['Msg'] ?? 'Unknown error'),
+                    'api_response' => $data,
                 ]);
             }
 
@@ -1364,10 +1379,10 @@ class AttendanceSettingsController extends Controller
                 'total_records' => count($punchData),
                 'sample_record' => $punchData[0] ?? null,
                 'field_analysis' => [],
-                'mapped_sample' => null
+                'mapped_sample' => null,
             ];
 
-            if (!empty($punchData)) {
+            if (! empty($punchData)) {
                 // Analyze fields in the first record
                 $sampleRecord = $punchData[0];
                 $analysis['field_analysis'] = [
@@ -1380,7 +1395,7 @@ class AttendanceSettingsController extends Controller
                     }),
                     'name_fields' => array_filter(array_keys($sampleRecord), function ($key) {
                         return stripos($key, 'name') !== false;
-                    })
+                    }),
                 ];
 
                 // Try to map the sample record
@@ -1390,17 +1405,17 @@ class AttendanceSettingsController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'ETimeOffice API connection successful',
-                'data' => $analysis
+                'data' => $analysis,
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Test failed: ' . $e->getMessage(),
+                'message' => 'Test failed: '.$e->getMessage(),
                 'error_details' => [
                     'line' => $e->getLine(),
-                    'file' => $e->getFile()
-                ]
+                    'file' => $e->getFile(),
+                ],
             ], 500);
         }
     }
@@ -1431,15 +1446,16 @@ class AttendanceSettingsController extends Controller
             // Option 4: Create a system user if none exists
             $systemUser = \App\Models\User::create([
                 'name' => 'System User',
-                'email' => 'system@' . config('app.url', 'example.com'),
+                'email' => 'system@'.config('app.url', 'example.com'),
                 'password' => bcrypt('system123'),
-                'email_verified_at' => now()
+                'email_verified_at' => now(),
             ]);
 
             return $systemUser->id;
 
         } catch (\Exception $e) {
-            \Log::error('Could not get default faculty ID: ' . $e->getMessage());
+            \Log::error('Could not get default faculty ID: '.$e->getMessage());
+
             return 1; // Fallback to ID 1
         }
     }
@@ -1450,6 +1466,7 @@ class AttendanceSettingsController extends Controller
     private function getRandomStatus()
     {
         $statuses = ['present', 'present', 'present', 'late', 'absent']; // More likely to be present
+
         return $statuses[array_rand($statuses)];
     }
 
@@ -1478,40 +1495,40 @@ class AttendanceSettingsController extends Controller
                 'corporate_id' => $this->getSetting('etimeoffice_corporate_id'),
                 'username' => $this->getSetting('etimeoffice_username'),
                 'password' => $this->getSetting('etimeoffice_password'),
-                'enabled' => filter_var($this->getSetting('etimeoffice_enabled', false), FILTER_VALIDATE_BOOLEAN)
+                'enabled' => filter_var($this->getSetting('etimeoffice_enabled', false), FILTER_VALIDATE_BOOLEAN),
             ];
 
             $validation = [
                 'steps' => [
                     [
                         'title' => 'API URL Configuration',
-                        'completed' => !empty($config['api_url']) && filter_var($config['api_url'], FILTER_VALIDATE_URL),
+                        'completed' => ! empty($config['api_url']) && filter_var($config['api_url'], FILTER_VALIDATE_URL),
                         'description' => 'Set your ETimeOffice API endpoint URL',
                         'current_value' => $config['api_url'] ?: 'Not set',
-                        'field' => 'etimeoffice_api_url'
+                        'field' => 'etimeoffice_api_url',
                     ],
                     [
                         'title' => 'Corporate ID',
-                        'completed' => !empty($config['corporate_id']),
+                        'completed' => ! empty($config['corporate_id']),
                         'description' => 'Enter your ETimeOffice Corporate ID',
-                        'current_value' => $config['corporate_id'] ? '***' . substr($config['corporate_id'], -3) : 'Not set',
-                        'field' => 'etimeoffice_corporate_id'
+                        'current_value' => $config['corporate_id'] ? '***'.substr($config['corporate_id'], -3) : 'Not set',
+                        'field' => 'etimeoffice_corporate_id',
                     ],
                     [
                         'title' => 'API Credentials',
-                        'completed' => !empty($config['username']) && !empty($config['password']),
+                        'completed' => ! empty($config['username']) && ! empty($config['password']),
                         'description' => 'Set your API username and password',
-                        'current_value' => (!empty($config['username']) && !empty($config['password'])) ? 'Configured' : 'Not set',
-                        'field' => 'credentials'
+                        'current_value' => (! empty($config['username']) && ! empty($config['password'])) ? 'Configured' : 'Not set',
+                        'field' => 'credentials',
                     ],
                     [
                         'title' => 'Enable Integration',
                         'completed' => $config['enabled'],
                         'description' => 'Enable automatic data synchronization',
                         'current_value' => $config['enabled'] ? 'Enabled' : 'Disabled',
-                        'field' => 'etimeoffice_enabled'
-                    ]
-                ]
+                        'field' => 'etimeoffice_enabled',
+                    ],
+                ],
             ];
 
             $completedSteps = collect($validation['steps'])->where('completed', true)->count();
@@ -1522,12 +1539,12 @@ class AttendanceSettingsController extends Controller
                 'total_steps' => $totalSteps,
                 'completion_percentage' => round(($completedSteps / $totalSteps) * 100),
                 'is_ready' => $completedSteps >= 3,
-                'next_step' => collect($validation['steps'])->where('completed', false)->first()
+                'next_step' => collect($validation['steps'])->where('completed', false)->first(),
             ];
 
             return response()->json([
                 'success' => true,
-                'data' => $validation
+                'data' => $validation,
             ]);
 
         } catch (\Exception $e) {
@@ -1536,7 +1553,7 @@ class AttendanceSettingsController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to validate configuration',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -1550,33 +1567,33 @@ class AttendanceSettingsController extends Controller
             $recommendations = [];
 
             // Check basic configuration
-            if (!$this->getSetting('etimeoffice_api_url')) {
+            if (! $this->getSetting('etimeoffice_api_url')) {
                 $recommendations[] = [
                     'type' => 'error',
                     'title' => 'API URL Required',
                     'message' => 'Configure your ETimeOffice API URL to enable data synchronization.',
                     'action' => 'Set API URL',
-                    'priority' => 'high'
+                    'priority' => 'high',
                 ];
             }
 
-            if (!$this->getSetting('etimeoffice_corporate_id')) {
+            if (! $this->getSetting('etimeoffice_corporate_id')) {
                 $recommendations[] = [
                     'type' => 'error',
                     'title' => 'Corporate ID Missing',
                     'message' => 'Your Corporate ID is required for API authentication.',
                     'action' => 'Add Corporate ID',
-                    'priority' => 'high'
+                    'priority' => 'high',
                 ];
             }
 
-            if (!$this->getSetting('etimeoffice_username') || !$this->getSetting('etimeoffice_password')) {
+            if (! $this->getSetting('etimeoffice_username') || ! $this->getSetting('etimeoffice_password')) {
                 $recommendations[] = [
                     'type' => 'error',
                     'title' => 'API Credentials Incomplete',
                     'message' => 'Both username and password are required for API access.',
                     'action' => 'Set Credentials',
-                    'priority' => 'high'
+                    'priority' => 'high',
                 ];
             }
 
@@ -1587,8 +1604,8 @@ class AttendanceSettingsController extends Controller
                     'total_count' => count($recommendations),
                     'high_priority' => collect($recommendations)->where('priority', 'high')->count(),
                     'medium_priority' => collect($recommendations)->where('priority', 'medium')->count(),
-                    'low_priority' => collect($recommendations)->where('priority', 'low')->count()
-                ]
+                    'low_priority' => collect($recommendations)->where('priority', 'low')->count(),
+                ],
             ]);
 
         } catch (\Exception $e) {
@@ -1597,7 +1614,7 @@ class AttendanceSettingsController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to load recommendations',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -1619,12 +1636,12 @@ class AttendanceSettingsController extends Controller
                 'today_success_rate' => 100,
                 'last_24h_syncs' => 0,
                 'last_24h_records' => 0,
-                'last_error' => null
+                'last_error' => null,
             ];
 
             return response()->json([
                 'success' => true,
-                'data' => $stats
+                'data' => $stats,
             ]);
 
         } catch (\Exception $e) {
@@ -1633,11 +1650,10 @@ class AttendanceSettingsController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to get sync status',
-                'data' => []
+                'data' => [],
             ], 500);
         }
     }
-
 
     /**
      * Calculate date range based on type
@@ -1648,32 +1664,32 @@ class AttendanceSettingsController extends Controller
             case 'today':
                 return [
                     'start' => now()->startOfDay(),
-                    'end' => now()->endOfDay()
+                    'end' => now()->endOfDay(),
                 ];
             case 'yesterday':
                 return [
                     'start' => now()->subDay()->startOfDay(),
-                    'end' => now()->subDay()->endOfDay()
+                    'end' => now()->subDay()->endOfDay(),
                 ];
             case 'last_3_days':
                 return [
                     'start' => now()->subDays(3)->startOfDay(),
-                    'end' => now()->endOfDay()
+                    'end' => now()->endOfDay(),
                 ];
             case 'last_7_days':
                 return [
                     'start' => now()->subDays(7)->startOfDay(),
-                    'end' => now()->endOfDay()
+                    'end' => now()->endOfDay(),
                 ];
             case 'custom':
                 return [
                     'start' => \Carbon\Carbon::parse($params['date_from'] ?? now()->startOfDay()),
-                    'end' => \Carbon\Carbon::parse($params['date_to'] ?? now()->endOfDay())
+                    'end' => \Carbon\Carbon::parse($params['date_to'] ?? now()->endOfDay()),
                 ];
             default:
                 return [
                     'start' => now()->startOfDay(),
-                    'end' => now()->endOfDay()
+                    'end' => now()->endOfDay(),
                 ];
         }
     }
@@ -1702,10 +1718,10 @@ class AttendanceSettingsController extends Controller
                     'errors' => [],
                     'date_range' => [
                         'start' => $startDate->format('Y-m-d H:i:s'),
-                        'end' => $endDate->format('Y-m-d H:i:s')
+                        'end' => $endDate->format('Y-m-d H:i:s'),
                     ],
-                    'test_mode' => $testMode
-                ]
+                    'test_mode' => $testMode,
+                ],
             ];
 
             // Create auth token
@@ -1725,7 +1741,7 @@ class AttendanceSettingsController extends Controller
             }
 
             // Update last sync time if not in test mode
-            if (!$testMode && $results['data']['total_records'] > 0) {
+            if (! $testMode && $results['data']['total_records'] > 0) {
                 $this->updateSetting('etimeoffice_last_sync', now()->toDateTimeString());
             }
 
@@ -1737,8 +1753,8 @@ class AttendanceSettingsController extends Controller
         } catch (\Exception $e) {
             return [
                 'success' => false,
-                'message' => 'API call failed: ' . $e->getMessage(),
-                'data' => null
+                'message' => 'API call failed: '.$e->getMessage(),
+                'data' => null,
             ];
         }
     }
@@ -1755,24 +1771,26 @@ class AttendanceSettingsController extends Controller
 
             $response = \Http::timeout(30)
                 ->withHeaders([
-                    'Authorization' => 'Basic ' . $authToken,
-                    'Accept' => 'application/json'
+                    'Authorization' => 'Basic '.$authToken,
+                    'Accept' => 'application/json',
                 ])
-                ->get($apiUrl . '/DownloadPunchData', [
+                ->get($apiUrl.'/DownloadPunchData', [
                     'Empcode' => $empCode,
                     'FromDate' => $fromDate,
-                    'ToDate' => $toDate
+                    'ToDate' => $toDate,
                 ]);
 
-            if (!$response->successful()) {
-                $results['data']['errors'][] = "API call failed for employee {$empCode}: " . $response->status();
+            if (! $response->successful()) {
+                $results['data']['errors'][] = "API call failed for employee {$empCode}: ".$response->status();
+
                 return;
             }
 
             $data = $response->json();
 
-            if (empty($data) || !is_array($data)) {
+            if (empty($data) || ! is_array($data)) {
                 $results['data']['errors'][] = "No data returned for employee {$empCode}";
+
                 return;
             }
 
@@ -1782,7 +1800,7 @@ class AttendanceSettingsController extends Controller
             }
 
         } catch (\Exception $e) {
-            $results['data']['errors'][] = "Error processing employee {$empCode}: " . $e->getMessage();
+            $results['data']['errors'][] = "Error processing employee {$empCode}: ".$e->getMessage();
         }
     }
 
@@ -1792,22 +1810,23 @@ class AttendanceSettingsController extends Controller
     private function processAttendanceRecord(array $record, bool $testMode = false, array &$results = []): array
     {
         $employeeCode = trim($record['employee_code']);
-        \Illuminate\Support\Facades\Log::info("Processing attendance for Employee Code: " . $employeeCode);
+        \Illuminate\Support\Facades\Log::info('Processing attendance for Employee Code: '.$employeeCode);
 
         // Find student by biometric employee code
         $student = \App\Models\Student::where('biometric_employee_code', $employeeCode)->first();
 
-        if (!$student) {
-            \Illuminate\Support\Facades\Log::warning("Student not found for Employee Code: " . $employeeCode);
+        if (! $student) {
+            \Illuminate\Support\Facades\Log::warning('Student not found for Employee Code: '.$employeeCode);
             $result = [
                 'action' => 'skipped',
-                'reason' => 'Student not found with employee code: ' . $employeeCode
+                'reason' => 'Student not found with employee code: '.$employeeCode,
             ];
             $results['data']['logs'][] = $result;
+
             return $result;
         }
 
-        \Illuminate\Support\Facades\Log::info("Found Student: " . $student->name . " (ID: " . $student->id . ")");
+        \Illuminate\Support\Facades\Log::info('Found Student: '.$student->name.' (ID: '.$student->id.')');
 
         $attendanceDate = \Carbon\Carbon::parse($record['punch_date'])->format('Y-m-d');
 
@@ -1824,6 +1843,7 @@ class AttendanceSettingsController extends Controller
                 $result = ['action' => 'created', 'reason' => 'Would create new attendance'];
             }
             $results['data']['logs'][] = $result;
+
             return $result;
         }
 
@@ -1835,20 +1855,22 @@ class AttendanceSettingsController extends Controller
             // Update existing attendance if the new punch is earlier (first punch of the day)
             $currentPunchTime = $existingAttendance->marked_at ? \Carbon\Carbon::parse($existingAttendance->marked_at) : null;
 
-            if (!$currentPunchTime || $punchTime->lt($currentPunchTime)) {
+            if (! $currentPunchTime || $punchTime->lt($currentPunchTime)) {
                 $existingAttendance->update([
                     'marked_at' => $punchTime,
                     'status' => $status, // Status is already lowercase from determineAttendanceStatus
                     'device_id' => 'etimeoffice-api',
-                    'notes' => 'Updated via ETimeOffice sync at ' . now()->format('Y-m-d H:i:s')
+                    'notes' => 'Updated via ETimeOffice sync at '.now()->format('Y-m-d H:i:s'),
                 ]);
 
                 $result = ['action' => 'updated', 'attendance_id' => $existingAttendance->id];
                 $results['data']['logs'][] = $result;
+
                 return $result;
             } else {
                 $result = ['action' => 'skipped', 'reason' => 'Later punch time, keeping existing record'];
                 $results['data']['logs'][] = $result;
+
                 return $result;
             }
         } else {
@@ -1862,11 +1884,12 @@ class AttendanceSettingsController extends Controller
                 'device_id' => 'etimeoffice-api',
                 'faculty_id' => auth()->id() ?? \App\Models\User::value('id') ?? 1, // Fallback to first available user
                 'marked_by' => auth()->id() ?? \App\Models\User::value('id') ?? 1,
-                'notes' => 'Created via ETimeOffice sync at ' . now()->format('Y-m-d H:i:s')
+                'notes' => 'Created via ETimeOffice sync at '.now()->format('Y-m-d H:i:s'),
             ]);
 
             $result = ['action' => 'created', 'attendance_id' => $attendance->id];
             $results['data']['logs'][] = $result;
+
             return $result;
         }
     }
@@ -1875,16 +1898,15 @@ class AttendanceSettingsController extends Controller
      * Determine attendance status based on punch time
      */
 
-
     /**
      * Check if ETimeOffice is configured
      */
     private function isETimeOfficeConfigured(): bool
     {
-        return !empty($this->getSetting('etimeoffice_corporate_id')) &&
-            !empty($this->getSetting('etimeoffice_username')) &&
-            !empty($this->getSetting('etimeoffice_password')) &&
-            !empty($this->getSetting('etimeoffice_api_url'));
+        return ! empty($this->getSetting('etimeoffice_corporate_id')) &&
+            ! empty($this->getSetting('etimeoffice_username')) &&
+            ! empty($this->getSetting('etimeoffice_password')) &&
+            ! empty($this->getSetting('etimeoffice_api_url'));
     }
 
     private function getDateRangeOptions(): array
@@ -1895,7 +1917,7 @@ class AttendanceSettingsController extends Controller
             'last_3_days' => 'Last 3 Days',
             'last_7_days' => 'Last 7 Days',
             'last_30_days' => 'Last 30 Days',
-            'custom' => 'Custom Date Range'
+            'custom' => 'Custom Date Range',
         ];
     }
 
@@ -1926,7 +1948,7 @@ class AttendanceSettingsController extends Controller
                             'success_rate' => $log->total_records > 0 ?
                                 round((($log->created_records + $log->updated_records) / $log->total_records) * 100, 1) : 0,
                             'test_mode' => $log->test_mode ?? false,
-                            'error_count' => $log->errors ? count(json_decode($log->errors, true)) : 0
+                            'error_count' => $log->errors ? count(json_decode($log->errors, true)) : 0,
                         ];
                     });
             } else {
@@ -1938,14 +1960,14 @@ class AttendanceSettingsController extends Controller
                         'records' => 0,
                         'status' => 'success',
                         'duration' => 'N/A',
-                        'success_rate' => 100
-                    ]
+                        'success_rate' => 100,
+                    ],
                 ]);
             }
 
             return response()->json([
                 'success' => true,
-                'data' => $history
+                'data' => $history,
             ]);
 
         } catch (\Exception $e) {
@@ -1954,7 +1976,7 @@ class AttendanceSettingsController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to load sync history',
-                'data' => []
+                'data' => [],
             ], 500);
         }
     }
@@ -1965,15 +1987,14 @@ class AttendanceSettingsController extends Controller
     private function formatDuration($seconds)
     {
         if ($seconds < 60) {
-            return $seconds . 's';
+            return $seconds.'s';
         }
 
         $minutes = floor($seconds / 60);
         $remainingSeconds = $seconds % 60;
 
-        return $minutes . 'm ' . $remainingSeconds . 's';
+        return $minutes.'m '.$remainingSeconds.'s';
     }
-
 
     /**
      * Parse log files for sync history (fallback method)
@@ -1983,7 +2004,7 @@ class AttendanceSettingsController extends Controller
         try {
             $logPath = storage_path('logs/laravel.log');
 
-            if (!file_exists($logPath)) {
+            if (! file_exists($logPath)) {
                 return [];
             }
 
@@ -2006,12 +2027,13 @@ class AttendanceSettingsController extends Controller
                             'range' => 'Manual',
                             'records' => 'N/A',
                             'status' => strpos($line, 'SUCCESS') !== false ? 'success' : 'unknown',
-                            'duration' => 'N/A'
+                            'duration' => 'N/A',
                         ];
                     }
 
-                    if (count($syncLogs) >= 10)
+                    if (count($syncLogs) >= 10) {
                         break;
+                    }
                 }
             }
 
@@ -2019,10 +2041,10 @@ class AttendanceSettingsController extends Controller
 
         } catch (\Exception $e) {
             Log::error('Error parsing log history', ['error' => $e->getMessage()]);
+
             return [];
         }
     }
-
 
     /**
      * Generate sync summary message
@@ -2041,9 +2063,9 @@ class AttendanceSettingsController extends Controller
      */
     private function log(string $message, string $level = 'info'): void
     {
-        \Log::{$level}('ETimeOffice Sync: ' . $message, [
+        \Log::{$level}('ETimeOffice Sync: '.$message, [
             'user_id' => auth()->id(),
-            'timestamp' => now()
+            'timestamp' => now(),
         ]);
     }
 
@@ -2053,7 +2075,7 @@ class AttendanceSettingsController extends Controller
             'user_id' => auth()->id(),
             'date_range' => $dateRange,
             'result' => $result,
-            'timestamp' => now()
+            'timestamp' => now(),
         ]);
     }
 
@@ -2098,6 +2120,7 @@ class AttendanceSettingsController extends Controller
 
             if ($lastSync) {
                 $nextSync = Carbon::parse($lastSync)->addMinutes($frequency);
+
                 return $nextSync->format('Y-m-d H:i:s');
             }
 
@@ -2116,7 +2139,7 @@ class AttendanceSettingsController extends Controller
             $lastSync = $this->getSetting('etimeoffice_last_sync');
             $frequency = (int) $this->getSetting('etimeoffice_sync_frequency', 15);
 
-            if (!$lastSync) {
+            if (! $lastSync) {
                 return 'poor';
             }
 
@@ -2151,19 +2174,19 @@ class AttendanceSettingsController extends Controller
                 'failed_syncs_today' => $this->getTodayFailedSyncCount(),
                 'next_scheduled_sync' => $this->getNextScheduledSync(),
                 'scheduler_health' => $this->checkSchedulerHealth(),
-                'recent_errors' => $this->getRecentSyncErrors()
+                'recent_errors' => $this->getRecentSyncErrors(),
             ];
 
             return response()->json([
                 'success' => true,
-                'data' => $stats
+                'data' => $stats,
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to get auto-sync status',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -2180,20 +2203,20 @@ class AttendanceSettingsController extends Controller
 
             \Log::info('Auto-sync toggled', [
                 'enabled' => $enabled,
-                'user_id' => auth()->id()
+                'user_id' => auth()->id(),
             ]);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Auto-sync ' . ($enabled ? 'enabled' : 'disabled'),
-                'enabled' => $enabled
+                'message' => 'Auto-sync '.($enabled ? 'enabled' : 'disabled'),
+                'enabled' => $enabled,
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to toggle auto-sync',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -2205,7 +2228,7 @@ class AttendanceSettingsController extends Controller
     {
         try {
             $validated = $request->validate([
-                'frequency' => 'required|integer|min:1|max:1440'
+                'frequency' => 'required|integer|min:1|max:1440',
             ]);
 
             $this->updateSetting('etimeoffice_sync_frequency', $validated['frequency']);
@@ -2213,14 +2236,14 @@ class AttendanceSettingsController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => "Sync frequency updated to {$validated['frequency']} minutes",
-                'frequency' => $validated['frequency']
+                'frequency' => $validated['frequency'],
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update sync frequency',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -2234,12 +2257,12 @@ class AttendanceSettingsController extends Controller
         $today = now()->toDateString();
         $logFile = storage_path('logs/laravel.log');
 
-        if (!file_exists($logFile)) {
+        if (! file_exists($logFile)) {
             return 0;
         }
 
         $logContent = file_get_contents($logFile);
-        $todayPattern = '/\[' . $today . '.*Auto-sync completed/';
+        $todayPattern = '/\['.$today.'.*Auto-sync completed/';
 
         return preg_match_all($todayPattern, $logContent);
     }
@@ -2252,12 +2275,12 @@ class AttendanceSettingsController extends Controller
         $today = now()->toDateString();
         $logFile = storage_path('logs/laravel.log');
 
-        if (!file_exists($logFile)) {
+        if (! file_exists($logFile)) {
             return 0;
         }
 
         $logContent = file_get_contents($logFile);
-        $failedPattern = '/\[' . $today . '.*Auto-sync failed/';
+        $failedPattern = '/\['.$today.'.*Auto-sync failed/';
 
         return preg_match_all($failedPattern, $logContent);
     }
@@ -2273,6 +2296,7 @@ class AttendanceSettingsController extends Controller
 
             if ($lastSync) {
                 $nextSync = \Carbon\Carbon::parse($lastSync)->addMinutes($frequency);
+
                 return $nextSync->format('Y-m-d H:i:s');
             }
 
@@ -2291,7 +2315,7 @@ class AttendanceSettingsController extends Controller
     {
         $heartbeatFile = storage_path('app/scheduler-heartbeat.txt');
 
-        if (!file_exists($heartbeatFile)) {
+        if (! file_exists($heartbeatFile)) {
             return 'unknown';
         }
 
@@ -2312,7 +2336,7 @@ class AttendanceSettingsController extends Controller
     {
         $logFile = storage_path('logs/laravel.log');
 
-        if (!file_exists($logFile)) {
+        if (! file_exists($logFile)) {
             return [];
         }
 
@@ -2329,7 +2353,6 @@ class AttendanceSettingsController extends Controller
         return array_slice($errors, -5); // Return last 5 errors
     }
 
-
     /**
      * Update existing attendance record
      */
@@ -2339,12 +2362,13 @@ class AttendanceSettingsController extends Controller
             $currentMarkedAt = $existingAttendance->marked_at;
 
             // Only update if the new punch time is earlier (first punch of the day)
-            if (!$currentMarkedAt || $punchDateTime->lt($currentMarkedAt)) {
+            if (! $currentMarkedAt || $punchDateTime->lt($currentMarkedAt)) {
                 $existingAttendance->update([
                     'marked_at' => $punchDateTime,
-                    'notes' => 'Updated via ETimeOffice API at ' . now()->format('Y-m-d H:i:s'),
-                    'device_id' => 'etimeoffice-api'
+                    'notes' => 'Updated via ETimeOffice API at '.now()->format('Y-m-d H:i:s'),
+                    'device_id' => 'etimeoffice-api',
                 ]);
+
                 return true;
             }
 
@@ -2352,8 +2376,9 @@ class AttendanceSettingsController extends Controller
         } catch (\Exception $e) {
             Log::error('Error updating existing attendance', [
                 'error' => $e->getMessage(),
-                'attendance_id' => $existingAttendance->id ?? null
+                'attendance_id' => $existingAttendance->id ?? null,
             ]);
+
             return false;
         }
     }
@@ -2369,7 +2394,7 @@ class AttendanceSettingsController extends Controller
                 'college_start_time' => $this->getSetting('attendance_student_college_start_time', '09:30:00'),
                 'present_cutoff_time' => $this->getSetting('attendance_student_present_cutoff_time', '11:00:00'),
                 'late_cutoff_time' => $this->getSetting('attendance_student_late_cutoff_time', '11:30:00'),
-                'college_end_time' => $this->getSetting('attendance_college_end_time', '17:00:00')
+                'college_end_time' => $this->getSetting('attendance_college_end_time', '17:00:00'),
             ];
 
             $status = $this->determineStatus($punchDateTime->format('H:i:s'), $settings);
@@ -2380,10 +2405,10 @@ class AttendanceSettingsController extends Controller
                 'attendance_date' => $attendanceDate,
                 'status' => $status['status'],
                 'marked_at' => $punchDateTime,
-                'notes' => 'Created via ETimeOffice API - ' . $status['reason'],
+                'notes' => 'Created via ETimeOffice API - '.$status['reason'],
                 'device_id' => 'etimeoffice-api',
                 'created_at' => now(),
-                'updated_at' => now()
+                'updated_at' => now(),
             ]);
 
             Log::info('Created new attendance record', [
@@ -2391,20 +2416,18 @@ class AttendanceSettingsController extends Controller
                 'student_name' => $student->name,
                 'attendance_date' => $attendanceDate,
                 'status' => $status['status'],
-                'punch_time' => $punchDateTime->format('Y-m-d H:i:s')
+                'punch_time' => $punchDateTime->format('Y-m-d H:i:s'),
             ]);
 
         } catch (\Exception $e) {
             Log::error('Error creating new attendance record', [
                 'error' => $e->getMessage(),
                 'student_id' => $student->id ?? null,
-                'attendance_date' => $attendanceDate ?? null
+                'attendance_date' => $attendanceDate ?? null,
             ]);
             throw $e;
         }
     }
-
-
 
     /**
      * Perform actual eTimeOffice connection test
@@ -2420,7 +2443,7 @@ class AttendanceSettingsController extends Controller
                 'api_url' => $apiUrl,
                 'corporate_id' => $corporateId,
                 'username' => $username,
-                'has_password' => !empty($password)
+                'has_password' => ! empty($password),
             ]);
 
             // Create Basic Auth token
@@ -2430,25 +2453,25 @@ class AttendanceSettingsController extends Controller
             $testParams = [
                 'Empcode' => 'ALL',
                 'FromDate' => now()->format('d/m/Y_H:i'),
-                'ToDate' => now()->format('d/m/Y_H:i')
+                'ToDate' => now()->format('d/m/Y_H:i'),
             ];
 
             $queryString = http_build_query($testParams);
-            $testUrl = rtrim($apiUrl, '/') . '/DownloadPunchData?' . $queryString;
+            $testUrl = rtrim($apiUrl, '/').'/DownloadPunchData?'.$queryString;
 
             // Make the test API call
             $response = \Http::timeout(30)
                 ->withHeaders([
-                    'Authorization' => 'Basic ' . $authToken,
+                    'Authorization' => 'Basic '.$authToken,
                     'Accept' => 'application/json',
-                    'Content-Type' => 'application/json'
+                    'Content-Type' => 'application/json',
                 ])
                 ->get($testUrl);
 
-            if (!$response->successful()) {
+            if (! $response->successful()) {
                 return [
                     'success' => false,
-                    'message' => "API request failed with status: {$response->status()}. Response: " . $response->body()
+                    'message' => "API request failed with status: {$response->status()}. Response: ".$response->body(),
                 ];
             }
 
@@ -2458,7 +2481,7 @@ class AttendanceSettingsController extends Controller
             if (isset($responseData['Error']) && $responseData['Error'] === true) {
                 return [
                     'success' => false,
-                    'message' => 'API Error: ' . ($responseData['Msg'] ?? 'Unknown API error')
+                    'message' => 'API Error: '.($responseData['Msg'] ?? 'Unknown API error'),
                 ];
             }
 
@@ -2473,23 +2496,22 @@ class AttendanceSettingsController extends Controller
                     'corporate_id' => $corporateId,
                     'test_timestamp' => now()->toDateTimeString(),
                     'punch_records_found' => $punchDataCount,
-                    'api_response_size' => strlen($response->body()) . ' bytes'
-                ]
+                    'api_response_size' => strlen($response->body()).' bytes',
+                ],
             ];
 
         } catch (\Exception $e) {
             \Log::error('eTimeOffice connection test exception', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return [
                 'success' => false,
-                'message' => 'Connection test failed: ' . $e->getMessage()
+                'message' => 'Connection test failed: '.$e->getMessage(),
             ];
         }
     }
-
 
     private function doConnectionTest($apiUrl, $corporateId, $username, $password)
     {
@@ -2499,7 +2521,7 @@ class AttendanceSettingsController extends Controller
                 'corporate_id' => $corporateId,
                 'username' => $username,
                 'password_length' => strlen($password),
-                'timestamp' => now()->toDateTimeString()
+                'timestamp' => now()->toDateTimeString(),
             ]);
 
             // Let's try the exact format from your ETimeOfficeService
@@ -2508,7 +2530,7 @@ class AttendanceSettingsController extends Controller
             \Log::info('Auth token details', [
                 'raw_string' => "{$corporateId}:{$username}:{$password}:true",
                 'base64_token' => $authToken,
-                'token_length' => strlen($authToken)
+                'token_length' => strlen($authToken),
             ]);
 
             // Test different endpoints and methods
@@ -2522,25 +2544,25 @@ class AttendanceSettingsController extends Controller
             $baseParams = [
                 'Empcode' => 'ALL',
                 'FromDate' => now()->format('d/m/Y_H:i'),
-                'ToDate' => now()->format('d/m/Y_H:i')
+                'ToDate' => now()->format('d/m/Y_H:i'),
             ];
 
             foreach ($endpoints as $endpoint => $method) {
                 try {
-                    $testUrl = rtrim($apiUrl, '/') . '/' . ltrim($endpoint, '/');
+                    $testUrl = rtrim($apiUrl, '/').'/'.ltrim($endpoint, '/');
 
                     \Log::info("Testing endpoint: {$testUrl} with {$method}");
 
                     $headers = [
-                        'Authorization' => 'Basic ' . $authToken,
+                        'Authorization' => 'Basic '.$authToken,
                         'Accept' => 'application/json',
                         'Content-Type' => 'application/json',
                         'User-Agent' => 'eTimeOffice-Client/1.0',
-                        'Cache-Control' => 'no-cache'
+                        'Cache-Control' => 'no-cache',
                     ];
 
                     if ($method === 'GET') {
-                        $fullUrl = $testUrl . '?' . http_build_query($baseParams);
+                        $fullUrl = $testUrl.'?'.http_build_query($baseParams);
                         $response = \Http::timeout(30)->withHeaders($headers)->get($fullUrl);
                     } else {
                         $response = \Http::timeout(30)->withHeaders($headers)->post($testUrl, $baseParams);
@@ -2549,7 +2571,7 @@ class AttendanceSettingsController extends Controller
                     \Log::info("Response from {$endpoint}", [
                         'status' => $response->status(),
                         'headers' => $response->headers(),
-                        'body' => $response->body()
+                        'body' => $response->body(),
                     ]);
 
                     if ($response->successful()) {
@@ -2567,8 +2589,8 @@ class AttendanceSettingsController extends Controller
                                     'endpoint' => $endpoint,
                                     'method' => $method,
                                     'response_body' => substr($responseBody, 0, 500),
-                                    'content_type' => $response->header('Content-Type')
-                                ]
+                                    'content_type' => $response->header('Content-Type'),
+                                ],
                             ];
                         }
 
@@ -2579,7 +2601,7 @@ class AttendanceSettingsController extends Controller
                             \Log::warning("API Error from {$endpoint}", [
                                 'error' => $data['Error'],
                                 'message' => $errorMsg,
-                                'full_response' => $data
+                                'full_response' => $data,
                             ]);
 
                             // Continue to next endpoint
@@ -2595,21 +2617,22 @@ class AttendanceSettingsController extends Controller
                                 'working_method' => $method,
                                 'response_keys' => array_keys($data),
                                 'punch_data_count' => isset($data['PunchData']) ? count($data['PunchData']) : 0,
-                                'sample_response' => array_slice($data, 0, 3, true)
-                            ]
+                                'sample_response' => array_slice($data, 0, 3, true),
+                            ],
                         ];
                     }
 
                     // Non-200 response
                     \Log::warning("HTTP Error from {$endpoint}", [
                         'status' => $response->status(),
-                        'body' => $response->body()
+                        'body' => $response->body(),
                     ]);
 
                 } catch (\Exception $e) {
                     \Log::warning("Exception testing {$endpoint}", [
-                        'error' => $e->getMessage()
+                        'error' => $e->getMessage(),
                     ]);
+
                     continue;
                 }
             }
@@ -2626,23 +2649,24 @@ class AttendanceSettingsController extends Controller
                         'Verify username is for API access (not web login)',
                         'Confirm password is correct',
                         'Contact eTimeOffice to verify API access is enabled',
-                        'Ask eTimeOffice for exact API documentation'
-                    ]
-                ]
+                        'Ask eTimeOffice for exact API documentation',
+                    ],
+                ],
             ];
 
         } catch (\Exception $e) {
             \Log::error('Connection test failed completely', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return [
                 'success' => false,
-                'message' => 'Connection test failed: ' . $e->getMessage()
+                'message' => 'Connection test failed: '.$e->getMessage(),
             ];
         }
     }
+
     public function testAuthFormats(Request $request)
     {
         $corporateId = $request->input('etimeoffice_corporate_id');
@@ -2650,10 +2674,10 @@ class AttendanceSettingsController extends Controller
         $password = $request->input('etimeoffice_password');
         $apiUrl = $request->input('etimeoffice_api_url');
 
-        if (!$corporateId || !$username || !$password || !$apiUrl) {
+        if (! $corporateId || ! $username || ! $password || ! $apiUrl) {
             return response()->json([
                 'success' => false,
-                'message' => 'Missing required fields for testing'
+                'message' => 'Missing required fields for testing',
             ]);
         }
 
@@ -2663,7 +2687,7 @@ class AttendanceSettingsController extends Controller
             'Simple Basic' => "{$username}:{$password}",
             'With Backslash' => "{$corporateId}\\{$username}:{$password}",
             'With Underscore' => "{$corporateId}_{$username}:{$password}",
-            'Uppercase Corp' => strtoupper($corporateId) . ":{$username}:{$password}:true",
+            'Uppercase Corp' => strtoupper($corporateId).":{$username}:{$password}:true",
         ];
 
         $results = [];
@@ -2674,13 +2698,13 @@ class AttendanceSettingsController extends Controller
             try {
                 $response = \Http::timeout(3)
                     ->withHeaders([
-                        'Authorization' => 'Basic ' . $token,
-                        'Accept' => 'application/json'
+                        'Authorization' => 'Basic '.$token,
+                        'Accept' => 'application/json',
                     ])
-                    ->get($apiUrl . '/DownloadPunchData', [
+                    ->get($apiUrl.'/DownloadPunchData', [
                         'Empcode' => 'ALL',
                         'FromDate' => now()->format('d/m/Y_H:i'),
-                        'ToDate' => now()->format('d/m/Y_H:i')
+                        'ToDate' => now()->format('d/m/Y_H:i'),
                     ]);
 
                 $results[] = [
@@ -2688,14 +2712,14 @@ class AttendanceSettingsController extends Controller
                     'auth_string' => $authString,
                     'status' => $response->status(),
                     'success' => $response->successful(),
-                    'response' => substr($response->body(), 0, 200)
+                    'response' => substr($response->body(), 0, 200),
                 ];
 
             } catch (\Exception $e) {
                 $results[] = [
                     'format' => $name,
                     'auth_string' => $authString,
-                    'error' => $e->getMessage()
+                    'error' => $e->getMessage(),
                 ];
             }
         }
@@ -2703,9 +2727,10 @@ class AttendanceSettingsController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Tested all auth formats',
-            'results' => $results
+            'results' => $results,
         ]);
     }
+
     /**
      * TEMPORARY: Direct test of performETimeOfficeSync method
      */
@@ -2720,7 +2745,7 @@ class AttendanceSettingsController extends Controller
                 'date_range_type' => 'test',
                 'date_range_start' => now()->startOfDay(),
                 'date_range_end' => now()->endOfDay(),
-                'test_mode' => false
+                'test_mode' => false,
             ]);
 
             \Log::info('🧪 Direct sync test result', ['result' => $result]);
@@ -2733,21 +2758,22 @@ class AttendanceSettingsController extends Controller
                 'message' => 'Direct sync test completed',
                 'sync_result' => $result,
                 'latest_log_id' => $latestLog ? $latestLog->id : null,
-                'latest_log_created' => $latestLog ? $latestLog->created_at : null
+                'latest_log_created' => $latestLog ? $latestLog->created_at : null,
             ]);
 
         } catch (\Exception $e) {
             \Log::error('🧪 Direct sync test failed', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
     }
+
     /**
      * Perform actual eTimeOffice sync with logging
      */
@@ -2769,7 +2795,7 @@ class AttendanceSettingsController extends Controller
                 'user_id' => auth()->id(),
                 'ip_address' => request()->ip(),
                 'user_agent' => request()->userAgent(),
-                'notes' => 'Sync initiated from admin panel'
+                'notes' => 'Sync initiated from admin panel',
             ]);
 
             \Log::info('✅ Sync log created', ['sync_log_id' => $syncLog->id]);
@@ -2782,11 +2808,11 @@ class AttendanceSettingsController extends Controller
                 'created_records' => 0,
                 'updated_records' => 0,
                 'skipped_records' => 0,
-                'errors' => []
+                'errors' => [],
             ];
 
             // Check if ETimeOffice is configured
-            if (!$this->isETimeOfficeConfigured()) {
+            if (! $this->isETimeOfficeConfigured()) {
                 $results['success'] = false;
                 $results['errors'][] = 'ETimeOffice is not properly configured';
                 \Log::warning('❌ ETimeOffice not configured');
@@ -2806,7 +2832,7 @@ class AttendanceSettingsController extends Controller
                 'skipped_records' => $results['skipped_records'],
                 'errors' => $results['errors'],
                 'completed_at' => now(),
-                'duration_seconds' => now()->diffInSeconds($syncLog->started_at)
+                'duration_seconds' => now()->diffInSeconds($syncLog->started_at),
             ]);
 
             \Log::info('✅ Sync log updated', ['sync_log_id' => $syncLog->id, 'status' => $syncLog->status]);
@@ -2819,34 +2845,34 @@ class AttendanceSettingsController extends Controller
 
             $message = $results['success']
                 ? "Sync completed: {$results['created_records']} created, {$results['updated_records']} updated, {$results['skipped_records']} skipped from {$results['total_records']} total records"
-                : 'Sync failed: ' . implode(', ', $results['errors']);
+                : 'Sync failed: '.implode(', ', $results['errors']);
 
             return [
                 'success' => $results['success'],
                 'message' => $message,
-                'data' => $results
+                'data' => $results,
             ];
 
         } catch (\Exception $e) {
             \Log::error('💥 performETimeOfficeSync failed', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             // Handle any unexpected errors
             if (isset($syncLog)) {
                 $syncLog->update([
                     'status' => 'failed',
-                    'errors' => ['Sync failed: ' . $e->getMessage()],
+                    'errors' => ['Sync failed: '.$e->getMessage()],
                     'completed_at' => now(),
-                    'duration_seconds' => isset($syncLog) ? now()->diffInSeconds($syncLog->started_at) : 0
+                    'duration_seconds' => isset($syncLog) ? now()->diffInSeconds($syncLog->started_at) : 0,
                 ]);
             }
 
             return [
                 'success' => false,
-                'message' => 'Sync failed: ' . $e->getMessage(),
-                'data' => []
+                'message' => 'Sync failed: '.$e->getMessage(),
+                'data' => [],
             ];
         }
     }
@@ -2869,13 +2895,13 @@ class AttendanceSettingsController extends Controller
             'completed_at' => now(),
             'duration_seconds' => 60,
             'user_id' => auth()->id(),
-            'notes' => 'Test from sync button click - ' . now()
+            'notes' => 'Test from sync button click - '.now(),
         ]);
 
         return response()->json([
             'success' => true,
-            'message' => 'Test sync completed - Log ID: ' . $syncLog->id,
-            'data' => ['test' => true]
+            'message' => 'Test sync completed - Log ID: '.$syncLog->id,
+            'data' => ['test' => true],
         ]);
     }
 
@@ -2901,7 +2927,7 @@ class AttendanceSettingsController extends Controller
                 'created_records' => $testMode ? 0 : rand(3, 12),
                 'updated_records' => $testMode ? 0 : rand(5, 18),
                 'skipped_records' => rand(1, 3),
-                'errors' => []
+                'errors' => [],
             ];
         } elseif ($currentSecond < 40) {
             // Simulate successful sync with no data
@@ -2912,7 +2938,7 @@ class AttendanceSettingsController extends Controller
                 'created_records' => 0,
                 'updated_records' => 0,
                 'skipped_records' => 0,
-                'errors' => []
+                'errors' => [],
             ];
         } elseif ($currentSecond < 50) {
             // Simulate partial success
@@ -2923,7 +2949,7 @@ class AttendanceSettingsController extends Controller
                 'created_records' => $testMode ? 0 : rand(2, 6),
                 'updated_records' => $testMode ? 0 : rand(4, 10),
                 'skipped_records' => rand(2, 5),
-                'errors' => ['Some records had validation errors', 'Employee code not found for 2 records']
+                'errors' => ['Some records had validation errors', 'Employee code not found for 2 records'],
             ];
         } else {
             // Simulate failure
@@ -2934,10 +2960,11 @@ class AttendanceSettingsController extends Controller
                 'created_records' => 0,
                 'updated_records' => 0,
                 'skipped_records' => 0,
-                'errors' => ['Connection timeout to ETimeOffice API', 'Authentication failed - check credentials']
+                'errors' => ['Connection timeout to ETimeOffice API', 'Authentication failed - check credentials'],
             ];
         }
     }
+
     /**
      * Process individual ETimeOffice record
      */
@@ -2946,10 +2973,10 @@ class AttendanceSettingsController extends Controller
         // Extract employee code - different APIs use different field names
         $employeeCode = $record['Empcode'] ?? $record['EmpcardNo'] ?? $record['EmployeeCode'] ?? null;
 
-        if (!$employeeCode) {
+        if (! $employeeCode) {
             return [
                 'action' => 'skipped',
-                'reason' => 'No employee code found in record'
+                'reason' => 'No employee code found in record',
             ];
         }
 
@@ -2958,10 +2985,10 @@ class AttendanceSettingsController extends Controller
             ->orWhere('biometric_employee_code', $employeeCode)
             ->first();
 
-        if (!$student) {
+        if (! $student) {
             return [
                 'action' => 'skipped',
-                'reason' => 'Student not found with employee code: ' . $employeeCode
+                'reason' => 'Student not found with employee code: '.$employeeCode,
             ];
         }
 
@@ -2973,11 +3000,11 @@ class AttendanceSettingsController extends Controller
         } elseif (isset($record['LogDateTime'])) {
             $punchDateTime = \Carbon\Carbon::parse($record['LogDateTime']);
         } elseif (isset($record['Date']) && isset($record['Time'])) {
-            $punchDateTime = \Carbon\Carbon::parse($record['Date'] . ' ' . $record['Time']);
+            $punchDateTime = \Carbon\Carbon::parse($record['Date'].' '.$record['Time']);
         } else {
             return [
                 'action' => 'skipped',
-                'reason' => 'No valid date/time found in record for employee: ' . $employeeCode
+                'reason' => 'No valid date/time found in record for employee: '.$employeeCode,
             ];
         }
 
@@ -3004,12 +3031,12 @@ class AttendanceSettingsController extends Controller
             // Update existing attendance if the new punch is earlier (first punch of the day)
             $currentPunchTime = $existingAttendance->marked_at ? \Carbon\Carbon::parse($existingAttendance->marked_at) : null;
 
-            if (!$currentPunchTime || $punchDateTime->lt($currentPunchTime)) {
+            if (! $currentPunchTime || $punchDateTime->lt($currentPunchTime)) {
                 $existingAttendance->update([
                     'marked_at' => $punchDateTime,
                     'status' => $status,
                     'device_id' => 'etimeoffice-api',
-                    'notes' => 'Updated via ETimeOffice sync at ' . now()->format('Y-m-d H:i:s')
+                    'notes' => 'Updated via ETimeOffice sync at '.now()->format('Y-m-d H:i:s'),
                 ]);
 
                 return ['action' => 'updated', 'attendance_id' => $existingAttendance->id];
@@ -3026,13 +3053,12 @@ class AttendanceSettingsController extends Controller
                 'marked_at' => $punchDateTime,
                 'status' => $status,
                 'device_id' => 'etimeoffice-api',
-                'notes' => 'Created via ETimeOffice sync at ' . now()->format('Y-m-d H:i:s')
+                'notes' => 'Created via ETimeOffice sync at '.now()->format('Y-m-d H:i:s'),
             ]);
 
             return ['action' => 'created', 'attendance_id' => $attendance->id];
         }
     }
-
 
     /**
      * Get live attendance data
@@ -3055,15 +3081,15 @@ class AttendanceSettingsController extends Controller
                         'batch_name' => $attendance->batch->name ?? 'N/A',
                         'status' => $attendance->status,
                         'time' => $attendance->created_at->format('H:i:s'),
-                        'formatted_time' => $attendance->created_at->diffForHumans()
+                        'formatted_time' => $attendance->created_at->diffForHumans(),
                     ];
                 });
         } catch (\Exception $e) {
-            Log::error('Error getting live attendance data: ' . $e->getMessage());
+            Log::error('Error getting live attendance data: '.$e->getMessage());
+
             return [];
         }
     }
-
 
     /**
      * Get status color for UI
@@ -3116,7 +3142,7 @@ class AttendanceSettingsController extends Controller
                         'father_name' => $student->father_name,
                         'batch_name' => $student->batch->name ?? 'N/A',
                         'course_name' => $student->batch->course->name ?? 'N/A',
-                        'last_attendance' => null
+                        'last_attendance' => null,
                     ];
                 });
 
@@ -3152,16 +3178,16 @@ class AttendanceSettingsController extends Controller
                 'user_id' => auth()->id(),
                 'user_roles' => auth()->user()->getRoleNames(),
                 'required_permission' => 'view attendance',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             return redirect()->route('admin.dashboard')
                 ->with('error', 'You do not have permission to access the attendance dashboard. Please contact your administrator.');
 
         } catch (\Exception $e) {
-            \Log::error('Attendance dashboard error: ' . $e->getMessage(), [
+            \Log::error('Attendance dashboard error: '.$e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
-                'user' => auth()->id()
+                'user' => auth()->id(),
             ]);
 
             // Return safe defaults to prevent errors
@@ -3177,7 +3203,7 @@ class AttendanceSettingsController extends Controller
                 'weeklyTrend' => [],
                 'liveData' => [],
                 'systemStatus' => ['database' => 'connected'],
-                'weeklyStats' => []
+                'weeklyStats' => [],
             ])->with('error', 'Some dashboard data could not be loaded');
         }
     }
@@ -3239,7 +3265,7 @@ class AttendanceSettingsController extends Controller
         $attendanceStats = $attendanceQuery->select([
             \DB::raw('COUNT(DISTINCT student_id) as total_marked'),
             \DB::raw('COUNT(DISTINCT CASE WHEN status IN ("present", "late") THEN student_id END) as present'),
-            \DB::raw('COUNT(DISTINCT CASE WHEN status = "excused" THEN student_id END) as excused')
+            \DB::raw('COUNT(DISTINCT CASE WHEN status = "excused" THEN student_id END) as excused'),
         ])->first();
 
         $present = ($attendanceStats->present ?? 0);
@@ -3290,8 +3316,8 @@ class AttendanceSettingsController extends Controller
                 'percentage' => $presentPercentage,
                 'absent_percentage' => $absentPercentage,
                 'never_punched_percentage' => $neverPunchedPercentage,
-                'internship' => $internshipCount
-            ]
+                'internship' => $internshipCount,
+            ],
         ];
     }
 
@@ -3330,11 +3356,13 @@ class AttendanceSettingsController extends Controller
         // Manual Filtering
         $allStudents = $allStudents->filter(function ($student) use ($date) {
             $batch = $student->batch;
-            if (!$batch)
+            if (! $batch) {
                 return true;
+            }
             $isOnInternship = ($batch->is_on_internship == 1);
             $isInternshipByDate = ($batch->internship_start_date && $batch->internship_start_date <= $date);
-            return !($isOnInternship || $isInternshipByDate);
+
+            return ! ($isOnInternship || $isInternshipByDate);
         });
 
         // Get marked attendance
@@ -3365,7 +3393,7 @@ class AttendanceSettingsController extends Controller
                 'father_name' => $student->father_name,
                 'batch_name' => $student->batch->name ?? 'N/A',
                 'course_name' => $student->batch->course->name ?? 'N/A',
-                'last_attendance' => $this->getLastAttendanceDate($student->id)
+                'last_attendance' => $this->getLastAttendanceDate($student->id),
             ];
         });
     }
@@ -3402,12 +3430,14 @@ class AttendanceSettingsController extends Controller
         return $query->get()
             ->filter(function ($attendance) use ($date) {
                 $student = $attendance->student;
-                if (!$student || !$student->batch)
+                if (! $student || ! $student->batch) {
                     return true;
+                }
                 $batch = $student->batch;
                 $isOnInternship = ($batch->is_on_internship == 1);
                 $isInternshipByDate = ($batch->internship_start_date && $batch->internship_start_date <= $date);
-                return !($isOnInternship || $isInternshipByDate);
+
+                return ! ($isOnInternship || $isInternshipByDate);
             })
             ->take($limit)
             ->map(function ($attendance) {
@@ -3423,7 +3453,7 @@ class AttendanceSettingsController extends Controller
                     'marked_at' => $attendance->marked_at,
                     'marked_by' => $attendance->faculty->name ?? 'System',
                     'late_minutes' => $attendance->late_minutes,
-                    'notes' => $attendance->notes
+                    'notes' => $attendance->notes,
                 ];
             })->values();
     }
@@ -3456,7 +3486,7 @@ class AttendanceSettingsController extends Controller
             $trend[] = [
                 'date' => $date->format('Y-m-d'),
                 'day' => $date->format('D'),
-                'percentage' => $dayStats['students']['percentage']
+                'percentage' => $dayStats['students']['percentage'],
             ];
         }
 
@@ -3480,12 +3510,12 @@ class AttendanceSettingsController extends Controller
                 'success' => true,
                 'data' => $absentStudents->values(),
                 'count' => $absentStudents->count(),
-                'last_updated' => now()->format('H:i:s')
+                'last_updated' => now()->format('H:i:s'),
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'error' => 'Permission denied or error occurred: ' . $e->getMessage()
+                'error' => 'Permission denied or error occurred: '.$e->getMessage(),
             ], 403);
         }
     }
@@ -3507,12 +3537,12 @@ class AttendanceSettingsController extends Controller
                 'success' => true,
                 'data' => $recentActivity,
                 'count' => $recentActivity->count(),
-                'last_updated' => now()->format('H:i:s')
+                'last_updated' => now()->format('H:i:s'),
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'error' => 'Permission denied or error occurred: ' . $e->getMessage()
+                'error' => 'Permission denied or error occurred: '.$e->getMessage(),
             ], 403);
         }
     }
@@ -3533,12 +3563,12 @@ class AttendanceSettingsController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => $todayStats,
-                'last_updated' => now()->format('H:i:s')
+                'last_updated' => now()->format('H:i:s'),
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'error' => 'Permission denied or error occurred: ' . $e->getMessage()
+                'error' => 'Permission denied or error occurred: '.$e->getMessage(),
             ], 403);
         }
     }
@@ -3551,7 +3581,7 @@ class AttendanceSettingsController extends Controller
 
             $request->validate([
                 'student_id' => 'required|exists:students,id',
-                'date' => 'required|date'
+                'date' => 'required|date',
             ]);
 
             $student = \App\Models\Student::findOrFail($request->student_id);
@@ -3567,7 +3597,7 @@ class AttendanceSettingsController extends Controller
                     'status' => 'present',
                     'marked_at' => now(),
                     'marked_by' => auth()->id(),
-                    'notes' => 'Marked from dashboard'
+                    'notes' => 'Marked from dashboard',
                 ]);
             } else {
                 Attendance::create([
@@ -3580,18 +3610,18 @@ class AttendanceSettingsController extends Controller
                     'check_in_time' => now()->format('H:i:s'),
                     'marked_at' => now(),
                     'marked_by' => auth()->id(),
-                    'notes' => 'Marked from dashboard'
+                    'notes' => 'Marked from dashboard',
                 ]);
             }
 
             return response()->json([
                 'success' => true,
-                'message' => 'Student marked as present successfully'
+                'message' => 'Student marked as present successfully',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'error' => 'Permission denied or error occurred: ' . $e->getMessage()
+                'error' => 'Permission denied or error occurred: '.$e->getMessage(),
             ], 403);
         }
     }
@@ -3605,7 +3635,7 @@ class AttendanceSettingsController extends Controller
             $request->validate([
                 'student_ids' => 'required|array',
                 'student_ids.*' => 'exists:students,id',
-                'date' => 'required|date'
+                'date' => 'required|date',
             ]);
 
             $date = $request->date;
@@ -3623,7 +3653,7 @@ class AttendanceSettingsController extends Controller
                         'status' => 'present',
                         'marked_at' => now(),
                         'marked_by' => auth()->id(),
-                        'notes' => 'Bulk marked from dashboard'
+                        'notes' => 'Bulk marked from dashboard',
                     ]);
                 } else {
                     Attendance::create([
@@ -3636,7 +3666,7 @@ class AttendanceSettingsController extends Controller
                         'check_in_time' => now()->format('H:i:s'),
                         'marked_at' => now(),
                         'marked_by' => auth()->id(),
-                        'notes' => 'Bulk marked from dashboard'
+                        'notes' => 'Bulk marked from dashboard',
                     ]);
                 }
                 $markedCount++;
@@ -3644,12 +3674,12 @@ class AttendanceSettingsController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => "{$markedCount} students marked as present successfully"
+                'message' => "{$markedCount} students marked as present successfully",
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'error' => 'Permission denied or error occurred: ' . $e->getMessage()
+                'error' => 'Permission denied or error occurred: '.$e->getMessage(),
             ], 403);
         }
     }
@@ -3680,21 +3710,21 @@ class AttendanceSettingsController extends Controller
                 'biometric_api' => $biometricStatus,
                 'last_sync' => $lastSync,
                 'total_devices' => $this->getSetting('biometric_devices_count', 0),
-                'active_devices' => $this->getSetting('biometric_active_devices', 0)
+                'active_devices' => $this->getSetting('biometric_active_devices', 0),
             ];
 
         } catch (\Exception $e) {
-            Log::error('Error getting system status: ' . $e->getMessage());
+            Log::error('Error getting system status: '.$e->getMessage());
+
             return [
                 'database' => 'error',
                 'biometric_api' => 'error',
                 'last_sync' => null,
                 'total_devices' => 0,
-                'active_devices' => 0
+                'active_devices' => 0,
             ];
         }
     }
-
 
     /**
      * Get default stats structure
@@ -3706,14 +3736,14 @@ class AttendanceSettingsController extends Controller
                 'total' => 0,
                 'present' => 0,
                 'absent' => 0,
-                'percentage' => 0
+                'percentage' => 0,
             ],
             'faculty' => [
                 'total' => 0,
                 'present' => 0,
                 'absent' => 0,
-                'percentage' => 0
-            ]
+                'percentage' => 0,
+            ],
         ];
     }
 
@@ -3743,18 +3773,18 @@ class AttendanceSettingsController extends Controller
                     'absent' => $dayData->absent_count ?? 0,
                     'total' => $dayData->total_count ?? 0,
                     'percentage' => $dayData && $dayData->total_count > 0 ?
-                        round(($dayData->present_count / $dayData->total_count) * 100, 2) : 0
+                        round(($dayData->present_count / $dayData->total_count) * 100, 2) : 0,
                 ];
             }
 
             return $weeklyData;
 
         } catch (\Exception $e) {
-            Log::error('Error getting weekly stats: ' . $e->getMessage());
+            Log::error('Error getting weekly stats: '.$e->getMessage());
+
             return [];
         }
     }
-
 
     /**
      * Get today's attendance statistics
@@ -3784,20 +3814,21 @@ class AttendanceSettingsController extends Controller
                     'total' => $totalStudents,
                     'present' => $presentStudents,
                     'absent' => $totalStudents - $presentStudents,
-                    'percentage' => $totalStudents > 0 ? round(($presentStudents / $totalStudents) * 100, 2) : 0
+                    'percentage' => $totalStudents > 0 ? round(($presentStudents / $totalStudents) * 100, 2) : 0,
                 ],
                 'faculty' => [
                     'total' => $totalFaculty,
                     'present' => $presentFaculty,
                     'absent' => $totalFaculty - $presentFaculty,
-                    'percentage' => $totalFaculty > 0 ? round(($presentFaculty / $totalFaculty) * 100, 2) : 0
-                ]
+                    'percentage' => $totalFaculty > 0 ? round(($presentFaculty / $totalFaculty) * 100, 2) : 0,
+                ],
             ];
         } catch (\Exception $e) {
             Log::error('Failed to get today stats', ['error' => $e->getMessage()]);
+
             return [
                 'students' => ['total' => 0, 'present' => 0, 'absent' => 0, 'percentage' => 0],
-                'faculty' => ['total' => 0, 'present' => 0, 'absent' => 0, 'percentage' => 0]
+                'faculty' => ['total' => 0, 'present' => 0, 'absent' => 0, 'percentage' => 0],
             ];
         }
     }
@@ -3815,14 +3846,14 @@ class AttendanceSettingsController extends Controller
                 'data' => [
                     'live_attendances' => $this->getLiveAttendanceData(),
                     'stats' => $this->getTodayStats(),
-                    'last_updated' => Carbon::now()->format('H:i:s')
-                ]
+                    'last_updated' => Carbon::now()->format('H:i:s'),
+                ],
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to load dashboard data',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -3857,19 +3888,19 @@ class AttendanceSettingsController extends Controller
                     'total' => $dayAttendance->total_count ?? 0,
                     'percentage' => $dayAttendance->total_count > 0
                         ? round(($dayAttendance->present_count / $dayAttendance->total_count) * 100, 2)
-                        : 0
+                        : 0,
                 ];
             }
 
             return response()->json([
                 'success' => true,
-                'data' => $weeklyData
+                'data' => $weeklyData,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to load weekly stats',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -3900,10 +3931,10 @@ class AttendanceSettingsController extends Controller
 
         } catch (\Exception $e) {
             Log::error('Export failed', ['error' => $e->getMessage()]);
-            return back()->with('error', 'Export failed: ' . $e->getMessage());
+
+            return back()->with('error', 'Export failed: '.$e->getMessage());
         }
     }
-
 
     /**
      * Get attendance data formatted for export
@@ -3933,12 +3964,13 @@ class AttendanceSettingsController extends Controller
                     'marked_time' => $attendance->marked_at ? $attendance->marked_at->format('H:i:s') : 'N/A',
                     'device_id' => $attendance->device_id ?? 'manual',
                     'notes' => $attendance->notes ?? '',
-                    'biometric_code' => $attendance->student->biometric_employee_code ?? 'N/A'
+                    'biometric_code' => $attendance->student->biometric_employee_code ?? 'N/A',
                 ];
             })->toArray();
 
         } catch (\Exception $e) {
             Log::error('Error getting attendance data for export', ['error' => $e->getMessage()]);
+
             return [];
         }
     }
@@ -3962,7 +3994,7 @@ class AttendanceSettingsController extends Controller
             fwrite($file, "\xEF\xBB\xBF");
 
             // Write header
-            if (!empty($attendanceData)) {
+            if (! empty($attendanceData)) {
                 fputcsv($file, array_keys($attendanceData[0]));
 
                 // Write data
@@ -3989,13 +4021,13 @@ class AttendanceSettingsController extends Controller
 
             // Generate summary if requested
             $summary = null;
-            if ($includeSummary && !empty($attendanceData)) {
+            if ($includeSummary && ! empty($attendanceData)) {
                 $summary = [
                     'total_records' => count($attendanceData),
                     'present_count' => collect($attendanceData)->where('status', 'Present')->count(),
                     'absent_count' => collect($attendanceData)->where('status', 'Absent')->count(),
                     'late_count' => collect($attendanceData)->where('status', 'Late')->count(),
-                    'date_range' => $dateRange
+                    'date_range' => $dateRange,
                 ];
             }
 
@@ -4003,16 +4035,17 @@ class AttendanceSettingsController extends Controller
                 'attendanceData' => $attendanceData,
                 'summary' => $summary,
                 'exportDate' => now()->format('Y-m-d H:i:s'),
-                'exportedBy' => auth()->user()->name
+                'exportedBy' => auth()->user()->name,
             ]);
 
             return $pdf->download($filename);
 
         } catch (\Exception $e) {
             Log::error('PDF export failed', ['error' => $e->getMessage()]);
-            throw new \Exception('PDF export failed: ' . $e->getMessage());
+            throw new \Exception('PDF export failed: '.$e->getMessage());
         }
     }
+
     /**
      * Export sync logs
      */
@@ -4023,7 +4056,7 @@ class AttendanceSettingsController extends Controller
 
             $validated = $request->validate([
                 'format' => 'required|in:xlsx,csv',
-                'days' => 'integer|min:1|max:90'
+                'days' => 'integer|min:1|max:90',
             ]);
 
             $days = $validated['days'] ?? 30;
@@ -4045,17 +4078,17 @@ class AttendanceSettingsController extends Controller
                             'updated_records' => $log->updated_records,
                             'skipped_records' => $log->skipped_records,
                             'duration' => $log->formatted_duration,
-                            'success_rate' => $log->success_rate . '%',
+                            'success_rate' => $log->success_rate.'%',
                             'test_mode' => $log->test_mode ? 'Yes' : 'No',
                             'user' => $log->user->name ?? 'System',
-                            'error_count' => $log->errors ? count($log->errors) : 0
+                            'error_count' => $log->errors ? count($log->errors) : 0,
                         ];
                     })->toArray();
             } else {
                 $syncLogs = [];
             }
 
-            $filename = "sync_logs_last_{$days}_days." . $format;
+            $filename = "sync_logs_last_{$days}_days.".$format;
 
             if ($format === 'csv') {
                 return $this->exportToCsv($syncLogs, $filename);
@@ -4065,7 +4098,8 @@ class AttendanceSettingsController extends Controller
 
         } catch (\Exception $e) {
             Log::error('Sync logs export failed', ['error' => $e->getMessage()]);
-            return back()->with('error', 'Export failed: ' . $e->getMessage());
+
+            return back()->with('error', 'Export failed: '.$e->getMessage());
         }
     }
 
@@ -4075,7 +4109,7 @@ class AttendanceSettingsController extends Controller
     public function getAttendanceLeaderboard(Request $request)
     {
         try {
-            if (!$request->user()->can('view attendance') && !$request->user()->can('manage attendance')) {
+            if (! $request->user()->can('view attendance') && ! $request->user()->can('manage attendance')) {
                 $this->authorize('view attendance');
             }
 
@@ -4087,13 +4121,13 @@ class AttendanceSettingsController extends Controller
             if ($period === 'last_30_days') {
                 $startDate = now()->subDays(30)->startOfDay();
                 $endDate = now()->endOfDay();
-            } else if ($period === 'last_month') {
+            } elseif ($period === 'last_month') {
                 $startDate = now()->subMonth()->startOfMonth();
                 $endDate = now()->subMonth()->endOfMonth();
-            } else if ($period === 'this_week') {
+            } elseif ($period === 'this_week') {
                 $startDate = now()->startOfWeek();
                 $endDate = now()->endOfDay();
-            } else if ($period === 'last_week') {
+            } elseif ($period === 'last_week') {
                 $startDate = now()->subWeek()->startOfWeek();
                 $endDate = now()->subWeek()->endOfWeek();
             } else {
@@ -4148,7 +4182,7 @@ class AttendanceSettingsController extends Controller
                     'present_days' => $presentDays,
                     'total_days' => $calcTotalDays,
                     'percentage' => round($percentage, 1),
-                    'avatar' => substr($student->name, 0, 1)
+                    'avatar' => substr($student->name, 0, 1),
                 ];
             });
 
@@ -4165,15 +4199,15 @@ class AttendanceSettingsController extends Controller
                     'top_attendance' => $topAttendance,
                     'low_attendance' => $lowAttendance,
                     'total_working_days' => $totalWorkingDays, // Actual working days for display
-                    'period_label' => $startDate->format('M d') . ' - ' . $endDate->format('M d')
-                ]
+                    'period_label' => $startDate->format('M d').' - '.$endDate->format('M d'),
+                ],
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to load leaderboard',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -4191,7 +4225,7 @@ class AttendanceSettingsController extends Controller
                 'end_date' => 'required|date|after_or_equal:start_date',
                 'format' => 'required|in:xlsx,csv,pdf',
                 'include_summary' => 'boolean',
-                'filter_status' => 'nullable|in:all,present,absent,late'
+                'filter_status' => 'nullable|in:all,present,absent,late',
             ]);
 
             $attendanceData = $this->getAttendanceDataForExport(
@@ -4200,7 +4234,7 @@ class AttendanceSettingsController extends Controller
                 $validated['filter_status'] ?? 'all'
             );
 
-            $dateRange = Carbon::parse($validated['start_date'])->format('Y-m-d') . '_to_' .
+            $dateRange = Carbon::parse($validated['start_date'])->format('Y-m-d').'_to_'.
                 Carbon::parse($validated['end_date'])->format('Y-m-d');
             $filename = "attendance_export_{$dateRange}.{$validated['format']}";
 
@@ -4209,8 +4243,8 @@ class AttendanceSettingsController extends Controller
                 'include_summary' => $validated['include_summary'] ?? false,
                 'date_range' => [
                     'start' => $validated['start_date'],
-                    'end' => $validated['end_date']
-                ]
+                    'end' => $validated['end_date'],
+                ],
             ];
 
             switch ($validated['format']) {
@@ -4224,9 +4258,11 @@ class AttendanceSettingsController extends Controller
 
         } catch (\Exception $e) {
             Log::error('Custom export failed', ['error' => $e->getMessage()]);
-            return back()->with('error', 'Export failed: ' . $e->getMessage());
+
+            return back()->with('error', 'Export failed: '.$e->getMessage());
         }
     }
+
     private function getTodayAttendanceData()
     {
         // Replace with your actual attendance data logic
@@ -4240,8 +4276,8 @@ class AttendanceSettingsController extends Controller
                 'time_in' => '09:00',
                 'time_out' => '17:00',
                 'date' => now()->format('Y-m-d'),
-                'remarks' => 'On time'
-            ]
+                'remarks' => 'On time',
+            ],
             // Add more data here
         ];
     }
@@ -4255,7 +4291,7 @@ class AttendanceSettingsController extends Controller
 
         $request->validate([
             'test_time' => 'required|date_format:H:i:s',
-            'user_type' => 'required|in:student,faculty'
+            'user_type' => 'required|in:student,faculty',
         ]);
 
         try {
@@ -4279,7 +4315,7 @@ class AttendanceSettingsController extends Controller
                 'college_start_time' => $startTime,
                 'present_cutoff_time' => $presentCutoff,
                 'late_cutoff_time' => $lateCutoff,
-                'college_end_time' => $endTime
+                'college_end_time' => $endTime,
             ];
 
             $result = $this->determineStatus($testTime, $settings);
@@ -4291,14 +4327,14 @@ class AttendanceSettingsController extends Controller
                     'user_type' => $userType,
                     'status' => $result['status'],
                     'reason' => $result['reason'],
-                    'settings_used' => $settings
-                ]
+                    'settings_used' => $settings,
+                ],
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to test rules',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -4314,7 +4350,7 @@ class AttendanceSettingsController extends Controller
                 ['value' => $value]
             );
         } catch (\Exception $e) {
-            Log::error("Error updating setting {$key}: " . $e->getMessage());
+            Log::error("Error updating setting {$key}: ".$e->getMessage());
         }
     }
 
@@ -4326,10 +4362,12 @@ class AttendanceSettingsController extends Controller
         try {
             return \App\Models\Setting::where('key', $key)->value('value') ?? $default;
         } catch (\Exception $e) {
-            Log::error("Error getting setting {$key}: " . $e->getMessage());
+            Log::error("Error getting setting {$key}: ".$e->getMessage());
+
             return $default;
         }
     }
+
     /**
      * Helper: Determine attendance status based on time
      */
@@ -4338,27 +4376,27 @@ class AttendanceSettingsController extends Controller
         if ($checkTime < $settings['college_start_time']) {
             return [
                 'status' => 'present',
-                'reason' => 'Early arrival before college start time'
+                'reason' => 'Early arrival before college start time',
             ];
         } elseif ($checkTime <= $settings['present_cutoff_time']) {
             return [
                 'status' => 'present',
-                'reason' => 'Checked in within present time window'
+                'reason' => 'Checked in within present time window',
             ];
         } elseif ($checkTime <= $settings['late_cutoff_time']) {
             return [
                 'status' => 'late',
-                'reason' => 'Checked in during late window'
+                'reason' => 'Checked in during late window',
             ];
         } elseif ($checkTime > $settings['college_end_time']) {
             return [
                 'status' => 'absent',
-                'reason' => 'Checked in after college end time'
+                'reason' => 'Checked in after college end time',
             ];
         } else {
             return [
                 'status' => 'absent',
-                'reason' => 'Checked in after present/late cutoff times'
+                'reason' => 'Checked in after present/late cutoff times',
             ];
         }
     }

@@ -15,15 +15,15 @@ class SubjectFactory extends Factory
      * @return array<string, mixed>
      */
     public function definition(): array
-{
-    return [
-        'name' => fake()->randomElement([
-            'Front Office Operations', 'Food & Beverage Production', 'Housekeeping Management',
-            'Hospitality Law', 'Financial Management in Hospitality', 'Event Management',
-            'Human Resource Management', 'Tourism Marketing', 'Advanced Culinary Arts'
-        ]),
-        'code' => strtoupper(fake()->lexify('???')) . fake()->numerify('###'),
-        'requires_lab' => fake()->boolean(30), // 30% chance of requiring a lab
-    ];
-}
+    {
+        return [
+            'name' => fake()->randomElement([
+                'Front Office Operations', 'Food & Beverage Production', 'Housekeeping Management',
+                'Hospitality Law', 'Financial Management in Hospitality', 'Event Management',
+                'Human Resource Management', 'Tourism Marketing', 'Advanced Culinary Arts',
+            ]),
+            'code' => strtoupper(fake()->lexify('???')).fake()->numerify('###'),
+            'requires_lab' => fake()->boolean(30), // 30% chance of requiring a lab
+        ];
+    }
 }

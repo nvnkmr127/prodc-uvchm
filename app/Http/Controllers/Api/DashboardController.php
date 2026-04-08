@@ -3,15 +3,21 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Dashboard;
+use App\Models\DashboardWidget;
+use App\Models\Widget;
+use App\Services\DashboardDataService;
+use App\Services\DashboardPermissionService;
+use App\Services\DashboardService;
 use Illuminate\Http\Request;
-use App\Services\{DashboardService, DashboardDataService, DashboardPermissionService};
-use App\Models\{Widget, Dashboard, DashboardWidget};
 use Illuminate\Support\Facades\Log;
 
 class DashboardController extends Controller
 {
     protected $dashboardService;
+
     protected $dataService;
+
     protected $permissionService;
 
     public function __construct(
@@ -21,7 +27,7 @@ class DashboardController extends Controller
     ) {
         $this->middleware('auth');
         $this->middleware('throttle:dashboard-api');
-        
+
         $this->dashboardService = $dashboardService;
         $this->dataService = $dataService;
         $this->permissionService = $permissionService;
@@ -36,16 +42,16 @@ class DashboardController extends Controller
     {
         $user = auth()->user();
 
-        if (!class_exists('App\\Models\\Widget')) {
+        if (! class_exists('App\\Models\\Widget')) {
             return response()->json([
-                'error' => 'Widget system not available'
+                'error' => 'Widget system not available',
             ], 501);
         }
 
         $widgetClass = 'App\\Models\\Widget';
         $widget = $widgetClass::findOrFail($widgetId);
 
-        if (!$this->permissionService->canViewWidget($user, $widget)) {
+        if (! $this->permissionService->canViewWidget($user, $widget)) {
             return response()->json(['error' => 'Insufficient permissions'], 403);
         }
 
@@ -57,7 +63,7 @@ class DashboardController extends Controller
             'widget_name' => $widget->name,
             'data' => $data,
             'last_updated' => now()->toISOString(),
-            'cache_duration' => $widget->cache_duration
+            'cache_duration' => $widget->cache_duration,
         ]);
     }
 
@@ -65,7 +71,7 @@ class DashboardController extends Controller
     {
         $validated = $request->validate([
             'metrics' => 'required|array',
-            'session' => 'nullable|string|max:100'
+            'session' => 'nullable|string|max:100',
         ]);
 
         $metrics = $validated['metrics'];
@@ -110,18 +116,18 @@ class DashboardController extends Controller
         $request->validate([
             'widget_id' => 'required|exists:widgets,id',
             'instance_id' => 'nullable|string',
-            'config' => 'nullable|array'
+            'config' => 'nullable|array',
         ]);
 
         $user = auth()->user();
         $widget = Widget::findOrFail($request->widget_id);
 
-        if (!$this->permissionService->canViewWidget($user, $widget)) {
+        if (! $this->permissionService->canViewWidget($user, $widget)) {
             return response()->json(['error' => 'Insufficient permissions'], 403);
         }
 
         $config = $request->config ?? [];
-        
+
         // If instance_id provided, get instance-specific config
         if ($request->instance_id) {
             $dashboardWidget = DashboardWidget::where('instance_id', $request->instance_id)->first();
@@ -138,7 +144,7 @@ class DashboardController extends Controller
             'instance_id' => $request->instance_id,
             'data' => $data,
             'last_updated' => now()->toISOString(),
-            'cache_duration' => $widget->cache_duration
+            'cache_duration' => $widget->cache_duration,
         ]);
     }
 
@@ -148,18 +154,18 @@ class DashboardController extends Controller
     public function refreshDashboard(Request $request)
     {
         $user = auth()->user();
-        
+
         // Clear user cache
         $this->dashboardService->clearUserCache($user);
-        
+
         // Get fresh dashboard data
         $dashboardData = $this->dashboardService->getDashboardData($user);
-        
+
         return response()->json([
             'status' => 'success',
             'message' => 'Dashboard refreshed successfully',
             'dashboard_data' => $dashboardData,
-            'refreshed_at' => now()->toISOString()
+            'refreshed_at' => now()->toISOString(),
         ]);
     }
 
@@ -176,13 +182,13 @@ class DashboardController extends Controller
             'widgets.*.y' => 'required|integer|min:0',
             'widgets.*.w' => 'required|integer|min:1',
             'widgets.*.h' => 'required|integer|min:1',
-            'widgets.*.order' => 'nullable|integer'
+            'widgets.*.order' => 'nullable|integer',
         ]);
 
         $user = auth()->user();
         $dashboard = Dashboard::findOrFail($request->dashboard_id);
 
-        if (!$this->permissionService->canEditDashboard($user, $dashboard)) {
+        if (! $this->permissionService->canEditDashboard($user, $dashboard)) {
             return response()->json(['error' => 'Cannot edit this dashboard'], 403);
         }
 
@@ -195,7 +201,7 @@ class DashboardController extends Controller
         return response()->json([
             'status' => $success ? 'success' : 'error',
             'message' => $success ? 'Layout updated successfully' : 'Failed to update layout',
-            'updated_at' => now()->toISOString()
+            'updated_at' => now()->toISOString(),
         ]);
     }
 
@@ -215,7 +221,7 @@ class DashboardController extends Controller
                 'message' => 'Dashboard system has been updated',
                 'type' => 'info',
                 'read' => false,
-                'created_at' => now()->subHours(1)->toISOString()
+                'created_at' => now()->subHours(1)->toISOString(),
             ],
             [
                 'id' => 2,
@@ -223,14 +229,14 @@ class DashboardController extends Controller
                 'message' => 'Widget data has been refreshed',
                 'type' => 'success',
                 'read' => true,
-                'created_at' => now()->subHours(3)->toISOString()
-            ]
+                'created_at' => now()->subHours(3)->toISOString(),
+            ],
         ];
 
         return response()->json([
             'notifications' => array_slice($notifications, 0, $limit),
             'unread_count' => collect($notifications)->where('read', false)->count(),
-            'total_count' => count($notifications)
+            'total_count' => count($notifications),
         ]);
     }
 
@@ -247,7 +253,7 @@ class DashboardController extends Controller
         return response()->json([
             'role' => $roleName,
             'stats' => $stats,
-            'generated_at' => now()->toISOString()
+            'generated_at' => now()->toISOString(),
         ]);
     }
 
@@ -258,28 +264,28 @@ class DashboardController extends Controller
     {
         $request->validate([
             'widget_id' => 'required|exists:widgets,id',
-            'format' => 'required|in:json,csv,xlsx'
+            'format' => 'required|in:json,csv,xlsx',
         ]);
 
         $user = auth()->user();
         $widget = Widget::findOrFail($request->widget_id);
 
-        if (!$this->permissionService->canViewWidget($user, $widget)) {
+        if (! $this->permissionService->canViewWidget($user, $widget)) {
             return response()->json(['error' => 'Insufficient permissions'], 403);
         }
 
         $data = $this->dataService->getWidgetData($user, $widget);
-        
+
         switch ($request->format) {
             case 'json':
                 return response()->json($data);
-                
+
             case 'csv':
                 return $this->exportToCsv($data, $widget->name);
-                
+
             case 'xlsx':
                 return $this->exportToExcel($data, $widget->name);
-                
+
             default:
                 return response()->json(['error' => 'Invalid format'], 400);
         }
@@ -296,7 +302,7 @@ class DashboardController extends Controller
                     'monthly_revenue' => \App\Models\Payment::where('status', 'completed')
                         ->whereMonth('payment_date', now()->month)
                         ->sum('amount'),
-                    'system_health' => 'good'
+                    'system_health' => 'good',
                 ];
 
             case 'college-admin':
@@ -304,7 +310,7 @@ class DashboardController extends Controller
                     'total_students' => \App\Models\Student::count(),
                     'active_courses' => \App\Models\Course::where('is_active', true)->count(),
                     'today_classes' => \App\Models\Timetable::whereDate('schedule_date', today())->count(),
-                    'pending_enquiries' => \App\Models\Enquiry::where('status', 'pending')->count()
+                    'pending_enquiries' => \App\Models\Enquiry::where('status', 'pending')->count(),
                 ];
 
             case 'accountant':
@@ -324,11 +330,12 @@ class DashboardController extends Controller
                         ->sum('amount'),
                     'pending_amount' => $pendingAmount,
                     'overdue_amount' => $overdueAmount,
-                    'collection_rate' => $this->calculateCollectionRate()
+                    'collection_rate' => $this->calculateCollectionRate(),
                 ];
 
             case 'staff':
                 $user = auth()->user();
+
                 return [
                     'today_classes' => \App\Models\Timetable::where('user_id', $user->id)
                         ->whereDate('schedule_date', today())->count(),
@@ -336,13 +343,15 @@ class DashboardController extends Controller
                         ->whereDate('schedule_date', today())
                         ->whereDoesntHave('attendances')->count(),
                     'my_students' => $this->getMyStudentsCount($user),
-                    'attendance_rate' => $this->getMyAttendanceRate($user)
+                    'attendance_rate' => $this->getMyAttendanceRate($user),
                 ];
 
             case 'student':
                 $student = auth()->user()->student;
-                if (!$student) return [];
-                
+                if (! $student) {
+                    return [];
+                }
+
                 $pendingFees = (float) \App\Models\StudentFee::where('student_id', $student->id)
                     ->whereIn('status', ['unpaid', 'partial'])
                     ->selectRaw('COALESCE(SUM(GREATEST(0, amount - COALESCE(concession_amount, 0) - COALESCE(paid_amount, 0))), 0) as due')
@@ -352,7 +361,7 @@ class DashboardController extends Controller
                     'attendance_percentage' => $this->getStudentAttendancePercentage($student),
                     'pending_fees' => $pendingFees,
                     'today_classes' => $this->getStudentTodayClassesCount($student),
-                    'upcoming_exams' => 2 // Sample count
+                    'upcoming_exams' => 2, // Sample count
                 ];
 
             default:
@@ -364,24 +373,24 @@ class DashboardController extends Controller
     {
         $headers = [
             'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '.csv"',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'.csv"',
         ];
 
         return response()->stream(function () use ($data) {
             $file = fopen('php://output', 'w');
-            
-            if (is_array($data) && !empty($data)) {
+
+            if (is_array($data) && ! empty($data)) {
                 // Write headers
                 if (isset($data[0])) {
                     fputcsv($file, array_keys($data[0]));
                 }
-                
+
                 // Write data
                 foreach ($data as $row) {
                     fputcsv($file, $row);
                 }
             }
-            
+
             fclose($file);
         }, 200, $headers);
     }
@@ -392,7 +401,7 @@ class DashboardController extends Controller
         // For now, return JSON with a note
         return response()->json([
             'message' => 'Excel export not implemented yet',
-            'data' => $data
+            'data' => $data,
         ]);
     }
 
@@ -424,7 +433,7 @@ class DashboardController extends Controller
         $totalClasses = \App\Models\Timetable::where('user_id', $user->id)->count();
         $attendanceTaken = \App\Models\Timetable::where('user_id', $user->id)
             ->whereHas('attendances')->count();
-        
+
         return $totalClasses > 0 ? round(($attendanceTaken / $totalClasses) * 100, 1) : 0;
     }
 
@@ -433,15 +442,17 @@ class DashboardController extends Controller
         $attendances = \App\Models\Attendance::where('student_id', $student->id)->get();
         $total = $attendances->count();
         $present = $attendances->where('status', 'present')->count();
-        
+
         return $total > 0 ? round(($present / $total) * 100, 1) : 0;
     }
 
     private function getStudentTodayClassesCount($student): int
     {
         $batch = $student->batch;
-        if (!$batch) return 0;
-        
+        if (! $batch) {
+            return 0;
+        }
+
         return \App\Models\Timetable::where('batch_id', $batch->id)
             ->whereDate('schedule_date', today())
             ->count();

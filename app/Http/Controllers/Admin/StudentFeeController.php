@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\StudentFee;
-use App\Models\Student;
 use App\Models\Batch;
 use App\Models\FeeStructure;
+use App\Models\Student;
+use App\Models\StudentFee;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -19,22 +19,22 @@ class StudentFeeController extends Controller
     public function index(Request $request)
     {
         $query = StudentFee::with(['student', 'feeCategory', 'feeStructure']);
-        
+
         // Apply filters
         if ($request->filled('student_id')) {
             $query->where('student_id', $request->student_id);
         }
-        
+
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
-        
+
         if ($request->filled('academic_year')) {
             $query->where('academic_year', $request->academic_year);
         }
-        
+
         $studentFees = $query->paginate(20);
-        
+
         return view('admin.student-fees.index', compact('studentFees'));
     }
 
@@ -45,7 +45,7 @@ class StudentFeeController extends Controller
     {
         $students = Student::with('batch')->get();
         $feeStructures = FeeStructure::with('feeCategories')->get();
-        
+
         return view('admin.student-fees.create', compact('students', 'feeStructures'));
     }
 
@@ -65,14 +65,14 @@ class StudentFeeController extends Controller
 
         try {
             StudentFee::create($request->all());
-            
+
             return redirect()
                 ->route('admin.student-fees.index')
                 ->with('success', 'Student fee created successfully.');
-                
+
         } catch (\Exception $e) {
-            Log::error('Student fee creation failed: ' . $e->getMessage());
-            
+            Log::error('Student fee creation failed: '.$e->getMessage());
+
             return back()
                 ->withInput()
                 ->with('error', 'Failed to create student fee.');
@@ -85,7 +85,7 @@ class StudentFeeController extends Controller
     public function show(StudentFee $studentFee)
     {
         $studentFee->load(['student', 'feeCategory', 'feeStructure']);
-        
+
         return view('admin.student-fees.show', compact('studentFee'));
     }
 
@@ -96,7 +96,7 @@ class StudentFeeController extends Controller
     {
         $students = Student::with('batch')->get();
         $feeStructures = FeeStructure::with('feeCategories')->get();
-        
+
         return view('admin.student-fees.edit', compact('studentFee', 'students', 'feeStructures'));
     }
 
@@ -119,16 +119,16 @@ class StudentFeeController extends Controller
                 'due_date',
                 'status',
                 'paid_amount',
-                'concession_amount'
+                'concession_amount',
             ]));
-            
+
             return redirect()
                 ->route('admin.student-fees.index')
                 ->with('success', 'Student fee updated successfully.');
-                
+
         } catch (\Exception $e) {
-            Log::error('Student fee update failed: ' . $e->getMessage());
-            
+            Log::error('Student fee update failed: '.$e->getMessage());
+
             return back()
                 ->withInput()
                 ->with('error', 'Failed to update student fee.');
@@ -142,14 +142,14 @@ class StudentFeeController extends Controller
     {
         try {
             $studentFee->delete();
-            
+
             return redirect()
                 ->route('admin.student-fees.index')
                 ->with('success', 'Student fee deleted successfully.');
-                
+
         } catch (\Exception $e) {
-            Log::error('Student fee deletion failed: ' . $e->getMessage());
-            
+            Log::error('Student fee deletion failed: '.$e->getMessage());
+
             return back()->with('error', 'Failed to delete student fee.');
         }
     }
@@ -166,15 +166,15 @@ class StudentFeeController extends Controller
 
         try {
             DB::beginTransaction();
-            
+
             $batch = Batch::with(['students', 'feeStructure.feeCategories'])->find($request->batch_id);
-            
-            if (!$batch->feeStructure) {
+
+            if (! $batch->feeStructure) {
                 return back()->with('error', 'Fee structure not found for this batch.');
             }
-            
+
             $createdCount = 0;
-            
+
             foreach ($batch->students as $student) {
                 foreach ($batch->feeStructure->feeCategories as $category) {
                     // Check if fee component already exists
@@ -183,8 +183,8 @@ class StudentFeeController extends Controller
                         'fee_category_id' => $category->id,
                         'academic_year' => $request->academic_year,
                     ])->first();
-                    
-                    if (!$existingFee) {
+
+                    if (! $existingFee) {
                         StudentFee::create([
                             'student_id' => $student->id,
                             'fee_structure_id' => $batch->feeStructure->id,
@@ -196,20 +196,20 @@ class StudentFeeController extends Controller
                             'installment_number' => 1,
                             'total_installments' => 1,
                         ]);
-                        
+
                         $createdCount++;
                     }
                 }
             }
-            
+
             DB::commit();
-            
+
             return back()->with('success', "Generated {$createdCount} fee components for batch {$batch->name}.");
-            
+
         } catch (\Exception $e) {
             DB::rollback();
-            Log::error('Batch fee generation failed: ' . $e->getMessage());
-            
+            Log::error('Batch fee generation failed: '.$e->getMessage());
+
             return back()->with('error', 'Failed to generate fees for batch.');
         }
     }

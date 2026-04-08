@@ -1,6 +1,7 @@
 <?php
 
 // App/Annotations/Webhook.php
+
 namespace App\Annotations;
 
 use Doctrine\Common\Annotations\Annotation;
@@ -8,11 +9,14 @@ use Doctrine\Common\Annotations\Annotation;
 /**
  * Webhook annotation for marking methods or classes that should trigger webhook events
  * * Usage examples:
+ *
  * * @Webhook("payment.processed", description="Payment was successfully processed", priority="high")
  * public function processPayment() { ... }
  * * @Webhook(event="student.graduated", description="Student completed their course", category="academic", immediate=true)
  * public function graduateStudent() { ... }
+ *
  * * @Annotation
+ *
  * @Target({"CLASS", "METHOD"})
  */
 class Webhook
@@ -117,13 +121,14 @@ class Webhook
     protected function generateDefaultDescription(): string
     {
         $parts = explode('.', $this->event);
-        
+
         if (count($parts) >= 2) {
             $subject = ucfirst($parts[0]);
             $action = ucfirst($parts[1]);
+
             return "Triggered when {$subject} is {$action}";
         }
-        
+
         return "Webhook event: {$this->event}";
     }
 
@@ -133,7 +138,7 @@ class Webhook
     protected function determineCategory(): string
     {
         $eventLower = strtolower($this->event);
-        
+
         $categories = [
             // MODIFIED: Removed 'invoice' from the keywords for the financial category.
             'financial' => ['payment', 'receipt', 'fee', 'billing', 'refund'],
@@ -144,7 +149,7 @@ class Webhook
             'inventory' => ['asset', 'equipment', 'maintenance', 'audit'],
             'system' => ['backup', 'login', 'security', 'error', 'maintenance'],
         ];
-        
+
         foreach ($categories as $category => $keywords) {
             foreach ($keywords as $keyword) {
                 if (str_contains($eventLower, $keyword)) {
@@ -152,7 +157,7 @@ class Webhook
                 }
             }
         }
-        
+
         return 'general';
     }
 
@@ -182,12 +187,12 @@ class Webhook
      */
     public function shouldFire(array $context = []): bool
     {
-        if (!$this->enabled) {
+        if (! $this->enabled) {
             return false;
         }
 
         // Check custom condition if provided
-        if (!empty($this->condition)) {
+        if (! empty($this->condition)) {
             return $this->evaluateCondition($context);
         }
 
@@ -201,7 +206,7 @@ class Webhook
     {
         // Simple condition evaluation
         // In a real implementation, you might use a more sophisticated expression evaluator
-        
+
         if (empty($this->condition)) {
             return true;
         }
@@ -210,21 +215,21 @@ class Webhook
         // "amount > 1000"
         // "status == 'active'"
         // "user.role in ['admin', 'manager']"
-        
+
         try {
             // This is a simplified example - in production, use a proper expression evaluator
             // like symfony/expression-language
-            
+
             // Replace context variables in the condition
             $condition = $this->condition;
             foreach ($context as $key => $value) {
                 $condition = str_replace($key, var_export($value, true), $condition);
             }
-            
+
             // Evaluate the condition (DANGER: This is unsafe for production use)
             // In production, use a proper expression evaluator
             return eval("return {$condition};");
-            
+
         } catch (\Exception $e) {
             // If condition evaluation fails, don't fire the webhook
             return false;
@@ -239,12 +244,12 @@ class Webhook
         $filtered = $data;
 
         // Apply include filter if specified
-        if (!empty($this->includeData)) {
+        if (! empty($this->includeData)) {
             $filtered = array_intersect_key($filtered, array_flip($this->includeData));
         }
 
         // Apply exclude filter
-        if (!empty($this->excludeData)) {
+        if (! empty($this->excludeData)) {
             $filtered = array_diff_key($filtered, array_flip($this->excludeData));
         }
 
@@ -262,15 +267,16 @@ class Webhook
 
         $limit = $this->rateLimit['limit'] ?? 10;
         $window = $this->rateLimit['window'] ?? 60; // seconds
-        
+
         $cacheKey = "webhook_rate_limit:{$this->event}:{$identifier}";
         $current = cache()->get($cacheKey, 0);
-        
+
         if ($current >= $limit) {
             return false;
         }
-        
+
         cache()->put($cacheKey, $current + 1, $window);
+
         return true;
     }
 
@@ -295,33 +301,33 @@ class Webhook
         $errors = [];
 
         // Validate event name format
-        if (!preg_match('/^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)*$/', $this->event)) {
+        if (! preg_match('/^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)*$/', $this->event)) {
             $errors[] = "Event name '{$this->event}' should be lowercase.dot.separated format";
         }
 
         // Validate priority
-        if (!in_array($this->priority, ['low', 'medium', 'high'])) {
-            $errors[] = "Priority must be one of: low, medium, high";
+        if (! in_array($this->priority, ['low', 'medium', 'high'])) {
+            $errors[] = 'Priority must be one of: low, medium, high';
         }
 
         // Validate rate limit configuration
-        if (!empty($this->rateLimit)) {
-            if (!isset($this->rateLimit['limit']) || !is_int($this->rateLimit['limit'])) {
+        if (! empty($this->rateLimit)) {
+            if (! isset($this->rateLimit['limit']) || ! is_int($this->rateLimit['limit'])) {
                 $errors[] = "Rate limit 'limit' must be an integer";
             }
-            if (!isset($this->rateLimit['window']) || !is_int($this->rateLimit['window'])) {
+            if (! isset($this->rateLimit['window']) || ! is_int($this->rateLimit['window'])) {
                 $errors[] = "Rate limit 'window' must be an integer (seconds)";
             }
         }
 
         // Validate retry configuration
-        if (!empty($this->retryConfig)) {
+        if (! empty($this->retryConfig)) {
             $validKeys = ['max_attempts', 'backoff_multiplier', 'initial_delay', 'max_delay'];
             foreach ($this->retryConfig as $key => $value) {
-                if (!in_array($key, $validKeys)) {
+                if (! in_array($key, $validKeys)) {
                     $errors[] = "Invalid retry config key: {$key}";
                 }
-                if (!is_numeric($value)) {
+                if (! is_numeric($value)) {
                     $errors[] = "Retry config '{$key}' must be numeric";
                 }
             }
@@ -339,12 +345,12 @@ class Webhook
         // "payment.created"
         // "payment.created:Payment was processed"
         // "payment.created:Payment was processed:high"
-        
+
         $parts = explode(':', $definition);
         $event = trim($parts[0]);
         $description = isset($parts[1]) ? trim($parts[1]) : '';
         $priority = isset($parts[2]) ? trim($parts[2]) : 'medium';
-        
+
         return new self([
             'event' => $event,
             'description' => $description,
@@ -358,7 +364,7 @@ class Webhook
     public static function fromArray(array $config): array
     {
         $annotations = [];
-        
+
         foreach ($config as $event => $settings) {
             if (is_string($settings)) {
                 $annotations[] = self::fromString("{$event}:{$settings}");
@@ -366,7 +372,7 @@ class Webhook
                 $annotations[] = new self(array_merge(['event' => $event], $settings));
             }
         }
-        
+
         return $annotations;
     }
 
@@ -378,7 +384,7 @@ class Webhook
         return [
             'financial' => 'Financial Events',
             'student' => 'Student Management',
-            'academic' => 'Academic Events', 
+            'academic' => 'Academic Events',
             'hr' => 'HR Management',
             'communication' => 'Communication',
             'inventory' => 'Inventory Management',
@@ -404,7 +410,7 @@ class Webhook
      */
     public function __toString(): string
     {
-        return $this->event . ($this->description ? ": {$this->description}" : '');
+        return $this->event.($this->description ? ": {$this->description}" : '');
     }
 
     /**
@@ -422,7 +428,7 @@ class Webhook
             'system' => 'fas fa-cog',
             'general' => 'fas fa-bell',
         ];
-        
+
         return $icons[$this->category] ?? 'fas fa-bell';
     }
 
@@ -441,7 +447,7 @@ class Webhook
             'system' => '⚙️',
             'general' => '📋',
         ];
-        
+
         return $emojis[$this->category] ?? '📋';
     }
 

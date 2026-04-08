@@ -9,13 +9,14 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-public function up(): void
-{
-    Schema::table('timetables', function (Blueprint $table) {
-        $table->date('schedule_date')->after('id'); // Add this new column
-        $table->dropColumn('weekday'); // Remove the old column
-    });
-}
+    public function up(): void
+    {
+        Schema::table('timetables', function (Blueprint $table) {
+            $table->date('schedule_date')->after('id'); // Add this new column
+            $table->dropColumn('weekday'); // Remove the old column
+        });
+    }
+
     /**
      * Reverse the migrations.
      */

@@ -2,13 +2,15 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Widget;
+use App\Models\WidgetCategory;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
-use App\Models\{Widget, WidgetCategory};
 
 class DashboardSyncWidgetsCommand extends Command
 {
     protected $signature = 'dashboard:sync-widgets {--clean : Remove orphaned widgets}';
+
     protected $description = 'Sync widget definitions from Blade template files';
 
     public function handle()
@@ -16,43 +18,44 @@ class DashboardSyncWidgetsCommand extends Command
         $this->info('🔄 Syncing widgets from template files...');
 
         $widgetPath = resource_path('views/dashboard/widgets');
-        
-        if (!is_dir($widgetPath)) {
+
+        if (! is_dir($widgetPath)) {
             $this->error("Widget templates directory not found: {$widgetPath}");
+
             return 1;
         }
 
         $templateFiles = File::glob("{$widgetPath}/*.blade.php");
-        $this->info("Found " . count($templateFiles) . " widget files to process.");
-        
+        $this->info('Found '.count($templateFiles).' widget files to process.');
+
         $synced = 0;
         $failed = 0;
 
         foreach ($templateFiles as $templateFile) {
             $widgetSlug = basename($templateFile, '.blade.php');
-            
+
             try {
                 $widgetConfig = $this->parseWidgetConfig($templateFile, $widgetSlug);
-                
+
                 Widget::updateOrCreate(
                     ['slug' => $widgetSlug],
                     $widgetConfig
                 );
-                
+
                 $synced++;
-                $this->line("  <info>[OK]</info> Synced: " . $widgetConfig['name'] . " ({$widgetConfig['template_path']})");
-                
+                $this->line('  <info>[OK]</info> Synced: '.$widgetConfig['name']." ({$widgetConfig['template_path']})");
+
             } catch (\Exception $e) {
                 $failed++;
-                $this->line("  <error>[ERROR]</error> Failed to sync " . ucwords(str_replace(['-', '_'], ' ', $widgetSlug)) . ": " . 
+                $this->line('  <error>[ERROR]</error> Failed to sync '.ucwords(str_replace(['-', '_'], ' ', $widgetSlug)).': '.
 $e->getMessage());
             }
         }
 
         $this->newLine();
-        $this->info("✅ Sync Complete!");
+        $this->info('✅ Sync Complete!');
         $this->line("Summary: {$synced} widgets synced, {$failed} failed");
-        
+
         return $failed > 0 ? 1 : 0;
     }
 
@@ -61,7 +64,7 @@ $e->getMessage());
         $content = File::get($templateFile);
         $name = $this->extractWidgetName($content, $slug);
         $type = $this->extractWidgetType($content, $slug);
-        
+
         return [
             'name' => $name,
             'slug' => $slug,
@@ -83,7 +86,7 @@ $e->getMessage());
             'default_config' => $this->extractDefaultConfig($content),
             'permissions' => $this->extractPermissions($content, $slug),
             'cache_duration' => $this->extractCacheDuration($content),
-            'refresh_interval' => $this->extractRefreshInterval($content)
+            'refresh_interval' => $this->extractRefreshInterval($content),
         ];
     }
 
@@ -93,7 +96,7 @@ $e->getMessage());
         if (preg_match('/<h\d[^>]*class="[^"]*widget-title[^"]*"[^>]*>([^<]+)<\/h\d>/', $content, $matches)) {
             return trim($matches[1]);
         }
-        
+
         // Look for @widget-name comment
         if (preg_match('/@widget-name\s+(.+)$/m', $content, $matches)) {
             return trim($matches[1]);
@@ -140,7 +143,7 @@ $e->getMessage());
         if (strpos($slug, 'student') !== false || strpos($slug, 'academic') !== false || strpos($slug, 'attendance') !== false) {
             return 'academic';
         }
-        if (strpos($slug, 'revenue') !== false || strpos($slug, 'fee') !== false || strpos($slug, 'financial') !== false || 
+        if (strpos($slug, 'revenue') !== false || strpos($slug, 'fee') !== false || strpos($slug, 'financial') !== false ||
 strpos($slug, 'payment') !== false) {
             return 'financial';
         }
@@ -178,7 +181,7 @@ strpos($slug, 'payment') !== false) {
 
         // Look for Font Awesome icon in HTML
         if (preg_match('/<i[^>]*class="[^"]*fa-([^"\s]+)/', $content, $matches)) {
-            return 'fas fa-' . $matches[1];
+            return 'fas fa-'.$matches[1];
         }
 
         // Default icons based on type
@@ -190,7 +193,7 @@ strpos($slug, 'payment') !== false) {
             'action' => 'fas fa-bolt',
             'financial' => 'fas fa-dollar-sign',
             'academic' => 'fas fa-graduation-cap',
-            'system' => 'fas fa-cogs'
+            'system' => 'fas fa-cogs',
         ];
 
         return $defaultIcons[$type] ?? 'fas fa-widget';
@@ -198,7 +201,7 @@ strpos($slug, 'payment') !== false) {
 
     private function generateComponentName($slug)
     {
-        return ucwords(str_replace(['-', '_'], ' ', $slug)) . 'Widget';
+        return ucwords(str_replace(['-', '_'], ' ', $slug)).'Widget';
     }
 
     private function extractConfigurable($content)
@@ -211,15 +214,15 @@ strpos($slug, 'payment') !== false) {
         if (preg_match('/@widget-width\s+(\d+)$/m', $content, $matches)) {
             return (int) $matches[1];
         }
-        
+
         // Default width based on type
         $defaultWidths = [
             'chart' => 6,
             'kpi' => 3,
             'list' => 4,
-            'action' => 6
+            'action' => 6,
         ];
-        
+
         return $defaultWidths[$type] ?? 4;
     }
 
@@ -228,15 +231,15 @@ strpos($slug, 'payment') !== false) {
         if (preg_match('/@widget-height\s+(\d+)$/m', $content, $matches)) {
             return (int) $matches[1];
         }
-        
+
         // Default height based on type
         $defaultHeights = [
             'chart' => 400,
             'kpi' => 200,
             'list' => 350,
-            'action' => 250
+            'action' => 250,
         ];
-        
+
         return $defaultHeights[$type] ?? 300;
     }
 
@@ -245,6 +248,7 @@ strpos($slug, 'payment') !== false) {
         if (preg_match('/@widget-config\s+(.+)$/m', $content, $matches)) {
             return json_decode($matches[1], true) ?: [];
         }
+
         return [];
     }
 
@@ -274,6 +278,7 @@ strpos($slug, 'payment') !== false) {
         if (preg_match('/@widget-cache\s+(\d+)$/m', $content, $matches)) {
             return (int) $matches[1];
         }
+
         return 300; // 5 minutes default
     }
 
@@ -282,6 +287,7 @@ strpos($slug, 'payment') !== false) {
         if (preg_match('/@widget-refresh\s+(\d+)$/m', $content, $matches)) {
             return (int) $matches[1];
         }
+
         return 60; // 1 minute default
     }
 
@@ -295,7 +301,7 @@ strpos($slug, 'payment') !== false) {
                 'icon' => $this->getCategoryIcon($categoryName),
                 'color' => $this->getCategoryColor($categoryName),
                 'is_active' => true,
-                'order' => WidgetCategory::count() + 1
+                'order' => WidgetCategory::count() + 1,
             ]
         );
 
@@ -310,7 +316,7 @@ strpos($slug, 'payment') !== false) {
             'system' => 'fas fa-cog',
             'analytics' => 'fas fa-chart-line',
             'communication' => 'fas fa-comments',
-            'general' => 'fas fa-th-large'
+            'general' => 'fas fa-th-large',
         ];
 
         return $icons[$categoryName] ?? 'fas fa-widget';
@@ -324,7 +330,7 @@ strpos($slug, 'payment') !== false) {
             'system' => '#dc3545',
             'analytics' => '#ffc107',
             'communication' => '#17a2b8',
-            'general' => '#6c757d'
+            'general' => '#6c757d',
         ];
 
         return $colors[$categoryName] ?? '#6c757d';

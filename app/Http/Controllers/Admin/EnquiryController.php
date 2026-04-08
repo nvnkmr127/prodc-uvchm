@@ -1,27 +1,28 @@
 <?php
+
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Enquiry;
+use App\Imports\EnquiriesImport;
 use App\Models\Course;
+use App\Models\Enquiry;
 use App\Models\User;
+use App\Services\LeadDistributionService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Spatie\Activitylog\Models\Activity;
-use App\Models\Admission;
-use Carbon\Carbon;
-use App\Services\LeadDistributionService;
 use Illuminate\Support\Facades\Cache;
 // Add these imports
-use App\Imports\EnquiriesImport;
-use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\Log;
+use Maatwebsite\Excel\Facades\Excel;
+use Spatie\Activitylog\Models\Activity;
 
 class EnquiryController extends Controller
 {
     private function isUserAdmin($user = null)
     {
         $user = $user ?: Auth::user();
+
         // college-admin should only see their assigned enquiries, so they are not "Global Admins" here
         return $user->hasAnyRole([
             'admin', 'super-admin', 'superadmin',
@@ -55,32 +56,32 @@ class EnquiryController extends Controller
         $statsBaseQuery = Enquiry::query();
 
         // Apply visibility
-        if (!$isAdmin) {
+        if (! $isAdmin) {
             $statsBaseQuery->where('assigned_to_user_id', $user->id);
         }
 
         // Apply shared filters (except status itself)
         if ($request->filled('assigned_to_user_id')) {
-            $statsBaseQuery->whereIn('assigned_to_user_id', (array)$request->assigned_to_user_id);
+            $statsBaseQuery->whereIn('assigned_to_user_id', (array) $request->assigned_to_user_id);
         }
         if ($request->filled('course_id')) {
-            $statsBaseQuery->whereIn('course_id', (array)$request->course_id);
+            $statsBaseQuery->whereIn('course_id', (array) $request->course_id);
         }
         if ($request->filled('source')) {
-            $statsBaseQuery->whereIn('source', (array)$request->source);
+            $statsBaseQuery->whereIn('source', (array) $request->source);
         }
         if ($request->filled('start_date')) {
-            $statsBaseQuery->where('created_at', '>=', $request->start_date . ' 00:00:00');
+            $statsBaseQuery->where('created_at', '>=', $request->start_date.' 00:00:00');
         }
         if ($request->filled('end_date')) {
-            $statsBaseQuery->where('created_at', '<=', $request->end_date . ' 23:59:59');
+            $statsBaseQuery->where('created_at', '<=', $request->end_date.' 23:59:59');
         }
         if ($request->filled('search')) {
             $term = trim($request->search);
             $statsBaseQuery->where(function ($q) use ($term) {
-                $q->where('student_name', 'LIKE', '%' . $term . '%')
-                    ->orWhere('phone_number', 'LIKE', '%' . $term . '%')
-                    ->orWhere('address', 'LIKE', '%' . $term . '%');
+                $q->where('student_name', 'LIKE', '%'.$term.'%')
+                    ->orWhere('phone_number', 'LIKE', '%'.$term.'%')
+                    ->orWhere('address', 'LIKE', '%'.$term.'%');
             });
         }
         // test_attended: '0' or '1' is meaningful, empty string means 'all'
@@ -90,7 +91,7 @@ class EnquiryController extends Controller
 
         // Apply default status filter — mirrors applyFilters() logic exactly
         $skipDefault = $request->boolean('_skip_default_filter', false);
-        if (!$request->filled('status') && !$request->filled('search') && !$skipDefault) {
+        if (! $request->filled('status') && ! $request->filled('search') && ! $skipDefault) {
             $statsBaseQuery->where('status', '!=', 'Not Interested');
         }
 
@@ -104,7 +105,7 @@ class EnquiryController extends Controller
         // Now we apply the status filter too for metrics if specified
         $metricsQuery = (clone $statsBaseQuery);
         if ($request->filled('status')) {
-            $metricsQuery->whereIn('status', (array)$request->status);
+            $metricsQuery->whereIn('status', (array) $request->status);
         }
 
         $metricsData = $metricsQuery->selectRaw('COUNT(*) as total, 
@@ -139,7 +140,7 @@ class EnquiryController extends Controller
         $isAdmin = $this->isUserAdmin($user);
 
         // 1. Apply Visibility for List
-        if (!$isAdmin) {
+        if (! $isAdmin) {
             $query->where('assigned_to_user_id', $user->id);
         }
 
@@ -147,45 +148,45 @@ class EnquiryController extends Controller
         if ($request->filled('search')) {
             $searchTerm = trim($request->search);
             $query->where(function ($q) use ($searchTerm) {
-                $q->where('enquiries.student_name', 'LIKE', '%' . $searchTerm . '%')
-                    ->orWhere('enquiries.phone_number', 'LIKE', '%' . $searchTerm . '%')
-                    ->orWhere('enquiries.address', 'LIKE', '%' . $searchTerm . '%');
+                $q->where('enquiries.student_name', 'LIKE', '%'.$searchTerm.'%')
+                    ->orWhere('enquiries.phone_number', 'LIKE', '%'.$searchTerm.'%')
+                    ->orWhere('enquiries.address', 'LIKE', '%'.$searchTerm.'%');
             });
         }
 
         // 3. Status Filter (Applied AFTER search to match getStats)
         if ($request->filled('status')) {
-            $status = (array)$request->status;
+            $status = (array) $request->status;
             $query->whereIn('enquiries.status', $status);
         } else {
             // Default: Hide 'Not Interested' unless searching.
             // Note: the export() method passes $skipDefault=true to bypass this.
             $skipDefault = $request->boolean('_skip_default_filter', false);
-            if (!$request->filled('search') && !$skipDefault) {
+            if (! $request->filled('search') && ! $skipDefault) {
                 $query->where('enquiries.status', '!=', 'Not Interested');
             }
         }
 
         // 4. Other Filters
         if ($request->filled('course_id')) {
-            $courseIds = (array)$request->course_id;
+            $courseIds = (array) $request->course_id;
             $query->whereIn('enquiries.course_id', $courseIds);
         }
         if ($request->filled('assigned_to_user_id')) {
-            $assignedTo = (array)$request->assigned_to_user_id;
+            $assignedTo = (array) $request->assigned_to_user_id;
             $query->whereIn('enquiries.assigned_to_user_id', $assignedTo);
         }
         if ($request->filled('source')) {
-            $sources = (array)$request->source;
+            $sources = (array) $request->source;
             $query->whereIn('enquiries.source', $sources);
         }
 
         // 5. Apply Date Filters conditionally
         if ($request->filled('start_date')) {
-            $query->where('enquiries.created_at', '>=', $request->start_date . ' 00:00:00');
+            $query->where('enquiries.created_at', '>=', $request->start_date.' 00:00:00');
         }
         if ($request->filled('end_date')) {
-            $query->where('enquiries.created_at', '<=', $request->end_date . ' 23:59:59');
+            $query->where('enquiries.created_at', '<=', $request->end_date.' 23:59:59');
         }
 
         // 6. Test Attendance Filter — use filled() not has(), since 'test_attended'
@@ -196,7 +197,6 @@ class EnquiryController extends Controller
 
         return $query;
     }
-
 
     public function index(Request $request)
     {
@@ -226,7 +226,7 @@ class EnquiryController extends Controller
             $query->leftJoin('users', 'enquiries.assigned_to_user_id', '=', 'users.id')
                 ->orderBy('users.name', $sortDirection);
         } else {
-            $query->orderBy('enquiries.' . $sortField, $sortDirection);
+            $query->orderBy('enquiries.'.$sortField, $sortDirection);
         }
 
         $perPage = $request->get('per_page', 25);
@@ -242,7 +242,6 @@ class EnquiryController extends Controller
         });
         // (debug log removed)
 
-
         // AJAX Response — detect via either X-Requested-With OR Accept: application/json
         if ($request->ajax() || $request->wantsJson()) {
             $tableHtml = view('admin.enquiries._table_body', compact('enquiries', 'counselors'))->render();
@@ -251,7 +250,7 @@ class EnquiryController extends Controller
             return response()->json([
                 'html' => $tableHtml,
                 'pagination' => $paginationHtml,
-                'stats' => $counts
+                'stats' => $counts,
             ]);
         }
 
@@ -260,9 +259,9 @@ class EnquiryController extends Controller
         $sources = Cache::remember('enquiry_sources', now()->addMinutes(10), function () {
             $staticSources = \App\Models\Enquiry::SOURCES;
             $dbSources = Enquiry::select('source')->whereNotNull('source')->distinct()->pluck('source', 'source')->toArray();
+
             return array_merge($staticSources, $dbSources);
         });
-
 
         $isFacebookView = session('is_facebook_view', false) || $request->input('source') === 'Social Media';
 
@@ -294,18 +293,18 @@ class EnquiryController extends Controller
             return redirect()->back()->with('error', 'No results found to export.');
         }
 
-        return Excel::download(new \App\Exports\EnquiriesExport($enquiries), 'enquiries_' . now()->format('Y-m-d_His') . '.csv');
+        return Excel::download(new \App\Exports\EnquiriesExport($enquiries), 'enquiries_'.now()->format('Y-m-d_His').'.csv');
     }
 
     public function facebookLeads(Request $request)
     {
         // Force the source to Social Media (Facebook)
         $request->merge(['source' => 'Social Media']);
-        
+
         // Let the index method handle the rest of the logic (stats, query, pagination)
         // We set a flag so the view can show "Facebook Leads" instead of "Enquiries"
         session()->flash('is_facebook_view', true);
-        
+
         return $this->index($request);
     }
 
@@ -346,12 +345,12 @@ class EnquiryController extends Controller
         $cleanPhone = preg_replace('/[^0-9]/', '', $validated['phone_number']);
         $searchSuffix = strlen($cleanPhone) >= 10 ? substr($cleanPhone, -10) : $cleanPhone;
 
-        if (!empty($searchSuffix)) {
+        if (! empty($searchSuffix)) {
             $duplicateEnquiry = Enquiry::where('phone_number', 'LIKE', "%{$searchSuffix}")->first();
             if ($duplicateEnquiry) {
                 return response()->json([
                     'success' => false,
-                    'message' => "❌ Duplicate Record: A lead already exists for this number ({$duplicateEnquiry->student_name})."
+                    'message' => "❌ Duplicate Record: A lead already exists for this number ({$duplicateEnquiry->student_name}).",
                 ], 422);
             }
 
@@ -361,7 +360,7 @@ class EnquiryController extends Controller
             if ($duplicateStudent) {
                 return response()->json([
                     'success' => false,
-                    'message' => "❌ Registered Student: This number is already registered to student '{$duplicateStudent->name}'."
+                    'message' => "❌ Registered Student: This number is already registered to student '{$duplicateStudent->name}'.",
                 ], 422);
             }
         }
@@ -375,20 +374,19 @@ class EnquiryController extends Controller
         // Fix: Override checkbox booleans BEFORE merging, because PHP's + operator
         // keeps keys from the LEFT side ($validated), silently ignoring the right side.
         $validated['include_uniform'] = $request->has('include_uniform');
-        $validated['include_books']   = $request->has('include_books');
+        $validated['include_books'] = $request->has('include_books');
 
         $enquiry = Enquiry::create($validated + [
             'assigned_to_user_id' => $assignedTo,
             'status' => 'New',
         ]);
 
-
         // Handle AJAX request
         if ($request->ajax() || $request->wantsJson()) {
             return response()->json([
                 'success' => true,
                 'message' => 'Enquiry logged successfully and assigned.',
-                'redirect' => route('admin.enquiries.edit', $enquiry)
+                'redirect' => route('admin.enquiries.edit', $enquiry),
             ]);
         }
 
@@ -430,7 +428,7 @@ class EnquiryController extends Controller
         $isAdmin = $this->isUserAdmin($user);
 
         // Default Deny
-        if (!$isAdmin && $enquiry->assigned_to_user_id != $user->id) {
+        if (! $isAdmin && $enquiry->assigned_to_user_id != $user->id) {
             abort(403, 'Unauthorized access to this enquiry.');
         }
 
@@ -467,7 +465,7 @@ class EnquiryController extends Controller
         // VISIBILITY FIX
         $user = Auth::user();
         $isAdmin = $this->isUserAdmin($user);
-        if (!$isAdmin && $enquiry->assigned_to_user_id != $user->id) {
+        if (! $isAdmin && $enquiry->assigned_to_user_id != $user->id) {
             abort(403, 'Unauthorized access to this enquiry.');
         }
 
@@ -504,7 +502,7 @@ class EnquiryController extends Controller
         if ($request->ajax()) {
             return response()->json([
                 'success' => true,
-                'message' => 'Enquiry updated successfully.'
+                'message' => 'Enquiry updated successfully.',
             ]);
         }
 
@@ -529,7 +527,7 @@ class EnquiryController extends Controller
         $isAdmin = $this->isUserAdmin($user);
 
         // Default Deny: If not an admin, restrict to self
-        if (!$isAdmin) {
+        if (! $isAdmin) {
             $resultsQuery->where('assigned_to_user_id', $user->id);
         }
 
@@ -542,21 +540,22 @@ class EnquiryController extends Controller
                     'phone' => $enquiry->phone_number,
                     'course' => $enquiry->course->name ?? 'N/A',
                     'status' => $enquiry->status,
-                    'avatar' => strtoupper(substr($enquiry->student_name, 0, 1))
+                    'avatar' => strtoupper(substr($enquiry->student_name, 0, 1)),
                 ];
             });
 
         return response()->json($results);
     }
 
-
     public function addFollowUp(Request $request, Enquiry $enquiry)
     {
         // VISIBILITY FIX
         $user = Auth::user();
         $isAdmin = $this->isUserAdmin($user);
-        if (!$isAdmin && $enquiry->assigned_to_user_id != $user->id) {
-            if ($request->ajax()) return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        if (! $isAdmin && $enquiry->assigned_to_user_id != $user->id) {
+            if ($request->ajax()) {
+                return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+            }
             abort(403, 'Unauthorized access to this enquiry.');
         }
 
@@ -580,7 +579,7 @@ class EnquiryController extends Controller
             $newStatus = in_array($enquiry->status, $advancedStatuses) ? $enquiry->status : 'Contacted';
             $enquiry->update([
                 'next_follow_up_date' => $request->next_follow_up_date,
-                'status' => $newStatus
+                'status' => $newStatus,
             ]);
         }
 
@@ -594,8 +593,8 @@ class EnquiryController extends Controller
                     'created_at' => $followUp->created_at->format('d M, h:i A'),
                     'notes' => nl2br(e($followUp->notes)),
                     'outcome' => $followUp->outcome,
-                    'date_formatted' => $request->filled('next_follow_up_date') ? Carbon::parse($request->next_follow_up_date)->format('d M Y') : null
-                ]
+                    'date_formatted' => $request->filled('next_follow_up_date') ? Carbon::parse($request->next_follow_up_date)->format('d M Y') : null,
+                ],
             ]);
         }
 
@@ -607,13 +606,14 @@ class EnquiryController extends Controller
         // VISIBILITY FIX
         $user = Auth::user();
         $isAdmin = $this->isUserAdmin($user);
-        if (!$isAdmin && $enquiry->assigned_to_user_id != $user->id) {
+        if (! $isAdmin && $enquiry->assigned_to_user_id != $user->id) {
             abort(403, 'Unauthorized access to this enquiry.');
         }
 
         if ($enquiry->status === 'Admitted') {
             return redirect()->back()->with('error', 'This enquiry has already been converted to an admission.');
         }
+
         return redirect()->route('admin.admissions.create', ['enquiry' => $enquiry->id]);
     }
 
@@ -624,15 +624,16 @@ class EnquiryController extends Controller
         $phone = $request->query('phone');
         $currentId = $request->query('id');
 
-        if (!$phone)
+        if (! $phone) {
             return response()->json(['status' => 'success']);
+        }
 
         // Normalize the phone number for smarter checking (get last 10 digits)
         $cleanPhone = preg_replace('/[^0-9]/', '', $phone);
         $searchSuffix = strlen($cleanPhone) >= 10 ? substr($cleanPhone, -10) : $cleanPhone;
 
         if (empty($searchSuffix)) {
-             return response()->json(['status' => 'success']);
+            return response()->json(['status' => 'success']);
         }
 
         // 1. Check Students (Student Mobile OR Father Mobile)
@@ -643,9 +644,10 @@ class EnquiryController extends Controller
 
         if ($student) {
             $matchingField = (str_ends_with($student->student_mobile, $searchSuffix)) ? 'Student' : 'Father';
+
             return response()->json([
                 'status' => 'error',
-                'message' => "❌ Found in Students ({$matchingField}): {$student->name} (Batch: " . ($student->batch->name ?? 'N/A') . ")"
+                'message' => "❌ Found in Students ({$matchingField}): {$student->name} (Batch: ".($student->batch->name ?? 'N/A').')',
             ]);
         }
 
@@ -658,12 +660,12 @@ class EnquiryController extends Controller
 
         if ($existing) {
             $counselor = $existing->assignedTo->name ?? 'Unassigned';
+
             return response()->json([
                 'status' => 'error',
-                'message' => "❌ Duplicate Enquiry: {$existing->student_name} (Assigned to: {$counselor})"
+                'message' => "❌ Duplicate Enquiry: {$existing->student_name} (Assigned to: {$counselor})",
             ]);
         }
-
 
         // 3. Staff phone check removed — querying email/name with a phone number
         //    is logically incorrect and never matches. Add a 'phone' column to
@@ -679,7 +681,7 @@ class EnquiryController extends Controller
         $isAdmin = $this->isUserAdmin($user);
 
         // Default Deny
-        if (!$isAdmin && $enquiry->assigned_to_user_id != $user->id) {
+        if (! $isAdmin && $enquiry->assigned_to_user_id != $user->id) {
             abort(403, 'Unauthorized access to this enquiry.');
         }
 
@@ -711,6 +713,7 @@ class EnquiryController extends Controller
         // 4. Pass 'counselors' and 'courses' to the view
         return view('admin.enquiries.modal_show', compact('enquiry', 'timeline', 'courses', 'counselors'));
     }
+
     // ADD THIS NEW METHOD
     public function bulkDelete(Request $request)
     {
@@ -726,6 +729,7 @@ class EnquiryController extends Controller
 
         try {
             Enquiry::whereIn('id', $ids)->delete();
+
             return response()->json(['success' => true, 'message' => 'Selected enquiries deleted successfully.']);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Error deleting items.']);
@@ -747,7 +751,7 @@ class EnquiryController extends Controller
 
         Enquiry::whereIn('id', $ids)->update([
             'assigned_to_user_id' => $request->target_user_id,
-            'updated_at' => now() // Update timestamp
+            'updated_at' => now(), // Update timestamp
         ]);
 
         // Get updated stats for frontend
@@ -762,19 +766,21 @@ class EnquiryController extends Controller
         $user = Auth::user();
         $isAdmin = $this->isUserAdmin($user);
 
-        if (!$isAdmin && $enquiry->assigned_to_user_id != $user->id) {
+        if (! $isAdmin && $enquiry->assigned_to_user_id != $user->id) {
             abort(403, 'Unauthorized access to this enquiry.');
         }
 
         $enquiry->delete();
+
         return redirect()->route('admin.enquiries.index')->with('success', 'Enquiry deleted successfully.');
     }
+
     public function import(Request $request, LeadDistributionService $leadDistribution)
     {
         $request->validate([
             'file' => 'required|mimes:csv,xlsx,xls|max:5120', // 5 MB limit
             'assigned_to_user_id' => 'nullable|exists:users,id',
-            'default_source' => 'nullable|string|max:255'
+            'default_source' => 'nullable|string|max:255',
         ]);
 
         try {
@@ -791,14 +797,15 @@ class EnquiryController extends Controller
             // 3. Check results
             if ($import->importedCount === 0) {
                 // Flash duplicates even on fully failed imports if they exist
-                if (!empty($import->duplicates)) {
+                if (! empty($import->duplicates)) {
                     session()->flash('import_duplicates', $import->duplicates);
                 }
+
                 return back()->with('error', "Import finished but 0 records were added. Skipped: {$import->skippedCount}. Check your CSV headers (must be: name OR student_name, and mobile_number).");
             }
 
             // Flash duplicates for the popup
-            if (!empty($import->duplicates)) {
+            if (! empty($import->duplicates)) {
                 session()->flash('import_duplicates', $import->duplicates);
             }
 
@@ -806,10 +813,11 @@ class EnquiryController extends Controller
 
         } catch (\Maatwebsite\Excel\Validators\ValidationException $e) {
             $failures = $e->failures();
-            $errorMsg = "Row " . $failures[0]->row() . ": " . $failures[0]->errors()[0];
-            return back()->with('error', "Validation Error: " . $errorMsg);
+            $errorMsg = 'Row '.$failures[0]->row().': '.$failures[0]->errors()[0];
+
+            return back()->with('error', 'Validation Error: '.$errorMsg);
         } catch (\Exception $e) {
-            return back()->with('error', 'System Error: ' . $e->getMessage());
+            return back()->with('error', 'System Error: '.$e->getMessage());
         }
     }
 

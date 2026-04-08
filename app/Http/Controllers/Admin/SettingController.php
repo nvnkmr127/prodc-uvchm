@@ -7,11 +7,9 @@ use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
-
+use Illuminate\Support\Facades\Storage;
 
 class SettingController extends Controller
 {
@@ -33,14 +31,14 @@ class SettingController extends Controller
                         'required' => true,
                         'placeholder' => 'College Management System',
                         'help' => 'Name displayed throughout the application',
-                        'default' => 'College Management System'
+                        'default' => 'College Management System',
                     ],
                     'app_tagline' => [
                         'label' => 'Application Tagline',
                         'type' => 'text',
                         'placeholder' => 'Empowering Education Excellence',
                         'help' => 'Short description or motto',
-                        'default' => 'Empowering Education Excellence'
+                        'default' => 'Empowering Education Excellence',
                     ],
                     'timezone' => [
                         'label' => 'Default Timezone',
@@ -55,7 +53,7 @@ class SettingController extends Controller
                             'Asia/Dubai' => 'Asia/Dubai (GST)',
                             'Asia/Singapore' => 'Asia/Singapore (SGT)',
                         ],
-                        'default' => 'Asia/Kolkata'
+                        'default' => 'Asia/Kolkata',
                     ],
                     'date_format' => [
                         'label' => 'Date Format',
@@ -68,7 +66,7 @@ class SettingController extends Controller
                             'j F Y' => 'Day Month Year (31 December 2024)',
                             'F j, Y' => 'Month Day, Year (December 31, 2024)',
                         ],
-                        'default' => 'd-m-Y'
+                        'default' => 'd-m-Y',
                     ],
                     'time_format' => [
                         'label' => 'Time Format',
@@ -77,21 +75,21 @@ class SettingController extends Controller
                             'H:i' => '24 Hour (14:30)',
                             'h:i A' => '12 Hour (02:30 PM)',
                         ],
-                        'default' => 'H:i'
+                        'default' => 'H:i',
                     ],
                     'maintenance_mode' => [
                         'label' => 'Maintenance Mode',
                         'type' => 'toggle',
                         'help' => 'Put application in maintenance mode',
-                        'default' => '0'
+                        'default' => '0',
                     ],
                     'debug_mode' => [
                         'label' => 'Debug Mode',
                         'type' => 'toggle',
                         'help' => 'Enable debug mode for development',
-                        'default' => '0'
+                        'default' => '0',
                     ],
-                ]
+                ],
             ],
             'college' => [
                 'title' => 'College Information',
@@ -103,50 +101,50 @@ class SettingController extends Controller
                         'type' => 'text',
                         'required' => true,
                         'placeholder' => 'ABC College of Technology',
-                        'help' => 'Official college name'
+                        'help' => 'Official college name',
                     ],
                     'college_short_name' => [
                         'label' => 'Short Name/Acronym',
                         'type' => 'text',
                         'placeholder' => 'ACT',
-                        'help' => 'College abbreviation or acronym'
+                        'help' => 'College abbreviation or acronym',
                     ],
                     'college_logo' => [
                         'label' => 'College Logo',
                         'type' => 'file',
                         'accept' => 'image/*',
-                        'help' => 'Upload college logo (recommended: 200x200px, PNG/JPG)'
+                        'help' => 'Upload college logo (recommended: 200x200px, PNG/JPG)',
                     ],
                     'college_email' => [
                         'label' => 'Primary Email',
                         'type' => 'email',
                         'placeholder' => 'info@college.edu',
-                        'help' => 'Main contact email address'
+                        'help' => 'Main contact email address',
                     ],
                     'college_phone' => [
                         'label' => 'Phone Number',
                         'type' => 'tel',
                         'placeholder' => '+91 98765 43210',
-                        'help' => 'Primary contact phone number'
+                        'help' => 'Primary contact phone number',
                     ],
                     'college_fax' => [
                         'label' => 'Fax Number',
                         'type' => 'tel',
                         'placeholder' => '+91 11 12345678',
-                        'help' => 'Fax number (optional)'
+                        'help' => 'Fax number (optional)',
                     ],
                     'college_website' => [
                         'label' => 'Website URL',
                         'type' => 'url',
                         'placeholder' => 'https://www.yourcollege.edu',
-                        'help' => 'Official college website'
+                        'help' => 'Official college website',
                     ],
                     'college_address' => [
                         'label' => 'Complete Address',
                         'type' => 'textarea',
                         'rows' => 3,
                         'placeholder' => 'Street Address, City, State, PIN Code, Country',
-                        'help' => 'Full postal address of the college'
+                        'help' => 'Full postal address of the college',
                     ],
                     'college_established_year' => [
                         'label' => 'Established Year',
@@ -154,21 +152,21 @@ class SettingController extends Controller
                         'min' => 1800,
                         'max' => date('Y'),
                         'placeholder' => '1990',
-                        'help' => 'Year the college was established'
+                        'help' => 'Year the college was established',
                     ],
                     'college_affiliation' => [
                         'label' => 'Affiliation/University',
                         'type' => 'text',
                         'placeholder' => 'University of Technology',
-                        'help' => 'Affiliated university or board'
+                        'help' => 'Affiliated university or board',
                     ],
                     'college_accreditation' => [
                         'label' => 'Accreditation',
                         'type' => 'text',
                         'placeholder' => 'NAAC A+ Grade',
-                        'help' => 'Accreditation details'
+                        'help' => 'Accreditation details',
                     ],
-                ]
+                ],
             ],
             'academic' => [
                 'title' => 'Academic Settings',
@@ -180,26 +178,26 @@ class SettingController extends Controller
                         'type' => 'text',
                         'placeholder' => '2024-2025',
                         'help' => 'Format: YYYY-YYYY',
-                        'default' => date('Y') . '-' . (date('Y') + 1)
+                        'default' => date('Y').'-'.(date('Y') + 1),
                     ],
                     'enrollment_prefix' => [
                         'label' => 'Enrollment Number Prefix',
                         'type' => 'text',
                         'placeholder' => 'STD',
                         'help' => 'Prefix for student enrollment numbers',
-                        'default' => 'STD'
+                        'default' => 'STD',
                     ],
                     'semester_system' => [
                         'label' => 'Use Semester System',
                         'type' => 'toggle',
                         'help' => 'Enable semester-based academic structure',
-                        'default' => '1'
+                        'default' => '1',
                     ],
                     'auto_promotion' => [
                         'label' => 'Auto Student Promotion',
                         'type' => 'toggle',
                         'help' => 'Automatically promote students to next semester/year',
-                        'default' => '0'
+                        'default' => '0',
                     ],
                     'academic_session_start' => [
                         'label' => 'Academic Session Start Month',
@@ -216,9 +214,9 @@ class SettingController extends Controller
                             '09' => 'September',
                             '10' => 'October',
                             '11' => 'November',
-                            '12' => 'December'
+                            '12' => 'December',
                         ],
-                        'default' => '07'
+                        'default' => '07',
                     ],
                     'academic_session_end' => [
                         'label' => 'Academic Session End Month',
@@ -235,9 +233,9 @@ class SettingController extends Controller
                             '09' => 'September',
                             '10' => 'October',
                             '11' => 'November',
-                            '12' => 'December'
+                            '12' => 'December',
                         ],
-                        'default' => '06'
+                        'default' => '06',
                     ],
                     'default_session_duration' => [
                         'label' => 'Default Class Duration (minutes)',
@@ -245,13 +243,13 @@ class SettingController extends Controller
                         'min' => 30,
                         'max' => 480,
                         'default' => '60',
-                        'help' => 'Default duration for class sessions'
+                        'help' => 'Default duration for class sessions',
                     ],
                     'exam_result_publish' => [
                         'label' => 'Auto-Publish Exam Results',
                         'type' => 'toggle',
                         'help' => 'Automatically publish results when all marks are entered',
-                        'default' => '0'
+                        'default' => '0',
                     ],
                     'data_retention_years' => [
                         'label' => 'Data Retention Period (Years)',
@@ -259,9 +257,9 @@ class SettingController extends Controller
                         'min' => 1,
                         'max' => 50,
                         'default' => '7',
-                        'help' => 'How long to keep student data after graduation'
-                    ]
-                ]
+                        'help' => 'How long to keep student data after graduation',
+                    ],
+                ],
             ],
             'financial' => [
                 'title' => 'Financial Settings',
@@ -274,7 +272,7 @@ class SettingController extends Controller
                         'placeholder' => '₹',
                         'default' => '₹',
                         'maxlength' => 5,
-                        'help' => 'Symbol displayed with amounts'
+                        'help' => 'Symbol displayed with amounts',
                     ],
                     'currency_code' => [
                         'label' => 'Currency Code',
@@ -289,7 +287,7 @@ class SettingController extends Controller
                             'SGD' => 'Singapore Dollar (SGD)',
                             'AED' => 'UAE Dirham (AED)',
                         ],
-                        'default' => 'INR'
+                        'default' => 'INR',
                     ],
                     'decimal_places' => [
                         'label' => 'Decimal Places',
@@ -299,7 +297,7 @@ class SettingController extends Controller
                             '1' => '1 decimal (₹100.0)',
                             '2' => '2 decimals (₹100.00)',
                         ],
-                        'default' => '2'
+                        'default' => '2',
                     ],
                     'tax_rate' => [
                         'label' => 'Default Tax Rate (%)',
@@ -308,7 +306,7 @@ class SettingController extends Controller
                         'max' => 100,
                         'step' => 0.01,
                         'default' => '0',
-                        'help' => 'Default tax percentage applied to fees'
+                        'help' => 'Default tax percentage applied to fees',
                     ],
                     'late_fee_percentage' => [
                         'label' => 'Late Payment Fee (%)',
@@ -317,7 +315,7 @@ class SettingController extends Controller
                         'max' => 50,
                         'step' => 0.1,
                         'default' => '5',
-                        'help' => 'Late fee percentage on overdue payments'
+                        'help' => 'Late fee percentage on overdue payments',
                     ],
                     'late_fee_grace_days' => [
                         'label' => 'Late Fee Grace Period (Days)',
@@ -325,20 +323,20 @@ class SettingController extends Controller
                         'min' => 0,
                         'max' => 90,
                         'default' => '7',
-                        'help' => 'Grace period before late fees apply'
+                        'help' => 'Grace period before late fees apply',
                     ],
                     'partial_payment_allowed' => [
                         'label' => 'Allow Partial Payments',
                         'type' => 'toggle',
                         'help' => 'Allow students to pay fees in installments',
-                        'default' => '1'
+                        'default' => '1',
                     ],
                     'minimum_partial_amount' => [
                         'label' => 'Minimum Partial Payment Amount',
                         'type' => 'number',
                         'min' => 1,
                         'default' => '1000',
-                        'help' => 'Minimum amount for partial payments'
+                        'help' => 'Minimum amount for partial payments',
                     ],
                     // ✅ CHANGED: 'invoice_prefix' updated to 'component_prefix'
                     'component_prefix' => [
@@ -346,7 +344,7 @@ class SettingController extends Controller
                         'type' => 'text',
                         'placeholder' => 'INV',
                         'default' => 'INV',
-                        'help' => 'Prefix for component/receipt numbers'
+                        'help' => 'Prefix for component/receipt numbers',
                     ],
                     // ✅ CHANGED: 'invoice_footer' updated to 'component_footer'
                     'component_footer' => [
@@ -354,16 +352,16 @@ class SettingController extends Controller
                         'type' => 'textarea',
                         'rows' => 3,
                         'placeholder' => 'Thank you for your payment. For any queries, contact the accounts department.',
-                        'help' => 'Text displayed at bottom of components/receipts'
+                        'help' => 'Text displayed at bottom of components/receipts',
                     ],
                     'receipt_footer' => [
                         'label' => 'Receipt Footer Text',
                         'type' => 'textarea',
                         'rows' => 2,
                         'placeholder' => 'This is a computer generated receipt.',
-                        'help' => 'Text displayed at bottom of payment receipts'
+                        'help' => 'Text displayed at bottom of payment receipts',
                     ],
-                ]
+                ],
             ],
             'email' => [
                 'title' => 'Email Configuration',
@@ -380,13 +378,13 @@ class SettingController extends Controller
                             'ses' => 'Amazon SES',
                             'postmark' => 'Postmark',
                         ],
-                        'default' => 'smtp'
+                        'default' => 'smtp',
                     ],
                     'mail_host' => [
                         'label' => 'SMTP Host',
                         'type' => 'text',
                         'placeholder' => 'smtp.gmail.com',
-                        'help' => 'SMTP server hostname'
+                        'help' => 'SMTP server hostname',
                     ],
                     'mail_port' => [
                         'label' => 'SMTP Port',
@@ -394,18 +392,18 @@ class SettingController extends Controller
                         'min' => 1,
                         'max' => 65535,
                         'default' => '587',
-                        'help' => 'SMTP server port (587 for TLS, 465 for SSL)'
+                        'help' => 'SMTP server port (587 for TLS, 465 for SSL)',
                     ],
                     'mail_username' => [
                         'label' => 'SMTP Username',
                         'type' => 'email',
                         'placeholder' => 'your-email@gmail.com',
-                        'help' => 'SMTP authentication username'
+                        'help' => 'SMTP authentication username',
                     ],
                     'mail_password' => [
                         'label' => 'SMTP Password',
                         'type' => 'password',
-                        'help' => 'SMTP authentication password (use app-specific password for Gmail)'
+                        'help' => 'SMTP authentication password (use app-specific password for Gmail)',
                     ],
                     'mail_encryption' => [
                         'label' => 'Encryption Method',
@@ -413,41 +411,41 @@ class SettingController extends Controller
                         'options' => [
                             'tls' => 'TLS (Recommended)',
                             'ssl' => 'SSL',
-                            'none' => 'None (Not recommended)'
+                            'none' => 'None (Not recommended)',
                         ],
-                        'default' => 'tls'
+                        'default' => 'tls',
                     ],
                     'mail_from_address' => [
                         'label' => 'From Email Address',
                         'type' => 'email',
                         'placeholder' => 'noreply@college.edu',
-                        'help' => 'Default sender email address'
+                        'help' => 'Default sender email address',
                     ],
                     'mail_from_name' => [
                         'label' => 'From Name',
                         'type' => 'text',
                         'placeholder' => 'College Management System',
-                        'help' => 'Default sender name'
+                        'help' => 'Default sender name',
                     ],
                     'mail_reply_to' => [
                         'label' => 'Reply-To Email',
                         'type' => 'email',
                         'placeholder' => 'support@college.edu',
-                        'help' => 'Email address for replies'
+                        'help' => 'Email address for replies',
                     ],
                     'email_notifications' => [
                         'label' => 'Enable Email Notifications',
                         'type' => 'toggle',
                         'help' => 'Send automated email notifications',
-                        'default' => '1'
+                        'default' => '1',
                     ],
                     'email_queue_enabled' => [
                         'label' => 'Queue Email Sending',
                         'type' => 'toggle',
                         'help' => 'Queue emails for background processing',
-                        'default' => '1'
+                        'default' => '1',
                     ],
-                ]
+                ],
             ],
             'attendance' => [
                 'title' => 'Attendance Settings',
@@ -460,7 +458,7 @@ class SettingController extends Controller
                         'help' => 'Minimum attendance required for exam eligibility (%)',
                         'default' => '75',
                         'min' => '0',
-                        'max' => '100'
+                        'max' => '100',
                     ],
                     'attendance_grace_period' => [
                         'label' => 'Late Arrival Grace Period',
@@ -468,41 +466,41 @@ class SettingController extends Controller
                         'help' => 'Grace period for late arrivals (minutes)',
                         'default' => '10',
                         'min' => '0',
-                        'max' => '60'
+                        'max' => '60',
                     ],
                     'attendance_auto_mark' => [
                         'label' => 'Auto-Mark Attendance',
                         'type' => 'toggle',
                         'help' => 'Automatically mark attendance based on schedules',
-                        'default' => '0'
+                        'default' => '0',
                     ],
                     'weekend_working' => [
                         'label' => 'Working Weekend Days',
                         'type' => 'multiselect',
                         'options' => [
                             'saturday' => 'Saturday',
-                            'sunday' => 'Sunday'
+                            'sunday' => 'Sunday',
                         ],
                         'default' => '["saturday"]',
-                        'help' => 'Select working weekend days'
+                        'help' => 'Select working weekend days',
                     ],
                     'holiday_auto_absent' => [
                         'label' => 'Auto-Mark Absent on Holidays',
                         'type' => 'toggle',
                         'help' => 'Automatically mark students absent on declared holidays',
-                        'default' => '0'
+                        'default' => '0',
                     ],
                     'attendance_sms_alerts' => [
                         'label' => 'SMS Attendance Alerts',
                         'type' => 'toggle',
                         'help' => 'Send SMS alerts for attendance updates',
-                        'default' => '0'
+                        'default' => '0',
                     ],
                     'attendance_email_alerts' => [
                         'label' => 'Email Attendance Alerts',
                         'type' => 'toggle',
                         'help' => 'Send email alerts for low attendance',
-                        'default' => '1'
+                        'default' => '1',
                     ],
                     'attendance_report_frequency' => [
                         'label' => 'Report Generation Frequency',
@@ -510,10 +508,10 @@ class SettingController extends Controller
                         'options' => [
                             'daily' => 'Daily',
                             'weekly' => 'Weekly',
-                            'monthly' => 'Monthly'
+                            'monthly' => 'Monthly',
                         ],
                         'default' => 'weekly',
-                        'help' => 'How often to generate attendance reports'
+                        'help' => 'How often to generate attendance reports',
                     ],
                     'attendance_low_threshold' => [
                         'label' => 'Low Attendance Threshold',
@@ -521,9 +519,9 @@ class SettingController extends Controller
                         'help' => 'Send alerts when attendance falls below this percentage',
                         'default' => '80',
                         'min' => '0',
-                        'max' => '100'
-                    ]
-                ]
+                        'max' => '100',
+                    ],
+                ],
             ],
             'sms' => [
                 'title' => 'SMS Configuration',
@@ -534,7 +532,7 @@ class SettingController extends Controller
                         'label' => 'Enable SMS Notifications',
                         'type' => 'toggle',
                         'help' => 'Enable SMS notifications throughout the system',
-                        'default' => '0'
+                        'default' => '0',
                     ],
                     'sms_provider' => [
                         'label' => 'SMS Provider',
@@ -546,31 +544,31 @@ class SettingController extends Controller
                             'fast2sms' => 'Fast2SMS',
                             'custom' => 'Custom API',
                         ],
-                        'default' => 'textlocal'
+                        'default' => 'textlocal',
                     ],
                     'sms_api_key' => [
                         'label' => 'SMS API Key',
                         'type' => 'password',
-                        'help' => 'API key from your SMS provider'
+                        'help' => 'API key from your SMS provider',
                     ],
                     'sms_api_secret' => [
                         'label' => 'SMS API Secret',
                         'type' => 'password',
-                        'help' => 'API secret from your SMS provider (if required)'
+                        'help' => 'API secret from your SMS provider (if required)',
                     ],
                     'sms_sender_id' => [
                         'label' => 'SMS Sender ID',
                         'type' => 'text',
                         'placeholder' => 'COLLEGE',
-                        'help' => 'Sender ID that appears in SMS messages'
+                        'help' => 'Sender ID that appears in SMS messages',
                     ],
                     'sms_api_url' => [
                         'label' => 'Custom SMS API URL',
                         'type' => 'url',
                         'placeholder' => 'https://api.sms-provider.com/send',
-                        'help' => 'API endpoint for custom SMS provider'
+                        'help' => 'API endpoint for custom SMS provider',
                     ],
-                ]
+                ],
             ],
             'security' => [
                 'title' => 'Security Settings',
@@ -583,25 +581,25 @@ class SettingController extends Controller
                         'min' => 6,
                         'max' => 50,
                         'default' => '8',
-                        'help' => 'Minimum number of characters required for passwords'
+                        'help' => 'Minimum number of characters required for passwords',
                     ],
                     'password_require_uppercase' => [
                         'label' => 'Require Uppercase Letters',
                         'type' => 'toggle',
                         'help' => 'Passwords must contain at least one uppercase letter',
-                        'default' => '1'
+                        'default' => '1',
                     ],
                     'password_require_numbers' => [
                         'label' => 'Require Numbers',
                         'type' => 'toggle',
                         'help' => 'Passwords must contain at least one number',
-                        'default' => '1'
+                        'default' => '1',
                     ],
                     'password_require_symbols' => [
                         'label' => 'Require Special Characters',
                         'type' => 'toggle',
                         'help' => 'Passwords must contain at least one special character',
-                        'default' => '0'
+                        'default' => '0',
                     ],
                     'session_timeout' => [
                         'label' => 'Session Timeout (minutes)',
@@ -609,7 +607,7 @@ class SettingController extends Controller
                         'min' => 15,
                         'max' => 1440,
                         'default' => '120',
-                        'help' => 'Automatic logout after inactivity'
+                        'help' => 'Automatic logout after inactivity',
                     ],
                     'max_login_attempts' => [
                         'label' => 'Maximum Login Attempts',
@@ -617,7 +615,7 @@ class SettingController extends Controller
                         'min' => 3,
                         'max' => 20,
                         'default' => '5',
-                        'help' => 'Maximum failed login attempts before account lockout'
+                        'help' => 'Maximum failed login attempts before account lockout',
                     ],
                     'lockout_duration' => [
                         'label' => 'Account Lockout Duration (minutes)',
@@ -625,13 +623,13 @@ class SettingController extends Controller
                         'min' => 5,
                         'max' => 1440,
                         'default' => '15',
-                        'help' => 'How long accounts remain locked after failed attempts'
+                        'help' => 'How long accounts remain locked after failed attempts',
                     ],
                     'two_factor_auth' => [
                         'label' => 'Enable Two-Factor Authentication',
                         'type' => 'toggle',
                         'help' => 'Require 2FA for admin accounts',
-                        'default' => '0'
+                        'default' => '0',
                     ],
                     'force_password_change' => [
                         'label' => 'Force Password Change (days)',
@@ -639,11 +637,10 @@ class SettingController extends Controller
                         'min' => 0,
                         'max' => 365,
                         'default' => '90',
-                        'help' => 'Force password change every X days (0 to disable)'
+                        'help' => 'Force password change every X days (0 to disable)',
                     ],
-                ]
+                ],
             ],
-
 
             'api' => [
                 'title' => 'API & Integration',
@@ -654,7 +651,7 @@ class SettingController extends Controller
                         'label' => 'Enable API Access',
                         'type' => 'toggle',
                         'help' => 'Allow external API access to the system',
-                        'default' => '0'
+                        'default' => '0',
                     ],
                     'api_rate_limit' => [
                         'label' => 'API Rate Limit (requests/minute)',
@@ -662,7 +659,7 @@ class SettingController extends Controller
                         'min' => 10,
                         'max' => 1000,
                         'default' => '60',
-                        'help' => 'Maximum API requests per minute per user'
+                        'help' => 'Maximum API requests per minute per user',
                     ],
                     'api_version' => [
                         'label' => 'Default API Version',
@@ -671,112 +668,112 @@ class SettingController extends Controller
                             'v1' => 'Version 1.0',
                             'v2' => 'Version 2.0',
                         ],
-                        'default' => 'v1'
+                        'default' => 'v1',
                     ],
                     'webhook_enabled' => [
                         'label' => 'Enable Webhooks',
                         'type' => 'toggle',
                         'help' => 'Allow sending webhooks for events',
-                        'default' => '0'
+                        'default' => '0',
                     ],
                     'webhook_secret' => [
                         'label' => 'Webhook Secret Key',
                         'type' => 'password',
-                        'help' => 'Secret key for webhook security'
+                        'help' => 'Secret key for webhook security',
                     ],
                     'google_calendar_integration' => [
                         'label' => 'Google Calendar Integration',
                         'type' => 'toggle',
                         'help' => 'Sync events with Google Calendar',
-                        'default' => '0'
+                        'default' => '0',
                     ],
                     'google_api_key' => [
                         'label' => 'Google API Key',
                         'type' => 'password',
-                        'help' => 'API key for Google services integration'
+                        'help' => 'API key for Google services integration',
                     ],
-                ]
+                ],
             ],
             'facebook_leads' => [
                 'title' => 'Facebook Leads',
                 'icon' => 'fab fa-facebook',
-                'description' => 'Configure incoming leads from Facebook. Your Webhook URL is: ' . url('/api/webhooks/external-leads'),
+                'description' => 'Configure incoming leads from Facebook. Your Webhook URL is: '.url('/api/webhooks/external-leads'),
                 'fields' => [
                     'facebook_lead_webhook_token' => [
                         'label' => 'Webhook Secret Token',
                         'type' => 'text',
                         'help' => 'Use this token in Pabbly/Zapier as a query parameter (token=...) or header (X-Webhook-Token).',
-                        'default' => 'b97fcbb4a2fb607a5366fbf06614dcbc'
+                        'default' => 'b97fcbb4a2fb607a5366fbf06614dcbc',
                     ],
                     'fb_lead_name_field' => [
                         'label' => 'Name Field Mapping',
                         'type' => 'text',
                         'placeholder' => 'full_name',
                         'help' => 'Name of the field in the incoming JSON that contains the lead name. (Default: full_name)',
-                        'default' => 'full_name'
+                        'default' => 'full_name',
                     ],
                     'fb_lead_phone_field' => [
                         'label' => 'Phone Field Mapping',
                         'type' => 'text',
                         'placeholder' => 'phone_number',
                         'help' => 'Name of the field in the incoming JSON that contains the phone number. (Default: phone_number)',
-                        'default' => 'phone_number'
+                        'default' => 'phone_number',
                     ],
                     'fb_lead_course_field' => [
                         'label' => 'Course/Interest Field Mapping',
                         'type' => 'text',
                         'placeholder' => 'course',
                         'help' => 'Name of the field that contains the course or program name. (Default: course)',
-                        'default' => 'course'
+                        'default' => 'course',
                     ],
                     'fb_lead_notes_field' => [
                         'label' => 'Notes/Comments Field Mapping',
                         'type' => 'text',
                         'placeholder' => 'notes',
                         'help' => 'Name of the field that contains additional notes or comments. (Default: notes)',
-                        'default' => 'notes'
+                        'default' => 'notes',
                     ],
                     'fb_lead_gender_field' => [
                         'label' => 'Gender Field Mapping',
                         'type' => 'text',
                         'placeholder' => 'gender',
                         'help' => 'Map the incoming gender field (e.g., gender, sex).',
-                        'default' => 'gender'
+                        'default' => 'gender',
                     ],
                     'fb_lead_dob_field' => [
                         'label' => 'Date of Birth Field Mapping',
                         'type' => 'text',
                         'placeholder' => 'dob',
                         'help' => 'Map the incoming date of birth field (e.g., dob, birth_date).',
-                        'default' => 'dob'
+                        'default' => 'dob',
                     ],
                     'fb_lead_address_field' => [
                         'label' => 'Address Field Mapping',
                         'type' => 'text',
                         'placeholder' => 'address',
                         'help' => 'Map the incoming address field (e.g., address, city, location).',
-                        'default' => 'address'
+                        'default' => 'address',
                     ],
                     'fb_lead_qualification_field' => [
                         'label' => 'Qualification Field Mapping',
                         'type' => 'text',
                         'placeholder' => 'qualification',
                         'help' => 'Map the incoming education qualification field (e.g., qualification, degree).',
-                        'default' => 'qualification'
+                        'default' => 'qualification',
                     ],
                     'fb_lead_referral_field' => [
                         'label' => 'Referral/Recommender Mapping',
                         'type' => 'text',
                         'placeholder' => 'referral',
                         'help' => 'Map the incoming referral name field (e.g., referral, referred_by).',
-                        'default' => 'referral'
+                        'default' => 'referral',
                     ],
                     'fb_lead_source_field' => [
                         'label' => 'Source Field Mapping',
                         'type' => 'text',
                         'placeholder' => 'source',
                         'help' => 'Map the incoming source field (e.g., source, campaign_name). Falls back to "Social Media".',
-                        'default' => 'source'
+                        'default' => 'source',
                     ],
                     'fb_lead_default_followup_days' => [
                         'label' => 'Auto Follow-up (Days)',
@@ -784,9 +781,9 @@ class SettingController extends Controller
                         'min' => 0,
                         'max' => 30,
                         'help' => 'Automatically set the follow-up date for X days from today (0 = today, 1 = tomorrow).',
-                        'default' => '0'
+                        'default' => '0',
                     ],
-                ]
+                ],
             ],
             'backup' => [
                 'title' => 'Backup Settings',
@@ -797,7 +794,7 @@ class SettingController extends Controller
                         'label' => 'Enable Automatic Backups',
                         'type' => 'toggle',
                         'help' => 'Enable automatic database backups',
-                        'default' => '1'
+                        'default' => '1',
                     ],
                     'backup_frequency' => [
                         'label' => 'Backup Frequency',
@@ -808,7 +805,7 @@ class SettingController extends Controller
                             'monthly' => 'Monthly',
                         ],
                         'default' => 'daily',
-                        'help' => 'How often to create automatic backups'
+                        'help' => 'How often to create automatic backups',
                     ],
                     'backup_retention_days' => [
                         'label' => 'Backup Retention (days)',
@@ -816,56 +813,56 @@ class SettingController extends Controller
                         'min' => 1,
                         'max' => 365,
                         'default' => '30',
-                        'help' => 'Number of days to keep backup files'
+                        'help' => 'Number of days to keep backup files',
                     ],
                     'maintenance_window' => [
                         'label' => 'Backup Time',
                         'type' => 'time',
                         'default' => '02:00',
-                        'help' => 'Preferred time for system maintenance and backups (24-hour format)'
+                        'help' => 'Preferred time for system maintenance and backups (24-hour format)',
                     ],
                     'backup_local_enabled' => [
                         'label' => 'Enable Local Backups',
                         'type' => 'toggle',
                         'help' => 'Store backups on local server storage',
-                        'default' => '1'
+                        'default' => '1',
                     ],
                     'backup_gdrive_enabled' => [
                         'label' => 'Enable Google Drive Backups',
                         'type' => 'toggle',
                         'help' => 'Store backups on Google Drive',
-                        'default' => '0'
+                        'default' => '0',
                     ],
                     'gdrive_client_id' => [
                         'label' => 'Google Drive Client ID',
                         'type' => 'text',
                         'help' => 'OAuth 2.0 Client ID from Google Cloud Console',
-                        'placeholder' => 'Enter Google Drive Client ID'
+                        'placeholder' => 'Enter Google Drive Client ID',
                     ],
                     'gdrive_client_secret' => [
                         'label' => 'Google Drive Client Secret',
                         'type' => 'password',
                         'help' => 'OAuth 2.0 Client Secret from Google Cloud Console',
-                        'placeholder' => 'Enter Google Drive Client Secret'
+                        'placeholder' => 'Enter Google Drive Client Secret',
                     ],
                     'gdrive_refresh_token' => [
                         'label' => 'Google Drive Refresh Token',
                         'type' => 'password',
                         'help' => 'OAuth 2.0 Refresh Token (auto-generated after authorization)',
-                        'placeholder' => 'Auto-generated after authorization'
+                        'placeholder' => 'Auto-generated after authorization',
                     ],
                     'gdrive_folder_name' => [
                         'label' => 'Google Drive Folder Name',
                         'type' => 'text',
                         'default' => 'College-Backups',
                         'help' => 'Name of the folder to store backups in Google Drive',
-                        'placeholder' => 'College-Backups'
+                        'placeholder' => 'College-Backups',
                     ],
                     'code_backup_enabled' => [
                         'label' => 'Enable Code Backups',
                         'type' => 'toggle',
                         'help' => 'Enable automatic code backups every 15 days',
-                        'default' => '1'
+                        'default' => '1',
                     ],
                     'code_backup_interval' => [
                         'label' => 'Code Backup Interval (days)',
@@ -873,39 +870,39 @@ class SettingController extends Controller
                         'min' => 1,
                         'max' => 90,
                         'default' => '15',
-                        'help' => 'Interval in days for automatic code backups'
+                        'help' => 'Interval in days for automatic code backups',
                     ],
                     'backup_notification_email' => [
                         'label' => 'Backup Notification Email',
                         'type' => 'email',
                         'help' => 'Email address to receive backup status notifications',
-                        'placeholder' => 'admin@example.com'
+                        'placeholder' => 'admin@example.com',
                     ],
                     'backup_compress' => [
                         'label' => 'Compress Backups',
                         'type' => 'toggle',
                         'help' => 'Compress backup files to save storage space',
-                        'default' => '1'
+                        'default' => '1',
                     ],
                     'auto_cleanup' => [
                         'label' => 'Auto Cleanup Old Backups',
                         'type' => 'toggle',
                         'help' => 'Automatically delete old backups based on retention period',
-                        'default' => '1'
+                        'default' => '1',
                     ],
                     'backup_notifications' => [
                         'label' => 'Enable Backup Notifications',
                         'type' => 'toggle',
                         'help' => 'Send email notifications for backup status',
-                        'default' => '0'
+                        'default' => '0',
                     ],
                     'notification_email' => [
                         'label' => 'Notification Email',
                         'type' => 'email',
                         'help' => 'Email address to receive backup notifications',
-                        'placeholder' => 'admin@example.com'
-                    ]
-                ]
+                        'placeholder' => 'admin@example.com',
+                    ],
+                ],
             ],
         ];
     }
@@ -922,7 +919,7 @@ class SettingController extends Controller
         $settings = Setting::all()->keyBy('key');
 
         // Validate active tab
-        if (!array_key_exists($activeTab, $settingGroups)) {
+        if (! array_key_exists($activeTab, $settingGroups)) {
             $activeTab = 'general';
         }
 
@@ -938,7 +935,7 @@ class SettingController extends Controller
             $settingGroups = $this->getSettingGroups();
             $activeTab = $request->get('active_tab', 'general');
 
-            if (!isset($settingGroups[$activeTab])) {
+            if (! isset($settingGroups[$activeTab])) {
                 return back()->with('error', 'Invalid settings group.');
             }
 
@@ -961,11 +958,13 @@ class SettingController extends Controller
                         if ($isPlaceholder) {
                             // Skip update if placeholder value - keep current password
                             \Log::info("Skipping password field update for {$key} - placeholder value detected");
+
                             continue;
-                        } elseif ($isEmpty && $currentSetting && !empty($currentSetting->value)) {
+                        } elseif ($isEmpty && $currentSetting && ! empty($currentSetting->value)) {
                             // If current setting exists and new value is empty, ask user intention
                             // For now, skip to preserve existing password
                             \Log::info("Skipping password field update for {$key} - empty value, preserving existing");
+
                             continue;
                         } elseif ($isEmpty) {
                             // If no current setting and empty value, set as empty
@@ -998,9 +997,9 @@ class SettingController extends Controller
                                 'college_logo',
                                 'college_short_name',
                                 'currency_symbol',
-                                'currency_code'
+                                'currency_code',
                             ]),
-                            'is_encrypted' => $field['type'] === 'password' && !empty($value),
+                            'is_encrypted' => $field['type'] === 'password' && ! empty($value),
                         ]
                     );
 
@@ -1008,21 +1007,22 @@ class SettingController extends Controller
                     \Log::info("Setting updated: {$key}", [
                         'value' => $field['type'] === 'password' ? '[ENCRYPTED]' : $value,
                         'group' => $activeTab,
-                        'is_encrypted' => $field['type'] === 'password' && !empty($value)
+                        'is_encrypted' => $field['type'] === 'password' && ! empty($value),
                     ]);
 
                 } catch (\Exception $e) {
                     \Log::error("Failed to update setting {$key}", [
                         'error' => $e->getMessage(),
-                        'trace' => $e->getTraceAsString()
+                        'trace' => $e->getTraceAsString(),
                     ]);
+
                     continue;
                 }
             }
 
             // Handle toggle fields that might not be in request (unchecked checkboxes)
             foreach ($currentGroup['fields'] as $key => $field) {
-                if (($field['type'] === 'toggle' || $field['type'] === 'boolean') && !$request->has($key)) {
+                if (($field['type'] === 'toggle' || $field['type'] === 'boolean') && ! $request->has($key)) {
                     Setting::updateOrCreate(
                         ['key' => $key],
                         [
@@ -1045,11 +1045,13 @@ class SettingController extends Controller
         } catch (\Exception $e) {
             \Log::error('Settings update failed', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
+
             return back()->with('error', 'Failed to update settings. Please try again.');
         }
     }
+
     /**
      * Export settings as JSON
      */
@@ -1070,13 +1072,13 @@ class SettingController extends Controller
                             'description' => $setting->description,
                             'is_public' => $setting->is_public,
                             'is_encrypted' => $setting->is_encrypted,
-                        ]
+                        ],
                     ];
-                })->toArray()
+                })->toArray(),
             ];
 
             return response()->json($export)
-                ->header('Content-Disposition', 'attachment; filename="settings-export-' . date('Y-m-d-H-i-s') . '.json"')
+                ->header('Content-Disposition', 'attachment; filename="settings-export-'.date('Y-m-d-H-i-s').'.json"')
                 ->header('Content-Type', 'application/json');
         } catch (\Exception $e) {
             return \App\Helpers\ErrorHandler::handleWebException(
@@ -1094,7 +1096,7 @@ class SettingController extends Controller
     {
         $request->validate([
             'settings_file' => 'required|file|mimes:json|max:2048',
-            'overwrite_existing' => 'nullable|boolean'
+            'overwrite_existing' => 'nullable|boolean',
         ]);
 
         try {
@@ -1114,8 +1116,9 @@ class SettingController extends Controller
                 // Check if setting already exists
                 $existingSetting = \App\Models\Setting::where('key', $key)->first();
 
-                if ($existingSetting && !$overwriteExisting) {
+                if ($existingSetting && ! $overwriteExisting) {
                     $skippedCount++;
+
                     continue;
                 }
 
@@ -1150,11 +1153,11 @@ class SettingController extends Controller
     public function createBackup()
     {
         try {
-            $backupName = 'settings_backup_' . date('Y-m-d_H-i-s') . '.json';
+            $backupName = 'settings_backup_'.date('Y-m-d_H-i-s').'.json';
             $backupPath = storage_path('app/backups');
 
             // Create backups directory if it doesn't exist
-            if (!file_exists($backupPath)) {
+            if (! file_exists($backupPath)) {
                 mkdir($backupPath, 0755, true);
             }
 
@@ -1175,10 +1178,10 @@ class SettingController extends Controller
                 'app_version' => config('app.version', '1.0.0'),
                 'laravel_version' => app()->version(),
                 'settings_count' => $settings->count(),
-                'settings' => $settings
+                'settings' => $settings,
             ];
 
-            $filePath = $backupPath . '/' . $backupName;
+            $filePath = $backupPath.'/'.$backupName;
             file_put_contents($filePath, json_encode($backupData, JSON_PRETTY_PRINT));
 
             return response()->json([
@@ -1187,19 +1190,18 @@ class SettingController extends Controller
                 'filename' => $backupName,
                 'path' => $filePath,
                 'settings_count' => $settings->count(),
-                'file_size' => $this->formatBytes(filesize($filePath))
+                'file_size' => $this->formatBytes(filesize($filePath)),
             ]);
 
         } catch (\Exception $e) {
-            \Log::error('Backup creation failed: ' . $e->getMessage());
+            \Log::error('Backup creation failed: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to create backup: ' . $e->getMessage()
+                'message' => 'Failed to create backup: '.$e->getMessage(),
             ], 500);
         }
     }
-
-
 
     /**
      * Optimize database - FIXED VERSION
@@ -1210,12 +1212,12 @@ class SettingController extends Controller
             $results = [];
 
             // Remove duplicate settings
-            $duplicates = DB::select("
+            $duplicates = DB::select('
             SELECT key, COUNT(*) as count 
             FROM settings 
             GROUP BY key 
             HAVING COUNT(*) > 1
-        ");
+        ');
 
             $duplicatesRemoved = 0;
             foreach ($duplicates as $duplicate) {
@@ -1248,7 +1250,7 @@ class SettingController extends Controller
                     $results[] = 'Settings table optimized';
                 }
             } catch (\Exception $e) {
-                $results[] = 'Table optimization skipped: ' . $e->getMessage();
+                $results[] = 'Table optimization skipped: '.$e->getMessage();
             }
 
             // Clear settings cache
@@ -1263,20 +1265,19 @@ class SettingController extends Controller
                     'duplicates_removed' => $duplicatesRemoved,
                     'ungrouped_fixed' => $ungroupedFixed,
                     'untyped_fixed' => $untypedFixed,
-                    'operations' => $results
-                ]
+                    'operations' => $results,
+                ],
             ]);
 
         } catch (\Exception $e) {
-            \Log::error('Database optimization failed: ' . $e->getMessage());
+            \Log::error('Database optimization failed: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Database optimization failed: ' . $e->getMessage()
+                'message' => 'Database optimization failed: '.$e->getMessage(),
             ], 500);
         }
     }
-
-
 
     /**
      * Test SMS configuration
@@ -1284,25 +1285,25 @@ class SettingController extends Controller
     public function testSMS(Request $request)
     {
         $request->validate([
-            'test_phone' => 'required|string'
+            'test_phone' => 'required|string',
         ]);
 
         try {
             // This is a placeholder - implement according to your SMS provider
             $phone = $request->test_phone;
-            $message = 'Test SMS from ' . setting('college_name', 'College Management System');
+            $message = 'Test SMS from '.setting('college_name', 'College Management System');
 
             // Add your SMS sending logic here
             // Example: SMSService::send($phone, $message);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Test SMS would be sent to ' . $phone . ' (SMS service not configured)'
+                'message' => 'Test SMS would be sent to '.$phone.' (SMS service not configured)',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'SMS test failed: ' . $e->getMessage()
+                'message' => 'SMS test failed: '.$e->getMessage(),
             ]);
         }
     }
@@ -1312,10 +1313,10 @@ class SettingController extends Controller
      */
     public function resetAllSettings(Request $request)
     {
-        if (!$request->has('confirm') || $request->confirm !== 'yes') {
+        if (! $request->has('confirm') || $request->confirm !== 'yes') {
             return response()->json([
                 'success' => false,
-                'message' => 'Please confirm by sending confirm=yes parameter'
+                'message' => 'Please confirm by sending confirm=yes parameter',
             ]);
         }
 
@@ -1339,7 +1340,7 @@ class SettingController extends Controller
                             'type' => $field['type'],
                             'description' => $field['help'] ?? $field['label'] ?? '',
                             'is_public' => in_array($key, ['app_name', 'college_name']),
-                            'is_encrypted' => false
+                            'is_encrypted' => false,
                         ]);
                         $createdCount++;
                     }
@@ -1351,13 +1352,14 @@ class SettingController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => "All settings reset to defaults. {$createdCount} settings recreated."
+                'message' => "All settings reset to defaults. {$createdCount} settings recreated.",
             ]);
         } catch (\Exception $e) {
             DB::rollback();
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to reset settings: ' . $e->getMessage()
+                'message' => 'Failed to reset settings: '.$e->getMessage(),
             ]);
         }
     }
@@ -1368,7 +1370,7 @@ class SettingController extends Controller
     public function testEmail(Request $request)
     {
         $request->validate([
-            'test_email' => 'required|email'
+            'test_email' => 'required|email',
         ]);
 
         try {
@@ -1383,7 +1385,7 @@ class SettingController extends Controller
                 'mail_password',
                 'mail_encryption',
                 'mail_from_address',
-                'mail_from_name'
+                'mail_from_name',
             ])->pluck('value', 'key');
 
             // Configure mail settings dynamically
@@ -1410,15 +1412,15 @@ class SettingController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Test email sent successfully to ' . $testEmail
+                'message' => 'Test email sent successfully to '.$testEmail,
             ]);
 
         } catch (\Exception $e) {
-            \Log::error('Test email failed: ' . $e->getMessage());
+            \Log::error('Test email failed: '.$e->getMessage());
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to send test email: ' . $e->getMessage()
+                'message' => 'Failed to send test email: '.$e->getMessage(),
             ], 422);
         }
     }
@@ -1436,28 +1438,28 @@ class SettingController extends Controller
                 Artisan::call('cache:clear');
                 $results[] = 'Application cache cleared';
             } catch (\Exception $e) {
-                $results[] = 'Application cache: ' . $e->getMessage();
+                $results[] = 'Application cache: '.$e->getMessage();
             }
 
             try {
                 Artisan::call('config:clear');
                 $results[] = 'Configuration cache cleared';
             } catch (\Exception $e) {
-                $results[] = 'Configuration cache: ' . $e->getMessage();
+                $results[] = 'Configuration cache: '.$e->getMessage();
             }
 
             try {
                 Artisan::call('route:clear');
                 $results[] = 'Route cache cleared';
             } catch (\Exception $e) {
-                $results[] = 'Route cache: ' . $e->getMessage();
+                $results[] = 'Route cache: '.$e->getMessage();
             }
 
             try {
                 Artisan::call('view:clear');
                 $results[] = 'View cache cleared';
             } catch (\Exception $e) {
-                $results[] = 'View cache: ' . $e->getMessage();
+                $results[] = 'View cache: '.$e->getMessage();
             }
 
             // Clear settings cache using helper function
@@ -1467,25 +1469,24 @@ class SettingController extends Controller
                     $results[] = 'Settings cache cleared';
                 }
             } catch (\Exception $e) {
-                $results[] = 'Settings cache: ' . $e->getMessage();
+                $results[] = 'Settings cache: '.$e->getMessage();
             }
 
             return response()->json([
                 'success' => true,
                 'message' => 'Cache clearing completed!',
-                'details' => $results
+                'details' => $results,
             ]);
 
         } catch (\Exception $e) {
-            \Log::error('Cache clear failed: ' . $e->getMessage());
+            \Log::error('Cache clear failed: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to clear cache: ' . $e->getMessage()
+                'message' => 'Failed to clear cache: '.$e->getMessage(),
             ], 500);
         }
     }
-
-
 
     /**
      * Seed default settings - FIXED VERSION
@@ -1502,14 +1503,14 @@ class SettingController extends Controller
 
             foreach ($settingGroups as $groupKey => $groupData) {
                 foreach ($groupData['fields'] as $key => $field) {
-                    if (!isset($field['default'])) {
+                    if (! isset($field['default'])) {
                         continue;
                     }
 
                     $value = $field['default'];
                     $setting = Setting::where('key', $key)->first();
 
-                    if (!$setting) {
+                    if (! $setting) {
                         Setting::create([
                             'key' => $key,
                             'value' => (string) $value,
@@ -1523,12 +1524,12 @@ class SettingController extends Controller
                                 'college_logo',
                                 'college_short_name',
                                 'currency_symbol',
-                                'currency_code'
+                                'currency_code',
                             ]),
                             'is_encrypted' => false,
                         ]);
                         $created++;
-                    } else if (empty($setting->value) && $setting->value !== '0') {
+                    } elseif (empty($setting->value) && $setting->value !== '0') {
                         $setting->update(['value' => (string) $value]);
                         $updated++;
                     }
@@ -1545,19 +1546,19 @@ class SettingController extends Controller
                 'message' => "Default settings seeded successfully! Created: {$created}, Updated: {$updated}",
                 'details' => [
                     'created' => $created,
-                    'updated' => $updated
-                ]
+                    'updated' => $updated,
+                ],
             ]);
 
         } catch (\Exception $e) {
-            \Log::error('Seed defaults failed: ' . $e->getMessage());
+            \Log::error('Seed defaults failed: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to seed defaults: ' . $e->getMessage()
+                'message' => 'Failed to seed defaults: '.$e->getMessage(),
             ], 500);
         }
     }
-
 
     /**
      * Reset settings group to defaults
@@ -1565,17 +1566,17 @@ class SettingController extends Controller
     public function resetDefaults(Request $request)
     {
         $request->validate([
-            'group' => 'required|string'
+            'group' => 'required|string',
         ]);
 
         try {
             $group = $request->input('group');
             $settingGroups = $this->getSettingGroups();
 
-            if (!isset($settingGroups[$group])) {
+            if (! isset($settingGroups[$group])) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Invalid settings group specified'
+                    'message' => 'Invalid settings group specified',
                 ], 422);
             }
 
@@ -1599,9 +1600,9 @@ class SettingController extends Controller
                                 'college_logo',
                                 'college_short_name',
                                 'currency_symbol',
-                                'currency_code'
+                                'currency_code',
                             ]),
-                            'is_encrypted' => false
+                            'is_encrypted' => false,
                         ]
                     );
                     $resetCount++;
@@ -1612,14 +1613,15 @@ class SettingController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => "Settings group '{$group}' reset to defaults. {$resetCount} settings updated."
+                'message' => "Settings group '{$group}' reset to defaults. {$resetCount} settings updated.",
             ]);
 
         } catch (\Exception $e) {
-            \Log::error('Group reset failed: ' . $e->getMessage());
+            \Log::error('Group reset failed: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to reset settings group: ' . $e->getMessage()
+                'message' => 'Failed to reset settings group: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -1643,13 +1645,13 @@ class SettingController extends Controller
             return response()->json([
                 'success' => true,
                 'mode' => $mode,
-                'message' => $message
+                'message' => $message,
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to toggle maintenance mode: ' . $e->getMessage()
+                'message' => 'Failed to toggle maintenance mode: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -1688,9 +1690,9 @@ class SettingController extends Controller
                 ],
                 'database' => [
                     'connection' => config('database.default'),
-                    'host' => config('database.connections.' . config('database.default') . '.host'),
-                    'database' => config('database.connections.' . config('database.default') . '.database'),
-                    'driver' => config('database.connections.' . config('database.default') . '.driver'),
+                    'host' => config('database.connections.'.config('database.default').'.host'),
+                    'database' => config('database.connections.'.config('database.default').'.database'),
+                    'driver' => config('database.connections.'.config('database.default').'.driver'),
                     'total_tables' => $this->getDatabaseTableCount(),
                     'total_records' => $this->getDatabaseRecordCount(),
                 ],
@@ -1717,7 +1719,7 @@ class SettingController extends Controller
                     'address' => $settings['college_address'] ?? 'Not Set',
                 ],
                 'academic' => [
-                    'current_year' => $settings['current_academic_year'] ?? date('Y') . '-' . (date('Y') + 1),
+                    'current_year' => $settings['current_academic_year'] ?? date('Y').'-'.(date('Y') + 1),
                     'enrollment_prefix' => $settings['enrollment_prefix'] ?? 'STD',
                     'semester_system' => $settings['semester_system'] ?? '1',
                 ],
@@ -1732,20 +1734,20 @@ class SettingController extends Controller
                     'total_settings' => count($settings),
                     'last_backup' => $this->getLastBackupInfo(),
                     'uptime' => $this->getSystemUptime(),
-                ]
+                ],
             ];
 
             if ($request->wantsJson()) {
                 return response()->json([
                     'success' => true,
-                    'data' => $systemInfo
+                    'data' => $systemInfo,
                 ]);
             }
 
             return view('admin.settings.system-info', compact('systemInfo'));
 
         } catch (\Exception $e) {
-            \Log::error('System info error: ' . $e->getMessage());
+            \Log::error('System info error: '.$e->getMessage());
 
             // Return safe fallback data
             $systemInfo = [
@@ -1756,41 +1758,45 @@ class SettingController extends Controller
                 'queue' => ['status' => 'Unknown'],
                 'mail' => ['status' => 'Unknown'],
                 'college' => ['name' => 'Not Set'],
-                'academic' => ['current_year' => date('Y') . '-' . (date('Y') + 1)],
+                'academic' => ['current_year' => date('Y').'-'.(date('Y') + 1)],
                 'financial' => ['currency_symbol' => '₹'],
                 'extensions' => [],
                 'statistics' => ['total_settings' => 0],
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ];
 
             return view('admin.settings.system-info', compact('systemInfo'));
         }
     }
+
     /**
      * Get database table count
      */
     private function getDatabaseTableCount()
     {
         try {
-            $database = config('database.connections.' . config('database.default') . '.database');
-            $tables = DB::select("SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = ?", [$database]);
+            $database = config('database.connections.'.config('database.default').'.database');
+            $tables = DB::select('SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = ?', [$database]);
+
             return $tables[0]->count ?? 0;
         } catch (\Exception $e) {
             return 'Unknown';
         }
     }
+
     /**
      * Get total database records
      */
     private function getDatabaseRecordCount()
     {
         try {
-            $database = config('database.connections.' . config('database.default') . '.database');
+            $database = config('database.connections.'.config('database.default').'.database');
             $result = DB::select("
             SELECT SUM(table_rows) as total_records 
             FROM information_schema.tables 
             WHERE table_schema = ? AND table_type = 'BASE TABLE'
         ", [$database]);
+
             return number_format($result[0]->total_records ?? 0);
         } catch (\Exception $e) {
             return 'Unknown';
@@ -1804,11 +1810,11 @@ class SettingController extends Controller
     {
         try {
             $backupPath = base_path('storage/backups');
-            if (!is_dir($backupPath)) {
+            if (! is_dir($backupPath)) {
                 return 'No backups found';
             }
 
-            $files = glob($backupPath . '/backup_*.sql');
+            $files = glob($backupPath.'/backup_*.sql');
             if (empty($files)) {
                 return 'No backups found';
             }
@@ -1901,16 +1907,16 @@ class SettingController extends Controller
                 'status' => $status,
                 'summary' => [
                     'passed' => $passed,
-                    'total_checks' => $total
+                    'total_checks' => $total,
                 ],
                 'checks' => $checks,
-                'message' => "System health check completed. {$passed}/{$total} checks passed."
+                'message' => "System health check completed. {$passed}/{$total} checks passed.",
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Health check failed: ' . $e->getMessage()
+                'message' => 'Health check failed: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -1922,7 +1928,7 @@ class SettingController extends Controller
     {
         $request->validate([
             'key' => 'required|string',
-            'value' => 'nullable'
+            'value' => 'nullable',
         ]);
 
         $settingGroups = $this->getSettingGroups();
@@ -1938,10 +1944,10 @@ class SettingController extends Controller
             }
         }
 
-        if (!$field) {
+        if (! $field) {
             return response()->json([
                 'valid' => false,
-                'message' => 'Unknown setting key: ' . $key
+                'message' => 'Unknown setting key: '.$key,
             ]);
         }
 
@@ -1958,7 +1964,7 @@ class SettingController extends Controller
     {
         $settingGroups = $this->getSettingGroups();
 
-        if (!array_key_exists($group, $settingGroups)) {
+        if (! array_key_exists($group, $settingGroups)) {
             abort(404, 'Settings group not found');
         }
 
@@ -1969,7 +1975,7 @@ class SettingController extends Controller
             return response()->json([
                 'group' => $group,
                 'config' => $groupConfig,
-                'settings' => $settings
+                'settings' => $settings,
             ]);
         }
 
@@ -1983,10 +1989,10 @@ class SettingController extends Controller
     {
         $settingGroups = $this->getSettingGroups();
 
-        if (!isset($settingGroups[$group])) {
+        if (! isset($settingGroups[$group])) {
             return response()->json([
                 'success' => false,
-                'message' => 'Invalid settings group'
+                'message' => 'Invalid settings group',
             ], 400);
         }
 
@@ -2006,13 +2012,14 @@ class SettingController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => "Reset {$resetCount} settings to defaults for " . $settingGroups[$group]['title']
+                'message' => "Reset {$resetCount} settings to defaults for ".$settingGroups[$group]['title'],
             ]);
         } catch (\Exception $e) {
             DB::rollback();
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to reset settings: ' . $e->getMessage()
+                'message' => 'Failed to reset settings: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -2025,9 +2032,10 @@ class SettingController extends Controller
     public function getGroups(Request $request)
     {
         $groups = $this->getSettingGroups();
+
         return response()->json([
             'success' => true,
-            'data' => $groups
+            'data' => $groups,
         ]);
     }
 
@@ -2038,14 +2046,15 @@ class SettingController extends Controller
     {
         try {
             $publicSettings = Setting::where('is_public', true)->pluck('value', 'key');
+
             return response()->json([
                 'success' => true,
-                'data' => $publicSettings
+                'data' => $publicSettings,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to get public settings: ' . $e->getMessage()
+                'message' => 'Failed to get public settings: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -2058,10 +2067,10 @@ class SettingController extends Controller
         try {
             $setting = Setting::where('key', $key)->first();
 
-            if (!$setting) {
+            if (! $setting) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Setting not found'
+                    'message' => 'Setting not found',
                 ], 404);
             }
 
@@ -2075,12 +2084,12 @@ class SettingController extends Controller
                     'description' => $setting->description,
                     'is_public' => $setting->is_public,
                     'is_encrypted' => $setting->is_encrypted,
-                ]
+                ],
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error getting setting: ' . $e->getMessage()
+                'message' => 'Error getting setting: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -2091,17 +2100,17 @@ class SettingController extends Controller
     public function updateSetting(Request $request, $key)
     {
         $request->validate([
-            'value' => 'nullable'
+            'value' => 'nullable',
         ]);
 
         try {
             // Validate the setting value
             $validation = $this->validateSettingByKey($key, $request->value);
 
-            if (!$validation['valid']) {
+            if (! $validation['valid']) {
                 return response()->json([
                     'success' => false,
-                    'message' => $validation['message']
+                    'message' => $validation['message'],
                 ], 422);
             }
 
@@ -2125,23 +2134,23 @@ class SettingController extends Controller
                     // Don't update if placeholder
                     return response()->json([
                         'success' => false,
-                        'message' => 'Cannot save placeholder value. Please enter the actual secret.'
+                        'message' => 'Cannot save placeholder value. Please enter the actual secret.',
                     ], 422);
-                } elseif (empty($value) && $currentSetting && !empty($currentSetting->value)) {
+                } elseif (empty($value) && $currentSetting && ! empty($currentSetting->value)) {
                     // Confirm clearing existing password
                     return response()->json([
                         'success' => false,
                         'message' => 'To clear existing secret, send explicit confirmation.',
-                        'requires_confirmation' => true
+                        'requires_confirmation' => true,
                     ], 422);
-                } elseif (!empty($value)) {
+                } elseif (! empty($value)) {
                     $value = encrypt($value);
                 }
             }
 
             Setting::updateOrCreate(['key' => $key], [
                 'value' => $value,
-                'is_encrypted' => $isPassword && !empty($value)
+                'is_encrypted' => $isPassword && ! empty($value),
             ]);
 
             $this->clearSettingsCache();
@@ -2151,18 +2160,18 @@ class SettingController extends Controller
                 'message' => 'Setting updated successfully',
                 'data' => [
                     'key' => $key,
-                    'value' => $isPassword ? '[ENCRYPTED]' : $value
-                ]
+                    'value' => $isPassword ? '[ENCRYPTED]' : $value,
+                ],
             ]);
         } catch (\Exception $e) {
             \Log::error('Setting update failed', [
                 'key' => $key,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error updating setting: ' . $e->getMessage()
+                'message' => 'Error updating setting: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -2180,18 +2189,18 @@ class SettingController extends Controller
 
                 return response()->json([
                     'success' => true,
-                    'message' => 'Setting deleted successfully'
+                    'message' => 'Setting deleted successfully',
                 ]);
             } else {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Setting not found'
+                    'message' => 'Setting not found',
                 ], 404);
             }
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error deleting setting: ' . $e->getMessage()
+                'message' => 'Error deleting setting: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -2220,12 +2229,12 @@ class SettingController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $stats
+                'data' => $stats,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error getting statistics: ' . $e->getMessage()
+                'message' => 'Error getting statistics: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -2251,7 +2260,7 @@ class SettingController extends Controller
                 Cache::forget("setting_{$key}");
             }
         } catch (\Exception $e) {
-            \Log::warning('Failed to clear settings cache: ' . $e->getMessage());
+            \Log::warning('Failed to clear settings cache: '.$e->getMessage());
         }
     }
 
@@ -2263,7 +2272,7 @@ class SettingController extends Controller
         // Check required
         if (isset($field['required']) && $field['required']) {
             if (empty($value)) {
-                return ['valid' => false, 'message' => $field['label'] . ' is required'];
+                return ['valid' => false, 'message' => $field['label'].' is required'];
             }
         }
 
@@ -2274,30 +2283,30 @@ class SettingController extends Controller
 
         switch ($field['type']) {
             case 'email':
-                if (!filter_var($value, FILTER_VALIDATE_EMAIL)) {
+                if (! filter_var($value, FILTER_VALIDATE_EMAIL)) {
                     return ['valid' => false, 'message' => 'Invalid email format'];
                 }
                 break;
 
             case 'url':
-                if (!filter_var($value, FILTER_VALIDATE_URL)) {
+                if (! filter_var($value, FILTER_VALIDATE_URL)) {
                     return ['valid' => false, 'message' => 'Invalid URL format'];
                 }
                 break;
             case 'number':
-                if (!is_numeric($value)) {
+                if (! is_numeric($value)) {
                     return ['valid' => false, 'message' => 'Value must be a number'];
                 }
                 if (isset($field['min']) && $value < $field['min']) {
-                    return ['valid' => false, 'message' => 'Value must be at least ' . $field['min']];
+                    return ['valid' => false, 'message' => 'Value must be at least '.$field['min']];
                 }
                 if (isset($field['max']) && $value > $field['max']) {
-                    return ['valid' => false, 'message' => 'Value must not exceed ' . $field['max']];
+                    return ['valid' => false, 'message' => 'Value must not exceed '.$field['max']];
                 }
                 break;
             case 'text':
                 if (isset($field['maxlength']) && strlen($value) > $field['maxlength']) {
-                    return ['valid' => false, 'message' => 'Maximum length of ' . $field['maxlength'] . ' characters exceeded'];
+                    return ['valid' => false, 'message' => 'Maximum length of '.$field['maxlength'].' characters exceeded'];
                 }
                 break;
             case 'textarea':
@@ -2321,7 +2330,7 @@ class SettingController extends Controller
             }
         }
 
-        if (!$field) {
+        if (! $field) {
             return ['valid' => false, 'message' => 'Unknown setting key.'];
         }
 
@@ -2336,18 +2345,20 @@ class SettingController extends Controller
         try {
             DB::connection()->getPdo();
             $databaseName = DB::connection()->getDatabaseName();
+
             return ['status' => true, 'message' => "Database connection successful to: {$databaseName}"];
         } catch (\Exception $e) {
-            return ['status' => false, 'message' => 'Database connection failed: ' . $e->getMessage()];
+            return ['status' => false, 'message' => 'Database connection failed: '.$e->getMessage()];
         }
     }
+
     /**
      * Check cache functionality
      */
     private function checkCache()
     {
         try {
-            $testKey = 'health_check_' . time();
+            $testKey = 'health_check_'.time();
             $testValue = 'test_value';
 
             Cache::put($testKey, $testValue, 60);
@@ -2360,11 +2371,9 @@ class SettingController extends Controller
 
             return ['status' => false, 'message' => 'Cache verification failed.'];
         } catch (\Exception $e) {
-            return ['status' => false, 'message' => 'Cache check failed: ' . $e->getMessage()];
+            return ['status' => false, 'message' => 'Cache check failed: '.$e->getMessage()];
         }
     }
-
-
 
     /**
      * Check file permissions - FIXED
@@ -2379,11 +2388,11 @@ class SettingController extends Controller
             ];
 
             foreach ($paths as $path) {
-                if (!file_exists($path)) {
+                if (! file_exists($path)) {
                     return ['status' => false, 'message' => "Directory does not exist: {$path}"];
                 }
 
-                if (!is_writable($path)) {
+                if (! is_writable($path)) {
                     return ['status' => false, 'message' => "Directory not writable: {$path}"];
                 }
             }
@@ -2391,10 +2400,9 @@ class SettingController extends Controller
             return ['status' => true, 'message' => 'Required directories are writable.'];
 
         } catch (\Exception $e) {
-            return ['status' => false, 'message' => 'Permission check failed: ' . $e->getMessage()];
+            return ['status' => false, 'message' => 'Permission check failed: '.$e->getMessage()];
         }
     }
-
 
     /**
      * Check storage functionality
@@ -2402,7 +2410,7 @@ class SettingController extends Controller
     private function checkStorage()
     {
         try {
-            $testFile = 'health_check_' . time() . '.txt';
+            $testFile = 'health_check_'.time().'.txt';
             $testContent = 'Health check test file';
 
             Storage::disk('local')->put($testFile, $testContent);
@@ -2418,7 +2426,7 @@ class SettingController extends Controller
 
             return ['status' => false, 'message' => 'Storage verification failed.'];
         } catch (\Exception $e) {
-            return ['status' => false, 'message' => 'Storage check failed: ' . $e->getMessage()];
+            return ['status' => false, 'message' => 'Storage check failed: '.$e->getMessage()];
         }
     }
 
@@ -2432,17 +2440,16 @@ class SettingController extends Controller
             $requiredSettings = ['app_name', 'college_name'];
 
             foreach ($requiredSettings as $key) {
-                if (!Setting::where('key', $key)->exists()) {
+                if (! Setting::where('key', $key)->exists()) {
                     return ['status' => false, 'message' => "Required setting '{$key}' is missing."];
                 }
             }
 
             return ['status' => true, 'message' => "Settings table accessible with {$settingsCount} settings."];
         } catch (\Exception $e) {
-            return ['status' => false, 'message' => 'Settings check failed: ' . $e->getMessage()];
+            return ['status' => false, 'message' => 'Settings check failed: '.$e->getMessage()];
         }
     }
-
 
     /**
      * Check email configuration
@@ -2473,7 +2480,7 @@ class SettingController extends Controller
 
             return ['status' => true, 'message' => "Email driver '{$mailDriver}' is configured."];
         } catch (\Exception $e) {
-            return ['status' => false, 'message' => 'Email configuration check failed: ' . $e->getMessage()];
+            return ['status' => false, 'message' => 'Email configuration check failed: '.$e->getMessage()];
         }
     }
 
@@ -2491,9 +2498,10 @@ class SettingController extends Controller
 
             return ['status' => true, 'message' => "Queue driver '{$queueDriver}' is configured."];
         } catch (\Exception $e) {
-            return ['status' => false, 'message' => 'Queue check failed: ' . $e->getMessage()];
+            return ['status' => false, 'message' => 'Queue check failed: '.$e->getMessage()];
         }
     }
+
     /**
      * Get disk usage - FIXED
      */
@@ -2502,7 +2510,7 @@ class SettingController extends Controller
         try {
             $path = base_path('storage');
 
-            if (!function_exists('disk_total_space') || !function_exists('disk_free_space')) {
+            if (! function_exists('disk_total_space') || ! function_exists('disk_free_space')) {
                 return ['error' => 'Disk functions not available on this system'];
             }
 
@@ -2520,10 +2528,10 @@ class SettingController extends Controller
                 'total' => $this->formatBytes($totalSpace),
                 'used' => $this->formatBytes($usedSpace),
                 'free' => $this->formatBytes($freeSpace),
-                'usage_percentage' => $usagePercentage . '%',
+                'usage_percentage' => $usagePercentage.'%',
             ];
         } catch (\Exception $e) {
-            return ['error' => 'Could not retrieve disk usage: ' . $e->getMessage()];
+            return ['error' => 'Could not retrieve disk usage: '.$e->getMessage()];
         }
     }
 
@@ -2532,15 +2540,14 @@ class SettingController extends Controller
      */
     private function formatBytes($bytes, $precision = 2)
     {
-        $units = array('B', 'KB', 'MB', 'GB', 'TB');
+        $units = ['B', 'KB', 'MB', 'GB', 'TB'];
 
         for ($i = 0; $bytes > 1024 && $i < count($units) - 1; $i++) {
             $bytes /= 1024;
         }
 
-        return round($bytes, $precision) . ' ' . $units[$i];
+        return round($bytes, $precision).' '.$units[$i];
     }
-
 
     /**
      * Get required PHP extensions
@@ -2558,7 +2565,7 @@ class SettingController extends Controller
             'Tokenizer',
             'XML',
             'cURL',
-            'GD'
+            'GD',
         ];
 
         $extensions = [];
@@ -2568,5 +2575,4 @@ class SettingController extends Controller
 
         return $extensions;
     }
-
 }
