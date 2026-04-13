@@ -1477,6 +1477,7 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::get('/student-portal-logs/dashboard', [App\Http\Controllers\Admin\StudentPortalLogsController::class, 'dashboard'])->name('student-portal-logs.dashboard');
     Route::get('/student-portal-logs/export', [App\Http\Controllers\Admin\StudentPortalLogsController::class, 'export'])->name('student-portal-logs.export');
     Route::get('/student-portal-logs/stats', [App\Http\Controllers\Admin\StudentPortalLogsController::class, 'getStats'])->name('student-portal-logs.stats');
+    Route::get('/student-portal-logs/{id}', [App\Http\Controllers\Admin\StudentPortalLogsController::class, 'show'])->name('student-portal-logs.show')->where('id', '[0-9]+');
 });
 
 /*
