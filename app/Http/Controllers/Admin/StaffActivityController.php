@@ -156,6 +156,26 @@ class StaffActivityController extends Controller
                 ->first()?->hour ?? 'N/A',
         ];
 
+        // --- NEW: Comparison Stats (Previous Period) ---
+        $periodDiff = $start->diffInDays($end) + 1;
+        $prevStart = (clone $start)->subDays($periodDiff);
+        $prevEnd = (clone $end)->subDays($periodDiff);
+
+        $prevSummary = [
+            'total_calls' => FollowUp::whereBetween('created_at', [$prevStart, $prevEnd])->count(),
+            'total_admissions' => Activity::where('subject_type', Admission::class)
+                ->where('description', 'like', '%created%')
+                ->whereBetween('created_at', [$prevStart, $prevEnd])
+                ->count(),
+            'total_fees' => Payment::whereBetween('payment_date', [$prevStart->toDateString(), $prevEnd->toDateString()])->sum('amount'),
+        ];
+
+        $comparisons = [
+            'calls' => $prevSummary['total_calls'] > 0 ? (($summary['total_calls'] - $prevSummary['total_calls']) / $prevSummary['total_calls']) * 100 : 0,
+            'admissions' => $prevSummary['total_admissions'] > 0 ? (($summary['total_admissions'] - $prevSummary['total_admissions']) / $prevSummary['total_admissions']) * 100 : 0,
+            'fees' => $prevSummary['total_fees'] > 0 ? (($summary['total_fees'] - $prevSummary['total_fees']) / $prevSummary['total_fees']) * 100 : 0,
+        ];
+
         // Format Peak Hour if found
         if ($summary['peak_hour'] !== 'N/A') {
             $hour = (int) $summary['peak_hour'];
@@ -203,7 +223,7 @@ class StaffActivityController extends Controller
 
         $date = $startDate; // For backward compatibility in some views if any
 
-        return view('admin.staff_activity.index', compact('activitiesByStaff', 'startDate', 'endDate', 'date', 'timeline', 'users', 'trends', 'leaderboard', 'targets', 'summary', 'daysCount', 'insights'));
+        return view('admin.staff_activity.index', compact('activitiesByStaff', 'startDate', 'endDate', 'date', 'timeline', 'users', 'trends', 'leaderboard', 'targets', 'summary', 'daysCount', 'insights', 'comparisons'));
     }
 
     public function export(Request $request)
