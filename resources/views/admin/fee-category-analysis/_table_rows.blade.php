@@ -14,7 +14,10 @@
                     @endif
                 </div>
                 <div>
-                    <div class="font-weight-bold text-gray-800">{{ $category->name }}</div>
+                    <a href="{{ route('admin.fee-category-analysis.index', array_merge($filters, ['fee_category_id' => $category->id])) }}" 
+                       class="font-weight-bold text-gray-800 text-decoration-none hover-primary-link">
+                        {{ $category->name }}
+                    </a>
                     <div class="small text-muted">{{ $category->category_code ?? 'No Code' }}</div>
                 </div>
             </div>

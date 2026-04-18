@@ -108,6 +108,10 @@
             color: #fff !important;
             border-color: #1cc88a;
         }
+        .hover-primary-link:hover {
+            color: #4e73df !important;
+            text-decoration: underline !important;
+        }
     </style>
 @endpush
 

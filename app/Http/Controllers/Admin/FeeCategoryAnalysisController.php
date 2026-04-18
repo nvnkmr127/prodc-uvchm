@@ -1344,15 +1344,16 @@ class FeeCategoryAnalysisController extends Controller
      */
     private function getDefaulterStatistics($filters)
     {
-        $baseQuery = Student::whereHas('studentFees', function ($q) use ($filters) {
-            $q->where('due_date', '<', now())
-                ->whereIn('status', ['unpaid', 'partial'])
-                ->whereRaw('amount - concession_amount - paid_amount > 0');
+        $baseQuery = Student::where('status', '!=', 'dropout')
+            ->whereHas('studentFees', function ($q) use ($filters) {
+                $q->where('due_date', '<', now())
+                    ->whereIn('status', ['unpaid', 'partial'])
+                    ->whereRaw('amount - concession_amount - paid_amount > 0');
 
-            if ($filters['fee_category_id']) {
-                $q->where('fee_category_id', $filters['fee_category_id']);
-            }
-        });
+                if ($filters['fee_category_id']) {
+                    $q->where('fee_category_id', $filters['fee_category_id']);
+                }
+            });
 
         if ($filters['course_id']) {
             $baseQuery->whereHas('batch', function ($q) use ($filters) {
@@ -1368,8 +1369,11 @@ class FeeCategoryAnalysisController extends Controller
                 ->whereRaw('amount - concession_amount - paid_amount > 25000');
         })->count();
 
-        $totalAmount = StudentFee::where('due_date', '<', now())
-            ->whereIn('status', ['unpaid', 'partial'])
+        $totalAmount = StudentFee::withoutGlobalScopes()
+            ->join('students', 'student_fees.student_id', '=', 'students.id')
+            ->where('students.status', '!=', 'dropout')
+            ->where('student_fees.due_date', '<', now())
+            ->whereIn('student_fees.status', ['unpaid', 'partial'])
             ->when($filters['fee_category_id'], function ($q, $categoryId) {
                 $q->where('fee_category_id', $categoryId);
             })
@@ -1389,7 +1393,8 @@ class FeeCategoryAnalysisController extends Controller
      */
     private function getStudentsForCategoryReminders($feeCategory, $criteria)
     {
-        $query = Student::whereHas('studentFees', function ($q) use ($feeCategory, $criteria) {
+        $query = Student::where('status', '!=', 'dropout')
+            ->whereHas('studentFees', function ($q) use ($feeCategory, $criteria) {
             $q->where('fee_category_id', $feeCategory->id)
                 ->whereIn('status', ['unpaid', 'partial'])
                 ->whereRaw('amount - concession_amount - paid_amount > 0');
