@@ -409,9 +409,14 @@ class SimplePendingSheet implements FromCollection, WithHeadings, WithMapping, W
     public function headings(): array
     {
         return [
-            'Student',
-            'Contact',
-            'Amount',
+            'Student Name',
+            'Enrollment',
+            'Student Mobile',
+            'Father Mobile',
+            'Total Amount',
+            'Paid',
+            'Balance',
+            'Last Paid On Date',
         ];
     }
 
@@ -419,22 +424,29 @@ class SimplePendingSheet implements FromCollection, WithHeadings, WithMapping, W
     {
         $studentName = $fee->student->name ?? 'N/A';
         $enrollment = $fee->student->enrollment_number ?? 'N/A';
-        $student = $studentName . ' (' . $enrollment . ')';
-
-        $studentMobile = $fee->student->student_mobile ?? '';
-        $fatherMobile = $fee->student->father_mobile ?? '';
-        $contact = trim(($studentMobile ? $studentMobile . ' (S)' : '') . ' ' . ($fatherMobile ? $fatherMobile . ' (F)' : ''));
-        if (empty($contact)) $contact = 'N/A';
+        $studentMobile = $fee->student->student_mobile ?? 'N/A';
+        $fatherMobile = $fee->student->father_mobile ?? 'N/A';
 
         $amount = $fee->amount ?? 0;
         $concessionAmount = $fee->concession_amount ?? 0;
         $paidAmount = $fee->paid_amount ?? 0;
-        $pendingAmount = $amount - $concessionAmount - $paidAmount;
+        $totalBilled = $amount - $concessionAmount;
+        $pendingAmount = $totalBilled - $paidAmount;
+
+        $lastPaidDate = 'N/A';
+        if (isset($fee->last_payment_date)) {
+            $lastPaidDate = \Carbon\Carbon::parse($fee->last_payment_date)->format('Y-m-d');
+        }
 
         return [
-            $student,
-            $contact,
+            $studentName,
+            $enrollment,
+            $studentMobile,
+            $fatherMobile,
+            number_format($totalBilled, 2, '.', ''),
+            number_format($paidAmount, 2, '.', ''),
             number_format($pendingAmount, 2, '.', ''),
+            $lastPaidDate,
         ];
     }
 
@@ -447,8 +459,8 @@ class SimplePendingSheet implements FromCollection, WithHeadings, WithMapping, W
     {
         return [
             1 => ['font' => ['bold' => true, 'size' => 12]],
-            'A:C' => ['alignment' => ['horizontal' => 'left']],
-            'C' => ['numberFormat' => ['formatCode' => '#,##0.00']],
+            'A:H' => ['alignment' => ['horizontal' => 'left']],
+            'E:G' => ['numberFormat' => ['formatCode' => '#,##0.00']],
         ];
     }
 }
