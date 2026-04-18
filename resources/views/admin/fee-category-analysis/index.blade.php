@@ -322,7 +322,7 @@
                             </tr>
                         </thead>
                         <tbody id="analysisTableBody">
-                            @include('admin.fee-category-analysis._table_rows', ['categoryAnalysis' => $categoryAnalysis])
+                            @include('admin.fee-category-analysis._table_rows', ['categoryAnalysis' => $categoryAnalysis, 'filters' => $filters])
                         </tbody>
                     </table>
                 </div>

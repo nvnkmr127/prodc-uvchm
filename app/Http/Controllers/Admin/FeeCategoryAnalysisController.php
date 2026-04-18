@@ -29,10 +29,9 @@ class FeeCategoryAnalysisController extends Controller
         // Handle AJAX request for filtering
         if ($request->ajax()) {
             return response()->json([
-                'html' => view('admin.fee-category-analysis._table_rows', compact('categoryAnalysis'))->render(),
+                'html' => view('admin.fee-category-analysis._table_rows', compact('categoryAnalysis', 'filters'))->render(),
                 'highlights_html' => view('admin.fee-category-analysis._highlights', compact('summaryStats'))->render(),
                 'stats' => $summaryStats,
-                // We'll also return highlights data if needed, but summaryStats contains top/bottom categories
                 'top_performer' => $summaryStats['top_performing_category'] ?? null,
                 'most_pending' => $summaryStats['most_pending_category'] ?? null,
             ]);
