@@ -213,13 +213,16 @@ class FeeCategoryAnalysisController extends Controller
 
         if ($type === 'detailed') {
             // Detailed Report Logic
-            $query = StudentFee::where('fee_category_id', $feeCategoryId)
+            $query = StudentFee::withoutGlobalScopes()
                 ->with(['student.batch.course', 'feeCategory', 'payments'])
                 ->join('students', 'student_fees.student_id', '=', 'students.id')
                 ->where('students.status', '!=', 'dropout');
 
             // Apply Filters Consistently
-            $query->when($filters['academic_year_filter'] ?? session('selected_academic_year_id'), function ($q, $yearId) {
+            $query->when($feeCategoryId, function ($q, $id) {
+                $q->where('student_fees.fee_category_id', $id);
+            })
+            ->when($filters['academic_year_filter'] ?? session('selected_academic_year_id'), function ($q, $yearId) {
                 $q->whereHas('student.batch', function ($sub) use ($yearId) {
                     $sub->where('academic_year_id', $yearId);
                 });
@@ -235,10 +238,10 @@ class FeeCategoryAnalysisController extends Controller
                 });
             })
             ->when($filters['start_date'], function ($q, $startDate) {
-                $q->where('due_date', '>=', $startDate);
+                $q->where('student_fees.due_date', '>=', $startDate);
             })
             ->when($filters['end_date'], function ($q, $endDate) {
-                $q->where('due_date', '<=', $endDate);
+                $q->where('student_fees.due_date', '<=', $endDate);
             })
             ->when($filters['search'], function ($q, $search) {
                 $q->whereHas('student', function ($sub) use ($search) {
@@ -257,8 +260,8 @@ class FeeCategoryAnalysisController extends Controller
                 }
             });
 
-            // Add subquery for last payment date to avoid N+1 and empty results
-            $query->addSelect([
+            // Add subquery for last payment date and select main columns
+            $query->select('student_fees.*')->addSelect([
                 'last_payment_date' => DB::table('payments')
                     ->select('payment_date')
                     ->whereColumn('student_id', 'student_fees.student_id')
@@ -266,16 +269,16 @@ class FeeCategoryAnalysisController extends Controller
                     ->limit(1)
             ]);
 
-            $data = $query->select('student_fees.*')->orderBy('students.name')->get();
+            $data = $query->orderBy('students.name')->get();
 
         } elseif ($type === 'pending' || $type === 'pending_simple') {
             // Consolidated Pending Logic with full filtering
-            $query = StudentFee::where('fee_category_id', $feeCategoryId)
+            $query = StudentFee::withoutGlobalScopes()
                 ->whereIn('student_fees.status', ['unpaid', 'partial'])
-                ->whereRaw('amount - concession_amount - paid_amount > 0')
+                ->whereRaw('student_fees.amount - student_fees.concession_amount - student_fees.paid_amount > 0')
                 ->with([
                     'student' => function ($q) {
-                        $q->withoutGlobalScope('academic_year');
+                        $q->withoutGlobalScopes();
                     },
                     'student.batch.course',
                     'feeCategory',
@@ -284,7 +287,10 @@ class FeeCategoryAnalysisController extends Controller
                 ->where('students.status', '!=', 'dropout');
 
             // Apply Filters
-            $query->when($filters['academic_year_filter'] ?? session('selected_academic_year_id'), function ($q, $yearId) {
+            $query->when($feeCategoryId, function ($q, $id) {
+                $q->where('student_fees.fee_category_id', $id);
+            })
+            ->when($filters['academic_year_filter'] ?? session('selected_academic_year_id'), function ($q, $yearId) {
                 if ($yearId && \Schema::hasColumn('batches', 'academic_year_id')) {
                     $q->whereHas('student.batch', function ($sub) use ($yearId) {
                         $sub->where('academic_year_id', $yearId);
@@ -302,10 +308,10 @@ class FeeCategoryAnalysisController extends Controller
                 });
             })
             ->when($filters['start_date'], function ($q, $startDate) {
-                $q->where('due_date', '>=', $startDate);
+                $q->where('student_fees.due_date', '>=', $startDate);
             })
             ->when($filters['end_date'], function ($q, $endDate) {
-                $q->where('due_date', '<=', $endDate);
+                $q->where('student_fees.due_date', '<=', $endDate);
             })
             ->when($filters['search'], function ($q, $search) {
                 $q->whereHas('student', function ($sub) use ($search) {
@@ -314,8 +320,8 @@ class FeeCategoryAnalysisController extends Controller
                 });
             });
 
-            // Add subquery for last payment date
-            $query->addSelect([
+            // Add subquery for last payment date and select main columns
+            $query->select('student_fees.*')->addSelect([
                 'last_payment_date' => DB::table('payments')
                     ->select('payment_date')
                     ->whereColumn('student_id', 'student_fees.student_id')
@@ -323,7 +329,7 @@ class FeeCategoryAnalysisController extends Controller
                     ->limit(1)
             ]);
 
-            $data = $query->select('student_fees.*')->orderBy('students.name')->get();
+            $data = $query->orderBy('students.name')->get();
 
         } else {
             // Overview (Existing logic)
