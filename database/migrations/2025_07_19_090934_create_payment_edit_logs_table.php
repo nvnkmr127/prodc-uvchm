@@ -16,12 +16,13 @@ return new class extends Migration
             $table->foreignId('payment_id')->constrained()->onDelete('cascade');
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->enum('action', ['update', 'revert', 'correction'])->default('update');
-            $table->json('previous_state'); // Complete previous payment state
-            $table->json('new_state'); // Complete new payment state
-            $table->json('changes'); // Specific field changes
+            $table->json('old_values'); // Complete previous payment state
+            $table->json('new_values'); // Complete new payment state
+            $table->string('changes_summary')->nullable(); // Human readable summary
             $table->text('edit_reason'); // Required reason for edit
             $table->string('ip_address', 45)->nullable();
             $table->text('user_agent')->nullable();
+            $table->json('metadata')->nullable();
             $table->timestamps();
 
             // Indexes for better performance
