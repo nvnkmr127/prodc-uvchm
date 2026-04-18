@@ -39,6 +39,10 @@ class FeeCategoryAnalysisExport implements WithMultipleSheets
                 $sheets[] = new FeeCategoryPendingSheet($this->data);
                 break;
 
+            case 'pending_simple':
+                $sheets[] = new SimplePendingSheet($this->data);
+                break;
+
             default:
                 $sheets[] = new FeeCategoryOverviewSheet($this->data);
         }
@@ -211,8 +215,9 @@ class FeeCategoryDetailedSheet implements FromCollection, WithHeadings, WithMapp
 
         // Get last payment date if available
         $lastPayment = 'N/A';
-        // Check if 'payments' relationship exists and is loaded
-        if (isset($fee->payments) && $fee->payments->isNotEmpty()) {
+        if (isset($fee->last_payment_date)) {
+            $lastPayment = \Carbon\Carbon::parse($fee->last_payment_date)->format('Y-m-d');
+        } elseif (isset($fee->payments) && $fee->payments->isNotEmpty()) {
             $lastPayment = $fee->payments->sortByDesc('payment_date')->first()->payment_date->format('Y-m-d');
         }
 
@@ -338,7 +343,9 @@ class FeeCategoryPendingSheet implements FromCollection, WithHeadings, WithMappi
             }
 
             // Try to get last payment date
-            if (isset($fee->student->last_payment_date)) {
+            if (isset($fee->last_payment_date)) {
+                $lastPaymentDate = \Carbon\Carbon::parse($fee->last_payment_date)->format('Y-m-d');
+            } elseif (isset($fee->student->last_payment_date)) {
                 $lastPaymentDate = $fee->student->last_payment_date;
             }
         }
@@ -381,6 +388,67 @@ class FeeCategoryPendingSheet implements FromCollection, WithHeadings, WithMappi
             1 => ['font' => ['bold' => true, 'size' => 12]],
             'A:Q' => ['alignment' => ['horizontal' => 'left']],
             'F:I' => ['numberFormat' => ['formatCode' => '#,##0.00']],
+        ];
+    }
+}
+
+class SimplePendingSheet implements FromCollection, WithHeadings, WithMapping, WithStyles, WithTitle
+{
+    protected $data;
+
+    public function __construct($data)
+    {
+        $this->data = collect($data);
+    }
+
+    public function collection()
+    {
+        return $this->data;
+    }
+
+    public function headings(): array
+    {
+        return [
+            'Student',
+            'Contact',
+            'Amount',
+        ];
+    }
+
+    public function map($fee): array
+    {
+        $studentName = $fee->student->name ?? 'N/A';
+        $enrollment = $fee->student->enrollment_number ?? 'N/A';
+        $student = $studentName . ' (' . $enrollment . ')';
+
+        $studentMobile = $fee->student->student_mobile ?? '';
+        $fatherMobile = $fee->student->father_mobile ?? '';
+        $contact = trim(($studentMobile ? $studentMobile . ' (S)' : '') . ' ' . ($fatherMobile ? $fatherMobile . ' (F)' : ''));
+        if (empty($contact)) $contact = 'N/A';
+
+        $amount = $fee->amount ?? 0;
+        $concessionAmount = $fee->concession_amount ?? 0;
+        $paidAmount = $fee->paid_amount ?? 0;
+        $pendingAmount = $amount - $concessionAmount - $paidAmount;
+
+        return [
+            $student,
+            $contact,
+            number_format($pendingAmount, 2, '.', ''),
+        ];
+    }
+
+    public function title(): string
+    {
+        return 'Pending Students';
+    }
+
+    public function styles(Worksheet $sheet)
+    {
+        return [
+            1 => ['font' => ['bold' => true, 'size' => 12]],
+            'A:C' => ['alignment' => ['horizontal' => 'left']],
+            'C' => ['numberFormat' => ['formatCode' => '#,##0.00']],
         ];
     }
 }

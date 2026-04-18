@@ -336,11 +336,16 @@
     <div class="modal fade" id="pendingStudentsModal" tabindex="-1" role="dialog" aria-hidden="true">
         <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
             <div class="modal-content border-0 shadow-lg">
-                <div class="modal-header bg-gradient-danger-soft text-white border-0">
+                <div class="modal-header bg-gradient-danger-soft text-white border-0 d-flex justify-content-between align-items-center">
                     <h5 class="modal-title font-weight-bold"><i class="fas fa-user-clock mr-2"></i>Pending Students</h5>
-                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
+                    <div class="d-flex align-items-center">
+                        <button type="button" class="btn btn-sm btn-light mr-3 shadow-sm" id="downloadPendingExcelBtn" onclick="downloadPendingExcel()">
+                            <i class="fas fa-file-excel text-success mr-1"></i> Download Excel
+                        </button>
+                        <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
                 </div>
                 <div class="modal-body bg-light">
                     <div id="pendingStudentsContent" class="bg-white rounded shadow-sm p-3">
@@ -448,7 +453,10 @@
             });
         });
 
+        var currentPendingCategoryId = null;
+
         function showPendingStudents(categoryId) {
+            currentPendingCategoryId = categoryId;
             $('#pendingStudentsModal').modal('show');
 
             // Use current form data instead of window.location.search to ensure AJAX changes are captured
@@ -493,6 +501,15 @@
                     $('#pendingStudentsContent').html('<div class="alert alert-danger">Failed to load data.</div>');
                 }
             });
+        }
+
+        function downloadPendingExcel() {
+            if (!currentPendingCategoryId) return;
+            
+            var formData = $('#filterForm').serialize();
+            var url = '/admin/fee-category-analysis/export/pending_simple?fee_category_id=' + currentPendingCategoryId + '&' + formData;
+            
+            window.location.href = url;
         }
 
         function sendReminders(categoryId) {
