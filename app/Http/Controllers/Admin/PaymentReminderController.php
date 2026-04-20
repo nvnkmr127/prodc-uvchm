@@ -128,37 +128,9 @@ class PaymentReminderController extends Controller
     }
 
     /**
-     * Show defaulters
-     */
-    public function defaulters(Request $request)
-    {
-        // Initialize stats with safe defaults
-        $stats = [
-            'total_defaulters' => 0,
-            'total_active' => 0,
-            'total_amount' => 0,
-            'chronic_defaulters' => 0,
-            'severe_defaulters' => 0,
-            'moderate_defaulters' => 0,
-            'resolved_defaulters' => 0,
-            'total_overdue_amount' => 0,
-            'recovery_rate' => 0,
-        ];
-
-        try {
-            $serviceStats = $this->reminderService->getDefaulterStats();
-            $stats = array_merge($stats, $serviceStats);
-            $stats['total_amount'] = $stats['total_overdue_amount'];
-        } catch (\Exception $e) {
-            \Log::error('Error getting defaulter stats: '.$e->getMessage());
-        }
-
-        return view('admin.payment-defaulters.index', compact('stats'));
-    }
-
-    /**
      * Show the form for creating a new reminder (Component-based)
      */
+
     public function create(Request $request): View
     {
         $students = Student::with('batch.course')->orderBy('name')->get();

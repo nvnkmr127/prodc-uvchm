@@ -1328,7 +1328,7 @@ class DashboardController extends Controller
                 'level' => 'danger',
                 'icon' => 'exclamation-triangle',
                 'time' => 'Now',
-                'action_url' => route('admin.payment-defaulters.index') ?? '#',
+                'action_url' => Route::has('admin.payment-defaulters.index') ? route('admin.payment-defaulters.index') : '#',
             ];
         }
 

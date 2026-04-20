@@ -609,7 +609,12 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
             Route::post('/process-pending', [PaymentReminderController::class, 'processPending'])->name('process-pending');
             Route::get('/health-check', [PaymentReminderController::class, 'healthCheck'])->name('health-check');
         });
+
+        // Restore missing payment-defaulters route - Point to centralized analysis
+        Route::get('payment-defaulters', [FeeCategoryAnalysisController::class, 'criticalDefaulters'])->name('payment-defaulters.index');
     });
+
+
 
     // ================================
     // TIMETABLE MANAGEMENT
