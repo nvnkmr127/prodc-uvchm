@@ -250,8 +250,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
         Route::get('/export/{type}', [FeeCategoryAnalysisController::class, 'export'])->name('export');
 
         // Category-specific routes (parameterized routes LAST)
-        Route::post('/reminders/{feeCategory}', [FeeCategoryAnalysisController::class, 'sendCategoryReminders'])
-            ->name('send-reminders')
+        Route::get('/{feeCategory}', [FeeCategoryAnalysisController::class, 'show'])
+            ->name('show')
             ->where('feeCategory', '[0-9]+');
         Route::get('/{feeCategory}', [FeeCategoryAnalysisController::class, 'show'])
             ->name('show')
@@ -260,11 +260,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
             ->name('pending-students')
             ->where('feeCategory', '[0-9]+');
 
-        // Student intervention routes
-        Route::post('/student-intervention/{student}', [FeeCategoryAnalysisController::class, 'studentIntervention'])
-            ->name('student-intervention')
-            ->where('student', '[0-9]+');
     });
+
 
     // Student API routes
     Route::prefix('api')->name('api.')->group(function () {
@@ -273,18 +270,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
             ->where('student', '[0-9]+');
     });
 
-    // Payment Reminder Bulk Actions for Fee Categories
-    Route::middleware(['permission:manage financials'])->group(function () {
-        Route::post('/payment-reminders/send-category-reminders/{feeCategory}', [PaymentReminderController::class, 'sendCategoryReminders'])
-            ->name('payment-reminders.send-category-reminders')
-            ->where('feeCategory', '[0-9]+');
+    // End of Student/API section
 
-        Route::post('/payment-reminders/send-student-reminder/{student}', [PaymentReminderController::class, 'sendStudentReminder'])
-            ->name('payment-reminders.send-student-reminder')
-            ->where('student', '[0-9]+');
-
-        Route::get('payment-defaulters', [PaymentReminderController::class, 'defaulters'])->name('payment-defaulters.index');
-    });
 
     // --- Attendance Management ---
     Route::middleware(['permission:view attendance'])->group(function () {
@@ -595,6 +582,14 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
                 ->name('reschedule')
                 ->where('paymentReminder', '[0-9]+');
 
+            // Category & Student Specific
+            Route::post('/send-category-reminders/{feeCategory}', [PaymentReminderController::class, 'sendCategoryReminders'])
+                ->name('send-category-reminders')
+                ->where('feeCategory', '[0-9]+');
+            Route::post('/send-student-reminder/{student}', [PaymentReminderController::class, 'sendStudentReminder'])
+                ->name('send-student-reminder')
+                ->where('student', '[0-9]+');
+
             // Bulk operations
             Route::post('/bulk/action', [PaymentReminderController::class, 'bulkAction'])->name('bulk.action');
             Route::post('/bulk/send', [PaymentReminderController::class, 'bulkSend'])->name('bulk.send');
@@ -605,15 +600,14 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
             Route::get('/export/reminders', [PaymentReminderController::class, 'export'])->name('export');
             Route::get('/reports/summary', [PaymentReminderController::class, 'summaryReport'])->name('reports.summary');
             Route::get('/reports/analytics', [PaymentReminderController::class, 'analytics'])->name('reports.analytics');
+            
+            // Settings
+            Route::get('/settings', [PaymentReminderSettingsController::class, 'index'])->name('settings.index');
+            Route::put('/settings', [PaymentReminderSettingsController::class, 'update'])->name('settings.update');
+
             // System operations
             Route::post('/process-pending', [PaymentReminderController::class, 'processPending'])->name('process-pending');
             Route::get('/health-check', [PaymentReminderController::class, 'healthCheck'])->name('health-check');
-        });
-
-        // Payment Reminder Settings Routes
-        Route::prefix('payment-reminders')->name('payment-reminders.')->group(function () {
-            Route::get('/settings', [PaymentReminderSettingsController::class, 'index'])->name('settings.index');
-            Route::put('/settings', [PaymentReminderSettingsController::class, 'update'])->name('settings.update');
         });
     });
 

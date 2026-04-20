@@ -169,7 +169,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (data.length > 0) {
                     data.forEach(batch => {
                         const isSelected = selectedBatchId && batch.id == selectedBatchId;
-                        batchSelect.innerHTML += `<option value="${batch.id}" ${isSelected ? 'selected' : ''}>${batch.name}</option>`;
+                        // Show batch if it doesn't have a structure OR it's the current one
+                        if (!batch.has_fee_structure || isSelected) {
+                            batchSelect.innerHTML += `<option value="${batch.id}" ${isSelected ? 'selected' : ''}>${batch.name}</option>`;
+                        }
                     });
                     batchSelect.disabled = false;
                 } else {

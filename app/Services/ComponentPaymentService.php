@@ -861,40 +861,13 @@ class ComponentPaymentService
                 throw new Exception('Batch not found');
             }
 
-            $feeStructure = $feeStructureId ?
-                \App\Models\FeeStructure::with('feeCategories')->find($feeStructureId) :
-                $batch->feeStructure;
-
-            if (! $feeStructure) {
-                throw new Exception('Fee Structure not found');
-            }
-
             $academicYear = $academicYear ?? date('Y').'-'.(date('Y') + 1);
-            $createdCount = 0;
+            $totalCreated = 0;
 
             foreach ($batch->students as $student) {
-                foreach ($feeStructure->feeCategories as $category) {
-                    // Check if component already exists
-                    $existingFee = StudentFee::where([
-                        'student_id' => $student->id,
-                        'fee_category_id' => $category->id,
-                        'academic_year' => $academicYear,
-                    ])->first();
-
-                    if (! $existingFee) {
-                        StudentFee::create([
-                            'student_id' => $student->id,
-                            'fee_structure_id' => $feeStructure->id,
-                            'fee_category_id' => $category->id,
-                            'academic_year' => $academicYear,
-                            'amount' => $category->pivot->amount,
-                            'due_date' => now()->addDays(30),
-                            'status' => 'unpaid',
-                            'installment_number' => 1,
-                            'total_installments' => $feeStructure->payment_terms ?? 1,
-                        ]);
-                        $createdCount++;
-                    }
+                $result = $this->createFeeComponentsForStudent($student->id, $batch->id, $academicYear, $feeStructureId);
+                if ($result['success']) {
+                    $totalCreated += $result['created_count'] ?? 0;
                 }
             }
 
@@ -902,13 +875,77 @@ class ComponentPaymentService
 
             return [
                 'success' => true,
-                'created_count' => $createdCount,
-                'message' => "Created {$createdCount} fee components successfully.",
+                'created_count' => $totalCreated,
+                'message' => "Created {$totalCreated} fee components successfully for the batch.",
             ];
 
         } catch (Exception $e) {
             DB::rollback();
 
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Create fee components for a single student based on their batch's fee structure
+     */
+    public function createFeeComponentsForStudent($studentId, $batchId, $academicYear, $feeStructureId = null)
+    {
+        try {
+            $student = Student::findOrFail($studentId);
+            $batch = Batch::with('feeStructure.feeCategories')->findOrFail($batchId ?: $student->batch_id);
+
+            $feeStructure = $feeStructureId ?
+                \App\Models\FeeStructure::with('feeCategories')->find($feeStructureId) :
+                $batch->feeStructure;
+
+            if (! $feeStructure) {
+                return ['success' => false, 'error' => 'No fee structure found'];
+            }
+
+            $createdCount = 0;
+            foreach ($feeStructure->feeCategories as $category) {
+                $paymentTerms = max(1, $feeStructure->payment_terms ?? 1);
+                $categoryAmount = $category->pivot->amount;
+                $installmentAmount = floor(($categoryAmount / $paymentTerms) * 100) / 100;
+
+                for ($i = 1; $i <= $paymentTerms; $i++) {
+                    $existingFee = StudentFee::where([
+                        'student_id' => $student->id,
+                        'fee_category_id' => $category->id,
+                        'academic_year' => $academicYear,
+                        'installment_number' => $i,
+                    ])->first();
+
+                    if (! $existingFee) {
+                        $currentAmount = ($i === $paymentTerms)
+                            ? number_format($categoryAmount - ($installmentAmount * ($paymentTerms - 1)), 2, '.', '')
+                            : number_format($installmentAmount, 2, '.', '');
+
+                        StudentFee::create([
+                            'student_id' => $student->id,
+                            'fee_structure_id' => $feeStructure->id,
+                            'fee_category_id' => $category->id,
+                            'academic_year' => $academicYear,
+                            'amount' => $currentAmount,
+                            'due_date' => now()->addMonths($i - 1)->addDays(30),
+                            'status' => 'unpaid',
+                            'installment_number' => $i,
+                            'total_installments' => $paymentTerms,
+                        ]);
+                        $createdCount++;
+                    }
+                }
+            }
+
+            return [
+                'success' => true,
+                'created_count' => $createdCount,
+            ];
+        } catch (Exception $e) {
             return [
                 'success' => false,
                 'error' => $e->getMessage(),

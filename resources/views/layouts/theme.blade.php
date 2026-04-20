@@ -294,29 +294,20 @@
                                 <a class="collapse-item" href="{{ route('admin.component-payments.index') }}">Invoices &
                                     Payments</a>
 
-                                <h6 class="collapse-header">Payment Follow-up:</h6>
-                                <a class="collapse-item" href="{{ route('admin.payment-reminders.dashboard') }}">
-                                    <i class="fas fa-bell text-warning"></i> Reminder Dashboard
-                                </a>
-
-                                <a class="collapse-item" href="{{ route('admin.payment-reminders.index') }}">
-                                    <i class="fas fa-clock"></i> All Reminders
-                                </a>
-                                <a class="collapse-item" href="{{ route('admin.expense-categories.index') }}">Expense
-                                    Categories</a>
-                                <a class="collapse-item" href="{{ route('admin.expenses.index') }}">Log Expenses</a>
                                 <div class="dropdown-divider"></div>
                                 <h6 class="collapse-header">Payment Reminders:</h6>
                                 <a class="collapse-item" href="{{ route('admin.payment-reminders.dashboard') }}">
-                                    <i class="fas fa-tachometer-alt fa-sm fa-fw mr-1"></i> Dashboard
+                                    <i class="fas fa-tachometer-alt fa-sm fa-fw mr-1"></i> Reminder Dashboard
                                 </a>
                                 <a class="collapse-item" href="{{ route('admin.payment-reminders.index') }}">
                                     <i class="fas fa-list fa-sm fa-fw mr-1"></i> All Reminders
                                 </a>
-
                                 <a class="collapse-item" href="{{ route('admin.payment-reminders.settings.index') }}">
-                                    <i class="fas fa-cog fa-sm fa-fw mr-1"></i> Settings
+                                    <i class="fas fa-cog fa-sm fa-fw mr-1"></i> Reminder Settings
                                 </a>
+                                <a class="collapse-item" href="{{ route('admin.expense-categories.index') }}">Expense
+                                    Categories</a>
+                                <a class="collapse-item" href="{{ route('admin.expenses.index') }}">Log Expenses</a>
                             @else
                                 @can('view financials')
                                     <a class="collapse-item" href="{{ route('admin.fee-categories.index') }}">Fee Categories</a>
@@ -331,14 +322,13 @@
                                     <div class="dropdown-divider"></div>
                                     <h6 class="collapse-header">Payment Reminders:</h6>
                                     <a class="collapse-item" href="{{ route('admin.payment-reminders.dashboard') }}">
-                                        <i class="fas fa-tachometer-alt fa-sm fa-fw mr-1"></i> Dashboard
+                                        <i class="fas fa-tachometer-alt fa-sm fa-fw mr-1"></i> Reminder Dashboard
                                     </a>
                                     <a class="collapse-item" href="{{ route('admin.payment-reminders.index') }}">
                                         <i class="fas fa-list fa-sm fa-fw mr-1"></i> All Reminders
                                     </a>
-
                                     <a class="collapse-item" href="{{ route('admin.payment-reminders.settings.index') }}">
-                                        <i class="fas fa-cog fa-sm fa-fw mr-1"></i> Settings
+                                        <i class="fas fa-cog fa-sm fa-fw mr-1"></i> Reminder Settings
                                     </a>
                                 @endcan
                             @endif
@@ -713,8 +703,8 @@
                         <a class="collapse-item" href="javascript:void(0)" onclick="testNotificationSystem()">
                             <i class="fas fa-vial"></i> Test System
                         </a>
-                        <a class="collapse-item" href="javascript:void(0)" onclick="sendFeeReminders()">
-                            <i class="fas fa-money-bill-wave"></i> Send Fee Reminders
+                        <a class="collapse-item" href="{{ route('admin.payment-reminders.dashboard') }}">
+                            <i class="fas fa-money-bill-wave"></i> Payment Reminders
                         </a>
                         <a class="collapse-item" href="javascript:void(0)" onclick="checkSystemHealth()">
                             <i class="fas fa-heartbeat"></i> Health Check

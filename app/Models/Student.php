@@ -35,8 +35,10 @@ class Student extends Model
                 }
 
                 if ($selectedYearId) {
-                    $builder->whereHas('batch', function ($q) use ($selectedYearId) {
-                        $q->where('academic_year_id', $selectedYearId);
+                    $builder->where(function ($query) use ($selectedYearId) {
+                        $query->whereHas('batch', function ($q) use ($selectedYearId) {
+                            $q->where('academic_year_id', $selectedYearId);
+                        })->orWhereNull('batch_id');
                     });
                 }
             });

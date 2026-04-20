@@ -343,8 +343,12 @@ class StudentController extends Controller
                 'certificate_type' => $request->certificate_type,
             ]);
 
-            // 🎯 AUTOMATIC FEE STRUCTURE ASSIGNMENT
-            $this->generateFeeComponentsForStudent($student, $batch);
+            // 🎯 AUTOMATIC FEE STRUCTURE ASSIGNMENT (Using Service for installment support)
+            $this->componentPaymentService->createFeeComponentsForStudent(
+                $student->id,
+                $batch->id,
+                $this->getCurrentAcademicYear()
+            );
 
             // Automatically generate Biometric ID using the injected service
             $this->biometricMappingService->assignBiometricCode($student);
@@ -363,38 +367,6 @@ class StudentController extends Controller
         }
     }
 
-    /**
-     * AUTO-GENERATE FEE COMPONENTS FOR NEW STUDENT
-     */
-    private function generateFeeComponentsForStudent(Student $student, Batch $batch): void
-    {
-        // Check if batch has a fee structure
-        if (! $batch->feeStructure) {
-            Log::warning("No fee structure found for batch: {$batch->name}");
-
-            return;
-        }
-
-        $feeStructure = $batch->feeStructure;
-        $academicYear = $this->getCurrentAcademicYear();
-
-        // Create one StudentFee record per fee category (no installments)
-        foreach ($feeStructure->feeCategories as $category) {
-            StudentFee::create([
-                'student_id' => $student->id,
-                'fee_structure_id' => $feeStructure->id,
-                'fee_category_id' => $category->id,
-                'academic_year' => $academicYear,
-                'amount' => $category->pivot->amount,         // Full amount
-                'due_date' => now()->addDays(30),            // 30 days from creation
-                'status' => 'unpaid',
-                'installment_number' => 1,                   // Always 1 (no installments)
-                'total_installments' => 1,                   // Always 1 (no installments)
-            ]);
-        }
-
-        Log::info("Fee components created for student: {$student->name}");
-    }
 
     public function show(Student $student)
     {
@@ -1812,9 +1784,20 @@ class StudentController extends Controller
     {
         $batches = $course->batches()
             ->with('course')
+            ->withCount('feeStructure')
             ->select('id', 'name', 'course_id', 'start_date', 'end_date')
             ->orderBy('name')
-            ->get();
+            ->get()
+            ->map(function ($batch) {
+                return [
+                    'id' => $batch->id,
+                    'name' => $batch->name,
+                    'course_id' => $batch->course_id,
+                    'start_date' => $batch->start_date,
+                    'end_date' => $batch->end_date,
+                    'has_fee_structure' => $batch->fee_structure_count > 0,
+                ];
+            });
 
         return response()->json($batches);
     }

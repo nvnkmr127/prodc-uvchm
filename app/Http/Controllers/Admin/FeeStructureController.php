@@ -38,7 +38,7 @@ class FeeStructureController extends Controller
     {
         $request->validate([
             'batch_id' => 'required|exists:batches,id|unique:fee_structures,batch_id',
-            'payment_terms' => 'required|integer|min:1|max:12', // <-- Validation for new field
+            'payment_terms' => 'required|integer|min:1|max:12',
             'components' => 'required|array|min:1',
             'components.*.fee_category_id' => 'required|exists:fee_categories,id',
             'components.*.amount' => 'required|numeric|min:0',

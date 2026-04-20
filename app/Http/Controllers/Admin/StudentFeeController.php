@@ -13,6 +13,12 @@ use Illuminate\Support\Facades\Log;
 
 class StudentFeeController extends Controller
 {
+    protected $feeService;
+
+    public function __construct(\App\Services\ComponentPaymentService $feeService)
+    {
+        $this->feeService = $feeService;
+    }
     /**
      * Display a listing of student fees
      */
@@ -173,38 +179,17 @@ class StudentFeeController extends Controller
                 return back()->with('error', 'Fee structure not found for this batch.');
             }
 
-            $createdCount = 0;
+            $result = $this->feeService->createFeeComponentsForBatch(
+                $request->batch_id,
+                null,
+                $request->academic_year
+            );
 
-            foreach ($batch->students as $student) {
-                foreach ($batch->feeStructure->feeCategories as $category) {
-                    // Check if fee component already exists
-                    $existingFee = StudentFee::where([
-                        'student_id' => $student->id,
-                        'fee_category_id' => $category->id,
-                        'academic_year' => $request->academic_year,
-                    ])->first();
-
-                    if (! $existingFee) {
-                        StudentFee::create([
-                            'student_id' => $student->id,
-                            'fee_structure_id' => $batch->feeStructure->id,
-                            'fee_category_id' => $category->id,
-                            'academic_year' => $request->academic_year,
-                            'amount' => $category->pivot->amount ?? 0,
-                            'due_date' => now()->addDays(30),
-                            'status' => 'unpaid',
-                            'installment_number' => 1,
-                            'total_installments' => 1,
-                        ]);
-
-                        $createdCount++;
-                    }
-                }
+            if (! $result['success']) {
+                return back()->with('error', 'Failed to generate fees: '.$result['error']);
             }
 
-            DB::commit();
-
-            return back()->with('success', "Generated {$createdCount} fee components for batch {$batch->name}.");
+            return back()->with('success', $result['message']);
 
         } catch (\Exception $e) {
             DB::rollback();

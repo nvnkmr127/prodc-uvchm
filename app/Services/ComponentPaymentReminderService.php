@@ -293,6 +293,7 @@ class ComponentPaymentReminderService
 
         $collectionRate = $totalFees > 0 ? round(($paidFees / $totalFees) * 100, 2) : 0;
         $overdueRate = $totalFees > 0 ? round(($overdueFees / $totalFees) * 100, 2) : 0;
+        $criticalDefaulters = $this->getTotalDefaultersCount();
 
         return [
             'total_fees' => $totalFees,
@@ -300,8 +301,11 @@ class ComponentPaymentReminderService
             'overdue_fees' => $overdueFees,
             'collection_rate' => $collectionRate,
             'overdue_rate' => $overdueRate,
+            'critical_defaulters' => $criticalDefaulters,
+            'overall_rate' => $collectionRate, // Alias for backward compatibility
             'component_breakdown' => $this->getComponentCollectionBreakdown(),
         ];
+
     }
 
     /**
@@ -710,7 +714,13 @@ class ComponentPaymentReminderService
      */
     public function getReminderStatistics(): array
     {
+        $total = PaymentReminder::count();
+        $sent = PaymentReminder::where('status', 'sent')->count();
+        $successRate = $total > 0 ? round(($sent / $total) * 100, 2) : 0;
+
         return [
+            'total_reminders' => $total,
+            'sent_reminders' => $sent,
             'pending_reminders' => PaymentReminder::where('status', 'pending')->count(),
             'sent_today' => PaymentReminder::whereDate('sent_at', today())->count(),
             'sent_this_week' => PaymentReminder::whereBetween('sent_at', [
@@ -724,6 +734,7 @@ class ComponentPaymentReminderService
             'failed_reminders' => PaymentReminder::where('status', 'failed')->count(),
             'overdue_reminders' => PaymentReminder::where('scheduled_date', '<', now())
                 ->where('status', 'pending')->count(),
+            'success_rate' => $successRate,
             'total_defaulters' => $this->getTotalDefaultersCount(),
             'chronic_defaulters' => Student::whereHas('studentFees', function ($q) {
                 $q->whereIn('status', ['unpaid', 'partial'])
@@ -733,6 +744,8 @@ class ComponentPaymentReminderService
             'component_reminder_breakdown' => $this->getComponentReminderBreakdown(),
         ];
     }
+
+
 
     /**
      * Get component-wise reminder breakdown
@@ -1460,4 +1473,77 @@ class ComponentPaymentReminderService
             ];
         })->sortByDesc('response_rate')->values()->toArray();
     }
+
+    /**
+
+     * Queue category-wide reminders
+     */
+    public function queueCategoryReminders($students, $criteria, $feeCategory)
+    {
+        $count = 0;
+        foreach ($students as $student) {
+            // Find the specific fee component
+            $studentFee = $student->studentFees()
+                ->where('fee_category_id', $feeCategory->id)
+                ->whereIn('status', ['unpaid', 'partial', 'overdue'])
+                ->first();
+
+            if (!$studentFee) continue;
+
+            $remainingAmount = $studentFee->amount - $studentFee->concession_amount - $studentFee->paid_amount;
+            
+            // Final check on criteria (already filtered in query but safe to double check)
+            if (($criteria['minimum_amount'] ?? null) && $remainingAmount < $criteria['minimum_amount']) continue;
+
+            $reminderData = [
+                'student_id' => $student->id,
+                'student_fee_id' => $studentFee->id,
+                'fee_category_id' => $feeCategory->id,
+                'reminder_type' => $criteria['reminder_type'] ?? 'gentle',
+                'channel' => $criteria['channel'] ?? 'email', // Default
+                'message_content' => $criteria['message_content'] ?? null, // Will use template if null
+                'scheduled_date' => now(),
+                'status' => 'pending',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
+
+
+            PaymentReminder::create($reminderData);
+            $count++;
+        }
+
+        return $count;
+    }
+
+    /**
+     * Send individual student reminder intervention
+     */
+    public function sendStudentReminderIntervention(Student $student, array $criteria)
+    {
+        // For individual intervention, we might be targetting a specific category or all
+        $query = $student->studentFees()->whereIn('status', ['unpaid', 'partial', 'overdue']);
+        
+        if (!empty($criteria['fee_category_id'])) {
+            $query->where('fee_category_id', $criteria['fee_category_id']);
+        }
+        
+        $studentFee = $query->first();
+
+        $reminder = PaymentReminder::create([
+            'student_id' => $student->id,
+            'student_fee_id' => $studentFee?->id,
+            'fee_category_id' => $studentFee?->fee_category_id,
+            'reminder_type' => $criteria['reminder_type'] ?? 'general',
+            'channel' => $criteria['channel'] ?? 'email',
+            'message_content' => $criteria['message_content'] ?? null,
+            'scheduled_date' => now(),
+            'status' => 'pending',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return $reminder;
+    }
 }
+

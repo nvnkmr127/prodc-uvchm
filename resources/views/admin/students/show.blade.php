@@ -1271,6 +1271,11 @@ $statusColor = match ($student->status) {
                                                             <h6 class="font-weight-bold mb-1">
                                                                 <i class="fas fa-file-invoice mr-2 text-primary"></i>
                                                                 {{ optional($studentFee->feeCategory)->name ?? 'Unknown Category' }}
+                                                                @if($studentFee->total_installments > 1)
+                                                                    <span class="badge badge-light border ml-2">
+                                                                        Installment {{ $studentFee->installment_number }}/{{ $studentFee->total_installments }}
+                                                                    </span>
+                                                                @endif
                                                             </h6>
                                                             <small
                                                                 class="text-muted">{{ optional($studentFee->feeCategory)->description ?? 'Standard fee component' }}</small>

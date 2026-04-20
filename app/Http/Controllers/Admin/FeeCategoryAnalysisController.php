@@ -112,13 +112,19 @@ class FeeCategoryAnalysisController extends Controller
             }
         }
 
-        // Summary Stats
-        $summaryQuery = clone $query;
+        // Summary Stats (Optimized to single query)
+        $statsData = (clone $query)->selectRaw('
+            COUNT(DISTINCT student_id) as student_count,
+            SUM(amount) as total_amount,
+            SUM(paid_amount) as total_paid,
+            SUM(concession_amount) as total_concession
+        ')->first();
+
         $stats = [
-            'total' => $summaryQuery->sum('amount'),
-            'paid' => $summaryQuery->sum('paid_amount'),
-            'concession' => $summaryQuery->sum('concession_amount'),
-            'count' => $summaryQuery->count(),
+            'total' => $statsData->total_amount ?? 0,
+            'paid' => $statsData->total_paid ?? 0,
+            'concession' => $statsData->total_concession ?? 0,
+            'count' => $statsData->student_count ?? 0,
         ];
         $stats['pending'] = $stats['total'] - $stats['paid'] - $stats['concession'];
 
@@ -407,15 +413,6 @@ class FeeCategoryAnalysisController extends Controller
             })
             ->when($filters['batch_id'] ?? null, function ($query, $batchId) {
                 $query->where('batches.id', $batchId);
-            })
-            ->when($filters['fee_category_id'] ?? null, function ($query, $categoryId) {
-                $query->where('fee_categories.id', $categoryId);
-            })
-            ->when($filters['start_date'] ?? null, function ($query, $startDate) {
-                $query->where('student_fees.due_date', '>=', $startDate);
-            })
-            ->when($filters['end_date'] ?? null, function ($query, $endDate) {
-                $query->where('student_fees.due_date', '<=', $endDate);
             })
             ->when($filters['fee_category_id'] ?? null, function ($query, $categoryId) {
                 $query->where('fee_categories.id', $categoryId);
@@ -1161,76 +1158,6 @@ class FeeCategoryAnalysisController extends Controller
     /**
      * NEW: Send category-specific reminders
      */
-    public function sendCategoryReminders(Request $request, FeeCategory $feeCategory)
-    {
-        $validated = $request->validate([
-            'reminder_type' => 'required|in:gentle,firm,urgent,final_notice',
-            'include_overdue_only' => 'boolean',
-            'minimum_amount' => 'nullable|numeric|min:0',
-            'message_content' => 'nullable|string',
-        ]);
-
-        try {
-            $studentsToRemind = $this->getStudentsForCategoryReminders($feeCategory, $validated);
-
-            // Queue reminders (integrate with your existing reminder system)
-            $reminderCount = $this->queueCategoryReminders($studentsToRemind, $validated, $feeCategory);
-
-            return response()->json([
-                'success' => true,
-                'message' => "Queued {$reminderCount} reminders for {$feeCategory->name} category",
-                'students_count' => $reminderCount,
-            ]);
-
-        } catch (\Exception $e) {
-            \Log::error('Category reminder error: '.$e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'error' => 'Failed to send category reminders. Please try again.',
-            ], 500);
-        }
-    }
-
-    /**
-     * FIXED: Add method to handle student intervention (excludes dropout students)
-     */
-    public function studentIntervention(Request $request, Student $student)
-    {
-        // Check if student is dropout - if so, return error
-        if ($student->status === 'dropout') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Cannot perform intervention on dropout students',
-            ], 400);
-        }
-
-        $request->validate([
-            'intervention_type' => 'required|in:reminder,call,meeting,email',
-            'notes' => 'required|string|max:500',
-        ]);
-
-        // Log the intervention
-        activity()
-            ->causedBy(auth()->user())
-            ->performedOn($student)
-            ->withProperties([
-                'intervention_type' => $request->intervention_type,
-                'notes' => $request->notes,
-                'outstanding_amount' => $student->getTotalOutstandingAmount(),
-                'overdue_amount' => $student->getOverdueAmount(),
-            ])
-            ->log("Fee intervention: {$request->intervention_type}");
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Intervention recorded successfully',
-        ]);
-    }
-
-    /**
-     * NEW: Recovery tracking dashboard
-     */
     public function recoveryTracking(Request $request)
     {
         $filters = $this->buildFilters($request);
@@ -1385,148 +1312,6 @@ class FeeCategoryAnalysisController extends Controller
             'avg_overdue_amount' => $totalDefaulters > 0 ? round($totalAmount / $totalDefaulters, 2) : 0,
             'avg_recovery_days' => $this->calculateAverageRecoveryDays($filters),
         ];
-    }
-
-    /**
-     * Get students for category reminders
-     */
-    private function getStudentsForCategoryReminders($feeCategory, $criteria)
-    {
-        $query = Student::where('status', '!=', 'dropout')
-            ->whereHas('studentFees', function ($q) use ($feeCategory, $criteria) {
-            $q->where('fee_category_id', $feeCategory->id)
-                ->whereIn('status', ['unpaid', 'partial'])
-                ->whereRaw('amount - concession_amount - paid_amount > 0');
-
-            if ($criteria['include_overdue_only']) {
-                $q->where('due_date', '<', now());
-            }
-
-            if ($criteria['minimum_amount']) {
-                $q->whereRaw('amount - concession_amount - paid_amount >= ?', [$criteria['minimum_amount']]);
-            }
-        });
-
-        return $query->with([
-            'studentFees' => function ($q) use ($feeCategory) {
-                $q->where('fee_category_id', $feeCategory->id)
-                    ->whereIn('status', ['unpaid', 'partial']);
-            },
-        ])->get();
-    }
-
-    /**
-     * Queue category reminders
-     */
-    private function queueCategoryReminders($students, $criteria, $feeCategory)
-    {
-        $count = 0;
-
-        foreach ($students as $student) {
-            // Create reminder record
-            $reminderData = [
-                'student_id' => $student->id,
-                'fee_category_id' => $feeCategory->id,
-                'reminder_type' => $criteria['reminder_type'],
-                'channel' => 'email', // Default channel
-                'message_content' => $criteria['message_content'] ?? $this->getDefaultReminderMessage($criteria['reminder_type']),
-                'scheduled_date' => now(),
-                'status' => 'pending',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ];
-
-            // Insert into your reminders table
-            DB::table('payment_reminders')->insert($reminderData);
-
-            // You can also dispatch a job here if you have a job system
-            // \App\Jobs\SendPaymentReminder::dispatch($student, $reminderData);
-
-            $count++;
-        }
-
-        return $count;
-    }
-
-    /**
-     * Send individual student reminder
-     */
-    private function sendStudentReminder($student, $criteria)
-    {
-        // Create reminder record
-        $reminderData = [
-            'student_id' => $student->id,
-            'reminder_type' => $criteria['reminder_type'] ?? 'general',
-            'channel' => 'email',
-            'message_content' => $this->getDefaultReminderMessage($criteria['reminder_type'] ?? 'general'),
-            'scheduled_date' => now(),
-            'status' => 'pending',
-        ];
-
-        DB::table('payment_reminders')->insert($reminderData);
-
-        return [
-            'message' => 'Reminder has been queued for sending.',
-            'data' => $reminderData,
-        ];
-    }
-
-    /**
-     * Escalate student case
-     */
-    private function escalateStudent($student, $criteria)
-    {
-        // Log escalation
-        DB::table('student_interventions')->insert([
-            'student_id' => $student->id,
-            'intervention_type' => 'escalation',
-            'notes' => $criteria['reason'] ?? 'Case escalated due to non-payment',
-            'created_by' => auth()->id(),
-            'created_at' => now(),
-        ]);
-
-        return [
-            'message' => 'Student case has been escalated to management.',
-            'data' => ['escalation_level' => $criteria['priority'] ?? 'high'],
-        ];
-    }
-
-    /**
-     * Create payment plan
-     */
-    private function createPaymentPlan($student, $criteria)
-    {
-        // This would integrate with your payment plan system
-        $planData = [
-            'student_id' => $student->id,
-            'installments' => $criteria['installments'] ?? 3,
-            'first_due_date' => $criteria['first_due'] ?? now()->addDays(7),
-            'created_by' => auth()->id(),
-            'status' => 'active',
-        ];
-
-        // Insert into payment plans table (if you have one)
-        // DB::table('payment_plans')->insert($planData);
-
-        return [
-            'message' => 'Payment plan has been created successfully.',
-            'data' => $planData,
-        ];
-    }
-
-    /**
-     * Get default reminder message template
-     */
-    private function getDefaultReminderMessage($type)
-    {
-        $templates = [
-            'gentle' => 'Dear {student_name}, this is a friendly reminder about your pending payment. Please pay at your earliest convenience.',
-            'firm' => 'Dear {student_name}, your payment is now overdue. Please make the payment immediately.',
-            'urgent' => 'URGENT: Dear {student_name}, immediate payment is required to avoid further action.',
-            'final_notice' => 'FINAL NOTICE: Dear {student_name}, this is your last notice before escalation.',
-        ];
-
-        return $templates[$type] ?? $templates['gentle'];
     }
 
     // Additional helper methods

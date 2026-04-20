@@ -498,16 +498,23 @@ class PaymentReminderController extends Controller
             // Fallback calculation
             return [
                 'overall_rate' => 0,
+                'collection_rate' => 0,
+                'overdue_rate' => 0,
+                'critical_defaulters' => 0,
                 'this_month' => 0,
                 'last_month' => 0,
             ];
         } catch (\Exception $e) {
             return [
                 'overall_rate' => 0,
+                'collection_rate' => 0,
+                'overdue_rate' => 0,
+                'critical_defaulters' => 0,
                 'this_month' => 0,
                 'last_month' => 0,
             ];
         }
+
     }
 
     /**
@@ -913,6 +920,163 @@ class PaymentReminderController extends Controller
 
         } catch (\Exception $e) {
             return back()->with('error', 'Export failed: '.$e->getMessage());
+        }
+    }
+    /**
+     * Send reminders for all pending students in a specific fee category
+     */
+    public function sendCategoryReminders(Request $request, FeeCategory $feeCategory): JsonResponse
+    {
+        $validated = $request->validate([
+            'reminder_type' => 'nullable|string|in:gentle,firm,urgent,final_notice,overdue',
+            'include_overdue_only' => 'nullable|boolean',
+            'minimum_amount' => 'nullable|numeric|min:0',
+            'message_content' => 'nullable|string',
+            'channel' => 'nullable|string|in:email,sms,whatsapp',
+        ]);
+
+        if (!$this->reminderService) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Reminder service not available',
+            ], 500);
+        }
+
+        try {
+            // 1. Find all students with pending/unpaid fees in this category (excluding dropouts)
+            $query = Student::where('status', '!=', 'dropout')
+                ->whereHas('studentFees', function ($q) use ($feeCategory, $validated) {
+                    $q->where('fee_category_id', $feeCategory->id)
+                        ->whereIn('status', ['unpaid', 'partial', 'pending'])
+                        ->whereRaw('amount - concession_amount - paid_amount > 0');
+                    
+                    if (!empty($validated['include_overdue_only'])) {
+                        $q->where('due_date', '<', now());
+                    }
+
+                    if (!empty($validated['minimum_amount'])) {
+                        $q->whereRaw('amount - concession_amount - paid_amount >= ?', [$validated['minimum_amount']]);
+                    }
+                });
+
+            $students = $query->get();
+
+            if ($students->isEmpty()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'No pending students found matching the criteria.',
+                    'count' => 0
+                ]);
+            }
+
+            $count = 0;
+            $errors = [];
+
+            // 2. Queue reminders for each student
+            foreach ($students as $student) {
+                try {
+                    // Check if already has a pending reminder for this category to avoid duplicates
+                    $existing = PaymentReminder::where('student_id', $student->id)
+                        ->where('fee_category_id', $feeCategory->id)
+                        ->where('status', 'pending')
+                        ->exists();
+
+                    if (!$existing) {
+                        PaymentReminder::create([
+                            'student_id' => $student->id,
+                            'fee_category_id' => $feeCategory->id,
+                            'reminder_type' => $validated['reminder_type'] ?? 'overdue',
+                            'channel' => $validated['channel'] ?? 'email',
+                            'scheduled_date' => now(),
+                            'status' => 'pending',
+                            'message_content' => $validated['message_content'] ?? null,
+                            'recipient_details' => [
+                                'email' => $student->email,
+                                'phone' => $student->student_mobile ?? $student->father_mobile,
+                                'student_name' => $student->name,
+                                'enrollment_number' => $student->enrollment_number,
+                            ],
+                            'overdue_amount' => $this->paymentService->getStudentOverdueAmount($student, $feeCategory->id),
+                        ]);
+                        $count++;
+                    }
+                } catch (\Exception $e) {
+                    $errors[] = "Student #{$student->id}: " . $e->getMessage();
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => "Successfully queued {$count} reminders for {$feeCategory->name}.",
+                'count' => $count,
+                'errors' => $errors
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Error sending category reminders: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to send category reminders: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Send individual student reminder
+     */
+    public function sendStudentReminder(Request $request, Student $student): JsonResponse
+    {
+        $validated = $request->validate([
+            'reminder_type' => 'required|string',
+            'channel' => 'required|string|in:email,sms,whatsapp',
+            'message_content' => 'nullable|string',
+            'fee_category_id' => 'nullable|exists:fee_categories,id',
+        ]);
+
+        try {
+            // Safeguard: Do not send reminders to dropout students
+            if ($student->status === 'dropout') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cannot send reminders to dropout students.',
+                ], 400);
+            }
+
+            $overdueAmount = 0;
+            if ($validated['fee_category_id']) {
+                $overdueAmount = $this->paymentService->getStudentOverdueAmount($student, $validated['fee_category_id']);
+            } else {
+                $overdueAmount = method_exists($student, 'getTotalOverdueAmount') ? $student->getTotalOverdueAmount() : 0;
+            }
+
+            $reminder = PaymentReminder::create([
+                'student_id' => $student->id,
+                'fee_category_id' => $validated['fee_category_id'] ?? null,
+                'reminder_type' => $validated['reminder_type'],
+                'channel' => $validated['channel'],
+                'scheduled_date' => now(),
+                'status' => 'pending',
+                'message_content' => $validated['message_content'] ?? null,
+                'recipient_details' => [
+                    'email' => $student->email,
+                    'phone' => $student->student_mobile ?? $student->father_mobile,
+                    'student_name' => $student->name,
+                    'enrollment_number' => $student->enrollment_number,
+                ],
+                'overdue_amount' => $overdueAmount,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Reminder queued successfully!',
+                'reminder_id' => $reminder->id
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to queue reminder: ' . $e->getMessage(),
+            ], 500);
         }
     }
 }

@@ -401,12 +401,12 @@ function sendReminder(studentId, type = 'gentle') {
     }).then((result) => {
         if (result.isConfirmed) {
             $.ajax({
-                url: `{{ route('admin.fee-category-analysis.student-intervention', ':student') }}`.replace(':student', studentId),
+                url: `{{ route('admin.payment-reminders.send-student-reminder', ':student') }}`.replace(':student', studentId),
                 method: 'POST',
                 data: {
                     _token: $('meta[name="csrf-token"]').attr('content'),
-                    action: 'reminder',
-                    reminder_type: type
+                    reminder_type: type,
+                    channel: 'email' // Default channel
                 },
                 success: function(response) {
                     if (response.success) {
@@ -453,13 +453,13 @@ function createPaymentPlan(studentId) {
     }).then((result) => {
         if (result.isConfirmed) {
             $.ajax({
-                url: `{{ route('admin.fee-category-analysis.student-intervention', ':student') }}`.replace(':student', studentId),
+                url: `{{ route('admin.payment-reminders.send-student-reminder', ':student') }}`.replace(':student', studentId),
                 method: 'POST',
                 data: {
                     _token: $('meta[name="csrf-token"]').attr('content'),
-                    action: 'payment_plan',
-                    installments: result.value.installments,
-                    first_due: result.value.first_due
+                    reminder_type: 'payment_plan',
+                    channel: 'email',
+                    message_content: `Requested ${result.value.installments} installments starting from ${result.value.first_due}`
                 },
                 success: function(response) {
                     if (response.success) {
@@ -511,13 +511,13 @@ function escalateStudent(studentId) {
     }).then((result) => {
         if (result.isConfirmed) {
             $.ajax({
-                url: `{{ route('admin.fee-category-analysis.student-intervention', ':student') }}`.replace(':student', studentId),
+                url: `{{ route('admin.payment-reminders.send-student-reminder', ':student') }}`.replace(':student', studentId),
                 method: 'POST',
                 data: {
                     _token: $('meta[name="csrf-token"]').attr('content'),
-                    action: 'escalate',
-                    reason: result.value.reason,
-                    priority: result.value.priority
+                    reminder_type: 'escalation',
+                    channel: 'email',
+                    message_content: `Escalation Reason: ${result.value.reason} (Priority: ${result.value.priority})`
                 },
                 success: function(response) {
                     if (response.success) {
@@ -560,12 +560,12 @@ function sendBulkReminders(type) {
 
             selectedStudents.forEach(studentId => {
                 $.ajax({
-                    url: `{{ route('admin.fee-category-analysis.student-intervention', ':student') }}`.replace(':student', studentId),
+                    url: `{{ route('admin.payment-reminders.send-student-reminder', ':student') }}`.replace(':student', studentId),
                     method: 'POST',
                     data: {
                         _token: $('meta[name="csrf-token"]').attr('content'),
-                        action: 'reminder',
-                        reminder_type: type
+                        reminder_type: type,
+                        channel: 'email'
                     },
                     success: function(response) {
                         if (response.success) successCount++;
@@ -620,13 +620,13 @@ function escalateBulk(level) {
 
             selectedStudents.forEach(studentId => {
                 $.ajax({
-                    url: `{{ route('admin.fee-category-analysis.student-intervention', ':student') }}`.replace(':student', studentId),
+                    url: `{{ route('admin.payment-reminders.send-student-reminder', ':student') }}`.replace(':student', studentId),
                     method: 'POST',
                     data: {
                         _token: $('meta[name="csrf-token"]').attr('content'),
-                        action: 'escalate',
-                        reason: reason,
-                        priority: 'critical'
+                        reminder_type: 'escalation',
+                        channel: 'email',
+                        message_content: `Bulk Escalation: ${reason}`
                     },
                     success: function(response) {
                         if (response.success) successCount++;
@@ -690,13 +690,13 @@ function createBulkPaymentPlans() {
 
             selectedStudents.forEach(studentId => {
                 $.ajax({
-                    url: `{{ route('admin.fee-category-analysis.student-intervention', ':student') }}`.replace(':student', studentId),
+                    url: `{{ route('admin.payment-reminders.send-student-reminder', ':student') }}`.replace(':student', studentId),
                     method: 'POST',
                     data: {
                         _token: $('meta[name="csrf-token"]').attr('content'),
-                        action: 'payment_plan',
-                        installments: installments,
-                        first_due: firstDue
+                        reminder_type: 'payment_plan',
+                        channel: 'email',
+                        message_content: `Requested ${installments} installments starting from ${firstDue}`
                     },
                     success: function(response) {
                         if (response.success) successCount++;

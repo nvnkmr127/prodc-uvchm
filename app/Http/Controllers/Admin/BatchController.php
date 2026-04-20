@@ -3,10 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AcademicYear;
 use App\Models\Attendance;
 use App\Models\Batch;
 use App\Models\Course;
-use App\Models\Student; // Added for attendance check
+use App\Models\Student;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -22,15 +23,14 @@ class BatchController extends Controller
             $query->where('course_id', $request->course_id);
         }
 
-        // Optional: Filter by Academic Year manually if selected in dropdown
+        // Filter by Academic Year if explicitly requested, otherwise trait handles session-based filtering
         if ($request->filled('academic_year_id')) {
             $query->where('academic_year_id', $request->academic_year_id);
         }
 
         $batches = $query->latest()->get();
-
         $courses = Course::orderBy('name')->get();
-        $academicYears = \App\Models\AcademicYear::orderBy('start_date', 'desc')->get();
+        $academicYears = AcademicYear::orderBy('start_date', 'desc')->get();
 
         return view('admin.batches.index', compact('batches', 'courses', 'academicYears'));
     }
@@ -61,12 +61,7 @@ class BatchController extends Controller
         return redirect()->route('admin.batches.index')->with('success', 'Batch created successfully.');
     }
 
-    public function edit(Batch $batch)
-    {
-        $courses = Course::orderBy('name')->get();
-
-        return view('admin.batches.edit', compact('batch', 'courses'));
-    }
+    // Edit is handled via modal in index view
 
     public function update(Request $request, Batch $batch)
     {
@@ -118,8 +113,16 @@ class BatchController extends Controller
 
     public function manageStudents(Batch $batch)
     {
-        $studentsInBatch = Student::where('batch_id', $batch->id)->orderBy('name')->get();
-        $unassignedStudents = Student::whereNull('batch_id')->orderBy('name')->get();
+        // Use withoutGlobalScope to ensure we can see students even if they belong to a batch of a different year than the current session
+        $studentsInBatch = Student::withoutGlobalScope('academic_year')
+            ->where('batch_id', $batch->id)
+            ->orderBy('name')
+            ->get();
+
+        $unassignedStudents = Student::withoutGlobalScope('academic_year')
+            ->whereNull('batch_id')
+            ->orderBy('name')
+            ->get();
 
         return view('admin.batches.manage_students', compact('batch', 'studentsInBatch', 'unassignedStudents'));
     }
@@ -129,11 +132,14 @@ class BatchController extends Controller
         $assignedStudentIds = $request->input('assigned_student_ids', []);
 
         DB::transaction(function () use ($batch, $assignedStudentIds) {
-            Student::where('batch_id', $batch->id)
+            // Use withoutGlobalScope to ensure updates happen correctly regardless of session state
+            Student::withoutGlobalScope('academic_year')
+                ->where('batch_id', $batch->id)
                 ->whereNotIn('id', $assignedStudentIds)
                 ->update(['batch_id' => null]);
 
-            Student::whereIn('id', $assignedStudentIds)
+            Student::withoutGlobalScope('academic_year')
+                ->whereIn('id', $assignedStudentIds)
                 ->update(['batch_id' => $batch->id]);
         });
 
@@ -170,7 +176,8 @@ class BatchController extends Controller
         try {
             $date = $request->input('date', now()->format('Y-m-d'));
 
-            $students = Student::where('batch_id', $batch->id)
+            $students = Student::withoutGlobalScope('academic_year')
+                ->where('batch_id', $batch->id)
                 ->where('status', 'active')
                 ->select('id', 'name', 'email', 'enrollment_number')
                 ->orderBy('name')

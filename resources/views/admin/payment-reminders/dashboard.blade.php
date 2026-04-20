@@ -1167,7 +1167,7 @@ function sendCategoryReminders(categoryId, categoryName) {
     }).then((result) => {
         if (result.isConfirmed) {
             $.ajax({
-                url: `{{ route("admin.fee-category-analysis.send-reminders", ":categoryId") }}`.replace(':categoryId', categoryId),
+                url: `{{ route("admin.payment-reminders.send-category-reminders", ":categoryId") }}`.replace(':categoryId', categoryId),
                 method: 'POST',
                 data: {
                     _token: $('meta[name="csrf-token"]').attr('content'),

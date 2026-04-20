@@ -262,24 +262,26 @@ function testNotifications() {
 }
 
 function sendFeeReminders() {
-    if (!confirm('Send fee reminders to all students with pending dues?')) return;
+    if (!confirm('Process all pending fee reminders? This will queue reminders for all eligible students.')) return;
     
-    showLoading('Sending fee reminders...');
+    showLoading('Processing fee reminders...');
     
-    // Create a simple fee reminder route if not exists
-    fetch('/admin/notifications/test', {
+    fetch('{{ route("admin.payment-reminders.process-pending") }}', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'X-CSRF-TOKEN': '{{ csrf_token() }}'
-        },
-        body: JSON.stringify({test_type: 'financial'})
+        }
     })
     .then(response => response.json())
     .then(data => {
         hideLoading();
-        showAlert('success', 'Fee reminder test sent successfully!');
-        setTimeout(() => window.location.reload(), 2000);
+        if (data.success) {
+            showAlert('success', data.message);
+            setTimeout(() => window.location.reload(), 2000);
+        } else {
+            showAlert('error', 'Failed: ' + data.message);
+        }
     })
     .catch(error => {
         hideLoading();
