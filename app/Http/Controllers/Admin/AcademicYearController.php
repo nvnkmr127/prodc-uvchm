@@ -11,7 +11,14 @@ class AcademicYearController extends Controller
 {
     public function index()
     {
-        $years = AcademicYear::withCount(['batches', 'students'])
+        $years = AcademicYear::withCount([
+            'batches' => function ($query) {
+                $query->withoutGlobalScopes();
+            },
+            'students' => function ($query) {
+                $query->withoutGlobalScopes();
+            }
+        ])
             ->orderBy('start_date', 'desc')
             ->get();
 
@@ -104,7 +111,9 @@ class AcademicYearController extends Controller
     {
         // Check for related data before deletion
         $hasBatches = \App\Models\Batch::where('academic_year_id', $academicYear->id)->exists();
-        $hasStudents = \App\Models\Student::where('academic_year_id', $academicYear->id)->exists();
+        $hasStudents = \App\Models\Student::whereHas('batch', function($q) use ($academicYear) {
+            $q->where('academic_year_id', $academicYear->id);
+        })->exists();
 
         if ($hasBatches || $hasStudents) {
             return redirect()->back()->with('error', 'Cannot delete this academic year as it has related records (batches or students).');

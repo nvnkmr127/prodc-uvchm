@@ -20,7 +20,14 @@ class AcademicYear extends Model
 
     public function students()
     {
-        return $this->hasMany(Student::class);
+        return $this->hasManyThrough(
+            Student::class,
+            Batch::class,
+            'academic_year_id', // Foreign key on batches table
+            'batch_id',         // Foreign key on students table
+            'id',               // Local key on academic_years table
+            'id'                // Local key on batches table
+        );
     }
 
     public static function checkOverlap($startDate, $endDate, $excludeId = null)

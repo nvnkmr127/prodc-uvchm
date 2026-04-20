@@ -803,6 +803,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
         });
 
         // API & Webhooks
+        Route::get('api-tokens/usage', [ApiTokenController::class, 'usage'])->name('api-tokens.usage');
+        Route::get('api-tokens/export', [ApiTokenController::class, 'export'])->name('api-tokens.export');
         Route::resource('api-tokens', ApiTokenController::class)->middleware('permission:manage api tokens');
         Route::get('api-tokens/{token}/test', [ApiTokenController::class, 'test'])
             ->name('api-tokens.test')
@@ -810,7 +812,6 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
         Route::post('api-tokens/{token}/regenerate', [ApiTokenController::class, 'regenerate'])
             ->name('api-tokens.regenerate')
             ->where('token', '[0-9]+');
-        Route::get('api-tokens/export', [ApiTokenController::class, 'export'])->name('api-tokens.export');
         Route::delete('api-tokens/cleanup-expired', [ApiTokenController::class, 'cleanupExpired'])->name('api-tokens.cleanup-expired');
         Route::post('api-tokens/bulk-action', [ApiTokenController::class, 'bulkAction'])->name('api-tokens.bulk-action');
         Route::delete('api-tokens/users/{user}/revoke-all', [ApiTokenController::class, 'revokeUserTokens'])
