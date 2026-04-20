@@ -27,6 +27,12 @@
                             Mark this as the current active academic year.
                         </label>
                     </div>
+                    <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" name="auto_switch_enabled" value="1" id="auto_switch_enabled">
+                        <label class="form-check-label" for="auto_switch_enabled">
+                            Enable auto-switch (Automatically activate when start date is reached).
+                        </label>
+                    </div>
                 </div>
             </div>
             <button type="submit" class="btn btn-primary mt-3">Save Academic Year</button>

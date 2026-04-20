@@ -717,6 +717,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
         // API & Webhooks
         Route::resource('api-tokens', ApiTokenController::class)->middleware('permission:manage api tokens');
         Route::get('api-tokens/usage', [ApiTokenController::class, 'usage'])->name('api-tokens.usage');
+        Route::get('api-tokens/export', [ApiTokenController::class, 'export'])->name('api-tokens.export');
         Route::get('api-tokens/{token}/test', [ApiTokenController::class, 'test'])
             ->name('api-tokens.test')
             ->where('token', '[0-9]+');
@@ -728,7 +729,6 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
         Route::delete('api-tokens/users/{user}/revoke-all', [ApiTokenController::class, 'revokeUserTokens'])
             ->name('api-tokens.revoke-user-tokens')
             ->where('user', '[0-9]+');
-        Route::delete('api-tokens/cleanup', [ApiTokenController::class, 'cleanupExpired'])->name('api-tokens.cleanup');
 
         Route::get('api-documentation', fn () => view('admin.api_documentation.index'))->name('api-documentation.index');
 

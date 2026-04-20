@@ -805,31 +805,51 @@
 
                     <!-- Top Navigation -->
                     <ul class="navbar-nav ml-auto">
-                        <!-- Academic Year Switcher -->
+                        <!-- Academic Year Switcher (Premium Context Indicator) -->
                         @if(isset($allAcademicYears) && $allAcademicYears->isNotEmpty())
-                            <li class="nav-item dropdown no-arrow mx-1">
-                                <a class="nav-link dropdown-toggle" href="#" id="yearDropdown" role="button"
-                                    data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="Academic Year">
-                                    <i class="fas fa-calendar-alt fa-fw text-gray-600"></i>
-                                    <span class="d-none d-lg-inline text-gray-600 small">
-                                        {{ $allAcademicYears->firstWhere('id', $selectedAcademicYearId)?->name ?? 'Select Year' }}
+                            @php
+                                $selectedYear = $allAcademicYears->firstWhere('id', $selectedAcademicYearId);
+                            @endphp
+                            <li class="nav-item dropdown no-arrow mx-2 d-none d-sm-block">
+                                <a class="nav-link dropdown-toggle px-3" href="#" id="yearDropdown" role="button"
+                                    data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" 
+                                    style="background: rgba(231, 234, 243, 0.7); border-radius: 50px; height: 38px; margin-top: 16px; border: 1px solid #d1d3e2;">
+                                    <i class="fas fa-calendar-check fa-fw text-primary mr-1"></i>
+                                    <span class="text-gray-800 small font-weight-bold">
+                                        {{ $selectedYear?->name ?? 'Select Session' }}
                                     </span>
+                                    <i class="fas fa-chevron-down ml-2 text-gray-400" style="font-size: 0.7rem;"></i>
                                 </a>
-                                <div class="dropdown-menu dropdown-menu-right shadow animated--grow-in"
-                                    aria-labelledby="yearDropdown">
-                                    <h6 class="dropdown-header">Switch Academic Year</h6>
-                                    <form action="{{ route('admin.academic-years.switch') }}" method="POST"
-                                        id="academicYearForm">
+                                <div class="dropdown-menu dropdown-menu-right shadow border-0 animated--fade-in mt-2"
+                                    aria-labelledby="yearDropdown" style="border-radius: 12px; min-width: 240px;">
+                                    <div class="dropdown-header bg-light py-2" style="border-radius: 12px 12px 0 0;">
+                                        <h6 class="m-0 font-weight-bold text-primary small uppercase">System Session Context</h6>
+                                    </div>
+                                    <form action="{{ route('admin.academic-years.switch') }}" method="POST" id="academicYearForm">
                                         @csrf
                                         <input type="hidden" name="academic_year_id" id="selected_year_input">
                                     </form>
-                                    @foreach($allAcademicYears as $year)
-                                        <a class="dropdown-item switch-year-btn" href="#" data-year-id="{{ $year->id }}">
-                                            <i
-                                                class="fas fa-check fa-sm fa-fw mr-2 text-gray-400 {{ $year->id == $selectedAcademicYearId ? '' : 'invisible' }}"></i>
-                                            {{ $year->name }}
-                                        </a>
-                                    @endforeach
+                                    <div class="py-1" style="max-height: 300px; overflow-y: auto;">
+                                        @foreach($allAcademicYears as $year)
+                                            <a class="dropdown-item switch-year-btn d-flex align-items-center justify-content-between py-2 {{ $year->id == $selectedAcademicYearId ? 'bg-light font-weight-bold' : '' }}" 
+                                               href="#" data-year-id="{{ $year->id }}">
+                                                <div>
+                                                    <i class="fas fa-calendar-alt fa-sm fa-fw mr-2 {{ $year->id == $selectedAcademicYearId ? 'text-primary' : 'text-gray-400' }}"></i>
+                                                    {{ $year->name }}
+                                                </div>
+                                                @if($year->is_current)
+                                                    <span class="badge badge-success-light text-success px-2 py-1" style="font-size: 0.65rem; background: #e8f5e9;">Current</span>
+                                                @endif
+                                                @if($year->id == $selectedAcademicYearId)
+                                                    <i class="fas fa-check text-success ml-2" style="font-size: 0.8rem;"></i>
+                                                @endif
+                                            </a>
+                                        @endforeach
+                                    </div>
+                                    <div class="dropdown-divider m-0"></div>
+                                    <a class="dropdown-item text-center small text-primary py-2 font-weight-bold" href="{{ route('admin.academic-years.index') }}">
+                                        <i class="fas fa-cog mr-1"></i> Manage Years
+                                    </a>
                                 </div>
                             </li>
                         @endif

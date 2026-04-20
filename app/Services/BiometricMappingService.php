@@ -234,14 +234,14 @@ class BiometricMappingService
      * DHM(1) + last 3 digits = 1003
      * ADHM(2) + last 3 digits = 2003
      */
-    private function generateBiometricCodeFromEnrollment(string $enrollmentNumber): string
+    public function generateBiometricCodeFromEnrollment(string $enrollmentNumber): string
     {
         try {
             $courseMapping = [
                 'ADHM' => '2',
                 'MDHM' => '3',
                 'PDHM' => '4',
-                'DHM' => '1', // The shortest name is now last
+                'DHM' => '1', // The shortest name is now last for proper matching
             ];
 
             // Convert to uppercase for case-insensitive comparison

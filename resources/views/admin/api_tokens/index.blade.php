@@ -10,8 +10,11 @@
                 <p class="text-muted mb-0">Create and manage access keys for your integrations.</p>
             </div>
             <div class="d-flex gap-2">
-                <a href="/api/documentation" class="btn btn-outline-primary shadow-sm">
+                <a href="{{ route('admin.api-documentation.index') }}" class="btn btn-outline-primary shadow-sm">
                     <i class="fas fa-book me-2"></i>Documentation
+                </a>
+                <a href="{{ route('admin.api-tokens.usage') }}" class="btn btn-outline-info shadow-sm">
+                    <i class="fas fa-chart-line me-2"></i>Usage Stats
                 </a>
                 <a href="{{ route('admin.api-tokens.export') }}" class="btn btn-primary shadow-sm">
                     <i class="fas fa-download me-2"></i>Export CSV
@@ -168,6 +171,8 @@
                                                     <i class="fas fa-ellipsis-h"></i>
                                                 </button>
                                                 <ul class="dropdown-menu dropdown-menu-end shadow border-0">
+                                                    <li><a class="dropdown-item" href="{{ route('admin.api-tokens.usage') }}"><i class="fas fa-chart-bar me-2 text-info"></i>Usage</a></li>
+                                                    <li><hr class="dropdown-divider"></li>
                                                     <li><a class="dropdown-item text-danger" href="#"
                                                             onclick="revokeToken({{ $token->id }}, '{{ $token->name }}')"><i
                                                                 class="fas fa-trash me-2"></i>Revoke</a></li>

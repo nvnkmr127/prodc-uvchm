@@ -120,27 +120,35 @@
 
           <!-- Authentication Section -->
           <section id="authentication" class="mb-5">
-            <div class="card shadow-sm border-0">
-              <div class="card-header bg-white py-3">
-                <h5 class="m-0 font-weight-bold text-primary">Authentication</h5>
+            <div class="card shadow-sm border-0 overflow-hidden">
+              <div class="card-header bg-white py-3 d-flex align-items-center">
+                <div class="icon-circle bg-primary-subtle text-primary me-3">
+                   <i class="fas fa-lock"></i>
+                </div>
+                <h5 class="m-0 font-weight-bold text-gray-800">Authentication</h5>
               </div>
               <div class="card-body p-4">
-                <p>Verify your identity using <strong>Bearer Tokens</strong>. Include your API token in the
+                <p class="text-gray-600 mb-4">Verify your identity using <strong>Bearer Tokens</strong>. We use Laravel Sanctum for secure managed access. Include your API token in the
                   <code>Authorization</code> header of every request.
                 </p>
 
-                <div class="bg-gray-900 text-white p-3 rounded-3 mb-4 font-monospace position-relative group">
-                  <button class="btn btn-sm btn-light position-absolute top-0 end-0 m-2 copy-btn"
-                    data-clipboard-text="Authorization: Bearer YOUR_API_TOKEN">
+                <div class="bg-dark text-white p-4 rounded-3 mb-4 font-monospace position-relative group shadow-lg">
+                  <div class="small text-muted mb-2 text-uppercase font-weight-bold">Request Header</div>
+                  <button class="btn btn-sm btn-outline-light position-absolute top-0 end-0 m-3 copy-btn border-0"
+                    onclick="copyToClipboard('Authorization: Bearer YOUR_API_TOKEN', this)">
                     <i class="fas fa-copy"></i>
                   </button>
-                  <code>Authorization: Bearer <span class="text-warning">YOUR_API_TOKEN</span></code>
+                  <code class="text-info">Authorization: <span class="text-success">Bearer</span> <span class="text-warning">YOUR_API_TOKEN</span></code>
                 </div>
 
-                <div class="alert alert-info border-left-info">
-                  <i class="fas fa-info-circle me-2"></i>
-                  <strong>Tip:</strong> You can manage and generate new tokens in the <a
-                    href="{{ route('admin.api-tokens.index') }}" class="alert-link">API Tokens dashboard</a>.
+                <div class="alert alert-warning border-0 shadow-sm rounded-3">
+                  <div class="d-flex align-items-center">
+                    <div class="me-3 h4 mb-0"><i class="fas fa-exclamation-triangle text-warning"></i></div>
+                    <div>
+                      <strong class="text-dark">Security Note:</strong> Never share your API tokens in client-side code (JavaScript) or public repositories. You can manage and revoke tokens in the <a
+                      href="{{ route('admin.api-tokens.index') }}" class="alert-link">API Tokens dashboard</a>.
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -229,6 +237,10 @@
       font-weight: 600;
     }
 
+    .bg-primary-subtle {
+      background-color: rgba(78, 115, 223, 0.1);
+    }
+
     .icon-circle {
       width: 40px;
       height: 40px;
@@ -238,6 +250,11 @@
       justify-content: center;
     }
 
+    /* Code Block Styling */
+    code {
+      color: #e83e8c;
+    }
+
     /* Swagger UI Custom Overrides for Premium Look */
     .swagger-ui .wrapper {
       padding: 0;
@@ -245,33 +262,43 @@
 
     .swagger-ui .info {
       margin: 20px 0;
+      padding: 0 20px;
     }
 
     .swagger-ui .scheme-container {
-      background: transparent;
+      background: #f8f9fc;
       box-shadow: none;
-      border-bottom: 1px solid #eee;
+      border-bottom: 1px solid #e3e6f0;
+      padding: 20px;
     }
 
     .swagger-ui .opblock {
-      border-radius: 8px;
+      border-radius: 12px;
       border: none;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-      margin-bottom: 15px;
+      box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.1);
+      margin-bottom: 20px;
+      overflow: hidden;
     }
 
     .swagger-ui .opblock .opblock-summary {
-      padding: 15px;
+      padding: 15px 20px;
     }
 
     .swagger-ui .btn.execute {
       background-color: #4e73df;
       color: white;
       border-color: #4e73df;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
 
     .swagger-ui .btn.execute:hover {
       background-color: #2e59d9;
+    }
+
+    .swagger-ui .model-box {
+        border-radius: 8px;
+        background: #f8f9fc;
+        padding: 15px;
     }
   </style>
 @endpush
@@ -292,18 +319,52 @@
         plugins: [
           SwaggerUIBundle.plugins.DownloadUrl
         ],
-        layout: "BaseLayout", // Changed to BaseLayout to remove topsearch bar
+        layout: "BaseLayout",
         docExpansion: 'list',
-        filter: true
+        filter: true,
+        persistAuthorization: true,
+        displayRequestDuration: true
       });
       window.ui = ui;
+
+      // Check system health
+      checkSystemStatus();
     };
+
+    function checkSystemStatus() {
+        const pingUrl = "{{ url('/api/ping') }}";
+        fetch(pingUrl)
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    document.getElementById('last-checked').innerText = 'Online - ' + new Date().toLocaleTimeString();
+                }
+            })
+            .catch(() => {
+                const statusCard = document.querySelector('.border-left-success');
+                statusCard.classList.replace('border-left-success', 'border-left-danger');
+                statusCard.querySelector('.text-success').classList.replace('text-success', 'text-danger');
+                statusCard.querySelector('.bg-success').classList.replace('bg-success', 'text-danger');
+                statusCard.querySelector('.text-gray-800').innerText = 'Issues Detected';
+                document.getElementById('last-checked').innerText = 'Offline';
+            });
+    }
 
     function setActiveLink(element) {
       document.querySelectorAll('.list-group-item').forEach(el => {
         el.classList.remove('active-link');
       });
       element.classList.add('active-link');
+    }
+
+    function copyToClipboard(text, btn) {
+        const originalHtml = btn.innerHTML;
+        navigator.clipboard.writeText(text).then(() => {
+            btn.innerHTML = '<i class="fas fa-check text-success"></i>';
+            setTimeout(() => {
+                btn.innerHTML = originalHtml;
+            }, 2000);
+        });
     }
   </script>
 @endpush

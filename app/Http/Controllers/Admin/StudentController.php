@@ -1805,13 +1805,15 @@ class StudentController extends Controller
     /**
      * Show biometric mapping interface
      */
-    public function biometricMapping()
+    public function biometricMapping(Request $request)
     {
-        // Get basic statistics
-        $totalStudents = Student::where('status', 'active')->count();
-        $mappedStudents = Student::where('status', 'active')
-            ->whereNotNull('biometric_employee_code')
-            ->count();
+        // Get basic statistics - use a single query for performance
+        $statsData = Student::where('status', 'active')
+            ->selectRaw('count(*) as total, count(biometric_employee_code) as mapped')
+            ->first();
+
+        $totalStudents = $statsData->total ?? 0;
+        $mappedStudents = $statsData->mapped ?? 0;
         $unmappedStudents = $totalStudents - $mappedStudents;
         $mappingPercentage = $totalStudents > 0 ? round(($mappedStudents / $totalStudents) * 100, 2) : 0;
 
@@ -1822,77 +1824,37 @@ class StudentController extends Controller
             'mapping_percentage' => $mappingPercentage,
         ];
 
-        // Get all students with current biometric codes and suggestions
-        $students = Student::where('status', 'active')
-            ->with(['batch.course'])
-            ->get()
-            ->map(function ($student) {
-                return [
-                    'id' => $student->id,
-                    'name' => $student->name,
-                    'enrollment_number' => $student->enrollment_number,
-                    'biometric_code' => $student->biometric_employee_code,
-                    'batch_name' => $student->batch->name ?? 'No Batch',
-                    'course_name' => $student->batch->course->name ?? 'No Course',
-                    'suggested_code' => $this->generateBiometricCodeSuggestion($student->enrollment_number),
-                ];
+        // Start query for students
+        $query = Student::where('status', 'active')->with(['batch.course']);
+
+        // Apply search filter if provided
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('enrollment_number', 'like', "%{$search}%")
+                    ->orWhere('biometric_employee_code', 'like', "%{$search}%");
             });
-
-        return view('admin.students.biometric-mapping', compact('stats', 'students'));
-    }
-
-    /**
-     * Generate biometric code suggestion from enrollment number - NUMBERS ONLY
-     */
-    private function generateBiometricCodeSuggestion($enrollmentNumber)
-    {
-        return $this->generateBiometricCodeFromEnrollment($enrollmentNumber);
-    }
-
-    private function generateBiometricCodeFromEnrollment(string $enrollmentNumber): string
-    {
-        try {
-            // Course mapping to numbers
-            $courseMapping = [
-                'ADHM' => '1',
-                'DHM' => '2',
-                'PDHM' => '3',
-                'MDHM' => '4',
-            ];
-
-            // Convert to uppercase for comparison
-            $enrollmentUpper = strtoupper($enrollmentNumber);
-
-            // Find course code
-            $courseCode = '25'; // Default course code
-            foreach ($courseMapping as $course => $number) {
-                if (strpos($enrollmentUpper, $course) !== false) {
-                    $courseCode = $number;
-                    break;
-                }
-            }
-
-            // MODIFICATION 1: Extract all numbers to be used as the student number
-            $studentNumber = preg_replace('/[^0-9]/', '', $enrollmentNumber);
-
-            if (empty($studentNumber)) {
-                // Fallback if no numbers are found in the enrollment string
-                $studentNumber = '0001';
-            }
-
-            // MODIFICATION 2: Combine in the order: Course Code + Student Number
-            $biometricCode = $courseCode.$studentNumber;
-
-            return $biometricCode;
-
-        } catch (\Exception $e) {
-            // A simplified fallback that follows the new logic
-            $numbers = preg_replace('/[^0-9]/', '', $enrollmentNumber);
-            $numbers = empty($numbers) ? '0001' : $numbers;
-
-            return '25'.$numbers;
         }
+
+        // Use pagination for performance
+        $studentsFetch = $query->paginate(100)->withQueryString();
+
+        $students = $studentsFetch->map(function ($student) {
+            return [
+                'id' => $student->id,
+                'name' => $student->name,
+                'enrollment_number' => $student->enrollment_number,
+                'biometric_code' => $student->biometric_employee_code,
+                'batch_name' => $student->batch->name ?? 'No Batch',
+                'course_name' => $student->batch->course->name ?? 'No Course',
+                'suggested_code' => $this->biometricMappingService->generateBiometricCodeFromEnrollment($student->enrollment_number ?? ''),
+            ];
+        });
+
+        return view('admin.students.biometric-mapping', compact('stats', 'students', 'studentsFetch'));
     }
+
 
     /**
      * Bulk update biometric codes via AJAX

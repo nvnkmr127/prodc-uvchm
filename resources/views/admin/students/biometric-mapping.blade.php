@@ -108,9 +108,25 @@
                     <i class="fas fa-magic fa-sm text-white-50"></i> Auto Generate All
                 </button>
             </div>
-            <button type="button" class="btn btn-warning shadow-sm" onclick="saveAllChanges()">
-                <i class="fas fa-save fa-sm text-white-50"></i> Save All Changes
-            </button>
+            <div class="btn-group mr-2" role="group">
+                <button type="button" class="btn btn-warning shadow-sm" onclick="saveAllChanges()">
+                    <i class="fas fa-save fa-sm text-white-50"></i> Save All Changes
+                </button>
+                <button type="button" class="btn btn-outline-danger shadow-sm" onclick="clearSelected()">
+                    <i class="fas fa-trash fa-sm"></i> Clear Selected
+                </button>
+            </div>
+            
+            <form action="{{ route('admin.students.biometric-mapping') }}" method="GET" class="form-inline ml-auto">
+                <div class="input-group">
+                    <input type="search" name="search" class="form-control bg-light border-0 small" placeholder="Search students..." value="{{ request('search') }}">
+                    <div class="input-group-append">
+                        <button class="btn btn-primary" type="submit">
+                            <i class="fas fa-search fa-sm"></i>
+                        </button>
+                    </div>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -180,6 +196,9 @@
                 </tbody>
             </table>
         </div>
+        <div class="mt-3">
+            {{ $studentsFetch->links() }}
+        </div>
     </div>
 </div>
 
@@ -233,10 +252,12 @@ $(document).ready(function() {
     // Add refresh button for manual refresh
     addRefreshButton();
 
-    // Initialize DataTable
+    // Initialize DataTable (Disable client-side paging if handled by server)
     $('#studentsTable').DataTable({
         responsive: true,
-        pageLength: 25,
+        paging: false, // Server side handles paging
+        info: true,
+        searching: false, // Server side handles search via form
         order: [[1, 'asc']], // Sort by name
         columnDefs: [
             { orderable: false, targets: [0, 7] } // Disable sorting on checkbox and actions
@@ -266,6 +287,10 @@ $(document).ready(function() {
         }
     });
 });
+
+function logToServer(level, message) {
+    console.log(`[${level}] ${message}`);
+}
 
 function showImportModal() {
     $('#importModal').modal('show');
@@ -435,9 +460,14 @@ function updateUIWithResults(mappings, results) {
             setTimeout(function() {
                 row.removeClass('table-success');
             }, 3000);
-        } else {
+        } else if (mapping.biometric_code === '' || mapping.biometric_code === null) {
             // Code was cleared
             badge.removeClass('badge-success').addClass('badge-warning').text('Not Set');
+            input.val('');
+            row.addClass('table-info');
+            setTimeout(function() {
+                row.removeClass('table-info');
+            }, 3000);
         }
     });
 }
@@ -506,6 +536,25 @@ function refreshPageData() {
     setTimeout(function() {
         window.location.reload();
     }, 500);
+}
+
+function clearSelected() {
+    var mappings = [];
+    $('.student-checkbox:checked').each(function() {
+        mappings.push({
+            student_id: parseInt($(this).val()),
+            biometric_code: '' // Empty string will clear the code on server
+        });
+    });
+
+    if (mappings.length === 0) {
+        showAlert('warning', 'Please select students to clear their biometric codes');
+        return;
+    }
+
+    if (confirm(`Clear biometric codes for ${mappings.length} selected students?`)) {
+        saveBiometricMapping(mappings, 'bulk');
+    }
 }
 function showAlert(type, message) {
     var alertClass = {

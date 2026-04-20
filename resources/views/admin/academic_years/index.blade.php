@@ -8,7 +8,15 @@
 </div>
 
 @if(session('success'))
-    <div class="alert alert-success">{{ session('success') }}</div>
+    <div class="alert alert-success border-left-success shadow">
+        <i class="fas fa-check-circle me-2"></i>{{ session('success') }}
+    </div>
+@endif
+
+@if(session('error'))
+    <div class="alert alert-danger border-left-danger shadow">
+        <i class="fas fa-exclamation-circle me-2"></i>{{ session('error') }}
+    </div>
 @endif
 
 <!-- Current Academic Year Selector -->
@@ -59,8 +67,10 @@
                         <th>Year Name</th>
                         <th>Start Date</th>
                         <th>End Date</th>
+                        <th>Batches</th>
+                        <th>Students</th>
                         <th>Status</th>
-                        <th style="width: 15%;">Actions</th>
+                        <th style="width: 20%;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -70,19 +80,39 @@
                             <td>{{ \Carbon\Carbon::parse($year->start_date)->format('d M, Y') }}</td>
                             <td>{{ \Carbon\Carbon::parse($year->end_date)->format('d M, Y') }}</td>
                             <td>
+                                <span class="badge badge-info shadow-sm">{{ $year->batches_count }} Batches</span>
+                            </td>
+                            <td>
+                                <span class="badge badge-primary shadow-sm">{{ $year->students_count }} Students</span>
+                            </td>
+                            <td>
                                 @if($year->is_current)
-                                    <span class="badge badge-success">Current Year</span>
+                                    <span class="badge badge-success shadow-sm"><i class="fas fa-check-circle me-1"></i>Active Current</span>
                                 @else
-                                    <span class="badge badge-secondary">Inactive</span>
+                                    <span class="badge badge-secondary shadow-sm">Inactive</span>
+                                @endif
+
+                                @if($year->auto_switch_enabled)
+                                    <div class="mt-1"><span class="badge badge-light border text-info shadow-sm small"><i class="fas fa-magic me-1"></i>Auto-Switch</span></div>
                                 @endif
                             </td>
                             <td>
-                                <a href="{{ route('admin.academic-years.edit', $year) }}" class="btn btn-warning btn-sm" title="Edit"><i class="fas fa-edit"></i></a>
-                                <form action="{{ route('admin.academic-years.destroy', $year) }}" method="POST" class="d-inline">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure?')" title="Delete"><i class="fas fa-trash"></i></button>
-                                </form>
+                                <div class="d-flex gap-1">
+                                    @if(!$year->is_current)
+                                        <form action="{{ route('admin.academic-years.set-current', $year) }}" method="POST" class="d-inline">
+                                            @csrf
+                                            <button type="submit" class="btn btn-outline-success btn-sm" title="Set as Current System Year">
+                                                <i class="fas fa-check"></i> Activate
+                                            </button>
+                                        </form>
+                                    @endif
+                                    <a href="{{ route('admin.academic-years.edit', $year) }}" class="btn btn-warning btn-sm" title="Edit Properties"><i class="fas fa-edit"></i></a>
+                                    <form action="{{ route('admin.academic-years.destroy', $year) }}" method="POST" class="d-inline">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Are you sure? All related data checks will be performed.')" title="Delete Academic Year"><i class="fas fa-trash"></i></button>
+                                    </form>
+                                </div>
                             </td>
                         </tr>
                     @empty
