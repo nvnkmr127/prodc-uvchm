@@ -90,12 +90,6 @@
         color: #721c24;
         border: 1px solid #f5c6cb;
     }
-    
-    .status-suspended {
-        background: #fff3cd;
-        color: #856404;
-        border: 1px solid #ffeaa7;
-    }
 </style>
 @endpush
 
@@ -189,9 +183,6 @@
                                     </option>
                                     <option value="inactive" {{ old('status', $user->status ?? 'active') == 'inactive' ? 'selected' : '' }}>
                                         Inactive
-                                    </option>
-                                    <option value="suspended" {{ old('status', $user->status ?? 'active') == 'suspended' ? 'selected' : '' }}>
-                                        Suspended
                                     </option>
                                 </select>
                             </div>

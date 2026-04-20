@@ -48,6 +48,7 @@
 @endpush
 
 @section('content')
+<div id="usersPage" data-current-user-id="{{ auth()->id() }}"></div>
 <div class="d-sm-flex align-items-center justify-content-between mb-4">
     <h1 class="h3 mb-0 text-gray-800">
         <i class="fas fa-users mr-2"></i>User Management
@@ -219,17 +220,28 @@
                                 @endforelse
                             </td>
                             <td>
-                                <div class="status-toggle" data-user-id="{{ $user->id }}" 
-                                     data-status="{{ $user->email_verified_at ? 'active' : 'inactive' }}">
-                                    @if($user->email_verified_at)
-                                        <span class="badge badge-success status-badge">
-                                            <i class="fas fa-check-circle"></i> Active
-                                        </span>
-                                    @else
-                                        <span class="badge badge-secondary status-badge">
-                                            <i class="fas fa-pause-circle"></i> Inactive
-                                        </span>
-                                    @endif
+                                @php
+                                    $canToggleStatus = !($user->hasRole('super-admin') && !auth()->user()->hasRole('super-admin'));
+                                @endphp
+                                <div class="d-flex align-items-center">
+                                    <div class="custom-control custom-switch">
+                                        <input
+                                            type="checkbox"
+                                            class="custom-control-input js-user-status-switch"
+                                            id="user-status-{{ $user->id }}"
+                                            data-user-id="{{ $user->id }}"
+                                            data-user-name="{{ $user->name }}"
+                                            data-current-status="{{ $user->status }}"
+                                            data-url="{{ route('admin.users.update-status', $user) }}"
+                                            {{ $user->status === 'active' ? 'checked' : '' }}
+                                            {{ $canToggleStatus ? '' : 'disabled' }}
+                                        >
+                                        <label class="custom-control-label" for="user-status-{{ $user->id }}"></label>
+                                    </div>
+                                    <span class="ml-2 badge status-badge js-user-status-badge badge-{{ $user->status === 'active' ? 'success' : 'secondary' }}">
+                                        <i class="fas {{ $user->status === 'active' ? 'fa-check-circle' : 'fa-pause-circle' }}"></i>
+                                        {{ ucfirst($user->status ?? 'inactive') }}
+                                    </span>
                                 </div>
                             </td>
                             <td>
@@ -327,6 +339,28 @@
     </div>
 </div>
 
+<!-- Status Confirmation Modal -->
+<div class="modal fade" id="statusModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="statusModalTitle">Confirm Status Change</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p id="statusModalBody" class="mb-2"></p>
+                <p class="small text-muted mb-0" id="statusModalHint"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirm-status-change">Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Export Form -->
 <form id="export-form" method="GET" action="{{ route('admin.users.export') }}" style="display: none;">
     <input type="hidden" name="role" value="{{ request('role') }}">
@@ -380,43 +414,103 @@ $(document).ready(function() {
         }
     }
 
-    // Status toggle
-    $(document).on('click', '.status-toggle', function() {
-        const userId = $(this).data('user-id');
-        const currentStatus = $(this).data('status');
-        const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
-        const $toggle = $(this);
+    let pendingStatusChange = null;
 
-        // Prevent toggling current user's status to inactive
-        if (userId == {{ auth()->id() }} && newStatus === 'inactive') {
+    function escapeHtml(value) {
+        return String(value)
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#039;');
+    }
+
+    function setRowStatus($row, status) {
+        const $badge = $row.find('.js-user-status-badge');
+        const label = status ? (status.charAt(0).toUpperCase() + status.slice(1)) : 'Inactive';
+        const badgeClass = status === 'active' ? 'badge-success' : 'badge-secondary';
+        const iconClass = status === 'active' ? 'fa-check-circle' : 'fa-pause-circle';
+
+        $row.find('.js-user-status-switch').data('current-status', status);
+        $badge.removeClass('badge-success badge-secondary').addClass(badgeClass);
+        $badge.html(`<i class="fas ${iconClass}"></i> ${label}`);
+    }
+
+    function extractErrorMessage(xhr) {
+        if (xhr.status === 0) return 'Network error. Please check your connection and try again.';
+        if (xhr.status === 419) return 'Session expired. Please refresh the page and try again.';
+        if (xhr.responseJSON && xhr.responseJSON.message) return xhr.responseJSON.message;
+        return 'Failed to update status.';
+    }
+
+    $(document).on('change', '.js-user-status-switch', function() {
+        const $switch = $(this);
+        const userId = Number($switch.data('user-id'));
+        const userName = $switch.data('user-name');
+        const currentStatus = $switch.data('current-status');
+        const intendedStatus = $switch.is(':checked') ? 'active' : 'inactive';
+        const currentUserId = Number($('#usersPage').data('current-user-id') || 0);
+        const $row = $switch.closest('tr');
+
+        $switch.prop('checked', currentStatus === 'active');
+
+        if (userId === currentUserId && intendedStatus === 'inactive') {
             showAlert('error', 'You cannot deactivate your own account.');
             return;
         }
 
+        pendingStatusChange = {
+            $switch,
+            $row,
+            intendedStatus,
+            url: $switch.data('url'),
+            originalDisabled: $switch.is(':disabled'),
+        };
+
+        $('#statusModalTitle').text(intendedStatus === 'active' ? 'Activate User' : 'Deactivate User');
+        $('#statusModalBody').html(`Are you sure you want to ${intendedStatus} <strong>${escapeHtml(userName)}</strong>?`);
+        $('#statusModalHint').text(intendedStatus === 'inactive' ? 'They will not be able to sign in until reactivated.' : 'They will regain access immediately.');
+        $('#statusModal').modal('show');
+    });
+
+    $('#statusModal').on('hidden.bs.modal', function() {
+        pendingStatusChange = null;
+        $('#confirm-status-change').prop('disabled', false).text('Confirm');
+    });
+
+    $('#confirm-status-change').on('click', function() {
+        if (!pendingStatusChange) return;
+
+        const $btn = $(this);
+        $btn.prop('disabled', true).text('Working...');
+
+        const { $switch, $row, intendedStatus, url, originalDisabled } = pendingStatusChange;
+        $switch.prop('disabled', true);
+
         $.ajax({
-            url: `/admin/users/${userId}/status`,
+            url,
             method: 'PATCH',
             data: {
-                status: newStatus,
+                status: intendedStatus,
                 _token: $('meta[name="csrf-token"]').attr('content')
             },
             success: function(response) {
-                if (response.success) {
-                    // Update the toggle
-                    $toggle.data('status', newStatus);
-                    if (newStatus === 'active') {
-                        $toggle.html('<span class="badge badge-success status-badge"><i class="fas fa-check-circle"></i> Active</span>');
-                    } else {
-                        $toggle.html('<span class="badge badge-secondary status-badge"><i class="fas fa-pause-circle"></i> Inactive</span>');
-                    }
-                    showAlert('success', response.message);
-                } else {
-                    showAlert('error', response.message);
+                if (!response || !response.success) {
+                    showAlert('error', response && response.message ? response.message : 'Failed to update status.');
+                    return;
                 }
+
+                setRowStatus($row, intendedStatus);
+                $switch.prop('checked', intendedStatus === 'active');
+                showAlert('success', response.message || 'User status updated.');
+                $('#statusModal').modal('hide');
             },
             error: function(xhr) {
-                const response = xhr.responseJSON;
-                showAlert('error', response.message || 'Failed to update status');
+                showAlert('error', extractErrorMessage(xhr));
+            },
+            complete: function() {
+                $switch.prop('disabled', originalDisabled);
+                $btn.prop('disabled', false).text('Confirm');
             }
         });
     });
@@ -518,6 +612,19 @@ function bulkAction(action) {
             $bulkActions.find('button').prop('disabled', false);
         }
     });
+}
+
+function showAlert(type, message) {
+    const normalizedType = type === 'error' ? 'warning' : type;
+    if (typeof showToast === 'function') {
+        showToast(normalizedType, message);
+        return;
+    }
+    if (window.toastr && typeof window.toastr[normalizedType] === 'function') {
+        window.toastr[normalizedType](message);
+        return;
+    }
+    alert(message);
 }
 
 // Helper function to get role badge color

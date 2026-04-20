@@ -738,6 +738,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
     // --- System & Settings ---
     Route::middleware(['permission:manage settings'])->group(function () {
         // User & Access Control
+        Route::patch('users/{user}/status', [UserController::class, 'updateStatus'])
+            ->name('users.update-status')
+            ->middleware('permission:manage users');
         Route::resource('users', UserController::class)->middleware('permission:manage users');
         Route::get('users/export', [UserController::class, 'export'])->name('users.export');
         Route::post('users/bulk-actions', [UserController::class, 'bulkActions'])->name('users.bulk-actions');

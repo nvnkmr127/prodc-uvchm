@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('inbound_webhooks', function (Blueprint $table) {
-            $table->foreignId('assigned_to_user_id')->nullable()->after('auto_assign')->constrained('users')->onDelete('set null');
+            $table->foreignId('assigned_to_user_id')->nullable()->constrained('users')->nullOnDelete();
         });
     }
 

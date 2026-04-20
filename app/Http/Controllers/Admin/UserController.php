@@ -8,8 +8,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use Throwable;
 
 class UserController extends Controller
 {
@@ -38,11 +40,7 @@ class UserController extends Controller
 
         // Filter by status
         if ($request->filled('status')) {
-            if ($request->status === 'active') {
-                $query->whereNotNull('email_verified_at');
-            } else {
-                $query->whereNull('email_verified_at');
-            }
+            $query->where('status', $request->status);
         }
 
         $users = $query->latest()->paginate(15);
@@ -82,7 +80,8 @@ class UserController extends Controller
                 'name' => $request->name,
                 'email' => $request->email,
                 'password' => Hash::make($request->password),
-                'email_verified_at' => $request->status === 'inactive' ? null : now(),
+                'email_verified_at' => now(),
+                'status' => $request->status ?? 'active',
             ]);
 
             $user->assignRole($request->roles);
@@ -115,7 +114,7 @@ class UserController extends Controller
     public function edit(User $user)
     {
         // Get all roles for the dropdown
-        $roles = Role::all();
+        $roles = Role::with('permissions')->get();
 
         // Get user's current roles
         $userRoles = $user->roles->pluck('id')->toArray();
@@ -150,15 +149,52 @@ class UserController extends Controller
             'password' => 'nullable|min:8|confirmed',
             'roles' => 'nullable|array',
             'roles.*' => 'integer|exists:roles,id', // Changed from string to integer
-            'status' => 'nullable|in:active,inactive,suspended',
+            'status' => 'nullable|in:active,inactive',
         ]);
 
         try {
+            $currentUser = Auth::user();
+            if (! $currentUser instanceof User) {
+                abort(403);
+            }
+
+            if ($user->hasRole('super-admin') && ! $currentUser->hasRole('super-admin')) {
+                return redirect()->back()
+                    ->withInput()
+                    ->with('error', 'You are not allowed to edit a super-admin user.');
+            }
+
+            $requestedStatus = $request->filled('status')
+                ? $request->status
+                : ($user->status ?? 'active');
+
+            if ($user->id === $currentUser->id && $requestedStatus === 'inactive') {
+                return redirect()->back()
+                    ->withInput()
+                    ->with('error', 'You cannot deactivate your own account.');
+            }
+
+            $adminRoleNames = ['admin', 'super-admin'];
+            if ($requestedStatus === 'inactive' && $user->status === 'active' && $user->hasAnyRole($adminRoleNames)) {
+                $activeAdminCount = User::query()
+                    ->where('status', 'active')
+                    ->whereHas('roles', function ($q) use ($adminRoleNames) {
+                        $q->whereIn('name', $adminRoleNames);
+                    })
+                    ->count();
+
+                if ($activeAdminCount <= 1) {
+                    return redirect()->back()
+                        ->withInput()
+                        ->with('error', 'You cannot deactivate the last active admin user.');
+                }
+            }
+
             // Update user basic info
             $userData = [
                 'name' => $request->name,
                 'email' => $request->email,
-                'status' => $request->status ?? 'active',
+                'status' => $requestedStatus,
             ];
 
             // Add password if provided
@@ -167,6 +203,17 @@ class UserController extends Controller
             }
 
             $user->update($userData);
+
+            if ($user->wasChanged('status')) {
+                activity()
+                    ->causedBy($currentUser)
+                    ->performedOn($user)
+                    ->withProperties([
+                        'from' => $user->getOriginal('status'),
+                        'to' => $user->status,
+                    ])
+                    ->log('User status changed');
+            }
 
             // Handle roles with authorization checks
             if ($request->has('roles') && is_array($request->roles)) {
@@ -179,7 +226,7 @@ class UserController extends Controller
                 $roleIds = array_map('intval', $roleIds);
 
                 // Authorization check: Prevent privilege escalation
-                $currentUser = auth()->user();
+                $currentUser = $currentUser;
                 $requestedRoles = Role::whereIn('id', $roleIds)->get();
 
                 // Check if user is trying to assign super-admin role
@@ -205,7 +252,7 @@ class UserController extends Controller
                 app()->make(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
             } else {
                 // Remove all roles if none selected (only if user has permission)
-                if (auth()->user()->hasRole('super-admin') || auth()->user()->can('manage users')) {
+                if ($currentUser->hasRole('super-admin') || $currentUser->can('manage users')) {
                     $user->syncRoles([]);
 
                     // Clear Spatie permission cache
@@ -216,10 +263,15 @@ class UserController extends Controller
             return redirect()->route('admin.users.index')
                 ->with('success', 'User updated successfully.');
 
-        } catch (\Exception $e) {
+        } catch (Throwable $e) {
+            Log::error('User update failed: '.$e->getMessage(), [
+                'target_user_id' => $user->id,
+                'actor_id' => Auth::id(),
+            ]);
+
             return redirect()->back()
                 ->withInput()
-                ->with('error', 'Failed to update user: '.$e->getMessage());
+                ->with('error', 'Failed to update user. Please try again.');
         }
     }
 
@@ -229,13 +281,18 @@ class UserController extends Controller
     public function destroy(User $user)
     {
         // Prevent deleting the current user
-        if ($user->id === auth()->id()) {
+        if ($user->id === Auth::id()) {
             return redirect()->route('admin.users.index')
                 ->with('error', 'You cannot delete your own account.');
         }
 
         // Prevent deleting super-admin users (unless current user is also super-admin)
-        if ($user->hasRole('super-admin') && ! auth()->user()->hasRole('super-admin')) {
+        $currentUser = Auth::user();
+        if (! $currentUser instanceof User) {
+            abort(403);
+        }
+
+        if ($user->hasRole('super-admin') && ! $currentUser->hasRole('super-admin')) {
             return redirect()->route('admin.users.index')
                 ->with('error', 'Cannot delete super-admin users.');
         }
@@ -274,8 +331,22 @@ class UserController extends Controller
             'status' => 'required|in:active,inactive',
         ]);
 
-        // Prevent deactivating current user
-        if ($user->id === auth()->id() && $request->status === 'inactive') {
+        $actor = Auth::user();
+        if (! $actor instanceof User) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized.',
+            ], 401);
+        }
+
+        if ($user->hasRole('super-admin') && ! $actor?->hasRole('super-admin')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You are not allowed to change the status of a super-admin user.',
+            ], 403);
+        }
+
+        if ($user->id === Auth::id() && $request->status === 'inactive') {
             return response()->json([
                 'success' => false,
                 'message' => 'You cannot deactivate your own account.',
@@ -283,19 +354,60 @@ class UserController extends Controller
         }
 
         try {
-            if ($request->status === 'active') {
-                $user->update(['email_verified_at' => now()]);
-            } else {
-                $user->update(['email_verified_at' => null]);
+            $newStatus = $request->status;
+            $oldStatus = $user->status;
+
+            if ($newStatus === $oldStatus) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'No changes were made.',
+                    'status' => $oldStatus,
+                    'user_id' => $user->id,
+                ]);
             }
+
+            $adminRoleNames = ['admin', 'super-admin'];
+            if ($newStatus === 'inactive' && $oldStatus === 'active' && $user->hasAnyRole($adminRoleNames)) {
+                $activeAdminCount = User::query()
+                    ->where('status', 'active')
+                    ->whereHas('roles', function ($q) use ($adminRoleNames) {
+                        $q->whereIn('name', $adminRoleNames);
+                    })
+                    ->count();
+
+                if ($activeAdminCount <= 1) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'You cannot deactivate the last active admin user.',
+                    ], 422);
+                }
+            }
+
+            DB::transaction(function () use ($user, $newStatus, $oldStatus, $actor) {
+                $user->update(['status' => $newStatus]);
+
+                activity()
+                    ->causedBy($actor)
+                    ->performedOn($user)
+                    ->withProperties([
+                        'from' => $oldStatus,
+                        'to' => $newStatus,
+                    ])
+                    ->log('User status changed');
+            });
 
             return response()->json([
                 'success' => true,
                 'message' => 'User status updated successfully.',
-                'status' => $request->status,
+                'status' => $newStatus,
+                'user_id' => $user->id,
             ]);
-        } catch (\Exception $e) {
-            Log::error('Status update failed: '.$e->getMessage());
+        } catch (Throwable $e) {
+            Log::error('Status update failed: '.$e->getMessage(), [
+                'target_user_id' => $user->id,
+                'new_status' => $request->status,
+                'actor_id' => Auth::id(),
+            ]);
 
             return response()->json([
                 'success' => false,
@@ -316,7 +428,11 @@ class UserController extends Controller
         ]);
 
         $users = User::whereIn('id', $request->users)->get();
-        $currentUserId = auth()->id();
+        $currentUserId = Auth::id();
+        $currentUser = Auth::user();
+        if (! $currentUser instanceof User) {
+            abort(403);
+        }
         $count = 0;
         $errors = [];
 
@@ -335,7 +451,7 @@ class UserController extends Controller
                 }
 
                 // Skip super-admins if current user is not super-admin
-                if ($user->hasRole('super-admin') && ! auth()->user()->hasRole('super-admin')) {
+                if ($user->hasRole('super-admin') && ! $currentUser->hasRole('super-admin')) {
                     $errors[] = "Skipped super-admin: {$user->name}";
 
                     continue;
@@ -343,11 +459,41 @@ class UserController extends Controller
 
                 switch ($request->action) {
                     case 'activate':
-                        $user->update(['email_verified_at' => now()]);
+                        if ($user->status !== 'active') {
+                            $oldStatus = $user->status;
+                            $user->update(['status' => 'active']);
+                            activity()
+                                ->causedBy($currentUser)
+                                ->performedOn($user)
+                                ->withProperties(['from' => $oldStatus, 'to' => 'active'])
+                                ->log('User status changed');
+                        }
                         $count++;
                         break;
                     case 'deactivate':
-                        $user->update(['email_verified_at' => null]);
+                        if ($user->hasAnyRole(['admin', 'super-admin']) && $user->status === 'active') {
+                            $activeAdminCount = User::query()
+                                ->where('status', 'active')
+                                ->whereHas('roles', function ($q) {
+                                    $q->whereIn('name', ['admin', 'super-admin']);
+                                })
+                                ->count();
+
+                            if ($activeAdminCount <= 1) {
+                                $errors[] = "Skipped last active admin: {$user->name}";
+                                break;
+                            }
+                        }
+
+                        if ($user->status !== 'inactive') {
+                            $oldStatus = $user->status;
+                            $user->update(['status' => 'inactive']);
+                            activity()
+                                ->causedBy($currentUser)
+                                ->performedOn($user)
+                                ->withProperties(['from' => $oldStatus, 'to' => 'inactive'])
+                                ->log('User status changed');
+                        }
                         $count++;
                         break;
                     case 'delete':
@@ -416,11 +562,7 @@ class UserController extends Controller
         }
 
         if ($request->filled('status')) {
-            if ($request->status === 'active') {
-                $query->whereNotNull('email_verified_at');
-            } else {
-                $query->whereNull('email_verified_at');
-            }
+            $query->where('status', $request->status);
         }
 
         $users = $query->get();
@@ -428,7 +570,7 @@ class UserController extends Controller
         $csvData = "Name,Email,Roles,Status,Created At\n";
         foreach ($users as $user) {
             $roles = $user->roles->pluck('name')->implode('; ');
-            $status = $user->email_verified_at ? 'Active' : 'Inactive';
+            $status = ucfirst($user->status ?? 'inactive');
             $csvData .= "\"{$user->name}\",\"{$user->email}\",\"{$roles}\",\"{$status}\",\"{$user->created_at->format('Y-m-d H:i:s')}\"\n";
         }
 
