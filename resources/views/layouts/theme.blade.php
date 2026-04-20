@@ -14,7 +14,7 @@
     <!-- Font Awesome -->
     <link href="{{ asset('admin_theme/vendor/fontawesome-free/css/all.min.css') }}" rel="stylesheet" type="text/css">
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+Telugu:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Bootstrap & Theme -->
     <link href="{{ asset('admin_theme/css/sb-admin-2.min.css') }}" rel="stylesheet">
     <!-- External Libraries -->
