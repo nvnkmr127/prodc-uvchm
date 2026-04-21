@@ -173,4 +173,12 @@ class User extends Authenticatable
     {
         return $this->hasMany(UserSalaryStructure::class);
     }
+
+    /**
+     * Get enquiries assigned to this user.
+     */
+    public function assignedEnquiries()
+    {
+        return $this->hasMany(Enquiry::class, 'assigned_to_user_id');
+    }
 }

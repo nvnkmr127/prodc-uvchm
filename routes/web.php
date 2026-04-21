@@ -734,6 +734,15 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
         Route::post('reports/certificates/{student}/update-status', [App\Http\Controllers\Admin\CertificateReportController::class, 'updateStatus'])->name('reports.certificates.update-status');
     });
 
+    // Advanced Student Analytics (Accessible via view reports or view analytics)
+    Route::middleware(['auth', 'role_or_permission:super-admin|view reports|view analytics|manage reports'])->prefix('admin/analytics')->name('admin.analytics.')->group(function () {
+        Route::prefix('student')->name('student.')->group(function () {
+            Route::get('/', [App\Http\Controllers\Admin\StudentAnalyticsController::class, 'index'])->name('index');
+            Route::get('/lifecycle', [App\Http\Controllers\Admin\StudentAnalyticsController::class, 'lifecycle'])->name('lifecycle');
+            Route::get('/engagement', [App\Http\Controllers\Admin\StudentAnalyticsController::class, 'engagement'])->name('engagement');
+        });
+    });
+
     // --- System & Settings ---
     Route::middleware(['permission:manage settings'])->group(function () {
         // User & Access Control

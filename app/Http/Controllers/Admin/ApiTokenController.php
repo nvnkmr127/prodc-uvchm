@@ -188,7 +188,7 @@ class ApiTokenController extends Controller
                 $q->whereNull('expires_at')->orWhere('expires_at', '>', now());
             })->count(),
             'expiredTokens' => PersonalAccessToken::where('expires_at', '<', now())->count(),
-            'totalRequests' => PersonalAccessToken::sum('last_used_at' ? 1 : 0), // Placeholder logic if no audit log
+            'totalRequests' => 0, // Placeholder for request tracking
         ];
 
         // For demo purposes, we'll manually set some request counts if column doesn't exist

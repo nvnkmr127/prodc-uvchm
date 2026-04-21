@@ -741,6 +741,11 @@
                                 <a class="collapse-item" href="{{ route('admin.reports.age.index') }}">Age Report</a>
                                 <a class="collapse-item" href="{{ route('admin.reports.certificates.index') }}">Certificate
                                     Reports</a>
+                                <div class="dropdown-divider"></div>
+                                <h6 class="collapse-header text-primary">Advanced Analytics:</h6>
+                                <a class="collapse-item font-weight-bold" href="{{ route('admin.analytics.student.index') }}">
+                                    <i class="fas fa-microscope mr-1 text-primary"></i> Student Analytics Hub
+                                </a>
                             @else
                                 @can('view reports')
                                     <a class="collapse-item" href="{{ route('admin.reports.attendance.index') }}">Attendance
@@ -760,6 +765,11 @@
                                     <a class="collapse-item" href="{{ route('admin.reports.age.index') }}">Age Report</a>
                                     <a class="collapse-item" href="{{ route('admin.reports.certificates.index') }}">Certificate
                                         Reports</a>
+                                    <div class="dropdown-divider"></div>
+                                    <h6 class="collapse-header text-primary">Advanced Analytics:</h6>
+                                    <a class="collapse-item font-weight-bold" href="{{ route('admin.analytics.student.index') }}">
+                                        <i class="fas fa-microscope mr-1 text-primary"></i> Student Analytics Hub
+                                    </a>
                                 @endcan
                             @endif
                         </div>
