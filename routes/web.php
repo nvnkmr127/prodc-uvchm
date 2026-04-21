@@ -735,7 +735,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
     });
 
     // Advanced Student Analytics (Accessible via view reports or view analytics)
-    Route::middleware(['auth', 'role_or_permission:super-admin|view reports|view analytics|manage reports'])->prefix('admin/analytics')->name('admin.analytics.')->group(function () {
+    Route::middleware(['role_or_permission:super-admin|view reports|view analytics|manage reports'])->prefix('analytics')->name('analytics.')->group(function () {
         Route::prefix('student')->name('student.')->group(function () {
             Route::get('/', [App\Http\Controllers\Admin\StudentAnalyticsController::class, 'index'])->name('index');
             Route::get('/lifecycle', [App\Http\Controllers\Admin\StudentAnalyticsController::class, 'lifecycle'])->name('lifecycle');
