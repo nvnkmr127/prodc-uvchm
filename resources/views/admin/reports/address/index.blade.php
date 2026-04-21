@@ -1,161 +1,142 @@
 @extends('layouts.theme')
 
-@section('title', 'Advanced Address Intelligence')
+@section('title', 'Advanced Address Intelligence Hub')
 
 @section('content')
 <div class="container-fluid">
     <!-- Header Section -->
     <div class="d-sm-flex align-items-center justify-content-between mb-4">
         <div>
-            <h1 class="h3 mb-1 text-gray-800 font-weight-bold">Advanced Address Intelligence</h1>
-            <p class="text-muted small mb-0">Deep-dive analysis of geographical distribution and capture sources</p>
+            <h1 class="h3 mb-1 text-gray-800 font-weight-bold">Advanced Address Intelligence Hub</h1>
+            <p class="text-muted small mb-0">Interactive geographical visualization & source analytics</p>
         </div>
         <div class="d-flex">
             <button onclick="window.print()" class="btn btn-sm btn-outline-primary shadow-sm mr-2">
                 <i class="fas fa-print fa-sm mr-1"></i> Print PDF
             </button>
             <a href="{{ route('admin.reports.address.export', request()->all()) }}" class="btn btn-sm btn-primary shadow-sm">
-                <i class="fas fa-file-excel fa-sm mr-1"></i> Export Data
+                <i class="fas fa-file-excel fa-sm mr-1"></i> Export Dataset
             </a>
         </div>
     </div>
 
-    <!-- Quick Stats Row (Dashboard) -->
-    <div class="row mb-4">
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-primary shadow h-100 py-2 border-0 glass-card">
+    <!-- Analytical Charts Row -->
+    <div class="row mb-4 d-print-none">
+        <div class="col-lg-7">
+            <div class="card shadow border-0 mb-4 h-100">
+                <div class="card-header py-3 bg-white d-flex align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">Regional Catchment (Top 7)</h6>
+                    <span class="badge badge-primary-soft text-primary">Based on {{ $stats['total'] }} records</span>
+                </div>
                 <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Impact Reach</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ number_format($stats['total']) }}</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-globe-asia fa-2x text-gray-300"></i>
-                        </div>
+                    <div class="chart-container" style="position: relative; height:280px;">
+                        <canvas id="regionalBarChart"></canvas>
                     </div>
                 </div>
             </div>
         </div>
-
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-success shadow h-100 py-2 border-0 glass-card">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Enrolled Base</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ number_format($stats['students']) }}</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-user-graduate fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
+        <div class="col-lg-5">
+            <div class="card shadow border-0 mb-4 h-100">
+                <div class="card-header py-3 bg-white">
+                    <h6 class="m-0 font-weight-bold text-primary">Academic Distribution Share</h6>
                 </div>
-            </div>
-        </div>
-
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-info shadow h-100 py-2 border-0 glass-card">
                 <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Lead Pipeline</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ number_format($stats['enquiries']) }}</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-user-tag fa-2x text-gray-300"></i>
-                        </div>
+                    <div class="chart-container" style="position: relative; height:220px;">
+                        <canvas id="courseDoughnutChart"></canvas>
                     </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-warning shadow h-100 py-2 border-0 glass-card">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Dominant Area</div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">
-                                {{ $stats['top_addresses']->first()->address ?? 'N/A' }}
-                            </div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-map-marked-alt fa-2x text-gray-300"></i>
-                        </div>
-                    </div>
+                    <div id="courseLegend" class="mt-4 text-center small font-weight-bold row no-gutters"></div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Filters Section (Expanded for new requirements) -->
-    <div class="card shadow mb-4 border-0">
-        <div class="card-header py-3 bg-white d-flex justify-content-between align-items-center">
-            <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-filter mr-2"></i>Advanced Filtering Suite</h6>
-        </div>
-        <div class="card-body bg-light border-bottom">
-            <form action="{{ route('admin.reports.address.index') }}" method="GET">
-                <div class="row">
-                    <div class="col-md-3 mb-3">
-                        <label class="small font-weight-bold text-muted">Academic Program</label>
-                        <select name="course_id" class="form-control select2">
-                            <option value="">All Programs</option>
-                            @foreach($courses as $course)
-                                <option value="{{ $course->id }}" {{ $courseId == $course->id ? 'selected' : '' }}>
-                                    {{ $course->name }}
-                                </option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-md-3 mb-3">
-                        <label class="small font-weight-bold text-muted">Capture Source</label>
-                        <select name="source" class="form-control">
-                            <option value="">All Sources</option>
-                            @foreach($sources as $src)
-                                <option value="{{ $src }}" {{ $source == $src ? 'selected' : '' }}>{{ $src }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    <div class="col-md-2 mb-3">
-                        <label class="small font-weight-bold text-muted">Entry Type</label>
-                        <select name="type" class="form-control">
-                            <option value="">Mixed Records</option>
-                            <option value="Student" {{ $type == 'Student' ? 'selected' : '' }}>Students Only</option>
-                            <option value="Enquiry" {{ $type == 'Enquiry' ? 'selected' : '' }}>Enquiries Only</option>
-                        </select>
-                    </div>
-                    <div class="col-md-2 mb-3">
-                        <label class="small font-weight-bold text-muted">Summarize By</label>
-                        <select name="group_by" class="form-control text-primary font-weight-bold">
-                            <option value="none" {{ $groupBy == 'none' ? 'selected' : '' }}>No Grouping</option>
-                            <option value="address" {{ $groupBy == 'address' ? 'selected' : '' }}>Area/Village</option>
-                            <option value="course" {{ $groupBy == 'course' ? 'selected' : '' }}>Course Name</option>
-                            <option value="type" {{ $groupBy == 'type' ? 'selected' : '' }}>Record Type</option>
-                        </select>
-                    </div>
-                    <div class="col-md-2 mb-3">
-                        <label class="small font-weight-bold text-muted">&nbsp;</label>
-                        <button type="submit" class="btn btn-primary btn-block shadow-sm">
-                            <i class="fas fa-search fa-sm mr-1"></i> Filter
-                        </button>
+    <!-- Quick Stats Summary Row -->
+    <div class="row mb-4">
+        @php
+            $statCards = [
+                ['title' => 'Global Interactions', 'value' => $stats['total'], 'icon' => 'fa-users', 'color' => 'primary'],
+                ['title' => 'Enrolled Base', 'value' => $stats['students'], 'icon' => 'fa-graduation-cap', 'color' => 'success'],
+                ['title' => 'Lead Pipeline', 'value' => $stats['enquiries'], 'icon' => 'fa-funnel-dollar', 'color' => 'info'],
+                ['title' => 'Primary Area', 'value' => $stats['top_addresses']->first()->address ?? 'N/A', 'icon' => 'fa-place-of-worship', 'color' => 'warning'],
+            ];
+        @endphp
+        @foreach($statCards as $card)
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card border-left-{{ $card['color'] }} shadow-sm h-100 py-2 border-0 stats-card">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xxs font-weight-bold text-{{ $card['color'] }} text-uppercase mb-1">{{ $card['title'] }}</div>
+                                <div class="h5 mb-0 font-weight-bold text-gray-800">{{ is_numeric($card['value']) ? number_format($card['value']) : $card['value'] }}</div>
+                            </div>
+                            <div class="col-auto">
+                                <i class="fas {{ $card['icon'] }} fa-2x text-gray-200"></i>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="row pt-2 border-top mt-2">
+            </div>
+        @endforeach
+    </div>
+
+    <!-- Search & Filters Toolset -->
+    <div class="card shadow mb-4 border-0">
+        <div class="card-header py-3 bg-white border-bottom-0">
+            <h6 class="m-0 font-weight-bold text-dark">Refinement Terminal</h6>
+        </div>
+        <div class="card-body bg-light border-top border-bottom">
+            <form action="{{ route('admin.reports.address.index') }}" method="GET" id="filterForm">
+                <div class="row mb-3">
                     <div class="col-md-3">
-                        <label class="small font-weight-bold text-muted">District</label>
-                        <input type="text" name="district" class="form-control form-control-sm" placeholder="Enter District" value="{{ $district }}">
+                        <label class="small text-muted font-weight-bold">Academic Stream</label>
+                        <select name="course_id" class="form-control select2 custom-select-sm" onchange="this.form.submit()">
+                            <option value="">All Programs</option>
+                            @foreach($courses as $course)
+                                <option value="{{ $course->id }}" {{ ($courseId ?? '') == $course->id ? 'selected' : '' }}>{{ $course->name }}</option>
+                            @endforeach
+                        </select>
                     </div>
                     <div class="col-md-3">
-                        <label class="small font-weight-bold text-muted">Mandal</label>
-                        <input type="text" name="mandal" class="form-control form-control-sm" placeholder="Enter Mandal" value="{{ $mandal }}">
+                        <label class="small text-muted font-weight-bold">Lead Source</label>
+                        <select name="source" class="form-control custom-select-sm" onchange="this.form.submit()">
+                            <option value="">All Discovery Sources</option>
+                            @foreach($sources as $src)
+                                <option value="{{ $src }}" {{ ($source ?? '') == $src ? 'selected' : '' }}>{{ $src }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="small text-muted font-weight-bold">Record Pivot</label>
+                        <select name="group_by" class="form-control custom-select-sm font-weight-bold text-primary" onchange="this.form.submit()">
+                            <option value="none" {{ ($groupBy ?? '') == 'none' ? 'selected' : '' }}>Independent View</option>
+                            <option value="address" {{ ($groupBy ?? '') == 'address' ? 'selected' : '' }}>Group by Area</option>
+                            <option value="course" {{ ($groupBy ?? '') == 'course' ? 'selected' : '' }}>Group by Course</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="small text-muted font-weight-bold">Show Records</label>
+                        <select name="per_page" class="form-control custom-select-sm" onchange="this.form.submit()">
+                            @foreach([10, 25, 50, 100, 200] as $size)
+                                <option value="{{ $size }}" {{ ($perPage ?? 25) == $size ? 'selected' : '' }}>{{ $size }} per page</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary btn-sm btn-block shadow-sm">Apply Filters</button>
+                    </div>
+                </div>
+                <div class="row small-filter-row">
+                    <div class="col-md-2">
+                        <input type="text" name="district" class="form-control form-control-sm" placeholder="Filter District..." value="{{ $district ?? '' }}">
+                    </div>
+                    <div class="col-md-2">
+                        <input type="text" name="mandal" class="form-control form-control-sm" placeholder="Filter Mandal..." value="{{ $mandal ?? '' }}">
                     </div>
                     <div class="col-md-6">
-                        <label class="small font-weight-bold text-muted">Global Search (Name, Mobile, Area)</label>
                         <div class="input-group">
-                            <input type="text" name="search" class="form-control form-control-sm" placeholder="Search anything..." value="{{ $search }}">
+                            <input type="text" name="search" class="form-control form-control-sm" placeholder="Scan names, mobiles, or specific address details..." value="{{ $search ?? '' }}">
                             <div class="input-group-append">
-                                <a href="{{ route('admin.reports.address.index') }}" class="btn btn-outline-secondary btn-sm">Clear All</a>
+                                <a href="{{ route('admin.reports.address.index') }}" class="btn btn-outline-secondary btn-sm">Reset</a>
                             </div>
                         </div>
                     </div>
@@ -164,101 +145,92 @@
         </div>
     </div>
 
-    <!-- Results Table -->
-    <div class="card shadow mb-4 border-0">
+    <!-- Enhanced Data Table -->
+    <div class="card shadow mb-4 border-0 results-container">
         <div class="card-header py-3 bg-white d-flex justify-content-between align-items-center">
-            <h6 class="m-0 font-weight-bold text-dark">Data Distribution - Page {{ $paginatedResults->currentPage() }}</h6>
-            <span class="small text-muted">Showing {{ $paginatedResults->firstItem() }} to {{ $paginatedResults->lastItem() }} of {{ $stats['total'] }} records</span>
+            <span class="small font-weight-bold text-muted">Page {{ $paginatedResults->currentPage() }} | Record {{ $paginatedResults->firstItem() }} to {{ $paginatedResults->lastItem() }}</span>
+            <div class="status-indicator d-flex small font-weight-bold">
+                <span class="mr-3"><i class="fas fa-circle text-success mr-1"></i> Students</span>
+                <span><i class="fas fa-circle text-info mr-1"></i> Enquiries</span>
+            </div>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table table-hover align-items-center mb-0">
                     <thead class="bg-gray-100">
+                        @php
+                            function sortLink($col, $label, $currentSort, $currentDir) {
+                                $dir = ($currentSort == $col && $currentDir == 'asc') ? 'desc' : 'asc';
+                                $icon = $currentSort == $col ? ($currentDir == 'asc' ? 'fa-sort-up' : 'fa-sort-down') : 'fa-sort';
+                                $url = request()->fullUrlWithQuery(['sort_by' => $col, 'sort_dir' => $dir]);
+                                return "<a href=\"{$url}\" class=\"text-secondary d-flex justify-content-between align-items-center\">
+                                            <span>{$label}</span>
+                                            <i class=\"fas {$icon} ml-1\" style=\"opacity: 0.5\"></i>
+                                        </a>";
+                            }
+                        @endphp
                         <tr>
-                            <th class="px-4 py-3 text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">#</th>
-                            <th class="py-3 text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Name & Contact</th>
-                            <th class="py-3 text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Classification</th>
-                            <th class="py-3 text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Source</th>
-                            <th class="py-3 text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Exact Location</th>
-                            <th class="py-3 text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Academic Stream</th>
-                            <th class="py-3 text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Status</th>
+                            <th class="px-4 py-3 text-uppercase text-xxs font-weight-bolder opacity-7">#</th>
+                            <th class="py-3 text-uppercase text-xxs font-weight-bolder opacity-7">{!! sortLink('name', 'Identification', $sortBy, $sortDir) !!}</th>
+                            <th class="py-3 text-uppercase text-xxs font-weight-bolder opacity-7">Class</th>
+                            <th class="py-3 text-uppercase text-xxs font-weight-bolder opacity-7">{!! sortLink('phone', 'Contact', $sortBy, $sortDir) !!}</th>
+                            <th class="py-3 text-uppercase text-xxs font-weight-bolder opacity-7">{!! sortLink('address', 'Location', $sortBy, $sortDir) !!}</th>
+                            <th class="py-3 text-uppercase text-xxs font-weight-bolder opacity-7">{!! sortLink('course_name', 'Course', $sortBy, $sortDir) !!}</th>
+                            <th class="py-3 text-uppercase text-xxs font-weight-bolder opacity-7">{!! sortLink('status', 'Outcome', $sortBy, $sortDir) !!}</th>
                         </tr>
                     </thead>
                     <tbody>
                         @if($groupBy !== 'none')
                             @php $count = $paginatedResults->firstItem(); @endphp
                             @forelse($results as $group => $items)
-                                <tr class="group-header bg-light" style="cursor: pointer;" onclick="toggleGroup('grp-{{ $loop->index }}')">
+                                <tr class="group-strip bg-white border-bottom" style="cursor: pointer;" onclick="toggleGroup('grp-{{ $loop->index }}')">
                                     <td colspan="7" class="px-4 py-3">
                                         <div class="d-flex align-items-center">
-                                            <i class="fas fa-chevron-down mr-2 transition-icon" id="icon-grp-{{ $loop->index }}"></i>
-                                            <span class="h6 mb-0 font-weight-bold text-primary">{{ $group ?: 'N/A' }}</span>
-                                            <span class="badge badge-pill badge-primary-soft ml-3 px-3 border border-primary text-primary">{{ count($items) }} on this page</span>
+                                            <i class="fas fa-dot-circle text-primary mr-2"></i>
+                                            <span class="h6 mb-0 font-weight-bold text-dark">{{ $group ?: 'N/A' }}</span>
+                                            <span class="badge badge-light border rounded-pill ml-3 px-3">{{ count($items) }} Batch Records</span>
+                                            <i class="fas fa-chevron-down ml-auto transition-icon" id="icon-grp-{{ $loop->index }}"></i>
                                         </div>
                                     </td>
                                 </tr>
                                 @foreach($items as $item)
-                                    <tr class="grp-{{ $parentLoop = $loop->parent->index }}">
-                                        <td class="px-4 small">{{ $count++ }}</td>
+                                    <tr class="grp-{{ $parentLoop = $loop->parent->index }} d-none record-row">
+                                        <td class="px-4 small text-muted">{{ $count++ }}</td>
+                                        <td class="font-weight-bold text-darker">{{ $item->name }}</td>
                                         <td>
-                                            <div class="d-flex flex-column">
-                                                <span class="font-weight-bold text-dark">{{ $item->name }}</span>
-                                                <span class="text-xs text-muted"><i class="fas fa-phone-alt mr-1"></i> {{ $item->phone }}</span>
-                                            </div>
+                                            <span class="badge badge-dot-lg bg-{{ $item->entity_type == 'Student' ? 'success' : 'info' }}"></span>
+                                            <span class="small text-muted">{{ $item->entity_type }}</span>
                                         </td>
-                                        <td>
-                                            <span class="badge badge-pill {{ $item->entity_type == 'Student' ? 'bg-success-soft text-success' : 'bg-info-soft text-info' }} px-3">
-                                                <i class="fas {{ $item->entity_type == 'Student' ? 'fa-user-graduate' : 'fa-user-edit' }} mr-1"></i>
-                                                {{ $item->entity_type }}
-                                            </span>
-                                        </td>
-                                        <td class="small text-muted">{{ $item->source ?: 'Direct' }}</td>
-                                        <td>
-                                            <div class="small">
-                                                <i class="fas fa-map-marker-alt text-danger opacity-5 mr-1"></i>
-                                                {{ $item->address ?: 'N/A' }}
-                                            </div>
-                                        </td>
+                                        <td class="small">{{ $item->phone }}</td>
+                                        <td class="small"><i class="fas fa-map-pin text-danger opacity-5 mr-1"></i> {{ $item->address ?: 'N/A' }}</td>
                                         <td class="small font-weight-bold">{{ $item->course_name ?: 'N/A' }}</td>
                                         <td>
-                                            <span class="badge badge-light border rounded-pill px-3 py-1">{{ ucfirst($item->status) }}</span>
+                                            <span class="badge badge-outline rounded-pill px-3 py-1 small">{{ ucfirst($item->status) }}</span>
                                         </td>
                                     </tr>
                                 @endforeach
                             @empty
-                                <tr><td colspan="7" class="text-center py-5">No records found</td></tr>
+                                <tr><td colspan="7" class="text-center py-5">No geographical matches found</td></tr>
                             @endforelse
                         @else
                             @php $count = $paginatedResults->firstItem(); @endphp
                             @forelse($paginatedResults as $item)
                                 <tr>
-                                    <td class="px-4 small">{{ $count++ }}</td>
+                                    <td class="px-4 small text-muted">{{ $count++ }}</td>
+                                    <td class="font-weight-bold text-darker">{{ $item->name }}</td>
                                     <td>
-                                        <div class="d-flex flex-column">
-                                            <span class="font-weight-bold text-dark">{{ $item->name }}</span>
-                                            <span class="text-xs text-muted"><i class="fas fa-phone-alt mr-1"></i> {{ $item->phone }}</span>
-                                        </div>
+                                        <span class="badge badge-dot-lg bg-{{ $item->entity_type == 'Student' ? 'success' : 'info' }}"></span>
+                                        <span class="small text-muted">{{ $item->entity_type }}</span>
                                     </td>
-                                    <td>
-                                        <span class="badge badge-pill {{ $item->entity_type == 'Student' ? 'bg-success-soft text-success' : 'bg-info-soft text-info' }} px-3">
-                                            <i class="fas {{ $item->entity_type == 'Student' ? 'fa-user-graduate' : 'fa-user-edit' }} mr-1"></i>
-                                            {{ $item->entity_type }}
-                                        </span>
-                                    </td>
-                                    <td class="small text-muted">{{ $item->source ?: 'Direct' }}</td>
-                                    <td>
-                                        <div class="small">
-                                            <i class="fas fa-map-marker-alt text-danger opacity-5 mr-1"></i>
-                                            {{ $item->address ?: 'N/A' }}
-                                        </div>
-                                    </td>
+                                    <td class="small">{{ $item->phone }}</td>
+                                    <td class="small"><i class="fas fa-map-pin text-danger opacity-5 mr-1"></i> {{ $item->address ?: 'N/A' }}</td>
                                     <td class="small font-weight-bold">{{ $item->course_name ?: 'N/A' }}</td>
                                     <td>
-                                        <span class="badge badge-light border rounded-pill px-3 py-1">{{ ucfirst($item->status) }}</span>
+                                        <span class="badge badge-outline rounded-pill px-3 py-1 small">{{ ucfirst($item->status) }}</span>
                                     </td>
                                 </tr>
                             @empty
-                                <tr><td colspan="7" class="text-center py-5">No records found</td></tr>
+                                <tr><td colspan="7" class="text-center py-5">No geographical matches found</td></tr>
                             @endforelse
                         @endif
                     </tbody>
@@ -273,33 +245,90 @@
 
 @push('styles')
 <style>
-    .glass-card { background: rgba(255, 255, 255, 0.9); border: 1px solid rgba(255, 255, 255, 0.2); }
-    .bg-success-soft { background-color: #e6fffa; }
-    .bg-info-soft { background-color: #e6f6ff; }
-    .badge-primary-soft { background-color: #f0f4ff; }
-    .text-xxs { font-size: 0.65rem; }
-    .transition-icon { transition: transform 0.2s ease; }
+    .stats-card { transition: transform 0.2s; cursor: default; }
+    .stats-card:hover { transform: translateY(-3px); }
+    .text-darker { color: #2e384d; }
+    .badge-dot-lg { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+    .badge-outline { border: 1px solid #e3e6f0; color: #858796; }
+    .transition-icon { transition: transform 0.3s; }
     .rotate-180 { transform: rotate(-180deg); }
-    
-    .pagination .page-item.active .page-link {
-        background-color: #4e73df;
-        border-color: #4e73df;
-    }
+    .bg-primary-soft { background-color: #f0f7ff; }
+    .record-row:hover { background-color: #fbfcfe; }
+    .text-xxs { font-size: 0.6rem; }
     
     @media print {
-        .d-print-none, .btn, .card-header, .card-footer, form, .pagination { display: none !important; }
+        .d-print-none, .card-footer, .card-header button, form { display: none !important; }
         .card { border: none !important; box-shadow: none !important; }
-        .container-fluid { padding: 0 !important; }
+        .table tr.d-none { display: table-row !important; }
     }
 </style>
 @endpush
 
 @push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     function toggleGroup(groupId) {
         document.querySelectorAll('.' + groupId).forEach(el => el.classList.toggle('d-none'));
         document.getElementById('icon-' + groupId).classList.toggle('rotate-180');
     }
+
+    const chartColors = ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b', '#858796', '#5a5c69'];
+
+    // 1. Regional Bar Chart (3D Effect with shadow)
+    new Chart(document.getElementById('regionalBarChart'), {
+        type: 'bar',
+        data: {
+            labels: {!! json_encode($stats['top_addresses']->pluck('address')) !!},
+            datasets: [{
+                label: 'Reach Intensity',
+                data: {!! json_encode($stats['top_addresses']->pluck('count')) !!},
+                backgroundColor: chartColors[0] + 'CC',
+                borderColor: chartColors[0],
+                borderWidth: 1,
+                borderRadius: 8,
+                hoverBackgroundColor: chartColors[0]
+            }]
+        },
+        options: {
+            maintainAspectRatio: false,
+            scales: { 
+                y: { beginAtZero: true, grid: { borderDash: [2], color: '#f0f0f0' } },
+                x: { grid: { display: false } }
+            },
+            plugins: { legend: { display: false } }
+        }
+    });
+
+    // 2. Course Doughnut Chart
+    const courseLabels = {!! json_encode($stats['course_dist']->pluck('course_name')) !!};
+    const courseData = {!! json_encode($stats['course_dist']->pluck('count')) !!};
+
+    const courseChart = new Chart(document.getElementById('courseDoughnutChart'), {
+        type: 'doughnut',
+        data: {
+            labels: courseLabels,
+            datasets: [{
+                data: courseData,
+                backgroundColor: chartColors,
+                borderWidth: 2,
+                borderColor: '#ffffff'
+            }]
+        },
+        options: {
+            maintainAspectRatio: false,
+            cutout: '70%',
+            plugins: { legend: { display: false } }
+        }
+    });
+
+    // Generate Custom Legend
+    const legendContainer = document.getElementById('courseLegend');
+    courseLabels.forEach((label, i) => {
+        const div = document.createElement('div');
+        div.className = 'col-6 col-md-4 mb-2 d-flex align-items-center';
+        div.innerHTML = `<i class="fas fa-circle mr-1" style="color: ${chartColors[i % chartColors.length]}"></i> ${label} (${courseData[i]})`;
+        legendContainer.appendChild(div);
+    });
 </script>
 @endpush
 @endsection

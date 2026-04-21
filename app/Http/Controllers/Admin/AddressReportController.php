@@ -95,8 +95,11 @@ class AddressReportController extends Controller
     {
         $finalQuery = $this->getBaseQuery($request);
         $groupBy = $request->input('group_by', 'none');
+        $perPage = $request->input('per_page', 25);
+        $sortBy = $request->input('sort_by', 'created_at');
+        $sortDir = $request->input('sort_dir', 'desc');
 
-        // --- Stats ---
+        // --- Stats & Distributions for Charts ---
         $stats = [
             'total' => $finalQuery->count(),
             'students' => (clone $finalQuery)->where('entity_type', 'Student')->count(),
@@ -107,19 +110,34 @@ class AddressReportController extends Controller
                 ->whereNotNull('address')
                 ->groupBy('address')
                 ->orderBy('count', 'desc')
-                ->limit(5)
+                ->limit(7)
+                ->get(),
+            'course_dist' => (clone $finalQuery)
+                ->select('course_name', DB::raw('count(*) as count'))
+                ->whereNotNull('course_name')
+                ->groupBy('course_name')
+                ->get(),
+            'status_dist' => (clone $finalQuery)
+                ->select('status', DB::raw('count(*) as count'))
+                ->groupBy('status')
                 ->get(),
         ];
 
-        // Apply Sorting
+        // Apply Sorting Logic
         if ($groupBy !== 'none') {
             $sortColumn = $groupBy === 'address' ? 'address' : ($groupBy === 'course' ? 'course_name' : 'entity_type');
             $finalQuery->orderBy($sortColumn, 'asc');
         } else {
-            $finalQuery->orderBy('created_at', 'desc');
+            // Validate sort column to prevent SQL injection or errors
+            $allowedSorts = ['name', 'phone', 'address', 'course_name', 'status', 'created_at'];
+            if (in_array($sortBy, $allowedSorts)) {
+                $finalQuery->orderBy($sortBy, $sortDir);
+            } else {
+                $finalQuery->orderBy('created_at', 'desc');
+            }
         }
 
-        $paginatedResults = $finalQuery->paginate(50)->appends($request->all());
+        $paginatedResults = $finalQuery->paginate($perPage)->appends($request->all());
         $results = $paginatedResults->getCollection();
 
         if ($groupBy !== 'none') {
@@ -129,7 +147,7 @@ class AddressReportController extends Controller
             });
         }
 
-        // Metadata for filters
+        // Dropdown Data
         $courses = Course::orderBy('name')->get();
         $sources = array_unique(array_merge(
             Enquiry::whereNotNull('source')->distinct()->pluck('source')->toArray(),
@@ -137,23 +155,10 @@ class AddressReportController extends Controller
         ));
         sort($sources);
 
-        $viewData = [
-            'results' => $results,
-            'paginatedResults' => $paginatedResults,
-            'courses' => $courses,
-            'sources' => $sources,
-            'stats' => $stats,
-            'courseId' => $request->input('course_id'),
-            'type' => $request->input('type'),
-            'status' => $request->input('status'),
-            'groupBy' => $request->input('group_by', 'none'),
-            'source' => $request->input('source'),
-            'district' => $request->input('district'),
-            'mandal' => $request->input('mandal'),
-            'search' => $request->input('search'),
-        ];
-
-        return view('admin.reports.address.index', $viewData);
+        return view('admin.reports.address.index', array_merge(
+            compact('results', 'paginatedResults', 'courses', 'sources', 'stats', 'perPage', 'sortBy', 'sortDir'),
+            $request->all()
+        ));
     }
 
     public function export(Request $request)
