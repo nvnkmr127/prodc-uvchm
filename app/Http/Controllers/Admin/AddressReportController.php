@@ -94,6 +94,15 @@ class AddressReportController extends Controller
     public function index(Request $request)
     {
         $finalQuery = $this->getBaseQuery($request);
+        
+        // Extract inputs for view and filtering logic
+        $courseId = $request->input('course_id');
+        $type = $request->input('type');
+        $status = $request->input('status');
+        $source = $request->input('source');
+        $district = $request->input('district');
+        $mandal = $request->input('mandal');
+        $search = $request->input('search');
         $groupBy = $request->input('group_by', 'none');
         $perPage = $request->input('per_page', 25);
         $sortBy = $request->input('sort_by', 'created_at');
@@ -155,9 +164,9 @@ class AddressReportController extends Controller
         ));
         sort($sources);
 
-        return view('admin.reports.address.index', array_merge(
-            compact('results', 'paginatedResults', 'courses', 'sources', 'stats', 'perPage', 'sortBy', 'sortDir'),
-            $request->all()
+        return view('admin.reports.address.index', compact(
+            'results', 'paginatedResults', 'courses', 'sources', 'stats', 'perPage', 'sortBy', 'sortDir',
+            'groupBy', 'courseId', 'type', 'status', 'source', 'district', 'mandal', 'search'
         ));
     }
 
