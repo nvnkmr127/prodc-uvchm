@@ -739,6 +739,7 @@
                                 <a class="collapse-item" href="{{ route('admin.reports.referrals.index') }}">Referral
                                     Tracking</a>
                                 <a class="collapse-item" href="{{ route('admin.reports.age.index') }}">Age Report</a>
+                                <a class="collapse-item" href="{{ route('admin.reports.address.index') }}">Address Report</a>
                                 <a class="collapse-item" href="{{ route('admin.reports.certificates.index') }}">Certificate
                                     Reports</a>
                                 <div class="dropdown-divider"></div>
@@ -763,6 +764,7 @@
                                     <a class="collapse-item" href="{{ route('admin.reports.referrals.index') }}">Referral
                                         Tracking</a>
                                     <a class="collapse-item" href="{{ route('admin.reports.age.index') }}">Age Report</a>
+                                    <a class="collapse-item" href="{{ route('admin.reports.address.index') }}">Address Report</a>
                                     <a class="collapse-item" href="{{ route('admin.reports.certificates.index') }}">Certificate
                                         Reports</a>
                                     <div class="dropdown-divider"></div>
