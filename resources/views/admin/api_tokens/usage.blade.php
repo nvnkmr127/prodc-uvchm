@@ -1,4 +1,4 @@
-@extends('layouts.admin')
+@extends('layouts.theme')
 
 @section('title', 'API Token Usage')
 

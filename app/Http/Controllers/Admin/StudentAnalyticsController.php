@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Admission;
 use App\Models\Attendance;
+use App\Models\Batch;
+use App\Models\Course;
 use App\Models\Enquiry;
 use App\Models\FollowUp;
 use App\Models\Student;
