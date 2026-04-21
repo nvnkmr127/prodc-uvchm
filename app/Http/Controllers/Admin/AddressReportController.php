@@ -81,10 +81,25 @@ class AddressReportController extends Controller
         $combinedQuery = $studentQuery->unionAll($enquiryQuery);
 
         // Sorting & Grouping Logic
-        // UNION results cannot be easily grouped by in standard SQL without a wrapper
         $finalQuery = DB::table(DB::raw("({$combinedQuery->toSql()}) as combined"))
             ->mergeBindings($combinedQuery);
 
+        // --- CALCULATE ANALYTICS BEFORE GETTING ALL RESULTS ---
+        $stats = [
+            'total' => $finalQuery->count(),
+            'students' => (clone $finalQuery)->where('entity_type', 'Student')->count(),
+            'enquiries' => (clone $finalQuery)->where('entity_type', 'Enquiry')->count(),
+            'top_addresses' => (clone $finalQuery)
+                ->select('address', DB::raw('count(*) as count'))
+                ->whereNotNull('address')
+                ->where('address', '!=', '')
+                ->groupBy('address')
+                ->orderBy('count', 'desc')
+                ->limit(5)
+                ->get(),
+        ];
+
+        // Apply Sort
         if ($groupBy !== 'none') {
             $sortColumn = $groupBy === 'address' ? 'address' : ($groupBy === 'course' ? 'course_name' : 'entity_type');
             $finalQuery->orderBy($sortColumn, 'asc');
@@ -104,6 +119,6 @@ class AddressReportController extends Controller
 
         $courses = Course::orderBy('name')->get();
         
-        return view('admin.reports.address.index', compact('results', 'courses', 'courseId', 'type', 'status', 'groupBy', 'search'));
+        return view('admin.reports.address.index', compact('results', 'courses', 'courseId', 'type', 'status', 'groupBy', 'search', 'stats'));
     }
 }
