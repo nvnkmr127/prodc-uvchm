@@ -18,6 +18,7 @@ class AddressReportController extends Controller
         $search = $request->input('search');
 
         // Build Student Query
+        // Students don't have course_id directly, it's in batches.
         $studentQuery = DB::table('students')
             ->select(
                 'students.id',
@@ -26,11 +27,12 @@ class AddressReportController extends Controller
                 'students.village as address',
                 DB::raw("'Student' as entity_type"),
                 'courses.name as course_name',
-                'students.course_id',
+                'batches.course_id',
                 'students.status',
                 'students.created_at'
             )
-            ->leftJoin('courses', 'students.course_id', '=', 'courses.id');
+            ->leftJoin('batches', 'students.batch_id', '=', 'batches.id')
+            ->leftJoin('courses', 'batches.course_id', '=', 'courses.id');
 
         // Build Enquiry Query
         $enquiryQuery = DB::table('enquiries')
@@ -51,7 +53,7 @@ class AddressReportController extends Controller
         if ($type && $type !== 'Student') {
             $studentQuery->whereRaw('1=0'); // Exclude students
         } else {
-            if ($courseId) $studentQuery->where('students.course_id', $courseId);
+            if ($courseId) $studentQuery->where('batches.course_id', $courseId);
             if ($status) $studentQuery->where('students.status', $status);
             if ($search) {
                 $studentQuery->where(function($q) use ($search) {
@@ -84,7 +86,7 @@ class AddressReportController extends Controller
         $finalQuery = DB::table(DB::raw("({$combinedQuery->toSql()}) as combined"))
             ->mergeBindings($combinedQuery);
 
-        // --- CALCULATE ANALYTICS BEFORE GETTING ALL RESULTS ---
+        // --- CALCULATE ANALYTICS ---
         $stats = [
             'total' => $finalQuery->count(),
             'students' => (clone $finalQuery)->where('entity_type', 'Student')->count(),
