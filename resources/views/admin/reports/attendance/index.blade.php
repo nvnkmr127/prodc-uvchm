@@ -136,16 +136,19 @@
             justify-content: center;
         }
 
-        @media (max-width: 1200px) {
-            .stats-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-        }
-
         @media (max-width: 768px) {
             .stats-grid {
                 grid-template-columns: 1fr;
             }
+        }
+
+        .bg-light-danger {
+            background-color: #fff5f5 !important;
+        }
+
+        .hover-primary:hover {
+            color: var(--crm-primary) !important;
+            text-decoration: none;
         }
     </style>
 @endpush

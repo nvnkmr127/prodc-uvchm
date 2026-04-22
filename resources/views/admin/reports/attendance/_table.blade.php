@@ -4,11 +4,11 @@
             <tr class="bg-light">
                 <th colspan="2" class="text-center font-weight-bold border-bottom">Student Info</th>
                 @foreach($months as $month)
-                    <th colspan="5" class="text-center font-weight-bold border-bottom border-left">
+                    <th colspan="6" class="text-center font-weight-bold border-bottom border-left">
                         {{ $month->format('F Y') }}
                     </th>
                 @endforeach
-                <th colspan="5" class="text-center font-weight-bold border-bottom border-left bg-gray-100">Overall
+                <th colspan="6" class="text-center font-weight-bold border-bottom border-left bg-gray-100">Overall
                     Summary</th>
             </tr>
             <tr>
@@ -22,15 +22,17 @@
                 @foreach($months as $month)
                     <th class="text-center border-left small">Work</th>
                     <th class="text-center small">Pres</th>
+                    <th class="text-center small">OJT</th>
                     <th class="text-center small">Abs</th>
                     <th class="text-center small text-info">Exc</th>
-                    <th class="text-center small">%</th>
+                    <th class="text-center small font-weight-bold border-right">%</th>
                 @endforeach
 
                 <th class="text-center border-left bg-gray-100">Working</th>
                 <th class="text-center bg-gray-100">Present</th>
+                <th class="text-center bg-gray-100 text-info">OJT</th>
                 <th class="text-center bg-gray-100">Absent</th>
-                <th class="text-center bg-gray-100 text-info">Excused</th>
+                <th class="text-center bg-gray-100 text-secondary">Excused</th>
                 <th class="text-center sortable bg-gray-100 {{ $sortBy === 'attendance_percentage' ? 'text-primary' : '' }}"
                     data-sort="attendance_percentage">
                     Att %
@@ -41,7 +43,7 @@
         </thead>
         <tbody>
             @forelse($students as $student)
-                <tr>
+                <tr class="{{ $student->attendance_percentage < 50 ? 'bg-light-danger' : '' }}">
                     <td>
                         <div class="d-flex align-items-center">
                             <a href="{{ route('admin.students.show', $student->id) }}"
@@ -60,18 +62,20 @@
                         @if($mStats)
                             <td class="text-center border-left small">{{ $mStats['working_days'] }}</td>
                             <td class="text-center text-success small">{{ $mStats['present'] }}</td>
+                            <td class="text-center text-info small">{{ $mStats['internship'] }}</td>
                             <td class="text-center text-danger small">{{ $mStats['absent'] }}</td>
-                            <td class="text-center text-info small">{{ $mStats['excused'] }}</td>
-                            <td class="text-center small font-weight-bold">{{ intval($mStats['percentage']) }}%</td>
+                            <td class="text-center text-muted small">{{ $mStats['excused'] }}</td>
+                            <td class="text-center small font-weight-bold border-right">{{ intval($mStats['percentage']) }}%</td>
                         @else
-                            <td colspan="5" class="text-center border-left text-muted small">N/A</td>
+                            <td colspan="6" class="text-center border-left text-muted small">N/A</td>
                         @endif
                     @endforeach
 
                     <td class="text-center border-left bg-gray-100">{{ $student->total_working_days }}</td>
                     <td class="text-center text-success font-weight-bold bg-gray-100">{{ $student->present_days }}</td>
+                    <td class="text-center text-info bg-gray-100">{{ $student->internship_days }}</td>
                     <td class="text-center text-danger bg-gray-100">{{ $student->absent_days }}</td>
-                    <td class="text-center text-info bg-gray-100">{{ $student->excused_days }}</td>
+                    <td class="text-center text-muted bg-gray-100">{{ $student->excused_days }}</td>
                     <td class="text-center bg-gray-100">
                         @php
                             $percentage = $student->attendance_percentage;
@@ -82,7 +86,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="{{ count($months) * 5 + 7 }}" class="text-center py-5">
+                    <td colspan="{{ count($months) * 6 + 7 }}" class="text-center py-5">
                         <i class="fas fa-search fa-3x text-gray-300 mb-3"></i>
                         <p class="mt-3 text-gray-500">No attendance data found for the selected criteria.</p>
                     </td>

@@ -114,6 +114,15 @@ class AttendanceReportController extends Controller
             ->get()
             ->groupBy('student_id');
 
+        // 3a. Fetch first biometric record for all students to avoid N+1
+        $firstPunches = Attendance::withoutGlobalScope('academic_year')
+            ->whereIn('student_id', $allStudents->pluck('id'))
+            ->whereIn('status', ['present', 'late'])
+            ->selectRaw('student_id, MIN(attendance_date) as first_date')
+            ->groupBy('student_id')
+            ->pluck('first_date', 'student_id')
+            ->toArray();
+
         // 3b. Fetch Daily Punch Counts for "Low Attendance" holiday check - Bypass Global Scope
         $dailyCounts = Attendance::withoutGlobalScope('academic_year')
             ->whereBetween('attendance_date', [$startDate, $endDate])
@@ -159,11 +168,11 @@ class AttendanceReportController extends Controller
                     $monthEnd = Carbon::parse($endDate);
                 }
 
-                $monthlyStats[$monthDt->format('M_Y')] = $this->calculateStudentStats($student, $monthStart, $monthEnd, $holidays, $dailyCounts, $studentRecords);
+                $monthlyStats[$monthDt->format('M_Y')] = $this->calculateStudentStats($student, $monthStart, $monthEnd, $holidays, $dailyCounts, $studentRecords, $firstPunches);
             }
 
             // Calculate Overall Stats
-            $overall = $this->calculateStudentStats($student, Carbon::parse($startDate), Carbon::parse($endDate), $holidays, $dailyCounts, $studentRecords);
+            $overall = $this->calculateStudentStats($student, Carbon::parse($startDate), Carbon::parse($endDate), $holidays, $dailyCounts, $studentRecords, $firstPunches);
 
             return (object) [
                 'id' => $student->id,
@@ -187,7 +196,7 @@ class AttendanceReportController extends Controller
         // 5. Aggregate Stats for Dashboard
         $totalStudents = $processedStudents->count();
         $avgAttendance = $totalStudents > 0 ? $processedStudents->avg('attendance_percentage') : 0;
-        $avgPresent = $totalStudents > 0 ? $processedStudents->avg('present_days') : 0;
+        $avgPresent = $totalStudents > 0 ? $processedStudents->avg(fn($s) => $s->present_days + $s->internship_days) : 0;
         $avgAbsent = $totalStudents > 0 ? $processedStudents->avg('absent_days') : 0;
 
         // Distribution Buckets
@@ -199,7 +208,7 @@ class AttendanceReportController extends Controller
         ];
 
         // Overall Present vs Absent Breakdown for Pie Chart
-        $overallPresent = $processedStudents->sum('present_days');
+        $overallPresent = $processedStudents->sum(fn($s) => $s->present_days + $s->internship_days);
         $overallAbsent = $processedStudents->sum('absent_days');
 
         foreach ($processedStudents as $s) {
@@ -280,34 +289,33 @@ class AttendanceReportController extends Controller
     /**
      * Helper to calculate stats for a specific range and student
      */
-    private function calculateStudentStats($student, $start, $end, $holidays, $dailyCounts, $studentRecords)
+    private function calculateStudentStats($student, $start, $end, $holidays, $dailyCounts, $studentRecords, $firstPunches = [])
     {
-        $effectiveStartDate = $student->admission_date
-            ? Carbon::parse($student->admission_date)->startOfDay()
-            : $student->created_at->startOfDay();
+        $admissionDate = $student->admission_date ? Carbon::parse($student->admission_date)->startOfDay() : null;
+        $fallbackStartDate = $student->created_at->startOfDay();
 
-        $today = Carbon::now()->startOfDay();
-        $workingDays = 0;
-        $holidaysCount = 0;
+        // Use pre-fetched first punch date or query if missing (fallback)
+        $firstBiometricUse = $firstPunches[$student->id] ?? null;
 
-        // Fetch first biometric record once (optional optimization: cache this in index loop)
-        $firstBiometricUse = Attendance::withoutGlobalScope('academic_year')
-            ->where('student_id', $student->id)
-            ->whereIn('status', ['present', 'late'])
-            ->orderBy('attendance_date', 'asc')
-            ->value('attendance_date');
-
+        $todayStr = Carbon::now()->format('Y-m-d');
         $isOnInternship = $student->batch && $student->batch->is_on_internship;
         $internshipStartDate = $isOnInternship ? $student->batch->internship_start_date : null;
+
+        $presentCount = 0;
+        $absentCount = 0;
+        $internshipCount = 0;
+        $excusedCount = 0;
+        $holidaysCount = 0;
 
         $current = $start->copy();
         while ($current->lte($end)) {
             $dateStr = $current->format('Y-m-d');
             $isSunday = $current->isSunday();
             $isExplicitHoliday = in_array($dateStr, $holidays);
+            $isFuture = $dateStr > $todayStr;
 
             $isLowAttendanceHoliday = false;
-            if ($current->lte($today) && ! $isSunday && ! $isExplicitHoliday) {
+            if (! $isFuture && ! $isSunday && ! $isExplicitHoliday) {
                 $dayPunchCount = $dailyCounts[$dateStr] ?? 0;
                 if ($dayPunchCount < 10) {
                     $isLowAttendanceHoliday = true;
@@ -320,69 +328,34 @@ class AttendanceReportController extends Controller
                 $holidaysCount++;
             } else {
                 // Working Day Criterion: Admission Date is priority
-                // If admission_date is present, student is expected from that day.
-                // If missing, fallback to first biometric use.
-                $hasStarted = $student->admission_date
-                    ? $current->gte(Carbon::parse($student->admission_date)->startOfDay())
+                $hasStarted = $admissionDate
+                    ? $current->gte($admissionDate)
                     : ($firstBiometricUse ? $current->gte(Carbon::parse($firstBiometricUse)->startOfDay()) : false);
 
-                if ($hasStarted) {
-                    $workingDays++;
-                }
-            }
-            $current->addDay();
-        }
-
-        $presentCount = 0;
-        $absentCount = 0;
-        $internshipCount = 0;
-        $excusedCount = 0;
-
-        $current = $start->copy();
-        while ($current->lte($end)) {
-            $dateStr = $current->format('Y-m-d');
-            $isSunday = $current->isSunday();
-            $isExplicitHoliday = in_array($dateStr, $holidays);
-
-            $isLowAttendanceHoliday = false;
-            if ($current->lte($today) && ! $isSunday && ! $isExplicitHoliday) {
-                $dayPunchCount = $dailyCounts[$dateStr] ?? 0;
-                if ($dayPunchCount < 10) {
-                    $isLowAttendanceHoliday = true;
-                }
-            }
-
-            $isHoliday = $isSunday || $isExplicitHoliday || $isLowAttendanceHoliday;
-
-            if (! $isHoliday) {
-                $hasStarted = $student->admission_date
-                    ? $current->gte(Carbon::parse($student->admission_date)->startOfDay())
-                    : ($firstBiometricUse ? $current->gte(Carbon::parse($firstBiometricUse)->startOfDay()) : false);
-
-                if ($hasStarted) {
-                    if ($current->lte($today)) {
-                        if (isset($studentRecords[$dateStr])) {
-                            $status = strtolower(trim($studentRecords[$dateStr]->status));
-                            if (in_array($status, ['present', 'late'])) {
-                                $presentCount++;
-                            } elseif ($status === 'absent') {
-                                $absentCount++;
-                            } elseif ($status === 'internship') {
-                                $internshipCount++;
-                            } elseif ($status === 'excused') {
-                                $excusedCount++;
-                            }
+                if ($hasStarted && ! $isFuture) {
+                    if (isset($studentRecords[$dateStr])) {
+                        $status = strtolower(trim($studentRecords[$dateStr]->status));
+                        if (in_array($status, ['present', 'late'])) {
+                            $presentCount++;
+                        } elseif ($status === 'absent') {
+                            $absentCount++;
+                        } elseif ($status === 'internship') {
+                            $internshipCount++;
+                        } elseif ($status === 'excused') {
+                            $excusedCount++;
                         } else {
-                            $isInternshipDay = false;
-                            if ($isOnInternship && $internshipStartDate) {
-                                $isInternshipDay = $current->gte(Carbon::parse($internshipStartDate)->startOfDay());
-                            }
+                            $absentCount++; // Unknown status treated as absent
+                        }
+                    } else {
+                        $isInternshipDay = false;
+                        if ($isOnInternship && $internshipStartDate) {
+                            $isInternshipDay = $current->gte(Carbon::parse($internshipStartDate)->startOfDay());
+                        }
 
-                            if ($isInternshipDay) {
-                                $internshipCount++;
-                            } else {
-                                $absentCount++;
-                            }
+                        if ($isInternshipDay) {
+                            $internshipCount++;
+                        } else {
+                            $absentCount++;
                         }
                     }
                 }
@@ -390,14 +363,22 @@ class AttendanceReportController extends Controller
             $current->addDay();
         }
 
-        $totalAttended = $presentCount + $internshipCount + $excusedCount;
-        $percentage = ($workingDays > 0) ? ($totalAttended / $workingDays) * 100 : 0;
+        // Logic from Student Profile: percentage = ((present + late + internship) / totalCalculatedDays)
+        // Note: 'late' is already included in $presentCount in this controller's logic
+        $totalWorkingDays = $presentCount + $absentCount + $internshipCount + $excusedCount;
+        $totalAttended = $presentCount + $internshipCount;
+
+        // Special Case: If user wants 'excused' to count as present, uncomment below.
+        // But matching the profile strictly means it's in the denominator but not numerator.
+        // $totalAttended += $excusedCount; // Uncomment if excused should be present
+
+        $percentage = ($totalWorkingDays > 0) ? ($totalAttended / $totalWorkingDays) * 100 : 0;
         if ($percentage > 100) {
             $percentage = 100;
         }
 
         return [
-            'working_days' => $workingDays,
+            'working_days' => $totalWorkingDays,
             'present' => $presentCount,
             'absent' => $absentCount,
             'internship' => $internshipCount,
