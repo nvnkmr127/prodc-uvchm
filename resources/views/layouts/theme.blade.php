@@ -740,6 +740,7 @@
                                     Tracking</a>
                                 <a class="collapse-item" href="{{ route('admin.reports.age.index') }}">Age Report</a>
                                 <a class="collapse-item" href="{{ route('admin.reports.address.index') }}">Address Report</a>
+                                <a class="collapse-item" href="{{ route('admin.reports.students.index') }}">Student Data Report</a>
                                 <a class="collapse-item" href="{{ route('admin.reports.certificates.index') }}">Certificate
                                     Reports</a>
                                 <div class="dropdown-divider"></div>
@@ -765,6 +766,7 @@
                                         Tracking</a>
                                     <a class="collapse-item" href="{{ route('admin.reports.age.index') }}">Age Report</a>
                                     <a class="collapse-item" href="{{ route('admin.reports.address.index') }}">Address Report</a>
+                                    <a class="collapse-item" href="{{ route('admin.reports.students.index') }}">Student Data Report</a>
                                     <a class="collapse-item" href="{{ route('admin.reports.certificates.index') }}">Certificate
                                         Reports</a>
                                     <div class="dropdown-divider"></div>

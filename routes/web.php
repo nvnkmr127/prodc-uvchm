@@ -730,6 +730,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
         Route::get('reports/age', [AgeReportController::class, 'index'])->name('reports.age.index');
         Route::get('reports/address', [AddressReportController::class, 'index'])->name('reports.address.index');
         Route::get('reports/address/export', [AddressReportController::class, 'export'])->name('reports.address.export');
+        Route::get('reports/students', [\App\Http\Controllers\Admin\StudentReportController::class, 'index'])->name('reports.students.index');
+        Route::get('reports/students/export', [\App\Http\Controllers\Admin\StudentReportController::class, 'export'])->name('reports.students.export');
         Route::post('reports/referrals/{student}/mark-commission-paid', [ReferralReportController::class, 'markCommissionPaid'])
             ->name('reports.referrals.mark-commission-paid')
             ->where('student', '[0-9]+');
