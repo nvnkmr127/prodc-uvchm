@@ -2,7 +2,7 @@
 
 namespace App\Exports;
 
-use App\Models\Attendance;
+use App\Models\Attendance\Attendance;
 use App\Models\Holiday;
 use App\Models\Student;
 use Carbon\Carbon;
@@ -124,7 +124,6 @@ class StudentAttendanceSummaryExport implements FromCollection, ShouldAutoSize, 
 
         foreach ($students as $student) {
             // Pre-map student attendance for this range to avoid repetitive parsing
-            // This is indexed by 'Y-m-d' date string
             $studentRecordsMap = $attendanceRecords->get($student->id, collect())->mapWithKeys(function ($item) {
                 $d = is_string($item->attendance_date) ? substr($item->attendance_date, 0, 10) : $item->attendance_date->format('Y-m-d');
 
@@ -165,9 +164,9 @@ class StudentAttendanceSummaryExport implements FromCollection, ShouldAutoSize, 
                 $stats = $this->calculateStats($monthStart, $monthEnd, $holidays, $studentRecordsMap, $student, $dailyCounts, $firstPunches);
 
                 $row[] = $stats['working_days'];
-                $row[] = $stats['present'];
+                $row[] = $stats['present'] + $stats['late']; // Match profile view (Present = Total Credit)
+                $row[] = $stats['internship'];
                 $row[] = $stats['absent'];
-                $row[] = $stats['excused'];
                 $row[] = $stats['percentage'].'%';
                 $row[] = ''; // Separator
             }
@@ -175,9 +174,9 @@ class StudentAttendanceSummaryExport implements FromCollection, ShouldAutoSize, 
             // Overall Stats
             $overallStats = $this->calculateStats($this->startDate, $this->endDate, $holidays, $studentRecordsMap, $student, $dailyCounts, $firstPunches);
             $row[] = $overallStats['working_days'];
-            $row[] = $overallStats['present'];
+            $row[] = $overallStats['present'] + $overallStats['late'];
+            $row[] = $overallStats['internship'];
             $row[] = $overallStats['absent'];
-            $row[] = $overallStats['excused'];
             $row[] = $overallStats['percentage'].'%';
 
             $output->push($row);
@@ -188,9 +187,7 @@ class StudentAttendanceSummaryExport implements FromCollection, ShouldAutoSize, 
 
     private function calculateStats($start, $end, $allHolidays, $recordMap, $student, $dailyCounts = [], $firstPunches = [])
     {
-        $admissionDate = $student->admission_date ? Carbon::parse($student->admission_date)->startOfDay() : null;
-
-        // Use pre-fetched first punch date or query if missing (fallback)
+        $profileStartDate = $student->admission_date ? Carbon::parse($student->admission_date)->startOfDay() : $student->created_at->startOfDay();
         $firstBiometricUse = $firstPunches[$student->id] ?? null;
 
         $todayStr = Carbon::now()->format('Y-m-d');
@@ -198,6 +195,7 @@ class StudentAttendanceSummaryExport implements FromCollection, ShouldAutoSize, 
         $internshipStartDate = $isOnInternship ? $student->batch->internship_start_date : null;
 
         $presentCount = 0;
+        $lateCount = 0;
         $absentCount = 0;
         $internshipCount = 0;
         $excusedCount = 0;
@@ -223,16 +221,15 @@ class StudentAttendanceSummaryExport implements FromCollection, ShouldAutoSize, 
             if ($isHoliday) {
                 $holidaysCount++;
             } else {
-                // Working Day Criterion: Admission Date is priority
-                $hasStarted = $admissionDate
-                    ? $current->gte($admissionDate)
-                    : ($firstBiometricUse ? $current->gte(Carbon::parse($firstBiometricUse)->startOfDay()) : false);
+                $shouldIgnore = $current->lt($profileStartDate) || is_null($firstBiometricUse);
 
-                if ($hasStarted && ! $isFuture) {
+                if (! $isFuture && ! $shouldIgnore) {
                     if (isset($recordMap[$dateStr])) {
                         $status = strtolower(trim($recordMap[$dateStr]->status));
-                        if (in_array($status, ['present', 'late'])) {
+                        if ($status === 'present') {
                             $presentCount++;
+                        } elseif ($status === 'late') {
+                            $lateCount++;
                         } elseif ($status === 'absent') {
                             $absentCount++;
                         } elseif ($status === 'internship') {
@@ -240,14 +237,10 @@ class StudentAttendanceSummaryExport implements FromCollection, ShouldAutoSize, 
                         } elseif ($status === 'excused') {
                             $excusedCount++;
                         } else {
-                            $absentCount++; // Unknown status treated as absent
+                            $absentCount++;
                         }
                     } else {
-                        $isInternshipDay = false;
-                        if ($isOnInternship && $internshipStartDate) {
-                            $isInternshipDay = $current->gte(Carbon::parse($internshipStartDate)->startOfDay());
-                        }
-
+                        $isInternshipDay = $isOnInternship && (! $internshipStartDate || $current->gte(Carbon::parse($internshipStartDate)));
                         if ($isInternshipDay) {
                             $internshipCount++;
                         } else {
@@ -259,19 +252,15 @@ class StudentAttendanceSummaryExport implements FromCollection, ShouldAutoSize, 
             $current->addDay();
         }
 
-        // Logic from Student Profile: percentage = ((present + late + internship) / totalCalculatedDays)
-        $totalWorkingDays = $presentCount + $absentCount + $internshipCount + $excusedCount;
-        $totalAttended = $presentCount + $internshipCount;
-
-        $percentage = ($totalWorkingDays > 0) ? round(($totalAttended / $totalWorkingDays) * 100, 1) : 0;
-        if ($percentage > 100) {
-            $percentage = 100;
-        }
+        $totalCalculatedDays = $presentCount + $lateCount + $absentCount + $excusedCount + $internshipCount;
+        $percentage = $totalCalculatedDays > 0 ? round((($presentCount + $lateCount + $internshipCount) / $totalCalculatedDays) * 100, 1) : 0;
 
         return [
-            'working_days' => $totalWorkingDays,
+            'working_days' => $totalCalculatedDays,
             'present' => $presentCount,
+            'late' => $lateCount,
             'absent' => $absentCount,
+            'internship' => $internshipCount,
             'excused' => $excusedCount,
             'percentage' => $percentage,
         ];
@@ -283,7 +272,6 @@ class StudentAttendanceSummaryExport implements FromCollection, ShouldAutoSize, 
         $row2 = ['', '', ''];
 
         foreach ($this->months as $month) {
-            // Header 1: Month Name spanning 5 columns + 1 separator
             $row1[] = $month->format('F Y');
             $row1[] = ''; // spanned
             $row1[] = ''; // spanned
@@ -291,26 +279,24 @@ class StudentAttendanceSummaryExport implements FromCollection, ShouldAutoSize, 
             $row1[] = ''; // spanned
             $row1[] = ''; // separator
 
-            // Header 2: Columns
             $row2[] = 'Working Days';
             $row2[] = 'Present';
+            $row2[] = 'OJT';
             $row2[] = 'Absent';
-            $row2[] = 'Excused';
             $row2[] = 'Attendance %';
             $row2[] = ''; // separator
         }
 
-        // Overall
         $row1[] = 'Overall';
-        $row1[] = ''; // spanned
-        $row1[] = ''; // spanned
-        $row1[] = ''; // spanned
-        $row1[] = ''; // spanned
+        $row1[] = ''; 
+        $row1[] = ''; 
+        $row1[] = ''; 
+        $row1[] = ''; 
 
         $row2[] = 'Working Days';
         $row2[] = 'Present';
+        $row2[] = 'OJT';
         $row2[] = 'Absent';
-        $row2[] = 'Excused';
         $row2[] = 'Attendance %';
 
         return [$row1, $row2];
@@ -329,32 +315,18 @@ class StudentAttendanceSummaryExport implements FromCollection, ShouldAutoSize, 
         return [
             AfterSheet::class => function (AfterSheet $event) {
                 $sheet = $event->sheet;
-
-                // Merge Vertical for first 3 columns
                 $sheet->mergeCells('A1:A2');
                 $sheet->mergeCells('B1:B2');
                 $sheet->mergeCells('C1:C2');
-
-                // Center align vertical columns
                 $sheet->getStyle('A1:C2')->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
-
-                // Start Column Index for Data (0-based index: A=1, D=4)
                 $col = 4;
-
                 foreach ($this->months as $month) {
-                    // Merge Month Header (5 columns)
                     $start = Coordinate::stringFromColumnIndex($col);
                     $end = Coordinate::stringFromColumnIndex($col + 4);
                     $sheet->mergeCells("{$start}1:{$end}1");
-
-                    // Center Month Header
                     $sheet->getStyle("{$start}1:{$end}1")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
-
-                    // Move to next block (5 columns + 1 separator)
                     $col += 6;
                 }
-
-                // Merge Overall Header (5 columns)
                 $start = Coordinate::stringFromColumnIndex($col);
                 $end = Coordinate::stringFromColumnIndex($col + 4);
                 $sheet->mergeCells("{$start}1:{$end}1");

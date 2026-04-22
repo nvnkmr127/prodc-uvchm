@@ -61,7 +61,7 @@
                         @endphp
                         @if($mStats)
                             <td class="text-center border-left small">{{ $mStats['working_days'] }}</td>
-                            <td class="text-center text-success small">{{ $mStats['present'] }}</td>
+                            <td class="text-center text-success small">{{ ($mStats['present'] ?? 0) + ($mStats['late'] ?? 0) }}</td>
                             <td class="text-center text-info small">{{ $mStats['internship'] }}</td>
                             <td class="text-center text-danger small">{{ $mStats['absent'] }}</td>
                             <td class="text-center text-muted small">{{ $mStats['excused'] }}</td>
@@ -72,7 +72,7 @@
                     @endforeach
 
                     <td class="text-center border-left bg-gray-100">{{ $student->total_working_days }}</td>
-                    <td class="text-center text-success font-weight-bold bg-gray-100">{{ $student->present_days }}</td>
+                    <td class="text-center text-success font-weight-bold bg-gray-100">{{ ($student->present_days ?? 0) + ($student->late_days ?? 0) }}</td>
                     <td class="text-center text-info bg-gray-100">{{ $student->internship_days }}</td>
                     <td class="text-center text-danger bg-gray-100">{{ $student->absent_days }}</td>
                     <td class="text-center text-muted bg-gray-100">{{ $student->excused_days }}</td>
