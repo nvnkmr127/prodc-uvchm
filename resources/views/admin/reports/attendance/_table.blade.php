@@ -43,7 +43,7 @@
         </thead>
         <tbody>
             @forelse($students as $student)
-                <tr class="{{ $student->attendance_percentage < 50 ? 'bg-light-danger' : '' }}">
+                <tr class="{{ $student->attendance_percentage < 60 ? 'bg-light-danger' : '' }}">
                     <td>
                         <div class="d-flex align-items-center">
                             <a href="{{ route('admin.students.show', $student->id) }}"
@@ -79,7 +79,7 @@
                     <td class="text-center bg-gray-100">
                         @php
                             $percentage = $student->attendance_percentage;
-                            $color = $percentage >= 75 ? 'success' : ($percentage >= 60 ? 'info' : ($percentage >= 50 ? 'warning' : 'danger'));
+                            $color = $percentage >= 90 ? 'success' : ($percentage >= 75 ? 'info' : ($percentage >= 60 ? 'warning' : 'danger'));
                         @endphp
                         <span class="font-weight-bold text-{{ $color }}">{{ $percentage }}%</span>
                     </td>

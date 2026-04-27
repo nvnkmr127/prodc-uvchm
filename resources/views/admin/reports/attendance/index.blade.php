@@ -316,15 +316,15 @@
                 distChart = new Chart(distCtx, {
                     type: 'bar',
                     data: {
-                        labels: ['< 50%', '50% - 74%', '75% - 89%', '90% +'],
+                        labels: ['Excellent', 'Good', 'Satisfactory', 'Improvement'],
                         datasets: [{
                             label: 'Number of Students',
                             data: {!! isset($stats) ? json_encode(array_values($stats['distribution'])) : '[0, 0, 0, 0]' !!}, // Initial Data support
                             backgroundColor: [
-                                'rgba(231, 74, 59, 0.8)', // Red
-                                'rgba(246, 194, 62, 0.8)', // Yellow
-                                'rgba(54, 185, 204, 0.8)', // Info/Blue
-                                'rgba(28, 200, 138, 0.8)'  // Green
+                                'rgba(28, 200, 138, 0.8)',  // Green (Excellent)
+                                'rgba(54, 185, 204, 0.8)', // Info/Blue (Good)
+                                'rgba(246, 194, 62, 0.8)', // Yellow (Satisfactory)
+                                'rgba(231, 74, 59, 0.8)'  // Red (Improvement)
                             ],
                             borderWidth: 1,
                             borderRadius: 5

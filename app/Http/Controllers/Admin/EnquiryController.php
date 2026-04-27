@@ -215,9 +215,27 @@ class EnquiryController extends Controller
         // Apply filters
         $query = $this->applyFilters($query, $request);
 
-        // --- 3. Sorting Logic ---
+        // --- 3. Sorting Logic (hardened to prevent SQL errors on invalid inputs) ---
+        $allowedSortFields = [
+            'student_name',
+            'status',
+            'next_follow_up_date',
+            'source',
+            'created_at',
+            // virtual fields (handled via joins)
+            'course_name',
+            'counselor_name',
+        ];
+
         $sortField = $request->get('sort', 'next_follow_up_date');
-        $sortDirection = $request->get('direction', 'asc');
+        if (! in_array($sortField, $allowedSortFields, true)) {
+            $sortField = 'next_follow_up_date';
+        }
+
+        $sortDirection = strtolower($request->get('direction', 'asc'));
+        if (! in_array($sortDirection, ['asc', 'desc'], true)) {
+            $sortDirection = 'asc';
+        }
 
         if ($sortField === 'course_name') {
             $query->leftJoin('courses', 'enquiries.course_id', '=', 'courses.id')
@@ -229,7 +247,12 @@ class EnquiryController extends Controller
             $query->orderBy('enquiries.'.$sortField, $sortDirection);
         }
 
-        $perPage = $request->get('per_page', 25);
+        // Per-page safety: keep pagination within expected limits
+        $perPage = (int) $request->get('per_page', 25);
+        $allowedPerPage = [10, 25, 50, 100];
+        if (! in_array($perPage, $allowedPerPage, true)) {
+            $perPage = 25;
+        }
         $enquiries = $query->paginate($perPage)->withQueryString();
         $courses = Cache::remember('courses_list', now()->addMinutes(10), function () {
             return Course::orderBy('name')->pluck('name', 'id');
@@ -294,6 +317,33 @@ class EnquiryController extends Controller
         }
 
         return Excel::download(new \App\Exports\EnquiriesExport($enquiries), 'enquiries_'.now()->format('Y-m-d_His').'.csv');
+    }
+
+    public function exportSelected(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'exists:enquiries,id',
+        ]);
+
+        $user = Auth::user();
+        $isAdmin = $this->isUserAdmin($user);
+        $ids = array_values(array_unique($request->ids));
+        $this->ensureBulkEnquiryAccess($ids, $user, $isAdmin);
+
+        $enquiries = Enquiry::with('course', 'assignedTo')
+            ->whereIn('id', $ids)
+            ->orderBy('id')
+            ->get();
+
+        if ($enquiries->isEmpty()) {
+            return redirect()->back()->with('error', 'No enquiries selected to export.');
+        }
+
+        return Excel::download(
+            new \App\Exports\EnquiriesExport($enquiries),
+            'enquiries_selected_'.now()->format('Y-m-d_His').'.csv'
+        );
     }
 
     public function facebookLeads(Request $request)
@@ -404,16 +454,55 @@ class EnquiryController extends Controller
         $field = $validated['field'];
         $value = $validated['value'];
 
-        if ($field === 'next_follow_up_date') {
-            $value = $value ? \Carbon\Carbon::parse($value)->format('Y-m-d') : null;
+        // Field-specific validation to prevent DB errors (e.g. non-numeric IDs, invalid dates)
+        if ($field === 'assigned_to_user_id') {
+            $request->validate(['value' => 'nullable|exists:users,id']);
+        } elseif ($field === 'next_follow_up_date') {
+            $request->validate(['value' => 'nullable|date']);
+            $value = $value ? Carbon::parse($value)->format('Y-m-d') : null;
+
             // Auto status update
             if ($value && $enquiry->status === 'New') {
                 $enquiry->status = 'Contacted';
             }
+        } elseif ($field === 'status') {
+            $request->validate([
+                'value' => 'required|in:New,Contacted,Interested,Not Interested,Follow-up,Admitted,Interested Next Year,Next Entrance Exam',
+            ]);
+        } elseif ($field === 'test_attended') {
+            // Allow explicit null (meaning "unset") OR boolean-like 0/1
+            $request->validate(['value' => 'nullable|in:0,1']);
+            $value = $value === null || $value === '' ? null : (int) $value;
+        } elseif ($field === 'test_marks') {
+            $request->validate(['value' => 'nullable|integer|min:0|max:100']);
+        } elseif ($field === 'discount_offered') {
+            $request->validate(['value' => 'nullable|numeric|min:0']);
+        } elseif ($field === 'agreed_fee') {
+            $request->validate(['value' => 'nullable|numeric|min:0']);
+        } elseif ($field === 'include_uniform' || $field === 'include_books') {
+            $request->validate(['value' => 'nullable|in:0,1']);
+            $value = $value === null || $value === '' ? null : (int) $value;
+        } elseif ($field === 'source') {
+            $request->validate(['value' => 'nullable|string|max:255']);
+            $value = $value !== null ? trim((string) $value) : null;
         }
 
-        $enquiry->$field = $value;
-        $enquiry->save();
+        try {
+            $enquiry->$field = $value;
+            $enquiry->save();
+        } catch (\Exception $e) {
+            Log::error('Enquiries quickUpdate failed', [
+                'user_id' => Auth::id(),
+                'enquiry_id' => $enquiry->id,
+                'field' => $field,
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Update failed.',
+            ], 500);
+        }
 
         // Get updated stats for frontend with filter
         $counts = $this->getStats($request);
@@ -732,6 +821,11 @@ class EnquiryController extends Controller
 
             return response()->json(['success' => true, 'message' => 'Selected enquiries deleted successfully.']);
         } catch (\Exception $e) {
+            Log::error('Enquiries bulkDelete failed', [
+                'user_id' => $user->id ?? null,
+                'ids_count' => count($ids),
+                'error' => $e->getMessage(),
+            ]);
             return response()->json(['success' => false, 'message' => 'Error deleting items.']);
         }
     }
@@ -758,6 +852,91 @@ class EnquiryController extends Controller
         $counts = $this->getStats($request);
 
         return response()->json(['success' => true, 'message' => 'Counselor assigned successfully.', 'stats' => $counts]);
+    }
+
+    public function bulkUpdate(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'exists:enquiries,id',
+            'field' => 'required|in:status,next_follow_up_date,source',
+            'value' => 'nullable',
+        ]);
+
+        $user = Auth::user();
+        $isAdmin = $this->isUserAdmin($user);
+        $ids = array_values(array_unique($request->ids));
+        $this->ensureBulkEnquiryAccess($ids, $user, $isAdmin);
+
+        $field = $request->input('field');
+        $value = $request->input('value');
+
+        // Field-specific validation & normalization
+        if ($field === 'status') {
+            $request->validate([
+                'value' => 'required|in:New,Contacted,Interested,Not Interested,Follow-up,Admitted,Interested Next Year,Next Entrance Exam',
+            ]);
+        } elseif ($field === 'next_follow_up_date') {
+            $request->validate([
+                'value' => 'nullable|date',
+            ]);
+            $value = $value ? Carbon::parse($value)->format('Y-m-d') : null;
+        } elseif ($field === 'source') {
+            $request->validate([
+                'value' => 'nullable|string|max:255',
+            ]);
+            $value = $value !== null ? trim((string) $value) : null;
+        }
+
+        try {
+            if ($field === 'next_follow_up_date') {
+                // If a follow-up date is set, auto-advance status from New → Contacted,
+                // but never downgrade more advanced statuses.
+                $advancedStatuses = ['Interested', 'Follow-up', 'Interested Next Year', 'Admitted', 'Next Entrance Exam'];
+
+                Enquiry::whereIn('id', $ids)->chunkById(200, function ($chunk) use ($value, $advancedStatuses) {
+                    foreach ($chunk as $enquiry) {
+                        $updates = ['next_follow_up_date' => $value];
+
+                        if ($value && $enquiry->status === 'New') {
+                            $updates['status'] = 'Contacted';
+                        }
+
+                        // If it is already advanced, keep it as-is
+                        if ($value && in_array($enquiry->status, $advancedStatuses, true)) {
+                            $updates['status'] = $enquiry->status;
+                        }
+
+                        $enquiry->fill($updates)->save();
+                    }
+                });
+            } else {
+                Enquiry::whereIn('id', $ids)->update([
+                    $field => $value,
+                    'updated_at' => now(),
+                ]);
+            }
+
+            $counts = $this->getStats($request);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Bulk update completed.',
+                'stats' => $counts,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Enquiries bulkUpdate failed', [
+                'user_id' => $user->id ?? null,
+                'field' => $field,
+                'ids_count' => count($ids),
+                'error' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Bulk update failed.',
+            ], 500);
+        }
     }
 
     // Ensure your destroy method looks like this (it likely already does)

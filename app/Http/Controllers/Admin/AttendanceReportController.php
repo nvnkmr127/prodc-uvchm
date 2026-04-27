@@ -200,12 +200,12 @@ class AttendanceReportController extends Controller
         $avgPresent = $totalStudents > 0 ? $processedStudents->avg(fn($s) => $s->present_days + $s->late_days + $s->internship_days) : 0;
         $avgAbsent = $totalStudents > 0 ? $processedStudents->avg('absent_days') : 0;
 
-        // Distribution Buckets
+        // Distribution Buckets (Aligned with PRD)
         $distribution = [
-            '< 50%' => 0,
-            '50% - 74%' => 0,
-            '75% - 89%' => 0,
-            '90% +' => 0,
+            'Excellent (≥ 90%)' => 0,
+            'Good (75-89.9%)' => 0,
+            'Satisfactory (60-74.9%)' => 0,
+            'Needs Improvement (< 60%)' => 0,
         ];
 
         // Overall Present vs Absent Breakdown for Pie Chart
@@ -214,14 +214,18 @@ class AttendanceReportController extends Controller
 
         foreach ($processedStudents as $s) {
             $p = $s->attendance_percentage;
-            if ($p < 50) {
-                $distribution['< 50%']++;
-            } elseif ($p < 75) {
-                $distribution['50% - 74%']++;
-            } elseif ($p < 90) {
-                $distribution['75% - 89%']++;
+            if ($p >= 90) {
+                $distribution['Excellent (≥ 90%)']++;
+                $s->attendance_status = 'excellent';
+            } elseif ($p >= 75) {
+                $distribution['Good (75-89.9%)']++;
+                $s->attendance_status = 'good';
+            } elseif ($p >= 60) {
+                $distribution['Satisfactory (60-74.9%)']++;
+                $s->attendance_status = 'satisfactory';
             } else {
-                $distribution['90% +']++;
+                $distribution['Needs Improvement (< 60%)']++;
+                $s->attendance_status = 'needs_improvement';
             }
         }
 
@@ -323,35 +327,44 @@ class AttendanceReportController extends Controller
 
             $isHoliday = $isSunday || $isExplicitHoliday || $isLowAttendanceHoliday;
 
-            if ($isHoliday) {
-                $holidaysCount++;
+            $status = 'none';
+            if (isset($studentRecords[$dateStr])) {
+                $att = $studentRecords[$dateStr];
+                $status = strtolower(trim($att->status));
+
+                if (! $isFuture && $status !== 'none') {
+                    if ($status === 'present') {
+                        $presentCount++;
+                    } elseif ($status === 'late') {
+                        $lateCount++;
+                    } elseif ($status === 'absent') {
+                        $absentCount++;
+                    } elseif ($status === 'internship') {
+                        $internshipCount++;
+                    } elseif ($status === 'excused') {
+                        $excusedCount++;
+                    } else {
+                        $absentCount++;
+                    }
+                }
             } else {
-                // Working Day Criterion from Student Profile
+                // No manual record, check for holiday/future/ignore
                 $shouldIgnore = $current->lt($profileStartDate) || is_null($firstBiometricUse);
 
-                if (! $isFuture && ! $shouldIgnore) {
-                    if (isset($studentRecords[$dateStr])) {
-                        $status = strtolower(trim($studentRecords[$dateStr]->status));
-                        if ($status === 'present') {
-                            $presentCount++;
-                        } elseif ($status === 'late') {
-                            $lateCount++;
-                        } elseif ($status === 'absent') {
-                            $absentCount++;
-                        } elseif ($status === 'internship') {
-                            $internshipCount++;
-                        } elseif ($status === 'excused') {
-                            $excusedCount++;
-                        } else {
-                            $absentCount++;
-                        }
+                if ($isFuture || $shouldIgnore) {
+                    $status = 'none';
+                } elseif ($isHoliday) {
+                    $holidaysCount++;
+                    $status = 'holiday';
+                } else {
+                    // Working Day - Check for Internship
+                    $isInternshipDay = $isOnInternship && (! $internshipStartDate || $current->gte(Carbon::parse($internshipStartDate)));
+                    if ($isInternshipDay) {
+                        $internshipCount++;
+                        $status = 'internship';
                     } else {
-                        $isInternshipDay = $isOnInternship && (! $internshipStartDate || $current->gte(Carbon::parse($internshipStartDate)));
-                        if ($isInternshipDay) {
-                            $internshipCount++;
-                        } else {
-                            $absentCount++;
-                        }
+                        $absentCount++;
+                        $status = 'absent';
                     }
                 }
             }

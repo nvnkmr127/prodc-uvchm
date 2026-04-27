@@ -576,9 +576,14 @@
                             <div id="bulkActionBar" style="display:none; flex-direction: column; gap:10px; padding: 12px; background: #fff5f5; border-radius: 8px; border: 1px dashed #e74a3b; margin-top: 10px;">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <span class="small font-weight-bold text-danger"><i class="fas fa-layer-group mr-1"></i> Bulk Actions</span>
-                                    <button type="button" class="btn btn-danger btn-sm rounded-circle" onclick="bulkDelete()" title="Delete Selected">
-                                        <i class="fas fa-trash fa-xs"></i>
-                                    </button>
+                                    <div class="d-flex align-items-center" style="gap: 6px;">
+                                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="exportSelected()" title="Export Selected">
+                                            <i class="fas fa-file-export fa-xs mr-1"></i> Export
+                                        </button>
+                                        <button type="button" class="btn btn-danger btn-sm rounded-circle" onclick="bulkDelete()" title="Delete Selected">
+                                            <i class="fas fa-trash fa-xs"></i>
+                                        </button>
+                                    </div>
                                 </div>
                                 <div class="input-group input-group-sm">
                                     <select class="custom-select" id="bulkAssignUser">
@@ -590,6 +595,43 @@
                                     <div class="input-group-append">
                                         <button type="button" class="btn btn-success" onclick="bulkAssign()">
                                             <i class="fas fa-check"></i>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="input-group input-group-sm">
+                                    <select class="custom-select" id="bulkStatus">
+                                        <option value="">Update Status...</option>
+                                        @foreach(['New', 'Contacted', 'Interested', 'Follow-up', 'Interested Next Year', 'Admitted', 'Next Entrance Exam', 'Not Interested'] as $s)
+                                            <option value="{{ $s }}">{{ $s }}</option>
+                                        @endforeach
+                                    </select>
+                                    <div class="input-group-append">
+                                        <button type="button" class="btn btn-primary" onclick="bulkUpdate('status', $('#bulkStatus').val())">
+                                            <i class="fas fa-sync-alt"></i>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="input-group input-group-sm">
+                                    <input type="date" class="form-control" id="bulkFollowUpDate" placeholder="Set follow-up date">
+                                    <div class="input-group-append">
+                                        <button type="button" class="btn btn-primary" onclick="bulkUpdate('next_follow_up_date', $('#bulkFollowUpDate').val())">
+                                            <i class="far fa-calendar-check"></i>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="input-group input-group-sm">
+                                    <select class="custom-select" id="bulkSource">
+                                        <option value="">Update Source...</option>
+                                        @foreach($sources as $value => $label)
+                                            <option value="{{ $value }}">{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+                                    <div class="input-group-append">
+                                        <button type="button" class="btn btn-primary" onclick="bulkUpdate('source', $('#bulkSource').val())">
+                                            <i class="fas fa-tag"></i>
                                         </button>
                                     </div>
                                 </div>
@@ -956,6 +998,14 @@
                     if (res.stats) updateStats(res.stats);
                     document.body.style.cursor = 'default';
                     $('#searchSpinner').hide();
+
+                    // Reset bulk selection state after table refresh
+                    $('#selectAll').prop('checked', false);
+                    $('#bulkAssignUser').val('');
+                    $('#bulkStatus').val('');
+                    $('#bulkFollowUpDate').val('');
+                    $('#bulkSource').val('');
+                    toggleBulkActions();
                     
                     // Update URL without reload to preserve state
                     const newUrl = url + '?' + data;
@@ -1129,6 +1179,40 @@
                 })
                 .fail(function(xhr) {
                     const msg = xhr.responseJSON?.message || 'Assign failed. Check your permissions.';
+                    alert('Error: ' + msg);
+                });
+        }
+
+        function exportSelected() {
+            const ids = $('.enquiry-checkbox:checked').map((_, el) => $(el).val()).get();
+            if (ids.length === 0) return alert('Select at least 1 enquiry.');
+
+            const baseUrl = "{{ route('admin.enquiries.export-selected') }}";
+            const params = new URLSearchParams();
+            ids.forEach(id => params.append('ids[]', id));
+
+            // Trigger a normal file download (do not use AJAX)
+            window.location.href = baseUrl + '?' + params.toString();
+        }
+
+        function bulkUpdate(field, value) {
+            const ids = $('.enquiry-checkbox:checked').map((_, el) => $(el).val()).get();
+            if (ids.length === 0) return alert('Select at least 1 enquiry.');
+
+            // For status updates, require a value
+            if (field === 'status' && !value) return alert('Select a status.');
+
+            const filters = $('#filterForm').serialize();
+            const payload = filters + '&_token={{ csrf_token() }}&field=' + encodeURIComponent(field) + '&value=' + encodeURIComponent(value || '') + '&' + $.param({ids: ids});
+
+            $.post('{{ route("admin.enquiries.bulk-update") }}', payload)
+                .done(function(res) {
+                    if (!res.success) alert('Error: ' + (res.message || 'Bulk update failed.'));
+                    if (res.stats) updateStats(res.stats);
+                    fetchEnquiries();
+                })
+                .fail(function(xhr) {
+                    const msg = xhr.responseJSON?.message || 'Bulk update failed. Check your permissions.';
                     alert('Error: ' + msg);
                 });
         }

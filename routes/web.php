@@ -217,11 +217,13 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
         Route::get('enquiries/facebook-leads', [EnquiryController::class, 'facebookLeads'])->name('enquiries.facebook-leads');
         Route::get('enquiries/ajax-search', [EnquiryController::class, 'ajaxSearch'])->name('enquiries.ajax-search');
         Route::get('enquiries/export', [EnquiryController::class, 'export'])->name('enquiries.export');
+        Route::get('enquiries/export-selected', [EnquiryController::class, 'exportSelected'])->name('enquiries.export-selected');
         Route::get('enquiries/import/sample', [EnquiryController::class, 'downloadSample'])->name('enquiries.import.sample');
 
         // --- Specific POST routes (no {enquiry} segment) ---
         Route::post('enquiries/bulk-assign', [EnquiryController::class, 'bulkAssign'])->name('enquiries.bulk-assign');
         Route::post('enquiries/bulk-delete', [EnquiryController::class, 'bulkDelete'])->name('enquiries.bulk-delete');
+        Route::post('enquiries/bulk-update', [EnquiryController::class, 'bulkUpdate'])->name('enquiries.bulk-update');
         Route::post('enquiries/import', [EnquiryController::class, 'import'])->name('enquiries.import');
 
         // --- Resource route (registers {enquiry} wildcard — must come AFTER specific routes) ---
