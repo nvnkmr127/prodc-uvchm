@@ -51,34 +51,35 @@ class EnquiryController extends Controller
         $user = Auth::user();
         $isAdmin = $this->isUserAdmin($user);
 
-        // 1. Base Query for Status Counts
-        // We want counts for each status, but they must respect OTHER filters (course, counselor, date, etc.)
-        $statsBaseQuery = Enquiry::query();
+        // 1) Base query shared by BOTH stats + list metrics.
+        // We want status counts to respect OTHER filters (course, counselor, date, etc.)
+        // but NOT be impacted by the currently-selected "status" filter.
+        $baseQuery = Enquiry::query();
 
         // Apply visibility
         if (! $isAdmin) {
-            $statsBaseQuery->where('assigned_to_user_id', $user->id);
+            $baseQuery->where('assigned_to_user_id', $user->id);
         }
 
         // Apply shared filters (except status itself)
         if ($request->filled('assigned_to_user_id')) {
-            $statsBaseQuery->whereIn('assigned_to_user_id', (array) $request->assigned_to_user_id);
+            $baseQuery->whereIn('assigned_to_user_id', (array) $request->assigned_to_user_id);
         }
         if ($request->filled('course_id')) {
-            $statsBaseQuery->whereIn('course_id', (array) $request->course_id);
+            $baseQuery->whereIn('course_id', (array) $request->course_id);
         }
         if ($request->filled('source')) {
-            $statsBaseQuery->whereIn('source', (array) $request->source);
+            $baseQuery->whereIn('source', (array) $request->source);
         }
         if ($request->filled('start_date')) {
-            $statsBaseQuery->where('created_at', '>=', $request->start_date.' 00:00:00');
+            $baseQuery->where('created_at', '>=', $request->start_date.' 00:00:00');
         }
         if ($request->filled('end_date')) {
-            $statsBaseQuery->where('created_at', '<=', $request->end_date.' 23:59:59');
+            $baseQuery->where('created_at', '<=', $request->end_date.' 23:59:59');
         }
         if ($request->filled('search')) {
             $term = trim($request->search);
-            $statsBaseQuery->where(function ($q) use ($term) {
+            $baseQuery->where(function ($q) use ($term) {
                 $q->where('student_name', 'LIKE', '%'.$term.'%')
                     ->orWhere('phone_number', 'LIKE', '%'.$term.'%')
                     ->orWhere('address', 'LIKE', '%'.$term.'%');
@@ -86,26 +87,29 @@ class EnquiryController extends Controller
         }
         // test_attended: '0' or '1' is meaningful, empty string means 'all'
         if ($request->filled('test_attended') && $request->test_attended !== '') {
-            $statsBaseQuery->where('test_attended', $request->test_attended);
+            $baseQuery->where('test_attended', $request->test_attended);
         }
 
-        // Apply default status filter — mirrors applyFilters() logic exactly
-        $skipDefault = $request->boolean('_skip_default_filter', false);
-        if (! $request->filled('status') && ! $request->filled('search') && ! $skipDefault) {
-            $statsBaseQuery->where('status', '!=', 'Not Interested');
-        }
-
-        // Get Status Stats
-        $statusStats = (clone $statsBaseQuery)->selectRaw('status, count(*) as count')
+        // 2) Status counts: always include all statuses (including "Not Interested"),
+        // while respecting other filters.
+        $statusStats = (clone $baseQuery)->selectRaw('status, count(*) as count')
             ->groupBy('status')
             ->pluck('count', 'status')
             ->toArray();
 
-        // 2. Metrics Query
-        // Now we apply the status filter too for metrics if specified
-        $metricsQuery = (clone $statsBaseQuery);
+        // 3) List metrics: these should match what the LIST shows (incl. the default
+        // "hide Not Interested" behavior unless user explicitly filters).
+        $metricsQuery = (clone $baseQuery);
+
+        // Apply status filter if user selected one
         if ($request->filled('status')) {
             $metricsQuery->whereIn('status', (array) $request->status);
+        } else {
+            // Default: Hide 'Not Interested' unless searching.
+            $skipDefault = $request->boolean('_skip_default_filter', false);
+            if (! $request->filled('search') && ! $skipDefault) {
+                $metricsQuery->where('status', '!=', 'Not Interested');
+            }
         }
 
         $metricsData = $metricsQuery->selectRaw('COUNT(*) as total, 
@@ -198,6 +202,147 @@ class EnquiryController extends Controller
         return $query;
     }
 
+    private function getFacetCounts(Request $request): array
+    {
+        $user = Auth::user();
+        $isAdmin = $this->isUserAdmin($user);
+
+        $applyVisibilityAndCommonFilters = function ($query) use ($request, $user, $isAdmin) {
+            // Visibility
+            if (! $isAdmin) {
+                $query->where('assigned_to_user_id', $user->id);
+            }
+
+            // Search
+            if ($request->filled('search')) {
+                $searchTerm = trim($request->search);
+                $query->where(function ($q) use ($searchTerm) {
+                    $q->where('enquiries.student_name', 'LIKE', '%'.$searchTerm.'%')
+                        ->orWhere('enquiries.phone_number', 'LIKE', '%'.$searchTerm.'%')
+                        ->orWhere('enquiries.address', 'LIKE', '%'.$searchTerm.'%');
+                });
+            }
+
+            // Date range
+            if ($request->filled('start_date')) {
+                $query->where('enquiries.created_at', '>=', $request->start_date.' 00:00:00');
+            }
+            if ($request->filled('end_date')) {
+                $query->where('enquiries.created_at', '<=', $request->end_date.' 23:59:59');
+            }
+
+            // Test attendance
+            if ($request->filled('test_attended') && $request->test_attended !== '') {
+                $query->where('enquiries.test_attended', $request->test_attended);
+            }
+
+            return $query;
+        };
+
+        $applyDefaultStatusRule = function ($query) use ($request) {
+            // Match applyFilters(): hide "Not Interested" by default unless searching
+            $skipDefault = $request->boolean('_skip_default_filter', false);
+            if (! $request->filled('status') && ! $request->filled('search') && ! $skipDefault) {
+                $query->where('enquiries.status', '!=', 'Not Interested');
+            }
+            return $query;
+        };
+
+        // --- Status facet (ignore status filter AND default "hide Not Interested" rule) ---
+        $statusFacetQuery = Enquiry::query()->select('enquiries.*');
+        $applyVisibilityAndCommonFilters($statusFacetQuery);
+
+        // Apply other filters except status
+        if ($request->filled('course_id')) {
+            $statusFacetQuery->whereIn('enquiries.course_id', (array) $request->course_id);
+        }
+        if ($request->filled('assigned_to_user_id')) {
+            $statusFacetQuery->whereIn('enquiries.assigned_to_user_id', (array) $request->assigned_to_user_id);
+        }
+        if ($request->filled('source')) {
+            $statusFacetQuery->whereIn('enquiries.source', (array) $request->source);
+        }
+
+        $statusCounts = (clone $statusFacetQuery)
+            ->selectRaw('enquiries.status, count(*) as count')
+            ->groupBy('enquiries.status')
+            ->pluck('count', 'status')
+            ->toArray();
+
+        // --- Source facet (ignore source filter; keep status filter + default rule) ---
+        $sourceFacetQuery = Enquiry::query()->select('enquiries.*');
+        $applyVisibilityAndCommonFilters($sourceFacetQuery);
+
+        if ($request->filled('status')) {
+            $sourceFacetQuery->whereIn('enquiries.status', (array) $request->status);
+        } else {
+            $applyDefaultStatusRule($sourceFacetQuery);
+        }
+        if ($request->filled('course_id')) {
+            $sourceFacetQuery->whereIn('enquiries.course_id', (array) $request->course_id);
+        }
+        if ($request->filled('assigned_to_user_id')) {
+            $sourceFacetQuery->whereIn('enquiries.assigned_to_user_id', (array) $request->assigned_to_user_id);
+        }
+
+        $sourceCounts = (clone $sourceFacetQuery)
+            ->selectRaw('COALESCE(enquiries.source, "") as source_key, count(*) as count')
+            ->groupBy('source_key')
+            ->pluck('count', 'source_key')
+            ->toArray();
+
+        // --- Course facet (ignore course filter; keep status filter + default rule) ---
+        $courseFacetQuery = Enquiry::query()->select('enquiries.*');
+        $applyVisibilityAndCommonFilters($courseFacetQuery);
+
+        if ($request->filled('status')) {
+            $courseFacetQuery->whereIn('enquiries.status', (array) $request->status);
+        } else {
+            $applyDefaultStatusRule($courseFacetQuery);
+        }
+        if ($request->filled('source')) {
+            $courseFacetQuery->whereIn('enquiries.source', (array) $request->source);
+        }
+        if ($request->filled('assigned_to_user_id')) {
+            $courseFacetQuery->whereIn('enquiries.assigned_to_user_id', (array) $request->assigned_to_user_id);
+        }
+
+        $courseCounts = (clone $courseFacetQuery)
+            ->selectRaw('COALESCE(enquiries.course_id, 0) as course_key, count(*) as count')
+            ->groupBy('course_key')
+            ->pluck('count', 'course_key')
+            ->toArray();
+
+        // --- Counselor facet (ignore assigned_to_user_id filter; keep status filter + default rule) ---
+        $assignedFacetQuery = Enquiry::query()->select('enquiries.*');
+        $applyVisibilityAndCommonFilters($assignedFacetQuery);
+
+        if ($request->filled('status')) {
+            $assignedFacetQuery->whereIn('enquiries.status', (array) $request->status);
+        } else {
+            $applyDefaultStatusRule($assignedFacetQuery);
+        }
+        if ($request->filled('source')) {
+            $assignedFacetQuery->whereIn('enquiries.source', (array) $request->source);
+        }
+        if ($request->filled('course_id')) {
+            $assignedFacetQuery->whereIn('enquiries.course_id', (array) $request->course_id);
+        }
+
+        $assignedCounts = (clone $assignedFacetQuery)
+            ->selectRaw('COALESCE(enquiries.assigned_to_user_id, 0) as assigned_key, count(*) as count')
+            ->groupBy('assigned_key')
+            ->pluck('count', 'assigned_key')
+            ->toArray();
+
+        return [
+            'status' => $statusCounts,
+            'source' => $sourceCounts,
+            'course' => $courseCounts,
+            'assigned' => $assignedCounts,
+        ];
+    }
+
     public function index(Request $request)
     {
         $user = Auth::user();
@@ -206,6 +351,7 @@ class EnquiryController extends Controller
         // --- 1. Calculate Stats (Universal Filter Application) ---
         // Pass all request inputs (including defaults) to get filtered stats
         $counts = $this->getStats($request);
+        $facets = $this->getFacetCounts($request);
 
         // --- 2. Build Query ---
         // Select only enquiry columns to avoid overwriting data (like id) from joined tables
@@ -274,6 +420,7 @@ class EnquiryController extends Controller
                 'html' => $tableHtml,
                 'pagination' => $paginationHtml,
                 'stats' => $counts,
+                'facets' => $facets,
             ]);
         }
 
@@ -293,6 +440,7 @@ class EnquiryController extends Controller
             'courses',
             'counselors',
             'counts',
+            'facets',
             'sources',
             'isFacebookView'
         ));

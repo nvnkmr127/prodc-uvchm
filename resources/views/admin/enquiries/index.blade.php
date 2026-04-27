@@ -411,7 +411,7 @@
                 @php 
                     $statKey = $status == 'Interested Next Year' ? 'Next Year' : ($status == 'Next Entrance Exam' ? 'Entrance Exam' : $status);
                     $cssKey = str_replace(' ', '-', $statKey);
-                    $isActive = request('status') == $status;
+                    $isActive = in_array($status, (array) request('status'), true);
                 @endphp
                 <div class="stat-card-mini status-{{ $cssKey }}-border {{ $isActive ? 'active' : '' }}">
                     <a href="{{ route('admin.enquiries.index', array_merge($currentFilters, ['status' => $status])) }}" 
@@ -464,7 +464,10 @@
                                 <select class="form-control select2-multiple filter-input"
                                     name="assigned_to_user_id[]" multiple data-placeholder="All Counselors">
                                     @foreach($counselors as $counselor)
-                                        <option value="{{ $counselor->id }}" {{ in_array($counselor->id, (array) request('assigned_to_user_id')) ? 'selected' : '' }}>
+                                        <option
+                                            value="{{ $counselor->id }}"
+                                            data-count="{{ $facets['assigned'][$counselor->id] ?? 0 }}"
+                                            {{ in_array($counselor->id, (array) request('assigned_to_user_id')) ? 'selected' : '' }}>
                                             {{ $counselor->name }}
                                         </option>
                                     @endforeach
@@ -483,7 +486,10 @@
                                     <select class="form-control select2-multiple filter-input"
                                         name="status[]" multiple data-placeholder="All Statuses">
                                         @foreach(['New', 'Contacted', 'Interested', 'Follow-up', 'Admitted', 'Interested Next Year', 'Next Entrance Exam', 'Not Interested'] as $s)
-                                            <option value="{{ $s }}" {{ in_array($s, (array) request('status')) ? 'selected' : '' }}>{{ $s }}</option>
+                                            <option
+                                                value="{{ $s }}"
+                                                data-count="{{ $facets['status'][$s] ?? 0 }}"
+                                                {{ in_array($s, (array) request('status')) ? 'selected' : '' }}>{{ $s }}</option>
                                         @endforeach
                                     </select>
                                 </div>
@@ -491,7 +497,10 @@
                                     <label class="small text-muted font-weight-bold">Source</label>
                                     <select class="form-control select2-multiple filter-input" name="source[]" multiple data-placeholder="All Sources">
                                         @foreach($sources as $value => $label)
-                                            <option value="{{ $value }}" {{ in_array($value, (array) request('source')) ? 'selected' : '' }}>{{ $label }}</option>
+                                            <option
+                                                value="{{ $value }}"
+                                                data-count="{{ $facets['source'][$value] ?? 0 }}"
+                                                {{ in_array($value, (array) request('source')) ? 'selected' : '' }}>{{ $label }}</option>
                                         @endforeach
                                     </select>
                                 </div>
@@ -500,7 +509,10 @@
                                 <label class="small text-muted font-weight-bold">Course Interest</label>
                                 <select class="form-control select2-multiple filter-input" name="course_id[]" multiple data-placeholder="All Courses">
                                     @foreach($courses as $id => $name)
-                                        <option value="{{ $id }}" {{ in_array($id, (array) request('course_id')) ? 'selected' : '' }}>{{ $name }}</option>
+                                        <option
+                                            value="{{ $id }}"
+                                            data-count="{{ $facets['course'][$id] ?? 0 }}"
+                                            {{ in_array($id, (array) request('course_id')) ? 'selected' : '' }}>{{ $name }}</option>
                                     @endforeach
                                 </select>
                             </div>
@@ -912,7 +924,18 @@
             $('.select2-multiple').select2({
                 theme: 'default',
                 allowClear: true,
-                closeOnSelect: false
+                closeOnSelect: false,
+                templateResult: function (data) {
+                    if (!data.id) return data.text;
+                    const $el = $(data.element);
+                    const count = $el.data('count');
+                    if (count === undefined) return data.text;
+                    return `${data.text} (${count})`;
+                },
+                templateSelection: function (data) {
+                    // Keep selections clean (without counts)
+                    return data.text;
+                }
             });
 
             // Checkbox logic for bulk actions
@@ -996,6 +1019,7 @@
                     $container.html(res.html).css('opacity', '1');
                     $pagination.html(res.pagination);
                     if (res.stats) updateStats(res.stats);
+                    if (res.facets) updateFacetCounts(res.facets);
                     document.body.style.cursor = 'default';
                     $('#searchSpinner').hide();
 
@@ -1019,6 +1043,35 @@
                     alert('Search failed. Check browser console for details.');
                 }
             });
+        }
+
+        function updateFacetCounts(facets) {
+            // Status
+            $('select[name="status[]"] option').each(function () {
+                const key = $(this).attr('value');
+                $(this).data('count', facets.status?.[key] ?? 0);
+            });
+
+            // Source
+            $('select[name="source[]"] option').each(function () {
+                const key = $(this).attr('value');
+                $(this).data('count', facets.source?.[key] ?? 0);
+            });
+
+            // Course
+            $('select[name="course_id[]"] option').each(function () {
+                const key = $(this).attr('value');
+                $(this).data('count', facets.course?.[key] ?? 0);
+            });
+
+            // Counselor
+            $('select[name="assigned_to_user_id[]"] option').each(function () {
+                const key = $(this).attr('value');
+                $(this).data('count', facets.assigned?.[key] ?? 0);
+            });
+
+            // Refresh select2 UI
+            $('.select2-multiple').trigger('change.select2');
         }
 
         // resetAllFilters AJAX
