@@ -7,6 +7,8 @@ use App\Models\LeaveBalance;
 use App\Models\LeaveType;
 use App\Models\Timetable;
 use App\Models\User; // Added missing import
+use App\Services\FacultyBiometricMappingService;
+use App\Services\SecureFileValidator;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -16,6 +18,12 @@ use Illuminate\Validation\Rules;
 
 class FacultyController extends Controller
 {
+    protected $biometricMappingService;
+
+    public function __construct(FacultyBiometricMappingService $biometricMappingService)
+    {
+        $this->biometricMappingService = $biometricMappingService;
+    }
     /**
      * Display a listing of faculty members
      */
@@ -58,6 +66,7 @@ class FacultyController extends Controller
             'phone' => ['nullable', 'string', 'max:20'],
             'department' => ['nullable', 'string', 'max:100'],
             'employee_id' => ['nullable', 'string', 'max:50', 'unique:users,employee_id'],
+            'biometric_employee_code' => ['nullable', 'string', 'max:50', 'unique:users,biometric_employee_code'],
         ]);
 
         DB::beginTransaction();
@@ -81,11 +90,19 @@ class FacultyController extends Controller
             if ($request->employee_id) {
                 $userData['employee_id'] = $request->employee_id;
             }
+            if ($request->biometric_employee_code) {
+                $userData['biometric_employee_code'] = $request->biometric_employee_code;
+            }
 
             $user = User::create($userData);
 
             // Assign the staff role
             $user->assignRole('staff');
+
+            // Automatically generate and assign biometric code if not provided
+            if (empty($user->biometric_employee_code)) {
+                $this->biometricMappingService->assignBiometricCode($user);
+            }
 
             // Create leave balances for the new faculty member (only if LeaveType exists)
             if (class_exists(LeaveType::class)) {
@@ -173,6 +190,7 @@ class FacultyController extends Controller
             'phone' => ['nullable', 'string', 'max:20'],
             'department' => ['nullable', 'string', 'max:100'],
             'employee_id' => ['nullable', 'string', 'max:50', 'unique:users,employee_id,'.$faculty->id],
+            'biometric_employee_code' => ['nullable', 'string', 'max:50', 'unique:users,biometric_employee_code,'.$faculty->id],
             'password' => ['nullable', 'confirmed', Rules\Password::defaults()],
         ]);
 
@@ -191,6 +209,9 @@ class FacultyController extends Controller
             }
             if ($request->has('employee_id')) {
                 $updateData['employee_id'] = $request->employee_id;
+            }
+            if ($request->has('biometric_employee_code')) {
+                $updateData['biometric_employee_code'] = $request->biometric_employee_code;
             }
 
             // Only update password if provided
@@ -300,6 +321,200 @@ class FacultyController extends Controller
                 'error' => $e->getMessage(),
             ]);
             // Don't throw exception - faculty creation should still succeed
+        }
+    }
+
+    /**
+     * Show biometric mapping interface for faculty
+     */
+    public function biometricMapping(Request $request)
+    {
+        // Get basic statistics
+        $statsData = User::role('staff')->where('status', 'active')
+            ->selectRaw('count(*) as total, count(biometric_employee_code) as mapped')
+            ->first();
+
+        $totalFaculty = $statsData->total ?? 0;
+        $mappedFaculty = $statsData->mapped ?? 0;
+        $unmappedFaculty = $totalFaculty - $mappedFaculty;
+        $mappingPercentage = $totalFaculty > 0 ? round(($mappedFaculty / $totalFaculty) * 100, 2) : 0;
+
+        $stats = [
+            'total_faculty' => $totalFaculty,
+            'mapped_faculty' => $mappedFaculty,
+            'unmapped_faculty' => $unmappedFaculty,
+            'mapping_percentage' => $mappingPercentage,
+        ];
+
+        // Start query for faculty
+        $query = User::role('staff')->where('status', 'active');
+
+        // Apply search filter if provided
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('employee_id', 'like', "%{$search}%")
+                    ->orWhere('biometric_employee_code', 'like', "%{$search}%");
+            });
+        }
+
+        // Use pagination
+        $facultiesFetch = $query->paginate(100)->withQueryString();
+
+        $faculties = $facultiesFetch->map(function ($faculty) {
+            return [
+                'id' => $faculty->id,
+                'name' => $faculty->name,
+                'employee_id' => $faculty->employee_id,
+                'biometric_code' => $faculty->biometric_employee_code,
+                'department' => $faculty->department ?? 'No Department',
+                'phone' => $faculty->phone ?? 'No Phone',
+                'suggested_code' => $this->biometricMappingService->generateBiometricCodeFromEmployeeId($faculty->employee_id ?? ''),
+            ];
+        });
+
+        return view('admin.faculty.biometric-mapping', compact('stats', 'faculties', 'facultiesFetch'));
+    }
+
+    /**
+     * Bulk update biometric codes via AJAX
+     */
+    public function bulkUpdateBiometricMapping(Request $request)
+    {
+        Log::info('Bulk faculty biometric update started', [
+            'request_data' => $request->all(),
+            'mappings_count' => count($request->input('mappings', [])),
+            'user_id' => auth()->id(),
+            'ip' => $request->ip(),
+        ]);
+
+        $request->validate([
+            'mappings' => 'required|array',
+            'mappings.*.faculty_id' => 'required|integer|exists:users,id',
+            'mappings.*.biometric_code' => 'nullable|string|max:50|regex:/^[a-zA-Z0-9\-]*$/',
+        ]);
+
+        try {
+            Log::info('Validation passed, calling faculty biometric mapping service', [
+                'mappings' => $request->mappings,
+            ]);
+
+            $results = $this->biometricMappingService->bulkUpdateCodes($request->mappings);
+
+            Log::info('Bulk faculty biometric update completed', [
+                'results' => $results,
+                'success_count' => $results['success_count'],
+                'error_count' => $results['error_count'],
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => "Updated {$results['success_count']} faculty members successfully".
+                    ($results['error_count'] > 0 ? " with {$results['error_count']} errors" : ''),
+                'results' => $results,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Bulk faculty biometric update failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'request_data' => $request->all(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update biometric codes: '.$e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Import biometric mappings from Excel/CSV
+     */
+    public function importBiometricMapping(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|file|max:5120',
+        ]);
+
+        $fileValidator = new SecureFileValidator;
+        $validationResult = $fileValidator->validateFile($request->file('file'), ['xlsx', 'xls', 'csv']);
+
+        if (! $validationResult['valid']) {
+            return back()->with('error', $validationResult['error']);
+        }
+
+        try {
+            $results = $this->biometricMappingService->importBiometricMappings($request->file('file'));
+
+            if ($results['success']) {
+                $message = "Successfully imported {$results['imported_count']} biometric codes";
+                if (! empty($results['errors'])) {
+                    $message .= ' with '.count($results['errors']).' errors';
+                }
+
+                return back()->with('success', $message)
+                    ->with('import_errors', $results['errors'] ?? []);
+            } else {
+                return back()->with('error', 'Import failed: '.$results['error']);
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Faculty biometric import failed', ['error' => $e->getMessage()]);
+
+            return back()->with('error', 'Import failed: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Export unmapped faculty to Excel
+     */
+    public function exportBiometricMapping()
+    {
+        try {
+            return $this->biometricMappingService->exportUnmappedFaculty();
+        } catch (\Exception $e) {
+            Log::error('Export unmapped faculty failed', ['error' => $e->getMessage()]);
+
+            return back()->with('error', 'Export failed: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Download sample biometric mapping file
+     */
+    public function downloadBiometricMappingSample()
+    {
+        return $this->biometricMappingService->exportUnmappedFaculty();
+    }
+
+    /**
+     * Auto-generate biometric codes for all unmapped faculty
+     */
+    public function autoGenerateBiometricMapping()
+    {
+        try {
+            $results = $this->biometricMappingService->autoGenerateAllCodes();
+
+            $message = "Auto-generated {$results['success_count']} biometric codes";
+            if ($results['error_count'] > 0) {
+                $message .= " with {$results['error_count']} errors";
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'results' => $results,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Auto-generate faculty biometric codes failed', ['error' => $e->getMessage()]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to auto-generate codes: '.$e->getMessage(),
+            ], 500);
         }
     }
 }

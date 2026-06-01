@@ -12,7 +12,19 @@ class Payslip extends Model
     use HasFactory;
     use WebhookEnabled;
 
-    protected $fillable = ['user_id', 'month', 'year', 'gross_salary', 'total_deductions', 'net_salary', 'status'];
+    protected $fillable = [
+        'user_id',
+        'month',
+        'year',
+        'gross_salary',
+        'total_deductions',
+        'net_salary',
+        'status',
+        'working_days',
+        'days_present',
+        'leave_days',
+        'payment_multiplier',
+    ];
 
     public function user(): BelongsTo
     {

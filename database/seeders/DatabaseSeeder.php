@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
         // Call the seeder that creates all the permissions and roles
         $this->call([
             RolesAndPermissionsSeeder::class,
+            WidgetCategorySeeder::class,
             WidgetSeeder::class,
         ]);
 

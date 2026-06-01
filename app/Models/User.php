@@ -27,6 +27,10 @@ class User extends Authenticatable
         'password',
         'status',
         'email_verified_at',
+        'phone',
+        'department',
+        'employee_id',
+        'biometric_employee_code',
     ];
 
     /**

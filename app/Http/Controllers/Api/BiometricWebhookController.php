@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
+use App\Models\Attendance\BiometricLog;
 use App\Models\Setting;
 use App\Models\Student;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -35,22 +37,6 @@ class BiometricWebhookController extends Controller
             $direction = $validated['Direction'] ?? 'IN';
             $deviceId = $validated['DeviceId'] ?? 'etimeoffice-device';
 
-            // Find student by biometric code
-            $student = $this->findStudentByBiometricCode($biometricCode);
-
-            if (! $student) {
-                Log::warning('ETimeOffice: Student not found', [
-                    'biometric_code' => $biometricCode,
-                    'punch_datetime' => $punchDateTime,
-                ]);
-
-                return response()->json([
-                    'Result' => 'Error',
-                    'Status' => 'Student not found',
-                    'Message' => 'No student found with biometric code: '.$biometricCode,
-                ], 404);
-            }
-
             // Parse datetime
             try {
                 $carbonDate = Carbon::createFromFormat('d/m/Y_H:i', $punchDateTime);
@@ -70,6 +56,67 @@ class BiometricWebhookController extends Controller
                         'Message' => 'Cannot parse datetime: '.$punchDateTime,
                     ], 400);
                 }
+            }
+
+            // Find student by biometric code
+            $student = $this->findStudentByBiometricCode($biometricCode);
+
+            if (! $student) {
+                // Fallback to faculty lookup
+                $faculty = $this->findFacultyByBiometricCode($biometricCode);
+
+                if ($faculty) {
+                    Log::info('Faculty biometric scan processed (logged only)', [
+                        'faculty_name' => $faculty->name,
+                        'biometric_code' => $biometricCode,
+                        'punch_datetime' => $punchDateTime,
+                        'direction' => $direction,
+                    ]);
+
+                    // Log the scan in database for biometric salary calculation
+                    try {
+                        BiometricLog::create([
+                            'device_id' => $deviceId,
+                            'employee_code' => $biometricCode,
+                            'scan_datetime' => $carbonDate,
+                            'scan_type' => strtolower($direction) === 'out' ? 'out' : 'in',
+                            'raw_data' => $request->all(),
+                            'processed' => true,
+                            'sync_status' => 'success',
+                            'status' => 'processed',
+                            'processing_notes' => 'Faculty punch logged for salary',
+                        ]);
+                    } catch (\Exception $e) {
+                        Log::error('Failed to write faculty biometric log to database', [
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+
+                    return response()->json([
+                        'Result' => 'OK',
+                        'Status' => 'Success',
+                        'Message' => "Faculty punch logged for {$faculty->name}",
+                        'Data' => [
+                            'faculty_name' => $faculty->name,
+                            'employee_id' => $faculty->employee_id,
+                            'biometric_code' => $faculty->biometric_employee_code,
+                            'direction' => $direction,
+                            'timestamp' => $punchDateTime,
+                            'type' => 'faculty',
+                        ],
+                    ], 200);
+                }
+
+                Log::warning('ETimeOffice: Student or Faculty not found', [
+                    'biometric_code' => $biometricCode,
+                    'punch_datetime' => $punchDateTime,
+                ]);
+
+                return response()->json([
+                    'Result' => 'Error',
+                    'Status' => 'User not found',
+                    'Message' => 'No student or faculty found with biometric code: '.$biometricCode,
+                ], 404);
             }
 
             // Process attendance
@@ -214,6 +261,88 @@ class BiometricWebhookController extends Controller
                 ]);
 
                 return $student;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Find faculty by biometric code with employee ID fallback
+     */
+    private function findFacultyByBiometricCode($biometricCode)
+    {
+        $startTime = microtime(true);
+
+        // First try direct biometric code lookup
+        $faculty = User::role('staff')->where('biometric_employee_code', $biometricCode)->first();
+
+        if ($faculty) {
+            $queryTime = round((microtime(true) - $startTime) * 1000, 2);
+            Log::info('Faculty found by biometric code', [
+                'biometric_code' => $biometricCode,
+                'faculty_name' => $faculty->name,
+                'employee_id' => $faculty->employee_id,
+                'query_time_ms' => $queryTime,
+            ]);
+
+            return $faculty;
+        }
+
+        // Fallback to employee ID patterns
+        Log::info('Faculty biometric code not found, trying employee ID patterns', [
+            'biometric_code' => $biometricCode,
+        ]);
+
+        $faculty = $this->findFacultyByEmployeeId($biometricCode);
+
+        if ($faculty) {
+            // Auto-populate biometric code for future fast lookups
+            if (empty($faculty->biometric_employee_code)) {
+                try {
+                    $faculty->update(['biometric_employee_code' => $biometricCode]);
+                    Log::info('Auto-populated biometric code for faculty', [
+                        'faculty_id' => $faculty->id,
+                        'faculty_name' => $faculty->name,
+                        'employee_id' => $faculty->employee_id,
+                        'biometric_code' => $biometricCode,
+                    ]);
+                } catch (\Exception $e) {
+                    Log::warning('Failed to auto-populate biometric code for faculty', [
+                        'faculty_id' => $faculty->id,
+                        'biometric_code' => $biometricCode,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+        }
+
+        return $faculty;
+    }
+
+    /**
+     * Find faculty by employee ID with various patterns
+     */
+    private function findFacultyByEmployeeId($code)
+    {
+        $patterns = [
+            $code,
+            'EMP-'.$code,
+            'FAC-'.$code,
+            'STAFF-'.$code,
+            preg_replace('/[^0-9]/', '', $code), // Numbers only
+        ];
+
+        foreach ($patterns as $pattern) {
+            $faculty = User::role('staff')->where('employee_id', 'LIKE', "%{$pattern}%")->first();
+            if ($faculty) {
+                Log::info('Faculty found by employee ID pattern', [
+                    'pattern' => $pattern,
+                    'employee_id' => $faculty->employee_id,
+                    'faculty_name' => $faculty->name,
+                ]);
+
+                return $faculty;
             }
         }
 

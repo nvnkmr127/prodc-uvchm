@@ -450,6 +450,14 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
     // ================================
 
     Route::middleware(['permission:manage hr'])->group(function () {
+        // Faculty Biometric Mapping Routes (CRITICAL: Must come before resource route)
+        Route::get('faculty/biometric-mapping', [FacultyController::class, 'biometricMapping'])->name('faculty.biometric-mapping');
+        Route::get('faculty/biometric-mapping/export', [FacultyController::class, 'exportBiometricMapping'])->name('faculty.biometric-mapping.export');
+        Route::post('faculty/biometric-mapping/import', [FacultyController::class, 'importBiometricMapping'])->name('faculty.biometric-mapping.import');
+        Route::get('faculty/biometric-mapping/sample', [FacultyController::class, 'downloadBiometricMappingSample'])->name('faculty.biometric-mapping.sample');
+        Route::post('faculty/biometric-mapping/bulk', [FacultyController::class, 'bulkUpdateBiometricMapping'])->name('faculty.biometric-mapping.bulk');
+        Route::post('faculty/biometric-mapping/auto-generate', [FacultyController::class, 'autoGenerateBiometricMapping'])->name('faculty.biometric-mapping.auto-generate');
+
         Route::resource('faculty', FacultyController::class)->except(['show']);
         Route::resource('leave-types', LeaveTypeController::class);
         Route::get('leave-applications', [LeaveApplicationController::class, 'adminIndex'])->name('leave-applications.index');

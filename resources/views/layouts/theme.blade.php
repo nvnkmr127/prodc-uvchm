@@ -236,13 +236,23 @@
                                 <div class="dropdown-divider"></div>
                                 <h6 class="dropdown-header">Biometric System:</h6>
                                 <a class="collapse-item" href="{{ route('admin.students.biometric-mapping') }}">
-                                    <i class="fas fa-fingerprint text-primary"></i> Biometric Mapping
+                                    <i class="fas fa-fingerprint text-primary"></i> Student Mapping
                                     @php
                                         $unmappedCount = \App\Models\Student::where('status', 'active')
                                             ->whereNull('biometric_employee_code')->count();
                                     @endphp
                                     @if($unmappedCount > 0)
                                         <span class="badge badge-warning ml-1">{{ $unmappedCount }}</span>
+                                    @endif
+                                </a>
+                                <a class="collapse-item" href="{{ route('admin.faculty.biometric-mapping') }}">
+                                    <i class="fas fa-fingerprint text-success"></i> Faculty Mapping
+                                    @php
+                                        $unmappedFacultyCount = \App\Models\User::role('staff')->where('status', 'active')
+                                            ->whereNull('biometric_employee_code')->count();
+                                    @endphp
+                                    @if($unmappedFacultyCount > 0)
+                                        <span class="badge badge-warning ml-1">{{ $unmappedFacultyCount }}</span>
                                     @endif
                                 </a>
                             @else
@@ -269,6 +279,18 @@
 
                                 @can('view faculty')
                                     <a class="collapse-item" href="{{ route('admin.faculty.index') }}">Faculty</a>
+                                    @can('manage hr')
+                                        <a class="collapse-item" href="{{ route('admin.faculty.biometric-mapping') }}">
+                                            <i class="fas fa-fingerprint text-success"></i> Faculty Mapping
+                                            @php
+                                                $unmappedFacultyCount = \App\Models\User::role('staff')->where('status', 'active')
+                                                    ->whereNull('biometric_employee_code')->count();
+                                            @endphp
+                                            @if($unmappedFacultyCount > 0)
+                                                <span class="badge badge-warning ml-1">{{ $unmappedFacultyCount }}</span>
+                                            @endif
+                                        </a>
+                                    @endcan
                                 @endcan
                             @endif
                         </div>

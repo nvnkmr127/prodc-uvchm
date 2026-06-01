@@ -5,6 +5,14 @@
         <h2 class="text-center">{{ setting('college_name', 'My College') }}</h2>
         <p class="text-center">Payslip for the month of {{ $payslip->month }}, {{ $payslip->year }}</p><hr>
         <p><strong>Faculty Name:</strong> {{ $payslip->user->name }}</p>
+        @if(isset($payslip->working_days))
+        <div class="row mb-4 bg-light p-3 rounded border">
+            <div class="col-md-3"><strong>Month Working Days:</strong> {{ $payslip->working_days }}</div>
+            <div class="col-md-3"><strong>Days Present (Biometric):</strong> {{ $payslip->days_present }}</div>
+            <div class="col-md-3"><strong>Approved Leaves:</strong> {{ $payslip->leave_days }}</div>
+            <div class="col-md-3"><strong>Salary Pro-rata:</strong> <span class="badge bg-primary">{{ number_format($payslip->payment_multiplier * 100, 1) }}%</span></div>
+        </div>
+        @endif
         <div class="row"><div class="col-6">
             <table class="table table-sm table-bordered"><thead><tr><th colspan="2">Earnings</th></tr></thead>
             <tbody>
