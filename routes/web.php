@@ -65,6 +65,7 @@ use App\Http\Controllers\Admin\PermissionManagementController;
 use App\Http\Controllers\Admin\ReferralReportController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\SalaryComponentController;
+use App\Http\Controllers\Admin\SalaryTemplateController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\StaffActivityController;
 use App\Http\Controllers\Admin\StudentController;
@@ -465,12 +466,19 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
             ->name('leave-applications.updateStatus')
             ->where('application', '[0-9]+');
         Route::resource('salary-components', SalaryComponentController::class);
+        Route::resource('salary-templates', SalaryTemplateController::class);
         Route::get('faculty/{user}/salary', [UserSalaryController::class, 'show'])
             ->name('faculty.salary.show')
+            ->where('user', '[0-9]+');
+        Route::post('faculty/{user}/salary/assign-template', [UserSalaryController::class, 'assignTemplate'])
+            ->name('faculty.salary.assign-template')
             ->where('user', '[0-9]+');
         Route::post('faculty/{user}/salary', [UserSalaryController::class, 'store'])
             ->name('faculty.salary.store')
             ->where('user', '[0-9]+');
+        Route::delete('faculty/salary-override/{structure}', [UserSalaryController::class, 'destroy'])
+            ->name('faculty.salary.destroy-override')
+            ->where('structure', '[0-9]+');
         Route::resource('payslips', PayslipController::class)->only(['index', 'create', 'store', 'show']);
 
         // Faculty-Subject Management Routes

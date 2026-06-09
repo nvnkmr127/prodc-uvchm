@@ -18,22 +18,21 @@ class SalaryComponentController extends Controller
 
     public function create()
     {
-        return view('admin.salary_components.create');
+        $components = SalaryComponent::all();
+        return view('admin.salary_components.create', compact('components'));
     }
 
     public function store(Request $request)
     {
-        $request->validate([
-            'name' => 'required|string|max:255|unique:salary_components,name',
-            'type' => ['required', Rule::in(['Earning', 'Deduction'])],
-        ]);
-
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:salary_components,name',
-            'type' => 'required|in:earning,deduction',
+            'type' => ['required', Rule::in(['Earning', 'Deduction'])],
             'is_taxable' => 'boolean',
             'is_mandatory' => 'boolean',
+            'calculation_type' => ['required', Rule::in(['fixed', 'percentage'])],
+            'base_component_id' => 'nullable|exists:salary_components,id',
         ]);
+
         SalaryComponent::create($validated);
 
         return redirect()->route('admin.salary-components.index')->with('success', 'Salary component created.');
@@ -41,22 +40,21 @@ class SalaryComponentController extends Controller
 
     public function edit(SalaryComponent $salaryComponent)
     {
-        return view('admin.salary_components.edit', compact('salaryComponent'));
+        $components = SalaryComponent::where('id', '!=', $salaryComponent->id)->get();
+        return view('admin.salary_components.edit', compact('salaryComponent', 'components'));
     }
 
     public function update(Request $request, SalaryComponent $salaryComponent)
     {
-        $request->validate([
+        $validated = $request->validate([
             'name' => ['required', 'string', 'max:255', Rule::unique('salary_components')->ignore($salaryComponent->id)],
             'type' => ['required', Rule::in(['Earning', 'Deduction'])],
-        ]);
-
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'type' => 'required|in:earning,deduction',
             'is_taxable' => 'boolean',
             'is_mandatory' => 'boolean',
+            'calculation_type' => ['required', Rule::in(['fixed', 'percentage'])],
+            'base_component_id' => 'nullable|exists:salary_components,id',
         ]);
+
         $salaryComponent->update($validated);
 
         return redirect()->route('admin.salary-components.index')->with('success', 'Salary component updated.');

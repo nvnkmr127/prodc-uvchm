@@ -179,6 +179,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Get the salary template assigned to this user.
+     */
+    public function salaryTemplate()
+    {
+        return $this->belongsTo(SalaryTemplate::class);
+    }
+
+    /**
      * Get enquiries assigned to this user.
      */
     public function assignedEnquiries()

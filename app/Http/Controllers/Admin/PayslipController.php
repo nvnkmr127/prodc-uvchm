@@ -5,11 +5,20 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Payslip;
 use App\Models\User;
+use App\Services\SalaryCalculationService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class PayslipController extends Controller
 {
+    protected $salaryService;
+
+    public function __construct(SalaryCalculationService $salaryService)
+    {
+        $this->salaryService = $salaryService;
+    }
+
     public function index()
     {
         $payslips = Payslip::with('user')->latest()->get();
@@ -26,50 +35,65 @@ class PayslipController extends Controller
     {
         $request->validate(['month' => 'required|string', 'year' => 'required|integer']);
 
-        $staff = User::role('staff')->with('salaryStructure.salaryComponent')->get();
+        $staff = User::role('staff')->with(['salaryStructure.salaryComponent', 'salaryTemplate.components'])->get();
         $payslipCount = 0;
 
-        foreach ($staff as $user) {
-            if ($user->salaryStructure->isEmpty()) {
-                continue;
-            } // Skip staff with no salary defined
+        DB::transaction(function () use ($staff, $request, &$payslipCount) {
+            foreach ($staff as $user) {
+                if ($user->salaryStructure->isEmpty() && !$user->salaryTemplate) {
+                    continue; // Skip staff with no salary defined
+                } 
 
-            $baseGross = $user->salaryStructure->where('salaryComponent.type', 'Earning')->sum('amount');
-            $baseDeductions = $user->salaryStructure->where('salaryComponent.type', 'Deduction')->sum('amount');
+                // Calculate biometric attendance stats
+                $biometricStats = $this->calculateBiometricSalaryStats($user, $request->month, $request->year);
 
-            // Calculate biometric attendance stats and payment multiplier
-            $biometricStats = $this->calculateBiometricSalaryStats($user, $request->month, $request->year);
-            $multiplier = $biometricStats['payment_multiplier'];
+                // Use the calculation service to get dynamic values
+                $salaryData = $this->salaryService->calculateSalary(
+                    $user, 
+                    $biometricStats['working_days'], 
+                    $biometricStats['days_present'], 
+                    $biometricStats['leave_days']
+                );
 
-            // Calculate proportional gross salary
-            $gross = round($baseGross * $multiplier, 2);
-            $deductions = $baseDeductions;
-            $net = max(0.00, $gross - $deductions);
+                // Use updateOrCreate to prevent duplicate payslips
+                $payslip = Payslip::updateOrCreate(
+                    ['user_id' => $user->id, 'month' => $request->month, 'year' => $request->year],
+                    [
+                        'gross_salary' => $salaryData['gross_salary'],
+                        'total_deductions' => $salaryData['total_deductions'],
+                        'net_salary' => $salaryData['net_salary'],
+                        'working_days' => $biometricStats['working_days'],
+                        'days_present' => $biometricStats['days_present'],
+                        'leave_days' => $biometricStats['leave_days'],
+                        'payment_multiplier' => $salaryData['payment_multiplier'],
+                    ]
+                );
 
-            // Use updateOrCreate to prevent duplicate payslips
-            Payslip::updateOrCreate(
-                ['user_id' => $user->id, 'month' => $request->month, 'year' => $request->year],
-                [
-                    'gross_salary' => $gross,
-                    'total_deductions' => $deductions,
-                    'net_salary' => $net,
-                    'working_days' => $biometricStats['working_days'],
-                    'days_present' => $biometricStats['days_present'],
-                    'leave_days' => $biometricStats['leave_days'],
-                    'payment_multiplier' => $multiplier,
-                ]
-            );
-            $payslipCount++;
-        }
+                // Clear old items
+                $payslip->items()->delete();
+
+                // Create new items snapshot
+                foreach ($salaryData['components'] as $compData) {
+                    $payslip->items()->create([
+                        'salary_component_id' => $compData['salary_component_id'],
+                        'name' => $compData['name'],
+                        'type' => $compData['type'],
+                        'amount' => $compData['amount'],
+                    ]);
+                }
+
+                $payslipCount++;
+            }
+        });
 
         return redirect()->route('admin.payslips.index')->with('success', "Generated {$payslipCount} biometric-based payslips for {$request->month}, {$request->year}.");
     }
 
     public function show(Payslip $payslip)
     {
-        $structure = $payslip->user->salaryStructure()->with('salaryComponent')->get();
-        $earnings = $structure->where('salaryComponent.type', 'Earning');
-        $deductions = $structure->where('salaryComponent.type', 'Deduction');
+        $payslip->load('items');
+        $earnings = $payslip->items->where('type', 'Earning');
+        $deductions = $payslip->items->where('type', 'Deduction');
 
         return view('admin.payslips.show', compact('payslip', 'earnings', 'deductions'));
     }
@@ -196,7 +220,7 @@ class PayslipController extends Controller
             $leaveDays = array_sum($countedLeaveDates);
         }
 
-        // 7. Calculate payment multiplier
+        // 7. Calculate payment multiplier (Handled by calculation service now, we just pass the raw days, but we'll return it anyway)
         if (empty($user->biometric_employee_code)) {
             $multiplier = 1.0000;
         } else {

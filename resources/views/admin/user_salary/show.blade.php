@@ -4,58 +4,113 @@
 @section('content')
 <h1 class="h3 mb-4 text-gray-800">Salary Structure for: <strong>{{ $user->name }}</strong></h1>
 
-{{-- List of existing components --}}
-<div class="card shadow mb-4">
-    <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary">Current Salary Components</h6></div>
-    <div class="card-body">
-        <table class="table table-bordered">
-            <thead><tr><th>Component</th><th>Type</th><th class="text-right">Amount</th><th>Action</th></tr></thead>
-            <tbody>
-                @php 
-                    $totalEarnings = 0;
-                    $totalDeductions = 0;
-                @endphp
-                @forelse($salaryStructure as $structure)
-                    <tr>
-                        <td>{{ $structure->salaryComponent->name }}</td>
-                        <td><span class="badge badge-{{ $structure->salaryComponent->type == 'Earning' ? 'success' : 'danger' }}">{{ $structure->salaryComponent->type }}</span></td>
-                        <td class="text-right">{{ number_format($structure->amount, 2) }}</td>
-                        <td>
-                            <form action="{{ route('admin.faculty.salary.destroy', $structure) }}" method="POST">
-                                @csrf @method('DELETE')
-                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure?')"><i class="fas fa-trash"></i></button>
-                            </form>
-                        </td>
-                    </tr>
-                    @php
-                        if ($structure->salaryComponent->type == 'Earning') $totalEarnings += $structure->amount;
-                        else $totalDeductions += $structure->amount;
-                    @endphp
-                @empty
-                <tr><td colspan="4" class="text-center">No salary components assigned yet.</td></tr>
-                @endforelse
-            </tbody>
-            <tfoot class="table-active">
-                <tr><td colspan="2" class="text-right"><strong>Total Earnings:</strong></td><td colspan="2" class="text-right font-weight-bold">{{ number_format($totalEarnings, 2) }}</td></tr>
-                <tr><td colspan="2" class="text-right"><strong>Total Deductions:</strong></td><td colspan="2" class="text-right font-weight-bold text-danger">- {{ number_format($totalDeductions, 2) }}</td></tr>
-                <tr class="table-success"><td colspan="2" class="text-right h5"><strong>Net Salary:</strong></td><td colspan="2" class="text-right h5 font-weight-bold">{{ number_format($totalEarnings - $totalDeductions, 2) }}</td></tr>
-            </tfoot>
-        </table>
+<div class="row">
+    <div class="col-md-6">
+        {{-- Assign Template Form --}}
+        <div class="card shadow mb-4">
+            <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary">Assign Salary Template</h6></div>
+            <div class="card-body">
+                <form action="{{ route('admin.faculty.salary.assign-template', $user) }}" method="POST">
+                    @csrf
+                    <div class="form-group">
+                        <label>Select Template</label>
+                        <select name="salary_template_id" class="form-control">
+                            <option value="">-- No Template (Custom Only) --</option>
+                            @foreach($templates as $template)
+                                <option value="{{ $template->id }}" @if($user->salary_template_id == $template->id) selected @endif>
+                                    {{ $template->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                        <small class="text-muted d-block mt-2">Assigning a template will apply its base components. You can add overrides below.</small>
+                    </div>
+                    <button type="submit" class="btn btn-primary mt-2">Assign Template</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        {{-- Add Override Form --}}
+        <div class="card shadow mb-4">
+            <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary">Add Component Override</h6></div>
+            <div class="card-body">
+                <form action="{{ route('admin.faculty.salary.store', $user) }}" method="POST">
+                    @csrf
+                    <div class="form-group mb-2">
+                        <label>Salary Component</label>
+                        <select name="salary_component_id" class="form-control" required>
+                            <option value="">-- Select --</option>
+                            @foreach($components as $component)
+                                <option value="{{ $component->id }}">{{ $component->name }} ({{$component->type}})</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="form-group mb-2">
+                        <label>Override Amount</label>
+                        <input type="number" step="0.01" name="amount" class="form-control" required>
+                        <small class="text-muted">This amount will replace the template value for this component.</small>
+                    </div>
+                    <button type="submit" class="btn btn-success mt-2">Add Override</button>
+                </form>
+            </div>
+        </div>
     </div>
 </div>
 
-{{-- Form to add a new component --}}
+{{-- Current Template Components --}}
+@if($user->salaryTemplate)
 <div class="card shadow mb-4">
-    <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary">Add New Component to Structure</h6></div>
+    <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-info">Template Components ({{ $user->salaryTemplate->name }})</h6></div>
     <div class="card-body">
-        <form action="{{ route('admin.faculty.salary.store', $user) }}" method="POST">
-            @csrf
-            <div class="row">
-                <div class="col-md-6"><label>Salary Component</label><select name="salary_component_id" class="form-control" required><option value="">-- Select --</option>@foreach($components as $component)<option value="{{ $component->id }}">{{ $component->name }} ({{$component->type}})</option>@endforeach</select></div>
-                <div class="col-md-6"><label>Amount</label><input type="number" step="0.01" name="amount" class="form-control" required></div>
-            </div>
-            <button type="submit" class="btn btn-primary mt-3">Add Component</button>
-        </form>
+        <div class="table-responsive">
+            <table class="table table-sm table-bordered">
+                <thead><tr><th>Component</th><th>Type</th><th>Calculation</th><th>Base Component</th><th>Template Value</th></tr></thead>
+                <tbody>
+                    @forelse($user->salaryTemplate->components as $tc)
+                        <tr>
+                            <td>{{ $tc->salaryComponent->name }}</td>
+                            <td><span class="badge badge-{{ $tc->salaryComponent->type == 'Earning' ? 'success' : 'danger' }}">{{ $tc->salaryComponent->type }}</span></td>
+                            <td>{{ ucfirst($tc->salaryComponent->calculation_type) }}</td>
+                            <td>{{ $tc->salaryComponent->baseComponent ? $tc->salaryComponent->baseComponent->name : '-' }}</td>
+                            <td>{{ $tc->value }}</td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="5" class="text-center">No components in template.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+@endif
+
+{{-- List of Overrides --}}
+<div class="card shadow mb-4 border-left-warning">
+    <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-warning">Custom Overrides (Specific to {{ $user->name }})</h6></div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-sm table-bordered">
+                <thead><tr><th>Component</th><th>Type</th><th class="text-right">Override Amount</th><th>Action</th></tr></thead>
+                <tbody>
+                    @forelse($salaryStructure as $structure)
+                        <tr>
+                            <td>{{ $structure->salaryComponent->name }}</td>
+                            <td><span class="badge badge-{{ $structure->salaryComponent->type == 'Earning' ? 'success' : 'danger' }}">{{ $structure->salaryComponent->type }}</span></td>
+                            <td class="text-right">{{ number_format($structure->amount, 2) }}</td>
+                            <td>
+                                <form action="{{ route('admin.faculty.salary.destroy-override', $structure) }}" method="POST">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Remove override?')"><i class="fas fa-trash"></i></button>
+                                </form>
+                            </td>
+                        </tr>
+                    @empty
+                    <tr><td colspan="4" class="text-center text-muted">No custom overrides assigned. Template defaults apply.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 @endsection

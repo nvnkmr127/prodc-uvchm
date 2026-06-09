@@ -9,13 +9,30 @@
     <div class="card-body">
         <div class="table-responsive">
             <table class="table table-bordered">
-                <thead><tr><th>Component Name</th><th>Type</th><th style="width: 15%;">Actions</th></tr></thead>
+                <thead><tr>
+                    <th>Component Name</th>
+                    <th>Type</th>
+                    <th>Calculation Type</th>
+                    <th>Base Component</th>
+                    <th>Attributes</th>
+                    <th style="width: 15%;">Actions</th>
+                </tr></thead>
                 <tbody>
                     @forelse ($components as $component)
                         <tr>
                             <td>{{ $component->name }}</td>
                             <td>
-                                <span class="badge badge-{{ $component->type == 'Earning' ? 'success' : 'danger' }}">{{ $component->type }}</span>
+                                <span class="badge badge-{{ strtolower($component->type) == 'earning' ? 'success' : 'danger' }}">{{ $component->type }}</span>
+                            </td>
+                            <td>{{ ucfirst($component->calculation_type) }}</td>
+                            <td>{{ $component->baseComponent ? $component->baseComponent->name : 'N/A' }}</td>
+                            <td>
+                                @if($component->is_taxable)
+                                    <span class="badge badge-warning">Taxable</span>
+                                @endif
+                                @if($component->is_mandatory)
+                                    <span class="badge badge-info">Mandatory</span>
+                                @endif
                             </td>
                             <td>
                                 <a href="{{ route('admin.salary-components.edit', $component) }}" class="btn btn-warning btn-sm"><i class="fas fa-edit"></i></a>
@@ -27,7 +44,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="3" class="text-center">No salary components defined yet.</td></tr>
+                        <tr><td colspan="6" class="text-center">No salary components defined yet.</td></tr>
                     @endforelse
                 </tbody>
             </table>
