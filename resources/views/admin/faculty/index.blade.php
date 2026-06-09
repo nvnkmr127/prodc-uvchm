@@ -204,7 +204,19 @@
         </div>
     </div>
     <div class="card-body">
-        @forelse ($faculties as $faculty)
+                @if ($faculties->isEmpty())
+            <div class="text-center py-5">
+                <i class="fas fa-users fa-3x text-gray-300 mb-3"></i>
+                <h5 class="text-gray-500">No Faculty Members Found</h5>
+                <p class="text-muted mb-4">No faculty members with the 'staff' role exist yet.</p>
+                <a href="{{ route('admin.faculty.create') }}" class="btn btn-primary">
+                    <i class="fas fa-plus mr-2"></i>Create Your First Faculty Member
+                </a>
+            </div>
+        @else
+            {{-- Card View Container --}}
+            <div id="facultyCardsContainer">
+                @foreach ($faculties as $faculty)
             {{-- Card View --}}
             <div class="faculty-card faculty-item mb-3" 
                  data-name="{{ strtolower($faculty->name) }}" 
@@ -310,8 +322,26 @@
                 </div>
             </div>
 
+                            @endforeach
+            </div>
+
+
+
+        {{-- Table Headers (Hidden by default) --}}
+        <table class="table table-bordered d-none" id="facultyTable">
+            <thead class="thead-light">
+                <tr>
+                    <th>Faculty</th>
+                    <th>Contact</th>
+                    <th>Department</th>
+                    <th>Salary Template</th>
+                    <th style="width: 150px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="facultyTableBody">
+                    @foreach ($faculties as $faculty)
             {{-- Table View (Hidden by default) --}}
-            <tr class="faculty-table-row faculty-item d-none" 
+            <tr class="faculty-table-row faculty-item" 
                 data-name="{{ strtolower($faculty->name) }}" 
                 data-email="{{ strtolower($faculty->email) }}"
                 data-department="{{ strtolower($faculty->department ?? '') }}"
@@ -370,31 +400,9 @@
                     </div>
                 </td>
             </tr>
-        @empty
-            <div class="text-center py-5">
-                <i class="fas fa-users fa-3x text-gray-300 mb-3"></i>
-                <h5 class="text-gray-500">No Faculty Members Found</h5>
-                <p class="text-muted mb-4">No faculty members with the 'staff' role exist yet.</p>
-                <a href="{{ route('admin.faculty.create') }}" class="btn btn-primary">
-                    <i class="fas fa-plus mr-2"></i>Create Your First Faculty Member
-                </a>
-            </div>
-        @endforelse
-
-        {{-- Table Headers (Hidden by default) --}}
-        <table class="table table-bordered d-none" id="facultyTable">
-            <thead class="thead-light">
-                <tr>
-                    <th>Faculty</th>
-                    <th>Contact</th>
-                    <th>Department</th>
-                    <th>Salary Template</th>
-                    <th style="width: 150px;">Actions</th>
-                </tr>
-            </thead>
-            <tbody id="facultyTableBody">
-                {{-- Table rows are populated by JavaScript --}}
+                            @endforeach
             </tbody>
+        @endif
         </table>
     </div>
 </div>
@@ -483,8 +491,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const cardViewBtn = document.getElementById('cardView');
     const tableViewBtn = document.getElementById('tableView');
     const facultyTable = document.getElementById('facultyTable');
-    const facultyCards = document.querySelectorAll('.faculty-card');
-    const facultyTableRows = document.querySelectorAll('.faculty-table-row');
+    const facultyCardsContainer = document.getElementById('facultyCardsContainer');
     const facultyCount = document.getElementById('facultyCount');
 
     // Filter functionality
@@ -544,21 +551,14 @@ document.addEventListener('DOMContentLoaded', function() {
         cardViewBtn.classList.add('active');
         tableViewBtn.classList.remove('active');
         facultyTable.classList.add('d-none');
-        facultyCards.forEach(card => card.classList.remove('d-none'));
+        if (facultyCardsContainer) facultyCardsContainer.classList.remove('d-none');
     });
 
     tableViewBtn.addEventListener('click', function() {
         tableViewBtn.classList.add('active');
         cardViewBtn.classList.remove('active');
         facultyTable.classList.remove('d-none');
-        facultyCards.forEach(card => card.classList.add('d-none'));
-        
-        // Move table rows to table body
-        const tableBody = document.getElementById('facultyTableBody');
-        facultyTableRows.forEach(row => {
-            row.classList.remove('d-none');
-            tableBody.appendChild(row);
-        });
+        if (facultyCardsContainer) facultyCardsContainer.classList.add('d-none');
     });
 
     // Reset filters
