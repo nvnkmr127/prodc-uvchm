@@ -65,14 +65,14 @@
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
                         <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                            With Subjects
+                            Salary Template Setup
                         </div>
                         <div class="h5 mb-0 font-weight-bold text-gray-800">
-                            {{ $faculties->filter(function($f) { return $f->subjects->count() > 0; })->count() }}
+                            {{ $faculties->filter(function($f) { return $f->salaryTemplate !== null; })->count() }}
                         </div>
                     </div>
                     <div class="col-auto">
-                        <i class="fas fa-book fa-2x text-gray-300"></i>
+                        <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
                     </div>
                 </div>
             </div>
@@ -162,11 +162,11 @@
             </div>
             <div class="col-md-3">
                 <div class="form-group">
-                    <label class="form-label">Subject Assignment</label>
-                    <select id="subjectFilter" class="form-control">
+                    <label class="form-label">Salary Template</label>
+                    <select id="templateFilter" class="form-control">
                         <option value="">All Faculty</option>
-                        <option value="with-subjects">With Subjects</option>
-                        <option value="without-subjects">Without Subjects</option>
+                        <option value="with-template">With Template</option>
+                        <option value="without-template">Without Template</option>
                     </select>
                 </div>
             </div>
@@ -211,9 +211,9 @@
                  data-email="{{ strtolower($faculty->email) }}"
                  data-department="{{ strtolower($faculty->department ?? '') }}"
                  data-employee-id="{{ strtolower($faculty->employee_id ?? '') }}"
-                 data-has-subjects="{{ $faculty->subjects->count() > 0 ? 'true' : 'false' }}">
+                 data-has-template="{{ $faculty->salaryTemplate ? 'true' : 'false' }}">
                 
-                <div class="card border-left-primary">
+                <div class="card border-left-{{ $faculty->salaryTemplate ? 'success' : 'warning' }}">
                     <div class="card-body">
                         <div class="row align-items-center">
                             <div class="col-md-2 text-center">
@@ -255,19 +255,22 @@
                                         <small class="text-muted font-weight-bold">Assigned Subjects:</small>
                                         <div class="mt-1">
                                             @foreach($faculty->subjects->take(3) as $subject)
-                                                <span class="badge badge-info mr-1 mb-1">
-                                                    {{ $subject->name }}
-                                                    @if($subject->requires_lab)
-                                                        <i class="fas fa-flask ml-1"></i>
-                                                    @endif
-                                                </span>
+                                                <span class="badge badge-info mr-1 mb-1">{{ $subject->name }}</span>
                                             @endforeach
-                                            @if($faculty->subjects->count() > 3)
-                                                <span class="badge badge-secondary">+{{ $faculty->subjects->count() - 3 }} more</span>
-                                            @endif
                                         </div>
                                     </div>
                                 @endif
+                                
+                                <div class="mb-2">
+                                    <small class="text-muted font-weight-bold">Salary Setup:</small>
+                                    <div class="mt-1">
+                                        @if($faculty->salaryTemplate)
+                                            <span class="badge badge-success"><i class="fas fa-check-circle mr-1"></i>{{ $faculty->salaryTemplate->name }}</span>
+                                        @else
+                                            <span class="badge badge-warning"><i class="fas fa-exclamation-triangle mr-1"></i>No Template</span>
+                                        @endif
+                                    </div>
+                                </div>
                                 
                                 <div class="btn-group btn-group-sm w-100" role="group">
                                     <a href="{{ route('admin.faculty.subjects.edit', $faculty) }}" 
@@ -313,7 +316,7 @@
                 data-email="{{ strtolower($faculty->email) }}"
                 data-department="{{ strtolower($faculty->department ?? '') }}"
                 data-employee-id="{{ strtolower($faculty->employee_id ?? '') }}"
-                data-has-subjects="{{ $faculty->subjects->count() > 0 ? 'true' : 'false' }}">
+                data-has-template="{{ $faculty->salaryTemplate ? 'true' : 'false' }}">
                 <td>
                     <div class="d-flex align-items-center">
                         <div class="faculty-avatar bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center mr-3" style="width: 40px; height: 40px;">
@@ -335,9 +338,11 @@
                 </td>
                 <td>{{ $faculty->department ?? 'N/A' }}</td>
                 <td>
-                    <span class="badge badge-{{ $faculty->subjects->count() > 0 ? 'success' : 'warning' }}">
-                        {{ $faculty->subjects->count() }} Subject{{ $faculty->subjects->count() != 1 ? 's' : '' }}
-                    </span>
+                    @if($faculty->salaryTemplate)
+                        <span class="badge badge-success">{{ $faculty->salaryTemplate->name }}</span>
+                    @else
+                        <span class="badge badge-warning">Not Assigned</span>
+                    @endif
                 </td>
                 <td>
                     <div class="btn-group btn-group-sm" role="group">
@@ -383,7 +388,7 @@
                     <th>Faculty</th>
                     <th>Contact</th>
                     <th>Department</th>
-                    <th>Subjects</th>
+                    <th>Salary Template</th>
                     <th style="width: 150px;">Actions</th>
                 </tr>
             </thead>
@@ -473,7 +478,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('searchInput');
     const departmentFilter = document.getElementById('departmentFilter');
-    const subjectFilter = document.getElementById('subjectFilter');
+    const templateFilter = document.getElementById('templateFilter');
     const statusFilter = document.getElementById('statusFilter');
     const cardViewBtn = document.getElementById('cardView');
     const tableViewBtn = document.getElementById('tableView');
@@ -486,7 +491,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function filterFaculty() {
         const searchTerm = searchInput.value.toLowerCase();
         const selectedDept = departmentFilter.value.toLowerCase();
-        const selectedSubject = subjectFilter.value;
+        const selectedTemplate = templateFilter.value;
         const selectedStatus = statusFilter.value;
 
         let visibleCount = 0;
@@ -496,7 +501,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const email = item.dataset.email || '';
             const department = item.dataset.department || '';
             const employeeId = item.dataset.employeeId || '';
-            const hasSubjects = item.dataset.hasSubjects === 'true';
+            const hasTemplate = item.dataset.hasTemplate === 'true';
 
             let shouldShow = true;
 
@@ -510,10 +515,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 shouldShow = false;
             }
 
-            // Subject filter
-            if (selectedSubject === 'with-subjects' && !hasSubjects) {
+            // Template filter
+            if (selectedTemplate === 'with-template' && !hasTemplate) {
                 shouldShow = false;
-            } else if (selectedSubject === 'without-subjects' && hasSubjects) {
+            } else if (selectedTemplate === 'without-template' && hasTemplate) {
                 shouldShow = false;
             }
 
@@ -531,7 +536,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Event listeners
     searchInput.addEventListener('input', filterFaculty);
     departmentFilter.addEventListener('change', filterFaculty);
-    subjectFilter.addEventListener('change', filterFaculty);
+    templateFilter.addEventListener('change', filterFaculty);
     statusFilter.addEventListener('change', filterFaculty);
 
     // View toggle functionality
@@ -560,7 +565,7 @@ document.addEventListener('DOMContentLoaded', function() {
     window.resetFilters = function() {
         searchInput.value = '';
         departmentFilter.value = '';
-        subjectFilter.value = '';
+        templateFilter.value = '';
         statusFilter.value = '';
         filterFaculty();
     };

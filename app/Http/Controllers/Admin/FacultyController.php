@@ -31,7 +31,7 @@ class FacultyController extends Controller
     {
         try {
             $faculties = User::role('staff')
-                ->with(['subjects', 'leaveBalances']) // Eager load relationships
+                ->with(['subjects', 'leaveBalances', 'salaryTemplate']) // Eager load relationships
                 ->orderBy('name')
                 ->get();
 
