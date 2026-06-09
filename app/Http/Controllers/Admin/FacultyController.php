@@ -61,8 +61,6 @@ class FacultyController extends Controller
     {
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:'.User::class],
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
             'phone' => ['nullable', 'string', 'max:20'],
             'department' => ['nullable', 'string', 'max:100'],
             'employee_id' => ['nullable', 'string', 'max:50', 'unique:users,employee_id'],
@@ -72,11 +70,15 @@ class FacultyController extends Controller
         DB::beginTransaction();
 
         try {
+            // Auto-generate email and password if not provided
+            $email = 'faculty_' . time() . '_' . rand(100, 999) . '@example.com';
+            $password = \Illuminate\Support\Str::random(10);
+
             // Create the user - only include fields that exist in database
             $userData = [
                 'name' => $request->name,
-                'email' => $request->email,
-                'password' => Hash::make($request->password),
+                'email' => $email,
+                'password' => Hash::make($password),
                 'email_verified_at' => now(), // Auto-verify faculty emails
             ];
 

@@ -32,24 +32,9 @@
             @csrf
             
             <div class="row">
-                <div class="col-md-6 mb-3">
+                <div class="col-md-12 mb-3">
                     <label for="name" class="form-label font-weight-bold">Full Name <span class="text-danger">*</span></label>
                     <input type="text" class="form-control" name="name" id="name" required value="{{ old('name') }}" placeholder="Enter full name">
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label for="email" class="form-label font-weight-bold">Email Address <span class="text-danger">*</span></label>
-                    <input type="email" class="form-control" name="email" id="email" required value="{{ old('email') }}" placeholder="Enter email address">
-                </div>
-            </div>
-
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label for="password" class="form-label font-weight-bold">Password <span class="text-danger">*</span></label>
-                    <input type="password" class="form-control" name="password" id="password" required placeholder="Enter password">
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label for="password_confirmation" class="form-label font-weight-bold">Confirm Password <span class="text-danger">*</span></label>
-                    <input type="password" class="form-control" name="password_confirmation" id="password_confirmation" required placeholder="Confirm password">
                 </div>
             </div>
 
