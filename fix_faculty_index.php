@@ -1,49 +1,11 @@
-@extends('layouts.theme')
-@section('title', 'Faculty Management')
+<?php
+$content = file_get_contents('resources/views/admin/faculty/index.blade.php');
 
-@section('content')
-{{-- Header Section --}}
-<div class="d-sm-flex align-items-center justify-content-between mb-4">
-    <div>
-        <h1 class="h3 mb-0 text-gray-800">
-            <i class="fas fa-users text-primary mr-2"></i>Faculty Management
-        </h1>
-        <p class="text-muted mb-0">Manage faculty members, their subjects, and assignments</p>
-    </div>
-    <div class="d-flex gap-2">
-        <a href="{{ route('admin.faculty.create') }}" class="btn btn-primary shadow-sm">
-            <i class="fas fa-plus fa-sm mr-1"></i> Add New Faculty
-        </a>
-        <button class="btn btn-outline-secondary" data-toggle="modal" data-target="#bulkActionsModal">
-            <i class="fas fa-tasks mr-1"></i> Bulk Actions
-        </button>
-    </div>
-</div>
+$start = strpos($content, '<div class="card-body">');
+$end = strpos($content, '{{-- Bulk Actions Modal --}}');
 
-{{-- Success/Error Messages --}}
-@if(session('success'))
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-        <i class="fas fa-check-circle mr-2"></i>{{ session('success') }}
-        <button type="button" class="close" data-dismiss="alert">
-            <span>&times;</span>
-        </button>
-    </div>
-@endif
-
-@if(session('error'))
-    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-        <i class="fas fa-exclamation-circle mr-2"></i>{{ session('error') }}
-        <button type="button" class="close" data-dismiss="alert">
-            <span>&times;</span>
-        </button>
-    </div>
-@endif
-
-{{-- Statistics Cards --}}
-<div class="row mb-4">
-    <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-left-primary shadow h-100 py-2">
-                <div class="card-body">
+$new_body = <<<'HTML'
+    <div class="card-body">
         @if ($faculties->isEmpty())
             <div class="text-center py-5">
                 <i class="fas fa-users fa-3x text-gray-300 mb-3"></i>
@@ -176,7 +138,7 @@
                 </thead>
                 <tbody id="facultyTableBody">
                     @foreach ($faculties as $faculty)
-                        <tr class="faculty-table-row faculty-item" 
+                        <tr class="faculty-table-row faculty-item d-none" 
                             data-name="{{ strtolower($faculty->name) }}" 
                             data-email="{{ strtolower($faculty->email) }}"
                             data-department="{{ strtolower($faculty->department ?? '') }}"
@@ -241,202 +203,8 @@
         @endif
     </div>
 </div>
-{{-- Bulk Actions Modal --}}
-<div class="modal fade" id="bulkActionsModal" tabindex="-1" role="dialog">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="fas fa-tasks mr-2"></i>Bulk Actions
-                </h5>
-                <button type="button" class="close" data-dismiss="modal">
-                    <span>&times;</span>
-                </button>
-            </div>
-            <div class="modal-body">
-                <p class="text-muted">Select faculty members and choose an action to perform on all selected items.</p>
-                <div class="form-group">
-                    <label>Select Action:</label>
-                    <select class="form-control" id="bulkAction">
-                        <option value="">Choose an action...</option>
-                        <option value="assign-subject">Assign Subject</option>
-                        <option value="remove-subject">Remove Subject</option>
-                        <option value="change-department">Change Department</option>
-                        <option value="export">Export Data</option>
-                    </select>
-                </div>
-                <div class="alert alert-info">
-                    <i class="fas fa-info-circle mr-2"></i>
-                    This feature is coming soon in the next update.
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" disabled>Execute Action</button>
-            </div>
-        </div>
-    </div>
-</div>
 
-{{-- Custom Styles --}}
-<style>
-.faculty-avatar {
-    font-size: 1.2rem;
-}
+HTML;
 
-.faculty-card {
-    transition: all 0.3s ease;
-}
-
-.faculty-card:hover {
-    transform: translateY(-2px);
-}
-
-.badge {
-    font-size: 0.75rem;
-}
-
-.btn-group-sm .btn {
-    font-size: 0.75rem;
-}
-
-.card-body .row {
-    align-items: center;
-}
-
-@media (max-width: 768px) {
-    .faculty-card .row {
-        text-align: center;
-    }
-    
-    .faculty-card .col-md-4 {
-        margin-top: 1rem;
-    }
-}
-</style>
-
-{{-- JavaScript for Filtering and View Toggle --}}
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const searchInput = document.getElementById('searchInput');
-    const departmentFilter = document.getElementById('departmentFilter');
-    const templateFilter = document.getElementById('templateFilter');
-    const statusFilter = document.getElementById('statusFilter');
-    const cardViewBtn = document.getElementById('cardView');
-    const tableViewBtn = document.getElementById('tableView');
-    const facultyTable = document.getElementById('facultyTable');
-    const facultyCardsContainer = document.getElementById('facultyCardsContainer');
-    const facultyCount = document.getElementById('facultyCount');
-
-    // Filter functionality
-    function filterFaculty() {
-        const searchTerm = searchInput.value.toLowerCase();
-        const selectedDept = departmentFilter.value.toLowerCase();
-        const selectedTemplate = templateFilter.value;
-        const selectedStatus = statusFilter.value;
-
-        let visibleCount = 0;
-
-        document.querySelectorAll('.faculty-item').forEach(item => {
-            const name = item.dataset.name || '';
-            const email = item.dataset.email || '';
-            const department = item.dataset.department || '';
-            const employeeId = item.dataset.employeeId || '';
-            const hasTemplate = item.dataset.hasTemplate === 'true';
-
-            let shouldShow = true;
-
-            // Search filter
-            if (searchTerm && !name.includes(searchTerm) && !email.includes(searchTerm) && !employeeId.includes(searchTerm)) {
-                shouldShow = false;
-            }
-
-            // Department filter
-            if (selectedDept && department !== selectedDept) {
-                shouldShow = false;
-            }
-
-            // Template filter
-            if (selectedTemplate === 'with-template' && !hasTemplate) {
-                shouldShow = false;
-            } else if (selectedTemplate === 'without-template' && hasTemplate) {
-                shouldShow = false;
-            }
-
-            if (shouldShow) {
-                item.style.display = '';
-                visibleCount++;
-            } else {
-                item.style.display = 'none';
-            }
-        });
-
-        facultyCount.textContent = visibleCount;
-    }
-
-    // Event listeners
-    searchInput.addEventListener('input', filterFaculty);
-    departmentFilter.addEventListener('change', filterFaculty);
-    templateFilter.addEventListener('change', filterFaculty);
-    statusFilter.addEventListener('change', filterFaculty);
-
-    // View toggle functionality
-    cardViewBtn.addEventListener('click', function() {
-        cardViewBtn.classList.add('active');
-        tableViewBtn.classList.remove('active');
-        facultyTable.classList.add('d-none');
-        facultyCardsContainer.classList.remove('d-none');
-    });
-
-    tableViewBtn.addEventListener('click', function() {
-        tableViewBtn.classList.add('active');
-        cardViewBtn.classList.remove('active');
-        facultyTable.classList.remove('d-none');
-        facultyCardsContainer.classList.add('d-none');
-    });
-
-    // Reset filters
-    window.resetFilters = function() {
-        searchInput.value = '';
-        departmentFilter.value = '';
-        templateFilter.value = '';
-        statusFilter.value = '';
-        filterFaculty();
-    };
-
-    // Delete confirmation
-    window.confirmDelete = function(facultyId, facultyName) {
-        if (confirm(`Are you sure you want to delete faculty member "${facultyName}"? This action cannot be undone.`)) {
-            // Create a form and submit it
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = `/admin/faculty/${facultyId}`;
-            
-            const csrfToken = document.createElement('input');
-            csrfToken.type = 'hidden';
-            csrfToken.name = '_token';
-            csrfToken.value = '{{ csrf_token() }}';
-            
-            const methodField = document.createElement('input');
-            methodField.type = 'hidden';
-            methodField.name = '_method';
-            methodField.value = 'DELETE';
-            
-            form.appendChild(csrfToken);
-            form.appendChild(methodField);
-            document.body.appendChild(form);
-            form.submit();
-        }
-    };
-
-    // Placeholder functions for future features
-    window.viewSchedule = function(facultyId) {
-        alert('Schedule view feature coming soon!');
-    };
-
-    window.viewAttendance = function(facultyId) {
-        alert('Attendance view feature coming soon!');
-    };
-});
-</script>
-@endsection
+$final = substr($content, 0, $start) . $new_body . substr($content, $end);
+file_put_contents('resources/views/admin/faculty/index.blade.php', $final);
