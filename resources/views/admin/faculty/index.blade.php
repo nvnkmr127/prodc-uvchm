@@ -43,8 +43,334 @@
 <div class="row mb-4">
     <div class="col-xl-3 col-md-6 mb-4">
         <div class="card border-left-primary shadow h-100 py-2">
-                <div class="card-body">
-        @if ($faculties->isEmpty())
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            Total Faculty
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ $faculties->count() }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-users fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-success shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            Salary Template Setup
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ $faculties->filter(function($f) { return $f->salaryTemplate !== null; })->count() }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-info shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            Active Today
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ $faculties->where('last_activity', '>=', now()->startOfDay())->count() }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-clock fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-warning shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            Departments
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ $faculties->pluck('department')->filter()->unique()->count() }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-building fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- Filters and Search --}}
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-filter mr-2"></i>Search & Filter
+                </h6>
+            </div>
+            <div class="col-md-6 text-right">
+                <button class="btn btn-sm btn-outline-primary" onclick="resetFilters()">
+                    <i class="fas fa-undo mr-1"></i>Reset
+                </button>
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="form-group">
+                    <label class="form-label">Search Faculty</label>
+                    <div class="input-group">
+                        <input type="text" id="searchInput" class="form-control" placeholder="Name, email, employee ID...">
+                        <div class="input-group-append">
+                            <span class="input-group-text"><i class="fas fa-search"></i></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="form-group">
+                    <label class="form-label">Department</label>
+                    <select id="departmentFilter" class="form-control">
+                        <option value="">All Departments</option>
+                        @foreach($faculties->pluck('department')->filter()->unique()->sort() as $dept)
+                            <option value="{{ $dept }}">{{ $dept }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="form-group">
+                    <label class="form-label">Salary Template</label>
+                    <select id="templateFilter" class="form-control">
+                        <option value="">All Faculty</option>
+                        <option value="with-template">With Template</option>
+                        <option value="without-template">Without Template</option>
+                    </select>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="form-group">
+                    <label class="form-label">Status</label>
+                    <select id="statusFilter" class="form-control">
+                        <option value="">All Status</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- Faculty Cards/Table --}}
+<div class="card shadow mb-4">
+    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+        <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-list mr-2"></i>Faculty Members
+            <span class="badge badge-secondary ml-2" id="facultyCount">{{ $faculties->count() }}</span>
+        </h6>
+        <div class="d-flex align-items-center">
+            <span class="mr-3 text-muted">View:</span>
+            <div class="btn-group btn-group-sm" role="group">
+                <button type="button" class="btn btn-outline-primary active" id="cardView">
+                    <i class="fas fa-th-large"></i>
+                </button>
+                <button type="button" class="btn btn-outline-primary" id="tableView">
+                    <i class="fas fa-table"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        @forelse ($faculties as $faculty)
+            {{-- Card View --}}
+            <div class="faculty-card faculty-item mb-3" 
+                 data-name="{{ strtolower($faculty->name) }}" 
+                 data-email="{{ strtolower($faculty->email) }}"
+                 data-department="{{ strtolower($faculty->department ?? '') }}"
+                 data-employee-id="{{ strtolower($faculty->employee_id ?? '') }}"
+                 data-has-template="{{ $faculty->salaryTemplate ? 'true' : 'false' }}">
+                
+                <div class="card border-left-{{ $faculty->salaryTemplate ? 'success' : 'warning' }}">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col-md-2 text-center">
+                                <div class="faculty-avatar bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                                    <i class="fas fa-user fa-lg"></i>
+                                </div>
+                                <div class="mt-2">
+                                    <span class="badge badge-{{ $faculty->subjects->count() > 0 ? 'success' : 'warning' }}">
+                                        {{ $faculty->subjects->count() }} Subject{{ $faculty->subjects->count() != 1 ? 's' : '' }}
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <h6 class="font-weight-bold text-gray-800 mb-1">
+                                    {{ $faculty->name }}
+                                    @if($faculty->employee_id)
+                                        <small class="text-muted">({{ $faculty->employee_id }})</small>
+                                    @endif
+                                </h6>
+                                <p class="text-muted mb-1">
+                                    <i class="fas fa-envelope fa-sm mr-1"></i>{{ $faculty->email }}
+                                </p>
+                                @if($faculty->phone)
+                                    <p class="text-muted mb-1">
+                                        <i class="fas fa-phone fa-sm mr-1"></i>{{ $faculty->phone }}
+                                    </p>
+                                @endif
+                                @if($faculty->department)
+                                    <p class="text-muted mb-1">
+                                        <i class="fas fa-building fa-sm mr-1"></i>{{ $faculty->department }}
+                                    </p>
+                                @endif
+                            </div>
+                            
+                            <div class="col-md-4">
+                                @if($faculty->subjects->count() > 0)
+                                    <div class="mb-2">
+                                        <small class="text-muted font-weight-bold">Assigned Subjects:</small>
+                                        <div class="mt-1">
+                                            @foreach($faculty->subjects->take(3) as $subject)
+                                                <span class="badge badge-info mr-1 mb-1">{{ $subject->name }}</span>
+                                            @endforeach
+                                        </div>
+                                    </div>
+                                @endif
+                                
+                                <div class="mb-2">
+                                    <small class="text-muted font-weight-bold">Salary Setup:</small>
+                                    <div class="mt-1">
+                                        @if($faculty->salaryTemplate)
+                                            <span class="badge badge-success"><i class="fas fa-check-circle mr-1"></i>{{ $faculty->salaryTemplate->name }}</span>
+                                        @else
+                                            <span class="badge badge-warning"><i class="fas fa-exclamation-triangle mr-1"></i>No Template</span>
+                                        @endif
+                                    </div>
+                                </div>
+                                
+                                <div class="btn-group btn-group-sm w-100" role="group">
+                                    <a href="{{ route('admin.faculty.subjects.edit', $faculty) }}" 
+                                       class="btn btn-info" title="Manage Subjects">
+                                        <i class="fas fa-book mr-1"></i>Subjects
+                                    </a>
+                                    <a href="{{ route('admin.faculty.salary.show', $faculty) }}" 
+                                       class="btn btn-success" title="Manage Salary">
+                                        <i class="fas fa-dollar-sign mr-1"></i>Salary
+                                    </a>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <button type="button" class="btn btn-outline-secondary dropdown-toggle" 
+                                                data-toggle="dropdown" title="More Actions">
+                                            <i class="fas fa-ellipsis-v"></i>
+                                        </button>
+                                        <div class="dropdown-menu">
+                                            <a class="dropdown-item" href="{{ route('admin.faculty.edit', $faculty) }}">
+                                                <i class="fas fa-edit mr-2"></i>Edit Details
+                                            </a>
+                                            <a class="dropdown-item" href="#" onclick="viewSchedule({{ $faculty->id }})">
+                                                <i class="fas fa-calendar mr-2"></i>View Schedule
+                                            </a>
+                                            <a class="dropdown-item" href="#" onclick="viewAttendance({{ $faculty->id }})">
+                                                <i class="fas fa-clock mr-2"></i>Attendance
+                                            </a>
+                                            <div class="dropdown-divider"></div>
+                                            <a class="dropdown-item text-danger" href="#" 
+                                               onclick="confirmDelete({{ $faculty->id }}, '{{ $faculty->name }}')">
+                                                <i class="fas fa-trash mr-2"></i>Delete
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Table View (Hidden by default) --}}
+            <tr class="faculty-table-row faculty-item d-none" 
+                data-name="{{ strtolower($faculty->name) }}" 
+                data-email="{{ strtolower($faculty->email) }}"
+                data-department="{{ strtolower($faculty->department ?? '') }}"
+                data-employee-id="{{ strtolower($faculty->employee_id ?? '') }}"
+                data-has-template="{{ $faculty->salaryTemplate ? 'true' : 'false' }}">
+                <td>
+                    <div class="d-flex align-items-center">
+                        <div class="faculty-avatar bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center mr-3" style="width: 40px; height: 40px;">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <div>
+                            <div class="font-weight-bold">{{ $faculty->name }}</div>
+                            @if($faculty->employee_id)
+                                <small class="text-muted">{{ $faculty->employee_id }}</small>
+                            @endif
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <div>{{ $faculty->email }}</div>
+                    @if($faculty->phone)
+                        <small class="text-muted">{{ $faculty->phone }}</small>
+                    @endif
+                </td>
+                <td>{{ $faculty->department ?? 'N/A' }}</td>
+                <td>
+                    @if($faculty->salaryTemplate)
+                        <span class="badge badge-success">{{ $faculty->salaryTemplate->name }}</span>
+                    @else
+                        <span class="badge badge-warning">Not Assigned</span>
+                    @endif
+                </td>
+                <td>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <a href="{{ route('admin.faculty.subjects.edit', $faculty) }}" 
+                           class="btn btn-info btn-sm" title="Manage Subjects">
+                            <i class="fas fa-book"></i>
+                        </a>
+                        <a href="{{ route('admin.faculty.salary.show', $faculty) }}" 
+                           class="btn btn-success btn-sm" title="Manage Salary">
+                            <i class="fas fa-dollar-sign"></i>
+                        </a>
+                        <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle" 
+                                data-toggle="dropdown" title="More Actions">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <div class="dropdown-menu">
+                            <a class="dropdown-item" href="{{ route('admin.faculty.edit', $faculty) }}">
+                                <i class="fas fa-edit mr-2"></i>Edit
+                            </a>
+                            <a class="dropdown-item text-danger" href="#" 
+                               onclick="confirmDelete({{ $faculty->id }}, '{{ $faculty->name }}')">
+                                <i class="fas fa-trash mr-2"></i>Delete
+                            </a>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+        @empty
             <div class="text-center py-5">
                 <i class="fas fa-users fa-3x text-gray-300 mb-3"></i>
                 <h5 class="text-gray-500">No Faculty Members Found</h5>
@@ -53,194 +379,26 @@
                     <i class="fas fa-plus mr-2"></i>Create Your First Faculty Member
                 </a>
             </div>
-        @else
-            {{-- Card View Container --}}
-            <div id="facultyCardsContainer">
-                @foreach ($faculties as $faculty)
-                    <div class="faculty-card faculty-item mb-3" 
-                         data-name="{{ strtolower($faculty->name) }}" 
-                         data-email="{{ strtolower($faculty->email) }}"
-                         data-department="{{ strtolower($faculty->department ?? '') }}"
-                         data-employee-id="{{ strtolower($faculty->employee_id ?? '') }}"
-                         data-has-template="{{ $faculty->salaryTemplate ? 'true' : 'false' }}">
-                        
-                        <div class="card border-left-{{ $faculty->salaryTemplate ? 'success' : 'warning' }}">
-                            <div class="card-body">
-                                <div class="row align-items-center">
-                                    <div class="col-md-2 text-center">
-                                        <div class="faculty-avatar bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
-                                            <i class="fas fa-user fa-lg"></i>
-                                        </div>
-                                        <div class="mt-2">
-                                            <span class="badge badge-{{ $faculty->subjects->count() > 0 ? 'success' : 'warning' }}">
-                                                {{ $faculty->subjects->count() }} Subject{{ $faculty->subjects->count() != 1 ? 's' : '' }}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="col-md-6">
-                                        <h6 class="font-weight-bold text-gray-800 mb-1">
-                                            {{ $faculty->name }}
-                                            @if($faculty->employee_id)
-                                                <small class="text-muted">({{ $faculty->employee_id }})</small>
-                                            @endif
-                                        </h6>
-                                        <p class="text-muted mb-1">
-                                            <i class="fas fa-envelope fa-sm mr-1"></i>{{ $faculty->email }}
-                                        </p>
-                                        @if($faculty->phone)
-                                            <p class="text-muted mb-1">
-                                                <i class="fas fa-phone fa-sm mr-1"></i>{{ $faculty->phone }}
-                                            </p>
-                                        @endif
-                                        @if($faculty->department)
-                                            <p class="text-muted mb-1">
-                                                <i class="fas fa-building fa-sm mr-1"></i>{{ $faculty->department }}
-                                            </p>
-                                        @endif
-                                    </div>
-                                    
-                                    <div class="col-md-4">
-                                        @if($faculty->subjects->count() > 0)
-                                            <div class="mb-2">
-                                                <small class="text-muted font-weight-bold">Assigned Subjects:</small>
-                                                <div class="mt-1">
-                                                    @foreach($faculty->subjects->take(3) as $subject)
-                                                        <span class="badge badge-info mr-1 mb-1">{{ $subject->name }}</span>
-                                                    @endforeach
-                                                </div>
-                                            </div>
-                                        @endif
-                                        
-                                        <div class="mb-2">
-                                            <small class="text-muted font-weight-bold">Salary Setup:</small>
-                                            <div class="mt-1">
-                                                @if($faculty->salaryTemplate)
-                                                    <span class="badge badge-success"><i class="fas fa-check-circle mr-1"></i>{{ $faculty->salaryTemplate->name }}</span>
-                                                @else
-                                                    <span class="badge badge-warning"><i class="fas fa-exclamation-triangle mr-1"></i>No Template</span>
-                                                @endif
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="btn-group btn-group-sm w-100" role="group">
-                                            <a href="{{ route('admin.faculty.subjects.edit', $faculty) }}" 
-                                               class="btn btn-info" title="Manage Subjects">
-                                                <i class="fas fa-book mr-1"></i>Subjects
-                                            </a>
-                                            <a href="{{ route('admin.faculty.salary.show', $faculty) }}" 
-                                               class="btn btn-success" title="Manage Salary">
-                                                <i class="fas fa-dollar-sign mr-1"></i>Salary
-                                            </a>
-                                            <div class="btn-group btn-group-sm" role="group">
-                                                <button type="button" class="btn btn-outline-secondary dropdown-toggle" 
-                                                        data-toggle="dropdown" title="More Actions">
-                                                    <i class="fas fa-ellipsis-v"></i>
-                                                </button>
-                                                <div class="dropdown-menu">
-                                                    <a class="dropdown-item" href="{{ route('admin.faculty.edit', $faculty) }}">
-                                                        <i class="fas fa-edit mr-2"></i>Edit Details
-                                                    </a>
-                                                    <a class="dropdown-item" href="#" onclick="viewSchedule({{ $faculty->id }})">
-                                                        <i class="fas fa-calendar mr-2"></i>View Schedule
-                                                    </a>
-                                                    <a class="dropdown-item" href="#" onclick="viewAttendance({{ $faculty->id }})">
-                                                        <i class="fas fa-clock mr-2"></i>Attendance
-                                                    </a>
-                                                    <div class="dropdown-divider"></div>
-                                                    <a class="dropdown-item text-danger" href="#" 
-                                                       onclick="confirmDelete({{ $faculty->id }}, '{{ $faculty->name }}')">
-                                                        <i class="fas fa-trash mr-2"></i>Delete
-                                                    </a>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                @endforeach
-            </div>
+        @endforelse
 
-            {{-- Table Headers (Hidden by default) --}}
-            <table class="table table-bordered d-none" id="facultyTable">
-                <thead class="thead-light">
-                    <tr>
-                        <th>Faculty</th>
-                        <th>Contact</th>
-                        <th>Department</th>
-                        <th>Salary Template</th>
-                        <th style="width: 150px;">Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="facultyTableBody">
-                    @foreach ($faculties as $faculty)
-                        <tr class="faculty-table-row faculty-item" 
-                            data-name="{{ strtolower($faculty->name) }}" 
-                            data-email="{{ strtolower($faculty->email) }}"
-                            data-department="{{ strtolower($faculty->department ?? '') }}"
-                            data-employee-id="{{ strtolower($faculty->employee_id ?? '') }}"
-                            data-has-template="{{ $faculty->salaryTemplate ? 'true' : 'false' }}">
-                            <td>
-                                <div class="d-flex align-items-center">
-                                    <div class="faculty-avatar bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center mr-3" style="width: 40px; height: 40px;">
-                                        <i class="fas fa-user"></i>
-                                    </div>
-                                    <div>
-                                        <div class="font-weight-bold">{{ $faculty->name }}</div>
-                                        @if($faculty->employee_id)
-                                            <small class="text-muted">{{ $faculty->employee_id }}</small>
-                                        @endif
-                                    </div>
-                                </div>
-                            </td>
-                            <td>
-                                <div>{{ $faculty->email }}</div>
-                                @if($faculty->phone)
-                                    <small class="text-muted">{{ $faculty->phone }}</small>
-                                @endif
-                            </td>
-                            <td>{{ $faculty->department ?? 'N/A' }}</td>
-                            <td>
-                                @if($faculty->salaryTemplate)
-                                    <span class="badge badge-success">{{ $faculty->salaryTemplate->name }}</span>
-                                @else
-                                    <span class="badge badge-warning">Not Assigned</span>
-                                @endif
-                            </td>
-                            <td>
-                                <div class="btn-group btn-group-sm" role="group">
-                                    <a href="{{ route('admin.faculty.subjects.edit', $faculty) }}" 
-                                       class="btn btn-info btn-sm" title="Manage Subjects">
-                                        <i class="fas fa-book"></i>
-                                    </a>
-                                    <a href="{{ route('admin.faculty.salary.show', $faculty) }}" 
-                                       class="btn btn-success btn-sm" title="Manage Salary">
-                                        <i class="fas fa-dollar-sign"></i>
-                                    </a>
-                                    <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle" 
-                                            data-toggle="dropdown" title="More Actions">
-                                        <i class="fas fa-ellipsis-v"></i>
-                                    </button>
-                                    <div class="dropdown-menu">
-                                        <a class="dropdown-item" href="{{ route('admin.faculty.edit', $faculty) }}">
-                                            <i class="fas fa-edit mr-2"></i>Edit
-                                        </a>
-                                        <a class="dropdown-item text-danger" href="#" 
-                                           onclick="confirmDelete({{ $faculty->id }}, '{{ $faculty->name }}')">
-                                            <i class="fas fa-trash mr-2"></i>Delete
-                                        </a>
-                                    </div>
-                                </div>
-                            </td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        @endif
+        {{-- Table Headers (Hidden by default) --}}
+        <table class="table table-bordered d-none" id="facultyTable">
+            <thead class="thead-light">
+                <tr>
+                    <th>Faculty</th>
+                    <th>Contact</th>
+                    <th>Department</th>
+                    <th>Salary Template</th>
+                    <th style="width: 150px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="facultyTableBody">
+                {{-- Table rows are populated by JavaScript --}}
+            </tbody>
+        </table>
     </div>
 </div>
+
 {{-- Bulk Actions Modal --}}
 <div class="modal fade" id="bulkActionsModal" tabindex="-1" role="dialog">
     <div class="modal-dialog" role="document">
@@ -325,7 +483,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const cardViewBtn = document.getElementById('cardView');
     const tableViewBtn = document.getElementById('tableView');
     const facultyTable = document.getElementById('facultyTable');
-    const facultyCardsContainer = document.getElementById('facultyCardsContainer');
+    const facultyCards = document.querySelectorAll('.faculty-card');
+    const facultyTableRows = document.querySelectorAll('.faculty-table-row');
     const facultyCount = document.getElementById('facultyCount');
 
     // Filter functionality
@@ -385,14 +544,21 @@ document.addEventListener('DOMContentLoaded', function() {
         cardViewBtn.classList.add('active');
         tableViewBtn.classList.remove('active');
         facultyTable.classList.add('d-none');
-        facultyCardsContainer.classList.remove('d-none');
+        facultyCards.forEach(card => card.classList.remove('d-none'));
     });
 
     tableViewBtn.addEventListener('click', function() {
         tableViewBtn.classList.add('active');
         cardViewBtn.classList.remove('active');
         facultyTable.classList.remove('d-none');
-        facultyCardsContainer.classList.add('d-none');
+        facultyCards.forEach(card => card.classList.add('d-none'));
+        
+        // Move table rows to table body
+        const tableBody = document.getElementById('facultyTableBody');
+        facultyTableRows.forEach(row => {
+            row.classList.remove('d-none');
+            tableBody.appendChild(row);
+        });
     });
 
     // Reset filters
