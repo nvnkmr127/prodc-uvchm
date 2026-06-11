@@ -14,7 +14,9 @@ class FixBiometricCodes extends Command
      *
      * @var string
      */
-    protected $signature = 'app:fix-biometric-codes {--force : Force regenerate all biometric codes}';
+    protected $signature = 'app:fix-biometric-codes 
+                            {--force : Force regenerate all biometric codes}
+                            {--batch-name= : Filter by batch name (e.g. 2026-27)}';
 
     /**
      * The console command description.
@@ -30,7 +32,17 @@ class FixBiometricCodes extends Command
     {
         $this->info('Starting Biometric ID Fix...');
 
-        $students = Student::with(['course', 'batch'])->get();
+        $query = Student::with(['course', 'batch']);
+        
+        if ($this->option('batch-name')) {
+            $batchName = $this->option('batch-name');
+            $query->whereHas('batch', function($q) use ($batchName) {
+                $q->where('name', 'like', "%{$batchName}%");
+            });
+            $this->info("Filtering students by batch name containing: {$batchName}");
+        }
+
+        $students = $query->get();
         $count = 0;
         $skipped = 0;
 
