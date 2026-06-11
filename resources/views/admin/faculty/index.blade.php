@@ -2,504 +2,532 @@
 @section('title', 'Faculty Management')
 
 @section('content')
-{{-- Header Section --}}
-<div class="d-sm-flex align-items-center justify-content-between mb-4">
-    <div>
-        <h1 class="h3 mb-0 text-gray-800">
-            <i class="fas fa-users text-primary mr-2"></i>Faculty Management
-        </h1>
-        <p class="text-muted mb-0">Manage faculty members, their subjects, and assignments</p>
+<div class="container-fluid">
+    {{-- Header Section --}}
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <div>
+            <h1 class="h3 mb-0 text-gray-800">
+                <i class="fas fa-users-cog text-primary mr-2"></i>Faculty Management
+            </h1>
+            <p class="text-muted mb-0">Manage university staff members, subject assignments, and timing rules</p>
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+            <a href="{{ route('admin.faculty.create') }}" class="btn btn-primary px-4 shadow-sm btn-hover-scale">
+                <i class="fas fa-plus mr-1"></i> Add New Faculty
+            </a>
+            <a href="{{ route('admin.faculty-attendance.index') }}" class="btn btn-outline-success px-4 ml-2 btn-hover-scale">
+                <i class="fas fa-calendar-check mr-1"></i> Attendance Dashboard
+            </a>
+        </div>
     </div>
-    <div class="d-flex gap-2">
-        <a href="{{ route('admin.faculty.create') }}" class="btn btn-primary shadow-sm">
-            <i class="fas fa-plus fa-sm mr-1"></i> Add New Faculty
-        </a>
-        <button class="btn btn-outline-secondary" data-toggle="modal" data-target="#bulkActionsModal">
-            <i class="fas fa-tasks mr-1"></i> Bulk Actions
-        </button>
-    </div>
-</div>
 
-{{-- Success/Error Messages --}}
-@if(session('success'))
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
-        <i class="fas fa-check-circle mr-2"></i>{{ session('success') }}
-        <button type="button" class="close" data-dismiss="alert">
-            <span>&times;</span>
-        </button>
-    </div>
-@endif
+    {{-- Success/Error Messages --}}
+    @if(session('success'))
+        <div class="alert alert-success alert-dismissible fade show border-left-success shadow-sm" role="alert">
+            <i class="fas fa-check-circle mr-2 text-success"></i>{{ session('success') }}
+            <button type="button" class="close" data-dismiss="alert">
+                <span>&times;</span>
+            </button>
+        </div>
+    @endif
 
-@if(session('error'))
-    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-        <i class="fas fa-exclamation-circle mr-2"></i>{{ session('error') }}
-        <button type="button" class="close" data-dismiss="alert">
-            <span>&times;</span>
-        </button>
-    </div>
-@endif
+    @if(session('error'))
+        <div class="alert alert-danger alert-dismissible fade show border-left-danger shadow-sm" role="alert">
+            <i class="fas fa-exclamation-circle mr-2 text-danger"></i>{{ session('error') }}
+            <button type="button" class="close" data-dismiss="alert">
+                <span>&times;</span>
+            </button>
+        </div>
+    @endif
 
-{{-- Statistics Cards --}}
-<div class="row mb-4">
-    <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-left-primary shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
-                            Total Faculty
+    {{-- Statistics Row --}}
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card stat-card border-0 shadow-sm overflow-hidden h-100">
+                <div class="card-body gradient-primary text-white position-relative">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-xs font-weight-bold text-uppercase opacity-75 mb-1">Total Faculty</div>
+                            <div class="h3 mb-0 font-weight-bold">{{ $faculties->count() }}</div>
                         </div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ $faculties->count() }}</div>
+                        <div class="stat-icon-wrapper">
+                            <i class="fas fa-users fa-2x opacity-25"></i>
+                        </div>
                     </div>
-                    <div class="col-auto">
-                        <i class="fas fa-users fa-2x text-gray-300"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card stat-card border-0 shadow-sm overflow-hidden h-100">
+                <div class="card-body gradient-success text-white position-relative">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-xs font-weight-bold text-uppercase opacity-75 mb-1">Salary Template Setup</div>
+                            <div class="h3 mb-0 font-weight-bold">
+                                {{ $faculties->filter(function($f) { return $f->salaryTemplate !== null; })->count() }}
+                            </div>
+                        </div>
+                        <div class="stat-icon-wrapper">
+                            <i class="fas fa-file-invoice-dollar fa-2x opacity-25"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card stat-card border-0 shadow-sm overflow-hidden h-100">
+                <div class="card-body gradient-info text-white position-relative">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-xs font-weight-bold text-uppercase opacity-75 mb-1">Subjects Assigned</div>
+                            <div class="h3 mb-0 font-weight-bold">
+                                {{ $faculties->pluck('subjects')->flatten()->unique('id')->count() }}
+                            </div>
+                        </div>
+                        <div class="stat-icon-wrapper">
+                            <i class="fas fa-book-reader fa-2x opacity-25"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card stat-card border-0 shadow-sm overflow-hidden h-100">
+                <div class="card-body gradient-warning text-white position-relative">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-xs font-weight-bold text-uppercase opacity-75 mb-1">Active Departments</div>
+                            <div class="h3 mb-0 font-weight-bold">
+                                {{ $faculties->pluck('department')->filter()->unique()->count() }}
+                            </div>
+                        </div>
+                        <div class="stat-icon-wrapper">
+                            <i class="fas fa-university fa-2x opacity-25"></i>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-left-success shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                            Salary Template Setup
-                        </div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">
-                            {{ $faculties->filter(function($f) { return $f->salaryTemplate !== null; })->count() }}
-                        </div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
+    {{-- Filter Bar --}}
+    <div class="card border-0 shadow-sm mb-4 glass-card">
+        <div class="card-body py-3">
+            <div class="row align-items-center">
+                <div class="col-lg-3 col-md-6 mb-2 mb-lg-0">
+                    <div class="search-box position-relative">
+                        <input type="text" id="searchInput" class="form-control border-light-subtle rounded-pill pl-4 text-sm" 
+                               placeholder="Search name, email, employee ID...">
+                        <i class="fas fa-search search-icon text-muted"></i>
                     </div>
                 </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-left-info shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
-                            Active Today
-                        </div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">
-                            {{ $faculties->where('last_activity', '>=', now()->startOfDay())->count() }}
-                        </div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="fas fa-clock fa-2x text-gray-300"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-xl-3 col-md-6 mb-4">
-        <div class="card border-left-warning shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
-                            Departments
-                        </div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">
-                            {{ $faculties->pluck('department')->filter()->unique()->count() }}
-                        </div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="fas fa-building fa-2x text-gray-300"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-{{-- Filters and Search --}}
-<div class="card shadow mb-4">
-    <div class="card-header py-3">
-        <div class="row align-items-center">
-            <div class="col-md-6">
-                <h6 class="m-0 font-weight-bold text-primary">
-                    <i class="fas fa-filter mr-2"></i>Search & Filter
-                </h6>
-            </div>
-            <div class="col-md-6 text-right">
-                <button class="btn btn-sm btn-outline-primary" onclick="resetFilters()">
-                    <i class="fas fa-undo mr-1"></i>Reset
-                </button>
-            </div>
-        </div>
-    </div>
-    <div class="card-body">
-        <div class="row">
-            <div class="col-md-4">
-                <div class="form-group">
-                    <label class="form-label">Search Faculty</label>
-                    <div class="input-group">
-                        <input type="text" id="searchInput" class="form-control" placeholder="Name, email, employee ID...">
-                        <div class="input-group-append">
-                            <span class="input-group-text"><i class="fas fa-search"></i></span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="form-group">
-                    <label class="form-label">Department</label>
-                    <select id="departmentFilter" class="form-control">
+                <div class="col-lg-2 col-md-6 mb-2 mb-lg-0">
+                    <select id="departmentFilter" class="form-control rounded-pill border-light-subtle text-sm">
                         <option value="">All Departments</option>
                         @foreach($faculties->pluck('department')->filter()->unique()->sort() as $dept)
                             <option value="{{ $dept }}">{{ $dept }}</option>
                         @endforeach
                     </select>
                 </div>
-            </div>
-            <div class="col-md-3">
-                <div class="form-group">
-                    <label class="form-label">Salary Template</label>
-                    <select id="templateFilter" class="form-control">
-                        <option value="">All Faculty</option>
-                        <option value="with-template">With Template</option>
-                        <option value="without-template">Without Template</option>
+                <div class="col-lg-2 col-md-6 mb-2 mb-lg-0">
+                    <select id="templateFilter" class="form-control rounded-pill border-light-subtle text-sm">
+                        <option value="">All Payroll Templates</option>
+                        <option value="with-template">Payroll Setup Done</option>
+                        <option value="without-template">Payroll Pending</option>
                     </select>
                 </div>
-            </div>
-            <div class="col-md-2">
-                <div class="form-group">
-                    <label class="form-label">Status</label>
-                    <select id="statusFilter" class="form-control">
-                        <option value="">All Status</option>
-                        <option value="active">Active</option>
-                        <option value="inactive">Inactive</option>
+                <div class="col-lg-2 col-md-6 mb-2 mb-lg-0">
+                    <select id="subjectFilter" class="form-control rounded-pill border-light-subtle text-sm">
+                        <option value="">All Subjects</option>
+                        <option value="with-subject">Subjects Assigned</option>
+                        <option value="without-subject">No Subjects Assigned</option>
                     </select>
+                </div>
+                <div class="col-lg-3 col-md-12 text-right d-flex align-items-center justify-content-end gap-2">
+                    <button class="btn btn-light rounded-pill px-3 text-sm" onclick="resetFilters()">
+                        <i class="fas fa-undo mr-1 text-xs"></i> Reset
+                    </button>
+                    <div class="btn-group btn-group-sm rounded-pill overflow-hidden border ml-2 shadow-sm" role="group">
+                        <button type="button" class="btn btn-white border-0 px-3 py-2 active" id="cardView" title="Grid View">
+                            <i class="fas fa-th-large text-primary"></i>
+                        </button>
+                        <button type="button" class="btn btn-white border-0 px-3 py-2" id="tableView" title="List View">
+                            <i class="fas fa-list-ul text-muted"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
 
-{{-- Faculty Cards/Table --}}
-<div class="card shadow mb-4">
-    <div class="card-header py-3 d-flex justify-content-between align-items-center">
-        <h6 class="m-0 font-weight-bold text-primary">
-            <i class="fas fa-list mr-2"></i>Faculty Members
-            <span class="badge badge-secondary ml-2" id="facultyCount">{{ $faculties->count() }}</span>
-        </h6>
-        <div class="d-flex align-items-center">
-            <span class="mr-3 text-muted">View:</span>
-            <div class="btn-group btn-group-sm" role="group">
-                <button type="button" class="btn btn-outline-primary active" id="cardView">
-                    <i class="fas fa-th-large"></i>
-                </button>
-                <button type="button" class="btn btn-outline-primary" id="tableView">
-                    <i class="fas fa-table"></i>
-                </button>
-            </div>
-        </div>
-    </div>
-    <div class="card-body">
-                @if ($faculties->isEmpty())
-            <div class="text-center py-5">
-                <i class="fas fa-users fa-3x text-gray-300 mb-3"></i>
-                <h5 class="text-gray-500">No Faculty Members Found</h5>
-                <p class="text-muted mb-4">No faculty members with the 'staff' role exist yet.</p>
-                <a href="{{ route('admin.faculty.create') }}" class="btn btn-primary">
-                    <i class="fas fa-plus mr-2"></i>Create Your First Faculty Member
+    {{-- Main Body --}}
+    @if ($faculties->isEmpty())
+        <div class="card border-0 shadow-sm py-5 text-center glass-card">
+            <div class="card-body">
+                <i class="fas fa-user-friends fa-4x text-gray-300 mb-3"></i>
+                <h4 class="font-weight-bold text-gray-700">No Faculty Registered</h4>
+                <p class="text-muted mb-4">You have not registered any faculty members under the 'staff' role yet.</p>
+                <a href="{{ route('admin.faculty.create') }}" class="btn btn-primary px-4 shadow-sm btn-hover-scale">
+                    <i class="fas fa-plus mr-1"></i> Register First Faculty
                 </a>
             </div>
-        @else
-            {{-- Card View Container --}}
-            <div id="facultyCardsContainer">
-                @foreach ($faculties as $faculty)
-            {{-- Card View --}}
-            <div class="faculty-card faculty-item mb-3" 
-                 data-name="{{ strtolower($faculty->name) }}" 
-                 data-email="{{ strtolower($faculty->email) }}"
-                 data-department="{{ strtolower($faculty->department ?? '') }}"
-                 data-employee-id="{{ strtolower($faculty->employee_id ?? '') }}"
-                 data-has-template="{{ $faculty->salaryTemplate ? 'true' : 'false' }}">
-                
-                <div class="card border-left-{{ $faculty->salaryTemplate ? 'success' : 'warning' }}">
-                    <div class="card-body">
-                        <div class="row align-items-center">
-                            <div class="col-md-2 text-center">
-                                <div class="faculty-avatar bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
-                                    <i class="fas fa-user fa-lg"></i>
+        </div>
+    @else
+        {{-- Grid Container --}}
+        <div id="facultyCardsContainer" class="row">
+            @foreach ($faculties as $faculty)
+                @php
+                    $words = explode(' ', $faculty->name);
+                    $initials = '';
+                    foreach ($words as $w) {
+                        $initials .= strtoupper(substr($w, 0, 1));
+                        if (strlen($initials) >= 2) break;
+                    }
+                    // Color HSL generation based on name hash
+                    $hash = md5($faculty->name);
+                    $hue1 = hexdec(substr($hash, 0, 2)) % 360;
+                    $hue2 = ($hue1 + 40) % 360;
+                    $avatarBg = "linear-gradient(135deg, hsl({$hue1}, 70%, 50%), hsl({$hue2}, 75%, 42%))";
+                @endphp
+                <div class="col-xl-4 col-md-6 mb-4 faculty-card faculty-item"
+                     data-name="{{ strtolower($faculty->name) }}" 
+                     data-email="{{ strtolower($faculty->email) }}"
+                     data-department="{{ strtolower($faculty->department ?? '') }}"
+                     data-employee-id="{{ strtolower($faculty->employee_id ?? '') }}"
+                     data-has-template="{{ $faculty->salaryTemplate ? 'true' : 'false' }}"
+                     data-has-subject="{{ $faculty->subjects->count() > 0 ? 'true' : 'false' }}">
+                    
+                    <div class="card h-100 border-0 shadow-sm hover-card overflow-hidden">
+                        {{-- Top color strip based on payroll template --}}
+                        <div class="card-strip {{ $faculty->salaryTemplate ? 'bg-success' : 'bg-warning' }}" style="height: 4px;"></div>
+                        
+                        <div class="card-body position-relative">
+                            {{-- Header Content --}}
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="avatar-circle mr-3 text-white font-weight-bold d-flex align-items-center justify-content-center"
+                                     style="background: {{ $avatarBg }}; width: 52px; height: 52px; font-size: 1.15rem; border-radius: 14px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
+                                    {{ $initials }}
                                 </div>
-                                <div class="mt-2">
-                                    <span class="badge badge-{{ $faculty->subjects->count() > 0 ? 'success' : 'warning' }}">
-                                        {{ $faculty->subjects->count() }} Subject{{ $faculty->subjects->count() != 1 ? 's' : '' }}
-                                    </span>
-                                </div>
-                            </div>
-                            
-                            <div class="col-md-6">
-                                <h6 class="font-weight-bold text-gray-800 mb-1">
-                                    {{ $faculty->name }}
+                                <div class="overflow-hidden">
+                                    <h5 class="font-weight-bold text-gray-800 text-truncate mb-0" title="{{ $faculty->name }}">
+                                        {{ $faculty->name }}
+                                    </h5>
                                     @if($faculty->employee_id)
-                                        <small class="text-muted">({{ $faculty->employee_id }})</small>
+                                        <code class="text-xs text-primary font-weight-bold">{{ $faculty->employee_id }}</code>
+                                    @else
+                                        <span class="text-xs text-muted">ID: N/A</span>
                                     @endif
-                                </h6>
-                                <p class="text-muted mb-1">
-                                    <i class="fas fa-envelope fa-sm mr-1"></i>{{ $faculty->email }}
-                                </p>
-                                @if($faculty->phone)
-                                    <p class="text-muted mb-1">
-                                        <i class="fas fa-phone fa-sm mr-1"></i>{{ $faculty->phone }}
-                                    </p>
-                                @endif
-                                @if($faculty->department)
-                                    <p class="text-muted mb-1">
-                                        <i class="fas fa-building fa-sm mr-1"></i>{{ $faculty->department }}
-                                    </p>
-                                @endif
+                                </div>
+                                <div class="ml-auto dropdown">
+                                    <button class="btn btn-link text-muted p-1" data-toggle="dropdown">
+                                        <i class="fas fa-ellipsis-v"></i>
+                                    </button>
+                                    <div class="dropdown-menu dropdown-menu-right shadow-sm border-0">
+                                        <a class="dropdown-item" href="{{ route('admin.faculty.edit', $faculty) }}">
+                                            <i class="fas fa-edit mr-2 text-muted"></i> Edit Details
+                                        </a>
+                                        <a class="dropdown-item" href="#" onclick="viewAttendance('{{ $faculty->name }}')">
+                                            <i class="fas fa-clock mr-2 text-muted"></i> View Attendance Logs
+                                        </a>
+                                        <div class="dropdown-divider"></div>
+                                        <a class="dropdown-item text-danger" href="#" 
+                                           onclick="confirmDelete({{ $faculty->id }}, '{{ $faculty->name }}')">
+                                            <i class="fas fa-trash mr-2"></i> Delete Faculty
+                                        </a>
+                                    </div>
+                                </div>
                             </div>
-                            
-                            <div class="col-md-4">
-                                @if($faculty->subjects->count() > 0)
-                                    <div class="mb-2">
-                                        <small class="text-muted font-weight-bold">Assigned Subjects:</small>
-                                        <div class="mt-1">
-                                            @foreach($faculty->subjects->take(3) as $subject)
-                                                <span class="badge badge-info mr-1 mb-1">{{ $subject->name }}</span>
-                                            @endforeach
-                                        </div>
+
+                            {{-- Detailed Metadata --}}
+                            <div class="faculty-metadata text-sm text-muted mb-3 space-y-1">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-envelope text-muted mr-2" style="width: 16px;"></i>
+                                    <span class="text-truncate">{{ $faculty->email }}</span>
+                                </div>
+                                @if($faculty->phone)
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-phone text-muted mr-2" style="width: 16px;"></i>
+                                        <span>{{ $faculty->phone }}</span>
                                     </div>
                                 @endif
-                                
-                                <div class="mb-2">
-                                    <small class="text-muted font-weight-bold">Salary Setup:</small>
-                                    <div class="mt-1">
-                                        @if($faculty->salaryTemplate)
-                                            <span class="badge badge-success"><i class="fas fa-check-circle mr-1"></i>{{ $faculty->salaryTemplate->name }}</span>
-                                        @else
-                                            <span class="badge badge-warning"><i class="fas fa-exclamation-triangle mr-1"></i>No Template</span>
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-building text-muted mr-2" style="width: 16px;"></i>
+                                    <span>{{ $faculty->department ?? 'General Staff' }}</span>
+                                </div>
+                            </div>
+
+                            {{-- Assigned Subjects --}}
+                            <div class="mb-3">
+                                <small class="text-muted font-weight-bold d-block mb-1">Assigned Subjects:</small>
+                                @if($faculty->subjects->count() > 0)
+                                    <div class="d-flex flex-wrap gap-1" style="max-height: 58px; overflow: hidden;">
+                                        @foreach($faculty->subjects->take(4) as $subject)
+                                            <span class="badge badge-light-blue text-xs px-2 py-1 mr-1 mb-1">{{ $subject->name }}</span>
+                                        @endforeach
+                                        @if($faculty->subjects->count() > 4)
+                                            <span class="badge badge-light text-xs px-2 py-1 mr-1 mb-1">+{{ $faculty->subjects->count() - 4 }} more</span>
                                         @endif
                                     </div>
+                                @else
+                                    <small class="text-warning italic d-flex align-items-center">
+                                        <i class="fas fa-exclamation-circle text-xs mr-1"></i> No subjects assigned
+                                    </small>
+                                @endif
+                            </div>
+
+                            {{-- Payroll Integration Badge --}}
+                            <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+                                <div>
+                                    <small class="text-muted d-block">Payroll System</small>
+                                    @if($faculty->salaryTemplate)
+                                        <span class="text-xs text-success font-weight-bold d-flex align-items-center">
+                                            <span class="dot-indicator bg-success mr-1"></span> {{ $faculty->salaryTemplate->name }}
+                                        </span>
+                                    @else
+                                        <span class="text-xs text-warning font-weight-bold d-flex align-items-center">
+                                            <span class="dot-indicator bg-warning mr-1"></span> Setup Pending
+                                        </span>
+                                    @endif
                                 </div>
-                                
-                                <div class="btn-group btn-group-sm w-100" role="group">
+                                <div class="d-flex gap-1">
                                     <a href="{{ route('admin.faculty.subjects.edit', $faculty) }}" 
-                                       class="btn btn-info" title="Manage Subjects">
-                                        <i class="fas fa-book mr-1"></i>Subjects
+                                       class="btn btn-xs btn-outline-info rounded-pill px-3" title="Edit Subjects">
+                                        <i class="fas fa-book text-xs mr-1"></i> Subjects
                                     </a>
                                     <a href="{{ route('admin.faculty.salary.show', $faculty) }}" 
-                                       class="btn btn-success" title="Manage Salary">
-                                        <i class="fas fa-dollar-sign mr-1"></i>Salary
+                                       class="btn btn-xs btn-outline-success rounded-pill px-3" title="Edit Salary">
+                                        <i class="fas fa-dollar-sign text-xs mr-1"></i> Salary
                                     </a>
-                                    <div class="btn-group btn-group-sm" role="group">
-                                        <button type="button" class="btn btn-outline-secondary dropdown-toggle" 
-                                                data-toggle="dropdown" title="More Actions">
-                                            <i class="fas fa-ellipsis-v"></i>
-                                        </button>
-                                        <div class="dropdown-menu">
-                                            <a class="dropdown-item" href="{{ route('admin.faculty.edit', $faculty) }}">
-                                                <i class="fas fa-edit mr-2"></i>Edit Details
-                                            </a>
-                                            <a class="dropdown-item" href="#" onclick="viewSchedule({{ $faculty->id }})">
-                                                <i class="fas fa-calendar mr-2"></i>View Schedule
-                                            </a>
-                                            <a class="dropdown-item" href="#" onclick="viewAttendance({{ $faculty->id }})">
-                                                <i class="fas fa-clock mr-2"></i>Attendance
-                                            </a>
-                                            <div class="dropdown-divider"></div>
-                                            <a class="dropdown-item text-danger" href="#" 
-                                               onclick="confirmDelete({{ $faculty->id }}, '{{ $faculty->name }}')">
-                                                <i class="fas fa-trash mr-2"></i>Delete
-                                            </a>
-                                        </div>
-                                    </div>
                                 </div>
                             </div>
+
                         </div>
                     </div>
                 </div>
-            </div>
+            @endforeach
+        </div>
 
+        {{-- Table View Container (Hidden by default) --}}
+        <div id="facultyTableContainer" class="card border-0 shadow-sm overflow-hidden d-none mb-4 glass-card">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped mb-0 align-items-center">
+                        <thead class="bg-light text-uppercase text-xs font-weight-bold">
+                            <tr>
+                                <th class="px-4 py-3">Faculty Member</th>
+                                <th>Contact Information</th>
+                                <th>Department</th>
+                                <th>Assigned Subjects</th>
+                                <th>Payroll Template</th>
+                                <th class="px-4 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-sm">
+                            @foreach ($faculties as $faculty)
+                                @php
+                                    $words = explode(' ', $faculty->name);
+                                    $initials = '';
+                                    foreach ($words as $w) {
+                                        $initials .= strtoupper(substr($w, 0, 1));
+                                        if (strlen($initials) >= 2) break;
+                                    }
+                                    $hash = md5($faculty->name);
+                                    $hue = hexdec(substr($hash, 0, 2)) % 360;
+                                    $avBg = "linear-gradient(135deg, hsl({$hue}, 65%, 52%), hsl(" . (($hue+30)%360) . ", 65%, 45%))";
+                                @endphp
+                                <tr class="faculty-table-row faculty-item"
+                                    data-name="{{ strtolower($faculty->name) }}" 
+                                    data-email="{{ strtolower($faculty->email) }}"
+                                    data-department="{{ strtolower($faculty->department ?? '') }}"
+                                    data-employee-id="{{ strtolower($faculty->employee_id ?? '') }}"
+                                    data-has-template="{{ $faculty->salaryTemplate ? 'true' : 'false' }}"
+                                    data-has-subject="{{ $faculty->subjects->count() > 0 ? 'true' : 'false' }}">
+                                    <td class="px-4">
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar-circle mr-3 text-white text-xs font-weight-bold d-flex align-items-center justify-content-center"
+                                                 style="background: {{ $avBg }}; width: 36px; height: 36px; border-radius: 10px;">
+                                                {{ $initials }}
+                                            </div>
+                                            <div>
+                                                <div class="font-weight-bold text-gray-800">{{ $faculty->name }}</div>
+                                                @if($faculty->employee_id)
+                                                    <code class="text-xs text-primary">{{ $faculty->employee_id }}</code>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div><i class="fas fa-envelope text-xs text-muted mr-1"></i>{{ $faculty->email }}</div>
+                                        @if($faculty->phone)
+                                            <div class="text-muted text-xs"><i class="fas fa-phone text-xs text-muted mr-1"></i>{{ $faculty->phone }}</div>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-light border px-2 py-1">{{ $faculty->department ?? 'General Staff' }}</span>
+                                    </td>
+                                    <td>
+                                        @if($faculty->subjects->count() > 0)
+                                            @foreach($faculty->subjects->take(2) as $subj)
+                                                <span class="badge badge-light-blue mr-1 mb-1">{{ $subj->name }}</span>
+                                            @endforeach
+                                            @if($faculty->subjects->count() > 2)
+                                                <span class="badge badge-light">+{{ $faculty->subjects->count() - 2 }}</span>
+                                            @endif
+                                        @else
+                                            <span class="text-muted text-xs italic">None</span>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        @if($faculty->salaryTemplate)
+                                            <span class="badge badge-success px-2 py-1 text-xs font-weight-bold">
+                                                <i class="fas fa-check-circle mr-1"></i>{{ $faculty->salaryTemplate->name }}
+                                            </span>
+                                        @else
+                                            <span class="badge badge-warning px-2 py-1 text-xs font-weight-bold">
+                                                <i class="fas fa-exclamation-triangle mr-1"></i>Pending
+                                            </span>
+                                        @endif
+                                    </td>
+                                    <td class="px-4 text-right">
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <a href="{{ route('admin.faculty.subjects.edit', $faculty) }}" 
+                                               class="btn btn-light border" title="Subjects">
+                                                <i class="fas fa-book text-info"></i>
+                                            </a>
+                                            <a href="{{ route('admin.faculty.salary.show', $faculty) }}" 
+                                               class="btn btn-light border" title="Salary">
+                                                <i class="fas fa-dollar-sign text-success"></i>
+                                            </a>
+                                            <a href="{{ route('admin.faculty.edit', $faculty) }}" 
+                                               class="btn btn-light border" title="Edit">
+                                                <i class="fas fa-edit text-primary"></i>
+                                            </a>
+                                            <button type="button" class="btn btn-light border text-danger" 
+                                                    onclick="confirmDelete({{ $faculty->id }}, '{{ $faculty->name }}')" title="Delete">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
                             @endforeach
-            </div>
-
-
-
-        {{-- Table Headers (Hidden by default) --}}
-        <table class="table table-bordered d-none" id="facultyTable">
-            <thead class="thead-light">
-                <tr>
-                    <th>Faculty</th>
-                    <th>Contact</th>
-                    <th>Department</th>
-                    <th>Salary Template</th>
-                    <th style="width: 150px;">Actions</th>
-                </tr>
-            </thead>
-            <tbody id="facultyTableBody">
-                    @foreach ($faculties as $faculty)
-            {{-- Table View (Hidden by default) --}}
-            <tr class="faculty-table-row faculty-item" 
-                data-name="{{ strtolower($faculty->name) }}" 
-                data-email="{{ strtolower($faculty->email) }}"
-                data-department="{{ strtolower($faculty->department ?? '') }}"
-                data-employee-id="{{ strtolower($faculty->employee_id ?? '') }}"
-                data-has-template="{{ $faculty->salaryTemplate ? 'true' : 'false' }}">
-                <td>
-                    <div class="d-flex align-items-center">
-                        <div class="faculty-avatar bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center mr-3" style="width: 40px; height: 40px;">
-                            <i class="fas fa-user"></i>
-                        </div>
-                        <div>
-                            <div class="font-weight-bold">{{ $faculty->name }}</div>
-                            @if($faculty->employee_id)
-                                <small class="text-muted">{{ $faculty->employee_id }}</small>
-                            @endif
-                        </div>
-                    </div>
-                </td>
-                <td>
-                    <div>{{ $faculty->email }}</div>
-                    @if($faculty->phone)
-                        <small class="text-muted">{{ $faculty->phone }}</small>
-                    @endif
-                </td>
-                <td>{{ $faculty->department ?? 'N/A' }}</td>
-                <td>
-                    @if($faculty->salaryTemplate)
-                        <span class="badge badge-success">{{ $faculty->salaryTemplate->name }}</span>
-                    @else
-                        <span class="badge badge-warning">Not Assigned</span>
-                    @endif
-                </td>
-                <td>
-                    <div class="btn-group btn-group-sm" role="group">
-                        <a href="{{ route('admin.faculty.subjects.edit', $faculty) }}" 
-                           class="btn btn-info btn-sm" title="Manage Subjects">
-                            <i class="fas fa-book"></i>
-                        </a>
-                        <a href="{{ route('admin.faculty.salary.show', $faculty) }}" 
-                           class="btn btn-success btn-sm" title="Manage Salary">
-                            <i class="fas fa-dollar-sign"></i>
-                        </a>
-                        <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle" 
-                                data-toggle="dropdown" title="More Actions">
-                            <i class="fas fa-ellipsis-v"></i>
-                        </button>
-                        <div class="dropdown-menu">
-                            <a class="dropdown-item" href="{{ route('admin.faculty.edit', $faculty) }}">
-                                <i class="fas fa-edit mr-2"></i>Edit
-                            </a>
-                            <a class="dropdown-item text-danger" href="#" 
-                               onclick="confirmDelete({{ $faculty->id }}, '{{ $faculty->name }}')">
-                                <i class="fas fa-trash mr-2"></i>Delete
-                            </a>
-                        </div>
-                    </div>
-                </td>
-            </tr>
-                            @endforeach
-            </tbody>
-        @endif
-        </table>
-    </div>
-</div>
-
-{{-- Bulk Actions Modal --}}
-<div class="modal fade" id="bulkActionsModal" tabindex="-1" role="dialog">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="fas fa-tasks mr-2"></i>Bulk Actions
-                </h5>
-                <button type="button" class="close" data-dismiss="modal">
-                    <span>&times;</span>
-                </button>
-            </div>
-            <div class="modal-body">
-                <p class="text-muted">Select faculty members and choose an action to perform on all selected items.</p>
-                <div class="form-group">
-                    <label>Select Action:</label>
-                    <select class="form-control" id="bulkAction">
-                        <option value="">Choose an action...</option>
-                        <option value="assign-subject">Assign Subject</option>
-                        <option value="remove-subject">Remove Subject</option>
-                        <option value="change-department">Change Department</option>
-                        <option value="export">Export Data</option>
-                    </select>
+                        </tbody>
+                    </table>
                 </div>
-                <div class="alert alert-info">
-                    <i class="fas fa-info-circle mr-2"></i>
-                    This feature is coming soon in the next update.
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" disabled>Execute Action</button>
             </div>
         </div>
-    </div>
+    @endif
 </div>
 
-{{-- Custom Styles --}}
+{{-- Custom CSS Styles --}}
 <style>
-.faculty-avatar {
-    font-size: 1.2rem;
+/* Stat Cards Gradients */
+.gradient-primary {
+    background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);
+}
+.gradient-success {
+    background: linear-gradient(135deg, #1cc88a 0%, #13855c 100%);
+}
+.gradient-info {
+    background: linear-gradient(135deg, #36b9cc 0%, #258391 100%);
+}
+.gradient-warning {
+    background: linear-gradient(135deg, #f6c23e 0%, #dda20a 100%);
 }
 
-.faculty-card {
-    transition: all 0.3s ease;
+.stat-card {
+    border-radius: 16px;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.08) !important;
+}
+.stat-icon-wrapper {
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
 }
 
-.faculty-card:hover {
-    transform: translateY(-2px);
+/* Glassmorphism Effect */
+.glass-card {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 16px;
 }
 
-.badge {
-    font-size: 0.75rem;
+/* Faculty Cards */
+.hover-card {
+    border-radius: 16px;
+    background: #ffffff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+.hover-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(0,0,0,0.06) !important;
 }
 
-.btn-group-sm .btn {
-    font-size: 0.75rem;
+.badge-light-blue {
+    background-color: #ebf5ff;
+    color: #1e429f;
+    border-radius: 6px;
+    font-weight: 600;
 }
 
-.card-body .row {
-    align-items: center;
+.dot-indicator {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    display: inline-block;
 }
 
-@media (max-width: 768px) {
-    .faculty-card .row {
-        text-align: center;
-    }
-    
-    .faculty-card .col-md-4 {
-        margin-top: 1rem;
-    }
+/* Scale Animations */
+.btn-hover-scale {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.btn-hover-scale:hover {
+    transform: scale(1.03);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.search-box .search-icon {
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.85rem;
+}
+.search-box input {
+    padding-left: 35px !important;
 }
 </style>
 
-{{-- JavaScript for Filtering and View Toggle --}}
+{{-- JS Scripts --}}
+@push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('searchInput');
     const departmentFilter = document.getElementById('departmentFilter');
     const templateFilter = document.getElementById('templateFilter');
-    const statusFilter = document.getElementById('statusFilter');
+    const subjectFilter = document.getElementById('subjectFilter');
     const cardViewBtn = document.getElementById('cardView');
     const tableViewBtn = document.getElementById('tableView');
-    const facultyTable = document.getElementById('facultyTable');
     const facultyCardsContainer = document.getElementById('facultyCardsContainer');
-    const facultyCount = document.getElementById('facultyCount');
+    const facultyTableContainer = document.getElementById('facultyTableContainer');
+    const facultyCountBadge = document.getElementById('facultyCount');
 
-    // Filter functionality
+    // Filter Logic
     function filterFaculty() {
-        const searchTerm = searchInput.value.toLowerCase();
+        const searchTerm = searchInput.value.toLowerCase().trim();
         const selectedDept = departmentFilter.value.toLowerCase();
         const selectedTemplate = templateFilter.value;
-        const selectedStatus = statusFilter.value;
+        const selectedSubject = subjectFilter.value;
 
         let visibleCount = 0;
 
@@ -509,71 +537,96 @@ document.addEventListener('DOMContentLoaded', function() {
             const department = item.dataset.department || '';
             const employeeId = item.dataset.employeeId || '';
             const hasTemplate = item.dataset.hasTemplate === 'true';
+            const hasSubject = item.dataset.hasSubject === 'true';
 
             let shouldShow = true;
 
-            // Search filter
+            // Search query match
             if (searchTerm && !name.includes(searchTerm) && !email.includes(searchTerm) && !employeeId.includes(searchTerm)) {
                 shouldShow = false;
             }
 
-            // Department filter
+            // Department filter match
             if (selectedDept && department !== selectedDept) {
                 shouldShow = false;
             }
 
-            // Template filter
+            // Payroll Template match
             if (selectedTemplate === 'with-template' && !hasTemplate) {
                 shouldShow = false;
             } else if (selectedTemplate === 'without-template' && hasTemplate) {
                 shouldShow = false;
             }
 
+            // Subject Assigned match
+            if (selectedSubject === 'with-subject' && !hasSubject) {
+                shouldShow = false;
+            } else if (selectedSubject === 'without-subject' && hasSubject) {
+                shouldShow = false;
+            }
+
             if (shouldShow) {
                 item.style.display = '';
-                visibleCount++;
+                // Only count unique users (since same user is rendered in grid and table list)
+                if (item.classList.contains('faculty-card')) {
+                    visibleCount++;
+                }
             } else {
                 item.style.display = 'none';
             }
         });
 
-        facultyCount.textContent = visibleCount;
+        if (facultyCountBadge) {
+            facultyCountBadge.textContent = visibleCount;
+        }
     }
 
-    // Event listeners
-    searchInput.addEventListener('input', filterFaculty);
-    departmentFilter.addEventListener('change', filterFaculty);
-    templateFilter.addEventListener('change', filterFaculty);
-    statusFilter.addEventListener('change', filterFaculty);
+    // Bind inputs
+    if (searchInput) searchInput.addEventListener('input', filterFaculty);
+    if (departmentFilter) departmentFilter.addEventListener('change', filterFaculty);
+    if (templateFilter) templateFilter.addEventListener('change', filterFaculty);
+    if (subjectFilter) subjectFilter.addEventListener('change', filterFaculty);
 
-    // View toggle functionality
-    cardViewBtn.addEventListener('click', function() {
-        cardViewBtn.classList.add('active');
-        tableViewBtn.classList.remove('active');
-        facultyTable.classList.add('d-none');
-        if (facultyCardsContainer) facultyCardsContainer.classList.remove('d-none');
-    });
+    // Toggle Views
+    if (cardViewBtn && tableViewBtn) {
+        cardViewBtn.addEventListener('click', function() {
+            cardViewBtn.classList.add('active');
+            cardViewBtn.querySelector('i').classList.replace('text-muted', 'text-primary');
+            tableViewBtn.classList.remove('active');
+            tableViewBtn.querySelector('i').classList.replace('text-primary', 'text-muted');
+            
+            if (facultyCardsContainer) facultyCardsContainer.classList.remove('d-none');
+            if (facultyTableContainer) facultyTableContainer.classList.add('d-none');
+        });
 
-    tableViewBtn.addEventListener('click', function() {
-        tableViewBtn.classList.add('active');
-        cardViewBtn.classList.remove('active');
-        facultyTable.classList.remove('d-none');
-        if (facultyCardsContainer) facultyCardsContainer.classList.add('d-none');
-    });
+        tableViewBtn.addEventListener('click', function() {
+            tableViewBtn.classList.add('active');
+            tableViewBtn.querySelector('i').classList.replace('text-muted', 'text-primary');
+            cardViewBtn.classList.remove('active');
+            cardViewBtn.querySelector('i').classList.replace('text-primary', 'text-muted');
+            
+            if (facultyCardsContainer) facultyCardsContainer.classList.add('d-none');
+            if (facultyTableContainer) facultyTableContainer.classList.remove('d-none');
+        });
+    }
 
-    // Reset filters
+    // Reset Filtering
     window.resetFilters = function() {
-        searchInput.value = '';
-        departmentFilter.value = '';
-        templateFilter.value = '';
-        statusFilter.value = '';
+        if (searchInput) searchInput.value = '';
+        if (departmentFilter) departmentFilter.value = '';
+        if (templateFilter) templateFilter.value = '';
+        if (subjectFilter) subjectFilter.value = '';
         filterFaculty();
     };
 
-    // Delete confirmation
+    // Navigate to Attendance logs with search pre-filled
+    window.viewAttendance = function(facultyName) {
+        window.location.href = "{{ route('admin.faculty-attendance.index') }}?search=" + encodeURIComponent(facultyName);
+    };
+
+    // Confirm Faculty deletion
     window.confirmDelete = function(facultyId, facultyName) {
-        if (confirm(`Are you sure you want to delete faculty member "${facultyName}"? This action cannot be undone.`)) {
-            // Create a form and submit it
+        if (confirm(`Are you sure you want to delete "${facultyName}"? This action is permanent and will remove their subjects, logs, and parameters.`)) {
             const form = document.createElement('form');
             form.method = 'POST';
             form.action = `/admin/faculty/${facultyId}`;
@@ -594,15 +647,7 @@ document.addEventListener('DOMContentLoaded', function() {
             form.submit();
         }
     };
-
-    // Placeholder functions for future features
-    window.viewSchedule = function(facultyId) {
-        alert('Schedule view feature coming soon!');
-    };
-
-    window.viewAttendance = function(facultyId) {
-        alert('Attendance view feature coming soon!');
-    };
 });
 </script>
+@endpush
 @endsection
