@@ -82,11 +82,18 @@ class FacultyAttendanceService
                     $lateMinutes = $punchDateTime->gt($start) ? $punchDateTime->diffInMinutes($start, true) : 0;
                 }
 
+                $newNotes = $attendance->notes;
+                if ($newNotes && !str_contains($newNotes, 'Check-in updated to earlier punch')) {
+                    $newNotes .= ' | Check-in updated to earlier punch';
+                } elseif (!$newNotes) {
+                    $newNotes = 'Check-in updated to earlier punch';
+                }
+
                 $attendance->update([
                     'check_in_time' => $punchTime,
                     'status' => $statusData['status'],
                     'late_minutes' => $lateMinutes > 0 ? $lateMinutes : null,
-                    'notes' => $attendance->notes . ' | Check-in updated to earlier punch',
+                    'notes' => $newNotes,
                 ]);
 
                 Log::info("Updated faculty check-in to earlier punch time", [
@@ -117,11 +124,18 @@ class FacultyAttendanceService
                     $finalStatus = $originalCheckInStatus['status']; // present or late
                 }
 
+                $newNotes = $attendance->notes;
+                if ($newNotes && !str_contains($newNotes, 'Checked out via ETimeOffice')) {
+                    $newNotes .= ' | Checked out via ETimeOffice';
+                } elseif (!$newNotes) {
+                    $newNotes = 'Checked out via ETimeOffice';
+                }
+
                 $attendance->update([
                     'check_out_time' => $punchTime,
                     'working_hours' => $workingHours,
                     'status' => $finalStatus,
-                    'notes' => $attendance->notes . ' | Checked out via ETimeOffice',
+                    'notes' => $newNotes,
                 ]);
 
                 Log::info("Updated faculty check-out attendance record", [
