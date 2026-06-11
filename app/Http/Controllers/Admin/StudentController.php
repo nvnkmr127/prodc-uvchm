@@ -72,9 +72,14 @@ class StudentController extends Controller
         // 1. apply academic year filter (Global context)
         if ($request->filled('academic_year_id') || ! $request->has('show_all')) {
             if (\Schema::hasTable('academic_years') && \Schema::hasColumn('batches', 'academic_year_id')) {
+                try {
+                    $selectedYearId = app(\App\Services\AcademicYearService::class)->getActiveAcademicYearId();
+                } catch (\App\Exceptions\MissingAcademicYearException $e) {
+                    $selectedYearId = null;
+                }
                 $selectedAcademicYearId = $request->get(
                     'academic_year_id',
-                    session('selected_academic_year_id', \App\Models\AcademicYear::where('is_current', true)->value('id'))
+                    session('selected_academic_year_id', $selectedYearId)
                 );
 
                 if ($selectedAcademicYearId) {
@@ -255,8 +260,12 @@ class StudentController extends Controller
      */
     private function getCurrentAcademicYear(): string
     {
-        return \App\Models\AcademicYear::where('is_current', true)->value('name')
-            ?? (date('n') >= 4 ? date('Y').'-'.(date('Y') + 1) : (date('Y') - 1).'-'.date('Y'));
+        try {
+            $yearStr = app(\App\Services\AcademicYearService::class)->getCurrentAcademicYear()->name;
+        } catch (\App\Exceptions\MissingAcademicYearException $e) {
+            $yearStr = null;
+        }
+        return $yearStr ?? \Carbon\Carbon::now()->format('Y') . '-' . \Carbon\Carbon::now()->addYear()->format('y');
     }
 
     /**

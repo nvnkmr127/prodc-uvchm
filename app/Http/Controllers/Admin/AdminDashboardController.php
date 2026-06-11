@@ -32,7 +32,11 @@ class AdminDashboardController extends Controller
         // Get selected academic year from session (only if table exists)
         $selectedAcademicYearId = null;
         if (\Schema::hasTable('academic_years')) {
-            $selectedAcademicYearId = session('selected_academic_year_id', \App\Models\AcademicYear::where('is_current', true)->value('id'));
+            try {
+                $selectedAcademicYearId = session('selected_academic_year_id', app(\App\Services\AcademicYearService::class)->getActiveAcademicYearId());
+            } catch (\App\Exceptions\MissingAcademicYearException $e) {
+                $selectedAcademicYearId = session('selected_academic_year_id');
+            }
         }
 
         $data = [

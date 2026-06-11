@@ -270,7 +270,11 @@ class LabAllocationController extends Controller
 
         // Get current academic year if none specified
         if (! $academicYearId) {
-            $currentYear = AcademicYear::where('is_current', true)->first();
+            try {
+                $currentYear = app(\App\Services\AcademicYearService::class)->getCurrentAcademicYear();
+            } catch (\App\Exceptions\MissingAcademicYearException $e) {
+                $currentYear = null;
+            }
             $academicYearId = $currentYear?->id;
         }
 
@@ -501,7 +505,11 @@ class LabAllocationController extends Controller
 
         // Get current academic year if none specified
         if (! $academicYearId) {
-            $currentYear = AcademicYear::where('is_current', true)->first();
+            try {
+                $currentYear = app(\App\Services\AcademicYearService::class)->getCurrentAcademicYear();
+            } catch (\App\Exceptions\MissingAcademicYearException $e) {
+                $currentYear = null;
+            }
             $academicYearId = $currentYear?->id;
         }
 
@@ -572,7 +580,11 @@ class LabAllocationController extends Controller
      */
     public function getStats(Batch $batch)
     {
-        $currentAcademicYear = AcademicYear::where('is_current', true)->first();
+        try {
+            $currentAcademicYear = app(\App\Services\AcademicYearService::class)->getCurrentAcademicYear();
+        } catch (\App\Exceptions\MissingAcademicYearException $e) {
+            $currentAcademicYear = null;
+        }
 
         if (! $currentAcademicYear) {
             return response()->json(['error' => 'No current academic year set'], 400);

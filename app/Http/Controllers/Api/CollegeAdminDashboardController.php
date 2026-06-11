@@ -33,7 +33,11 @@ class CollegeAdminDashboardController extends Controller
         $user = auth()->user();
         $today = now();
 
-        $academicYear = \App\Models\AcademicYear::where('is_current', true)->first()?->name ?? '2024-25';
+        try {
+            $academicYear = app(\App\Services\AcademicYearService::class)->getCurrentAcademicYear()->name;
+        } catch (\App\Exceptions\MissingAcademicYearException $e) {
+            $academicYear = 'No Active Year';
+        }
 
         return [
             'academic_year' => $academicYear,

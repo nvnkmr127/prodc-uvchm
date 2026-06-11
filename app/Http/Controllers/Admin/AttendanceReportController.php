@@ -29,7 +29,11 @@ class AttendanceReportController extends Controller
 
         $courses = Course::all();
 
-        $currentYear = \App\Models\AcademicYear::where('is_current', true)->first();
+        try {
+            $currentYear = app(\App\Services\AcademicYearService::class)->getCurrentAcademicYear();
+        } catch (\App\Exceptions\MissingAcademicYearException $e) {
+            $currentYear = null;
+        }
 
         $batches = Batch::withoutGlobalScope('academic_year')
             ->when($courseId, function ($query) use ($courseId) {

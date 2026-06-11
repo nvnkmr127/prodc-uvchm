@@ -55,7 +55,11 @@ class StudentFee extends Model
 
                 // Default to current year
                 if (! $yearId) {
-                    $currentYear = \App\Models\AcademicYear::where('is_current', true)->first();
+                try {
+                    $currentYear = app(\App\Services\AcademicYearService::class)->getCurrentAcademicYear();
+                } catch (\App\Exceptions\MissingAcademicYearException $e) {
+                    $currentYear = null;
+                }
                     $yearId = $currentYear?->id;
                 }
 

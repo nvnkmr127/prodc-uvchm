@@ -87,7 +87,11 @@ class PracticalGroup extends Model
      */
     public function scopeForCurrentYear($query)
     {
-        $currentYear = AcademicYear::where('is_current', true)->first();
+        try {
+            $currentYear = app(\App\Services\AcademicYearService::class)->getCurrentAcademicYear();
+        } catch (\App\Exceptions\MissingAcademicYearException $e) {
+            $currentYear = null;
+        }
         if ($currentYear) {
             return $query->where('academic_year_id', $currentYear->id);
         }

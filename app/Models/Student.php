@@ -30,7 +30,11 @@ class Student extends Model
                 $selectedYearId = session('selected_academic_year_id');
                 // Default to current year if session not set (optional, consistent with HasAcademicYear)
                 if (! $selectedYearId) {
-                    $currentYear = \App\Models\AcademicYear::where('is_current', true)->first();
+                try {
+                    $currentYear = app(\App\Services\AcademicYearService::class)->getCurrentAcademicYear();
+                } catch (\App\Exceptions\MissingAcademicYearException $e) {
+                    $currentYear = null;
+                }
                     $selectedYearId = $currentYear?->id;
                 }
 
@@ -492,7 +496,11 @@ class Student extends Model
      */
     public function currentPracticalGroups()
     {
-        $currentYear = \App\Models\AcademicYear::where('is_current', true)->first();
+        try {
+            $currentYear = app(\App\Services\AcademicYearService::class)->getCurrentAcademicYear();
+        } catch (\App\Exceptions\MissingAcademicYearException $e) {
+            $currentYear = null;
+        }
         if ($currentYear) {
             return $this->practicalGroupsForYear($currentYear->id);
         }
@@ -509,7 +517,11 @@ class Student extends Model
             return $this->practicalGroupsForYear($academicYearId)->exists();
         }
 
-        $currentYear = \App\Models\AcademicYear::where('is_current', true)->first();
+        try {
+            $currentYear = app(\App\Services\AcademicYearService::class)->getCurrentAcademicYear();
+        } catch (\App\Exceptions\MissingAcademicYearException $e) {
+            $currentYear = null;
+        }
         if ($currentYear) {
             return $this->practicalGroupsForYear($currentYear->id)->exists();
         }

@@ -54,11 +54,11 @@ class UnifiedIdentifierService
     public function generateReceiptNumber(AcademicYear $year = null): string
     {
         if (!$year) {
-            $yearId = session('selected_academic_year_id');
-            if ($yearId) {
+            try {
+                $yearId = app(\App\Services\AcademicYearService::class)->getActiveAcademicYearId();
                 $year = AcademicYear::find($yearId);
-            } else {
-                $year = AcademicYear::where('is_current', true)->first();
+            } catch (\App\Exceptions\MissingAcademicYearException $e) {
+                $year = null;
             }
         }
 
@@ -171,7 +171,11 @@ class UnifiedIdentifierService
     public function generateCertificateNumber(string $type, AcademicYear $year = null): string
     {
         if (!$year) {
-            $year = AcademicYear::where('is_current', true)->first();
+            try {
+                $year = app(\App\Services\AcademicYearService::class)->getCurrentAcademicYear();
+            } catch (\App\Exceptions\MissingAcademicYearException $e) {
+                $year = null;
+            }
         }
         $yearString = $year ? substr($year->start_date, 0, 4) : date('Y');
         

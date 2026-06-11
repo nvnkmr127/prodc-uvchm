@@ -22,7 +22,11 @@ class AdmissionController extends Controller
         // Get selected academic year from session (only if table exists)
         $selectedAcademicYearId = null;
         if (\Schema::hasTable('academic_years') && \Schema::hasColumn('admissions', 'academic_year_id')) {
-            $selectedAcademicYearId = session('selected_academic_year_id', \App\Models\AcademicYear::where('is_current', true)->value('id'));
+            try {
+                $selectedAcademicYearId = app(\App\Services\AcademicYearService::class)->getActiveAcademicYearId();
+            } catch (\App\Exceptions\MissingAcademicYearException $e) {
+                $selectedAcademicYearId = null;
+            }
         }
 
         $query = Admission::with(['course', 'enquiry']);

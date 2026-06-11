@@ -44,7 +44,11 @@ class EnhancedTimetableController extends Controller
                 ->get();
 
             $academicYears = AcademicYear::orderBy('start_date', 'desc')->get();
-            $currentAcademicYear = AcademicYear::where('is_current', true)->first();
+            try {
+                $currentAcademicYear = app(\App\Services\AcademicYearService::class)->getCurrentAcademicYear();
+            } catch (\App\Exceptions\MissingAcademicYearException $e) {
+                $currentAcademicYear = null;
+            }
 
             $faculties = User::role('staff')->orderBy('name')->get();
             $classrooms = Classroom::orderBy('name')->get();
@@ -2405,10 +2409,13 @@ class EnhancedTimetableController extends Controller
 
             // Create academic year if missing
             if (\App\Models\AcademicYear::count() === 0) {
+                $startYear = now()->format('Y');
+                $endYear = now()->addYear()->format('y');
+                $fullEndYear = now()->addYear()->format('Y');
                 \App\Models\AcademicYear::create([
-                    'name' => '2024-25',
-                    'start_date' => '2024-04-01',
-                    'end_date' => '2025-03-31',
+                    'name' => "{$startYear}-{$endYear}",
+                    'start_date' => "{$startYear}-04-01",
+                    'end_date' => "{$fullEndYear}-03-31",
                     'is_current' => true,
                 ]);
                 $created[] = 'Academic Year';

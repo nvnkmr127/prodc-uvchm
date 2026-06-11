@@ -30,7 +30,11 @@ class ViewServiceProvider extends ServiceProvider
                 $allAcademicYears = AcademicYear::orderBy('start_date', 'desc')->get();
 
                 // Get the currently selected year from the session, or default to the one marked 'is_current'
-                $selectedAcademicYearId = session('selected_academic_year_id', AcademicYear::where('is_current', true)->value('id'));
+                try {
+                    $selectedAcademicYearId = session('selected_academic_year_id', app(\App\Services\AcademicYearService::class)->getActiveAcademicYearId());
+                } catch (\App\Exceptions\MissingAcademicYearException $e) {
+                    $selectedAcademicYearId = session('selected_academic_year_id');
+                }
 
                 // Share these variables with the view
                 $view->with('allAcademicYears', $allAcademicYears)

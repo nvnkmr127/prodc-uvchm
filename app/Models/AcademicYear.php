@@ -13,6 +13,19 @@ class AcademicYear extends Model
 
     protected $fillable = ['name', 'start_date', 'end_date', 'is_current', 'auto_switch_enabled'];
 
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::saved(function ($model) {
+            app(\App\Services\AcademicYearService::class)->clearCache();
+        });
+
+        static::deleted(function ($model) {
+            app(\App\Services\AcademicYearService::class)->clearCache();
+        });
+    }
+
     public function batches()
     {
         return $this->hasMany(Batch::class);

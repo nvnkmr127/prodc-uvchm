@@ -1245,7 +1245,7 @@ class ComponentPaymentController extends Controller
         // Method 2: Try to get from AcademicYear model if it exists
         if (class_exists('\App\Models\AcademicYear')) {
             try {
-                $currentAcademicYear = \App\Models\AcademicYear::where('is_current', true)->first();
+                $currentAcademicYear = app(\App\Services\AcademicYearService::class)->getCurrentAcademicYear();
                 if ($currentAcademicYear) {
                     \Log::info('Academic year from AcademicYear model', ['academic_year' => $currentAcademicYear->name]);
 

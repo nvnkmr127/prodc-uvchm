@@ -24,11 +24,10 @@ trait HasAcademicYear
 
             static::addGlobalScope('academic_year', function (Builder $builder) {
                 // Get selected year from session, or default to current year
-                $selectedYearId = session('selected_academic_year_id');
-
-                if (! $selectedYearId) {
-                    $currentYear = AcademicYear::where('is_current', true)->first();
-                    $selectedYearId = $currentYear?->id;
+                try {
+                    $selectedYearId = app(\App\Services\AcademicYearService::class)->getActiveAcademicYearId();
+                } catch (\App\Exceptions\MissingAcademicYearException $e) {
+                    $selectedYearId = null; // Failsafe if no year is set
                 }
 
                 // Determine column name (default to academic_year_id)
@@ -42,12 +41,7 @@ trait HasAcademicYear
 
                     if ($columnName !== 'academic_year_id') {
                         // Attempt to find the year name
-                        // Cache this query to avoid hitting DB on every model boot if possible,
-                        // but here strict correctness is key.
-                        $yearModel = AcademicYear::find($selectedYearId);
-                        if ($yearModel) {
-                            $valueToFilter = $yearModel->name;
-                        }
+                        $valueToFilter = app(\App\Services\AcademicYearService::class)->resolveAcademicYearName($selectedYearId) ?? $selectedYearId;
                     }
 
                     $builder->where(
@@ -76,10 +70,7 @@ trait HasAcademicYear
 
         $value = $academicYearId;
         if ($columnName !== 'academic_year_id' && is_numeric($academicYearId)) {
-            $year = AcademicYear::find($academicYearId);
-            if ($year) {
-                $value = $year->name;
-            }
+            $value = app(\App\Services\AcademicYearService::class)->resolveAcademicYearName($academicYearId) ?? $academicYearId;
         }
 
         return $query->where($columnName, $value);
@@ -90,16 +81,19 @@ trait HasAcademicYear
      */
     public function scopeForCurrentYear(Builder $query)
     {
-        $currentYear = AcademicYear::where('is_current', true)->first();
-        $columnName = $this->academic_year_column ?? 'academic_year_id';
+        try {
+            $currentYear = app(\App\Services\AcademicYearService::class)->getCurrentAcademicYear();
+            $columnName = $this->academic_year_column ?? 'academic_year_id';
 
-        if ($currentYear) {
             $value = ($columnName === 'academic_year_id') ? $currentYear->id : $currentYear->name;
 
             return $query->where($columnName, $value);
+        } catch (\App\Exceptions\MissingAcademicYearException $e) {
+            // If no active year, return query as is or we could fail explicitly
+            // But scoping should probably just return an empty set or ignore. 
+            // We'll ignore the scope if no current year exists.
+            return $query;
         }
-
-        return $query;
     }
 
     /**
