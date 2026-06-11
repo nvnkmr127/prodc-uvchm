@@ -66,7 +66,7 @@ class BiometricWebhookController extends Controller
                 $faculty = $this->findFacultyByBiometricCode($biometricCode);
 
                 if ($faculty) {
-                    Log::info('Faculty biometric scan processed (logged only)', [
+                    Log::info('Faculty biometric scan processed', [
                         'faculty_name' => $faculty->name,
                         'biometric_code' => $biometricCode,
                         'punch_datetime' => $punchDateTime,
@@ -74,8 +74,9 @@ class BiometricWebhookController extends Controller
                     ]);
 
                     // Log the scan in database for biometric salary calculation
+                    $biometricLog = null;
                     try {
-                        BiometricLog::create([
+                        $biometricLog = BiometricLog::create([
                             'device_id' => $deviceId,
                             'employee_code' => $biometricCode,
                             'scan_datetime' => $carbonDate,
@@ -84,11 +85,29 @@ class BiometricWebhookController extends Controller
                             'processed' => true,
                             'sync_status' => 'success',
                             'status' => 'processed',
-                            'processing_notes' => 'Faculty punch logged for salary',
+                            'processing_notes' => 'Faculty punch logged for salary and attendance',
                         ]);
                     } catch (\Exception $e) {
                         Log::error('Failed to write faculty biometric log to database', [
                             'error' => $e->getMessage(),
+                        ]);
+                    }
+
+                    // Process faculty attendance record
+                    try {
+                        $facultyAttendanceService = app(\App\Services\Attendance\FacultyAttendanceService::class);
+                        $facultyAttendanceService->recordPunch(
+                            $faculty,
+                            $carbonDate,
+                            $direction,
+                            $deviceId,
+                            $biometricLog ? $biometricLog->id : null
+                        );
+                    } catch (\Exception $e) {
+                        Log::error('Failed to record faculty attendance via webhook', [
+                            'faculty_name' => $faculty->name,
+                            'error' => $e->getMessage(),
+                            'trace' => $e->getTraceAsString(),
                         ]);
                     }
 

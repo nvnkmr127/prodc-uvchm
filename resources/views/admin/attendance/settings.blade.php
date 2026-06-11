@@ -494,6 +494,45 @@
                     </form>
                 </div>
             </div>
+            <!-- Faculty Attendance Timing -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Faculty Attendance Timing</h5>
+                    <span id="facultyTimingSaveStatus" class="badge badge-light transition-all"></span>
+                </div>
+                <div class="card-body">
+                    <form id="facultyAttendanceTimingForm">
+                        @csrf
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">College Start Time</label>
+                                <input type="time" name="faculty_college_start_time" 
+                                       class="form-control" 
+                                       value="{{ isset($settings['faculty_college_start_time']) ? substr($settings['faculty_college_start_time'], 0, 5) : '09:00' }}"
+                                       onchange="saveFacultyAttendanceTiming()">
+                            </div>
+
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label font-weight-bold text-success">Present Cutoff Time</label>
+                                <input type="time" name="faculty_present_cutoff_time" 
+                                       class="form-control border-success" 
+                                       value="{{ isset($settings['faculty_present_cutoff_time']) ? substr($settings['faculty_present_cutoff_time'], 0, 5) : '10:30' }}"
+                                       onchange="saveFacultyAttendanceTiming()">
+                                <small class="text-muted">Faculty marked late after start, absent after cutoff.</small>
+                            </div>
+
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Late Entry Cutoff</label>
+                                <input type="time" name="faculty_late_cutoff_time" 
+                                       class="form-control" 
+                                       value="{{ isset($settings['faculty_late_cutoff_time']) ? substr($settings['faculty_late_cutoff_time'], 0, 5) : '11:00' }}"
+                                       onchange="saveFacultyAttendanceTiming()">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
             <!-- Biometric Statistics -->
             <div class="card shadow mb-4">
                 <div class="card-header py-3">
@@ -1495,6 +1534,45 @@ function saveAttendanceTiming() {
     
     $.ajax({
         url: '{{ route("admin.attendance.settings.update") }}', // Ensure this route exists in web.php
+        method: 'POST',
+        data: form.serialize(),
+        success: function(response) {
+            if (response.success) {
+                // Show success
+                statusBadge.removeClass('badge-warning').addClass('badge-success').text('Saved');
+                
+                // Clear "Saved" message after 2 seconds
+                setTimeout(() => {
+                    statusBadge.fadeOut(500, function() {
+                        $(this).text('').show().removeClass('badge-success');
+                    });
+                }, 2000);
+            } else {
+                statusBadge.removeClass('badge-warning').addClass('badge-danger').text('Error');
+                showAlert(response.message || 'Failed to save settings', 'error');
+            }
+        },
+        error: function(xhr) {
+            statusBadge.removeClass('badge-warning').addClass('badge-danger').text('Failed');
+            let errorMsg = 'Failed to save settings';
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+                errorMsg = xhr.responseJSON.message;
+            }
+            showAlert(errorMsg, 'error');
+        }
+    });
+}
+
+// Auto-save Faculty Attendance Timings
+function saveFacultyAttendanceTiming() {
+    const form = $('#facultyAttendanceTimingForm');
+    const statusBadge = $('#facultyTimingSaveStatus');
+    
+    // Show saving state
+    statusBadge.removeClass('badge-success badge-danger').addClass('badge-warning').text('Saving...');
+    
+    $.ajax({
+        url: '{{ route("admin.attendance.settings.update") }}',
         method: 'POST',
         data: form.serialize(),
         success: function(response) {

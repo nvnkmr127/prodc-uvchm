@@ -142,35 +142,15 @@ class PayslipController extends Controller
             $workingDays = 22; // Fallback
         }
 
-        // 5. Count days present using scan dates in biometric_logs (single punch = 0.5, multiple punches >= 4 hrs apart = 1.0)
+        // 5. Count days present using structured faculty_attendances table (single punch = 0.5, multiple punches >= 4 hrs apart = 1.0)
         $daysPresent = 0.00;
         if (!empty($user->biometric_employee_code)) {
-            $scansByDate = \App\Models\Attendance\BiometricLog::where('employee_code', $user->biometric_employee_code)
-                ->whereBetween('scan_datetime', [$startDate->startOfDay(), $endDate->endOfDay()])
-                ->orderBy('scan_datetime')
-                ->get()
-                ->groupBy(function($log) {
-                    return $log->scan_datetime->toDateString();
-                });
+            $attendances = \App\Models\Attendance\FacultyAttendance::where('faculty_id', $user->id)
+                ->whereBetween('attendance_date', [$startDate->toDateString(), $endDate->toDateString()])
+                ->get();
 
-            foreach ($scansByDate as $date => $logs) {
-                if ($logs->count() < 2) {
-                    // Single punch (forgot punch) = Half Day (0.5)
-                    $daysPresent += 0.5;
-                } else {
-                    // Calculate hours between first and last scan on this day
-                    $firstScan = $logs->first()->scan_datetime;
-                    $lastScan = $logs->last()->scan_datetime;
-                    $hoursDiff = $firstScan->diffInHours($lastScan);
-
-                    if ($hoursDiff < 4) {
-                        // Double punch or short duration = Half Day (0.5)
-                        $daysPresent += 0.5;
-                    } else {
-                        // Full Day (1.0)
-                        $daysPresent += 1.0;
-                    }
-                }
+            foreach ($attendances as $att) {
+                $daysPresent += $att->present_value;
             }
         }
 

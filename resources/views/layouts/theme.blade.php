@@ -413,6 +413,9 @@
                             <a class="collapse-item" href="{{ route('admin.daily-attendance.index') }}">
                                 <i class="fas fa-list fa-sm fa-fw mr-1"></i> Daily Records
                             </a>
+                            <a class="collapse-item" href="{{ route('admin.faculty-attendance.index') }}">
+                                <i class="fas fa-user-clock fa-sm fa-fw mr-1 text-success"></i> Faculty Attendance
+                            </a>
                             <a class="collapse-item" href="{{ route('admin.daily-attendance.show') }}">
                                 <i class="fas fa-broadcast-tower fa-sm fa-fw mr-1"></i> Live Attendance
                             </a>

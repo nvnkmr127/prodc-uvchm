@@ -313,8 +313,48 @@ class ETimeOfficeService
                 $student = $this->findStudentByBiometricCode($empcode);
 
                 if (! $student) {
+                    // Check if it is faculty
+                    $faculty = \App\Models\User::role('staff')
+                        ->where('biometric_employee_code', $empcode)
+                        ->orWhere('employee_id', $empcode)
+                        ->first();
+
+                    if ($faculty) {
+                        try {
+                            $carbonDate = null;
+                            $dateFormats = [
+                                'd/m/Y H:i:s',
+                                'Y-m-d H:i:s',
+                                'd-m-Y H:i:s',
+                                'm/d/Y H:i:s',
+                                'd/m/Y H:i',
+                                'Y-m-d H:i',
+                            ];
+                            foreach ($dateFormats as $format) {
+                                try {
+                                    $carbonDate = Carbon::createFromFormat($format, $punchDate);
+                                    if ($carbonDate !== false) {
+                                        break;
+                                    }
+                                } catch (\Exception $e) {
+                                    continue;
+                                }
+                            }
+                            if (!$carbonDate) {
+                                $carbonDate = Carbon::parse($punchDate);
+                            }
+
+                            $facultyAttendanceService = app(\App\Services\Attendance\FacultyAttendanceService::class);
+                            $facultyAttendanceService->recordPunch($faculty, $carbonDate, 'AUTO', 'etimeoffice-api');
+                            $results['created']++;
+                        } catch (\Exception $e) {
+                            $results['errors'][] = "Error processing faculty punch for {$empcode}: ".$e->getMessage();
+                        }
+                        continue;
+                    }
+
                     $results['skipped']++;
-                    $results['errors'][] = "Student not found for empcode: {$empcode} (Name: {$name})";
+                    $results['errors'][] = "Student or Faculty not found for empcode: {$empcode} (Name: {$name})";
 
                     continue;
                 }

@@ -1515,6 +1515,12 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::get('/student-portal-logs/{id}', [App\Http\Controllers\Admin\StudentPortalLogsController::class, 'show'])->name('student-portal-logs.show')->where('id', '[0-9]+');
 });
 
+// Faculty Attendance Dashboard & Export Routes
+Route::prefix('admin/faculty-attendance')->name('admin.faculty-attendance.')->middleware(['auth', 'role:super-admin|college-admin|staff'])->group(function () {
+    Route::get('/', [App\Http\Controllers\Admin\FacultyAttendanceController::class, 'index'])->name('index');
+    Route::get('/export/{format}', [App\Http\Controllers\Admin\FacultyAttendanceController::class, 'export'])->name('export');
+});
+
 /*
 |--------------------------------------------------------------------------
 |                                 FALLBACK ROUTE

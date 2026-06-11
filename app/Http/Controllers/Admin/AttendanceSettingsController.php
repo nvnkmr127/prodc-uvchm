@@ -864,6 +864,24 @@ class AttendanceSettingsController extends Controller
                         ->first();
 
                     if (! $student) {
+                        // Check if it is faculty
+                        $faculty = \App\Models\User::role('staff')
+                            ->where('biometric_employee_code', $empCode)
+                            ->orWhere('employee_id', $empCode)
+                            ->first();
+
+                        if ($faculty) {
+                            try {
+                                $facultyAttendanceService = app(\App\Services\Attendance\FacultyAttendanceService::class);
+                                $facultyAttendanceService->recordPunch($faculty, $punchDateTime, 'AUTO', 'etimeoffice-api');
+                                $createdRecords++;
+                            } catch (\Exception $e) {
+                                $errors[] = "Error processing faculty punch for {$empCode}: ".$e->getMessage();
+                                $skippedRecords++;
+                            }
+                            continue;
+                        }
+
                         $errors[] = "Student not found for employee code: {$empCode} (Name: {$employeeName})";
                         $skippedRecords++;
                         \Log::info('No student found for employee code', [
