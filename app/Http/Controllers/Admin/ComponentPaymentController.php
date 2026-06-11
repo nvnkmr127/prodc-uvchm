@@ -367,24 +367,7 @@ class ComponentPaymentController extends Controller
      */
     private function generateReceiptNumber()
     {
-        $prefix = 'RCP';
-        $year = date('Y');
-        $month = date('m');
-
-        // Get the next sequence number for this month - BYPASS GLOBAL SCOPE
-        $lastPayment = Payment::withoutGlobalScope('academic_year')
-            ->where('receipt_number', 'like', "{$prefix}{$year}{$month}%")
-            ->orderBy('receipt_number', 'desc')
-            ->first();
-
-        if ($lastPayment) {
-            $lastSequence = (int) substr($lastPayment->receipt_number, -4);
-            $nextSequence = $lastSequence + 1;
-        } else {
-            $nextSequence = 1;
-        }
-
-        return $prefix.$year.$month.str_pad($nextSequence, 4, '0', STR_PAD_LEFT);
+        return app(\App\Services\UnifiedIdentifierService::class)->generateReceiptNumber();
     }
 
     /**

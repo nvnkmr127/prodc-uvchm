@@ -227,30 +227,13 @@ class FacultyBiometricMappingService
      */
     public function generateBiometricCodeFromEmployeeId(string $employeeId): string
     {
-        try {
-            $prefix = '9'; // Default faculty prefix
-
-            // Step 1: Extract all numeric characters from the string.
-            $allNumbers = preg_replace('/[^0-9]/', '', $employeeId);
-
-            // Step 2: Take only the last 3 characters from the extracted numbers.
-            if (! empty($allNumbers) && strlen($allNumbers) >= 3) {
-                $numberPart = substr($allNumbers, -3);
-            } else {
-                $numberPart = str_pad($allNumbers, 3, '0', STR_PAD_LEFT);
-            }
-
-            // Step 3: Combine parts
-            return $prefix . $numberPart;
-
-        } catch (\Exception $e) {
-            Log::error('Error in generateBiometricCodeFromEmployeeId', ['error' => $e->getMessage()]);
-
-            $allNumbers = preg_replace('/[^0-9]/', '', $employeeId);
-            $numbers = ! empty($allNumbers) && strlen($allNumbers) >= 3 ? substr($allNumbers, -3) : str_pad($allNumbers, 3, '0', STR_PAD_LEFT);
-
-            return '9'.$numbers;
-        }
+        // For backwards compatibility with the method signature, we need a dummy User
+        // because the new service method expects a Faculty (User) object.
+        // However, in our service, the logic doesn't strictly depend on the object.
+        $dummyFaculty = new User();
+        $dummyFaculty->employee_id = $employeeId;
+        
+        return app(\App\Services\UnifiedIdentifierService::class)->generateFacultyBiometricId($dummyFaculty);
     }
 
     /**

@@ -38,66 +38,6 @@ class EnrollmentService
      */
     private function generate(Course $course, ?Batch $batch = null): string
     {
-        // 1. Get College Prefix
-        $settings = Setting::all()->keyBy('key');
-        $collegePrefix = $settings['enrollment_prefix']->value ?? 'UV';
-
-        // 2. Get Course Code / Prefix
-        $coursePrefix = $course->code ?? $course->enrollment_prefix ?? strtoupper(substr($course->name, 0, 4));
-        $coursePrefix = trim($coursePrefix);
-
-        // 3. Determine Year (2 digits)
-        if ($batch && $batch->created_at) {
-            $year = Carbon::parse($batch->created_at)->format('y');
-        } else {
-            $year = date('y');
-        }
-
-        $prefix = "{$collegePrefix}-{$coursePrefix}-{$year}";
-
-        // 4. Find the last student with this prefix (optionally scoped by batch if provided)
-        $query = Student::where('enrollment_number', 'LIKE', "{$prefix}%");
-        
-        if ($batch) {
-            $query->where('batch_id', $batch->id);
-        }
-
-        // Lock for update if we are inside a transaction to prevent race conditions
-        if (DB::transactionLevel() > 0) {
-            $query->lockForUpdate();
-        }
-
-        $lastStudent = $query->orderByRaw('LENGTH(enrollment_number) DESC')
-            ->orderBy('enrollment_number', 'desc')
-            ->first();
-
-        // We assume a 3-digit sequence following the 2-digit year, so the last 3 chars are the sequence.
-        $nextSequence = 1;
-        if ($lastStudent) {
-            // Extract the last 3 characters
-            $lastSequence = (int) substr($lastStudent->enrollment_number, -3);
-            $nextSequence = $lastSequence + 1;
-        }
-
-        $maxAttempts = 10;
-        $attempt = 0;
-
-        do {
-            $paddedRollNo = str_pad($nextSequence + $attempt, 3, '0', STR_PAD_LEFT);
-            $enrollmentNumber = "{$prefix}{$paddedRollNo}";
-
-            $exists = Student::where('enrollment_number', $enrollmentNumber)->exists();
-
-            if ($exists) {
-                $attempt++;
-            }
-        } while ($exists && $attempt < $maxAttempts);
-
-        // Fallback for extreme cases
-        if ($attempt >= $maxAttempts) {
-            $enrollmentNumber = "{$prefix}" . substr(time(), -3);
-        }
-
-        return $enrollmentNumber;
+        return app(\App\Services\UnifiedIdentifierService::class)->generateEnrollmentNumber($course, $batch);
     }
 }

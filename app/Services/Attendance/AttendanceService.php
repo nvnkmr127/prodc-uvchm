@@ -389,36 +389,25 @@ class AttendanceService
      */
     public function getStudentsWithoutBiometricCodes(): Collection
     {
+        $biometricService = app(\App\Services\BiometricMappingService::class);
         return Student::whereNull('biometric_employee_code')
             ->with(['batch.course'])
             ->where('status', 'active')
             ->orderBy('enrollment_number')
             ->get()
-            ->map(function ($student) {
+            ->map(function ($student) use ($biometricService) {
                 return [
                     'id' => $student->id,
                     'name' => $student->name,
                     'enrollment_number' => $student->enrollment_number,
                     'batch_name' => $student->batch->name ?? 'No Batch',
                     'course_name' => $student->batch->course->name ?? 'No Course',
-                    'suggested_biometric_code' => $this->generateBiometricCodeFromEnrollment($student->enrollment_number),
+                    'suggested_biometric_code' => $biometricService->generateBiometricCode($student),
                 ];
             });
     }
 
-    /**
-     * ✅ NEW: Generate biometric code from enrollment number
-     */
-    private function generateBiometricCodeFromEnrollment(string $enrollmentNumber): string
-    {
-        // Remove common prefixes and extract numbers
-        $code = preg_replace('/^(UVCHM-|UV-|ENR-|STD-)/i', '', $enrollmentNumber);
 
-        // Remove any non-alphanumeric characters except hyphens
-        $code = preg_replace('/[^a-zA-Z0-9-]/', '', $code);
-
-        return $code;
-    }
 
     /**
      * ✅ NEW: Bulk update biometric codes
@@ -485,55 +474,8 @@ class AttendanceService
      */
     public function autoGenerateBiometricCodes(): array
     {
-        $studentsWithoutCodes = Student::whereNull('biometric_employee_code')
-            ->where('status', 'active')
-            ->get();
-
-        $results = [
-            'success_count' => 0,
-            'error_count' => 0,
-            'errors' => [],
-        ];
-
-        foreach ($studentsWithoutCodes as $student) {
-            try {
-                $generatedCode = $this->generateBiometricCodeFromEnrollment($student->enrollment_number);
-
-                // Ensure uniqueness
-                $counter = 1;
-                $originalCode = $generatedCode;
-
-                while (
-                    Student::where('biometric_employee_code', $generatedCode)
-                        ->where('id', '!=', $student->id)
-                        ->exists()
-                ) {
-                    $generatedCode = $originalCode.'-'.$counter;
-                    $counter++;
-                }
-
-                $student->update(['biometric_employee_code' => $generatedCode]);
-                $results['success_count']++;
-
-                Log::info('Auto-generated biometric code', [
-                    'student_id' => $student->id,
-                    'student_name' => $student->name,
-                    'enrollment_number' => $student->enrollment_number,
-                    'generated_code' => $generatedCode,
-                ]);
-
-            } catch (\Exception $e) {
-                $results['error_count']++;
-                $results['errors'][] = "Error generating code for {$student->name}: ".$e->getMessage();
-
-                Log::error('Auto-generation failed', [
-                    'student_id' => $student->id,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-        }
-
-        return $results;
+        $biometricService = app(\App\Services\BiometricMappingService::class);
+        return $biometricService->autoGenerateAllCodes();
     }
 
     /**

@@ -1799,7 +1799,7 @@ class StudentController extends Controller
                 'biometric_code' => $student->biometric_employee_code,
                 'batch_name' => $student->batch->name ?? 'No Batch',
                 'course_name' => $student->batch->course->name ?? 'No Course',
-                'suggested_code' => $this->biometricMappingService->generateBiometricCodeFromEnrollment($student->enrollment_number ?? ''),
+                'suggested_code' => $this->biometricMappingService->generateBiometricCode($student),
             ];
         });
 

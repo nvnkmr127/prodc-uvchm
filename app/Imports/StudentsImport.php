@@ -877,11 +877,7 @@ class StudentsImport implements SkipsOnFailure, ToModel, WithHeadingRow, WithVal
     // 🆕 NEW: Generate receipt number
     private function generateReceiptNumber(Student $student)
     {
-        $prefix = 'RCP';
-        $year = date('y');
-        $sequence = str_pad($this->paymentsCreated + 1, 4, '0', STR_PAD_LEFT);
-
-        return $prefix.'-'.$student->enrollment_number.'-'.$year.$sequence;
+        return app(\App\Services\UnifiedIdentifierService::class)->generateReceiptNumber();
     }
 
     // 🆕 NEW: Parse payment date

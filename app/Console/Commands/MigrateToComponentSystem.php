@@ -302,7 +302,6 @@ class MigrateToComponentSystem extends Command
 
     private function generateReceiptNumber($payment): string
     {
-        return 'RCP'.date('Y', strtotime($payment->payment_date)).
-               str_pad($payment->id, 6, '0', STR_PAD_LEFT);
+        return app(\App\Services\UnifiedIdentifierService::class)->generateReceiptNumber();
     }
 }

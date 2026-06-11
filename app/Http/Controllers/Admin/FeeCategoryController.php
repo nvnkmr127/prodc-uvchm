@@ -81,9 +81,6 @@ class FeeCategoryController extends Controller
 
     private function generateCategoryCode($name)
     {
-        $code = strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $name), 0, 3));
-        $count = FeeCategory::where('category_code', 'like', $code.'%')->count();
-
-        return $code.'-'.str_pad($count + 1, 3, '0', STR_PAD_LEFT);
+        return app(\App\Services\UnifiedIdentifierService::class)->generateCategoryCode($name);
     }
 }

@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Exports\UnmappedStudentsExport;
 use App\Imports\BiometricMappingImport;
 use App\Models\Student;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -45,7 +47,7 @@ class BiometricMappingService
                     'enrollment_number' => $student->enrollment_number,
                     'batch_name' => $student->batch->name ?? 'No Batch',
                     'course_name' => $student->batch->course->name ?? 'No Course',
-                    'suggested_code' => $this->generateBiometricCodeFromEnrollment($student->enrollment_number),
+                    'suggested_code' => $this->generateBiometricCode($student),
                 ];
             });
     }
@@ -56,21 +58,8 @@ class BiometricMappingService
      */
     public function assignBiometricCode(Student $student): void
     {
-        // 1. Generate base code from enrollment number
-        $generatedCode = $this->generateBiometricCodeFromEnrollment($student->enrollment_number);
-
-        // 2. Ensure uniqueness (Handle collisions)
-        $counter = 1;
-        $originalCode = $generatedCode;
-
-        while (Student::where('biometric_employee_code', $generatedCode)
-            ->where('id', '!=', $student->id)
-            ->exists()) {
-            $generatedCode = $originalCode.'-'.$counter;
-            $counter++;
-        }
-
-        // 3. Save to student
+        $generatedCode = $this->generateBiometricCode($student);
+        
         $student->update(['biometric_employee_code' => $generatedCode]);
 
         Log::info("Automatically assigned biometric code {$generatedCode} to student {$student->name}");
@@ -93,29 +82,18 @@ class BiometricMappingService
 
         foreach ($unmappedStudents as $student) {
             try {
-                $generatedCode = $this->generateBiometricCodeFromEnrollment($student->enrollment_number);
+                DB::transaction(function () use ($student, &$results) {
+                    $generatedCode = $this->generateBiometricCode($student);
+                    $student->update(['biometric_employee_code' => $generatedCode]);
+                    $results['success_count']++;
 
-                // Ensure uniqueness
-                $counter = 1;
-                $originalCode = $generatedCode;
-
-                while (Student::where('biometric_employee_code', $generatedCode)
-                    ->where('id', '!=', $student->id)
-                    ->exists()) {
-                    $generatedCode = $originalCode.'-'.$counter;
-                    $counter++;
-                }
-
-                $student->update(['biometric_employee_code' => $generatedCode]);
-                $results['success_count']++;
-
-                Log::info('Auto-generated biometric code', [
-                    'student_id' => $student->id,
-                    'student_name' => $student->name,
-                    'enrollment_number' => $student->enrollment_number,
-                    'generated_code' => $generatedCode,
-                ]);
-
+                    Log::info('Auto-generated biometric code', [
+                        'student_id' => $student->id,
+                        'student_name' => $student->name,
+                        'enrollment_number' => $student->enrollment_number,
+                        'generated_code' => $generatedCode,
+                    ]);
+                });
             } catch (\Exception $e) {
                 $results['error_count']++;
                 $results['errors'][] = "Error generating code for {$student->name}: ".$e->getMessage();
@@ -230,57 +208,12 @@ class BiometricMappingService
     }
 
     /**
-     * Generate biometric code with new course mapping
-     * DHM(1) + last 3 digits = 1003
-     * ADHM(2) + last 3 digits = 2003
+     * Generate biometric code with course mapping, year, and incrementing sequence.
+     * Uses locking to ensure uniqueness within a transaction.
      */
-    public function generateBiometricCodeFromEnrollment(string $enrollmentNumber): string
+    public function generateBiometricCode(Student $student): string
     {
-        try {
-            $courseMapping = [
-                'ADHM' => '2',
-                'MDHM' => '3',
-                'PDHM' => '4',
-                'DHM' => '1', // The shortest name is now last for proper matching
-            ];
-
-            // Convert to uppercase for case-insensitive comparison
-            $enrollmentUpper = strtoupper($enrollmentNumber);
-
-            // Set a default course code in case no mapping is found
-            $courseCode = '9';
-            foreach ($courseMapping as $course => $number) {
-                if (strpos($enrollmentUpper, $course) !== false) {
-                    $courseCode = $number;
-                    break;
-                }
-            }
-
-            // Step 1: Extract all numeric characters from the string.
-            $allNumbers = preg_replace('/[^0-9]/', '', $enrollmentNumber);
-
-            // Step 2: Take only the last 3 characters from the extracted numbers.
-            if (! empty($allNumbers) && strlen($allNumbers) >= 3) {
-                $studentNumber = substr($allNumbers, -3);
-            } else {
-                // Fallback for numbers shorter than 3 digits
-                $studentNumber = str_pad($allNumbers, 3, '0', STR_PAD_LEFT);
-            }
-
-            // Step 3: Combine the parts to get the final code.
-            $biometricCode = $courseCode.$studentNumber;
-
-            return $biometricCode;
-
-        } catch (\Exception $e) {
-            // Fallback logic in case of an unexpected error
-            Log::error('Error in generateBiometricCodeFromEnrollment', ['error' => $e->getMessage()]);
-
-            $allNumbers = preg_replace('/[^0-9]/', '', $enrollmentNumber);
-            $numbers = ! empty($allNumbers) && strlen($allNumbers) >= 3 ? substr($allNumbers, -3) : str_pad($allNumbers, 3, '0', STR_PAD_LEFT);
-
-            return '9'.$numbers;
-        }
+        return app(\App\Services\UnifiedIdentifierService::class)->generateStudentBiometricId($student);
     }
 
     /**

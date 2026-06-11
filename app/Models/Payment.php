@@ -272,27 +272,11 @@ class Payment extends Model
      */
 
     /**
-     * Generate a unique receipt number
+     * Generate a unique receipt number safely.
      */
     public static function generateReceiptNumber(): string
     {
-        $prefix = 'RCP-'.date('Y').'-';
-
-        // Get the latest receipt number for this year - BYPASS GLOBAL SCOPES
-        $latest = static::withoutGlobalScope('academic_year')
-            ->where('receipt_number', 'LIKE', $prefix.'%')
-            ->orderByRaw('CAST(SUBSTRING(receipt_number, '.(strlen($prefix) + 1).') AS UNSIGNED) DESC')
-            ->first();
-
-        if ($latest) {
-            // Extract the number part and increment
-            $lastNumber = intval(substr($latest->receipt_number, strlen($prefix)));
-            $newNumber = $lastNumber + 1;
-        } else {
-            $newNumber = 1;
-        }
-
-        return $prefix.str_pad($newNumber, 6, '0', STR_PAD_LEFT);
+        return app(\App\Services\UnifiedIdentifierService::class)->generateReceiptNumber();
     }
 
     /**

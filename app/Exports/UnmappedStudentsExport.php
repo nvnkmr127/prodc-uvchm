@@ -32,25 +32,17 @@ class UnmappedStudentsExport implements FromCollection, WithHeadings, WithMappin
 
     public function map($student): array
     {
+        $biometricService = app(\App\Services\BiometricMappingService::class);
+        
         return [
             $student->id,
             $student->name,
             $student->enrollment_number,
             $student->batch->name ?? 'No Batch',
             $student->batch->course->name ?? 'No Course',
-            $this->generateBiometricCodeFromEnrollment($student->enrollment_number),
+            $biometricService->generateBiometricCode($student),
             '', // Empty column for manual entry - this will be the biometric_code column
         ];
     }
 
-    private function generateBiometricCodeFromEnrollment(string $enrollmentNumber): string
-    {
-        // Remove common prefixes and extract numbers/letters
-        $code = preg_replace('/^(UVCHM-|UV-|ENR-|STD-)/i', '', $enrollmentNumber);
-
-        // Remove any non-alphanumeric characters except hyphens
-        $code = preg_replace('/[^a-zA-Z0-9\-]/', '', $code);
-
-        return $code;
-    }
 }
