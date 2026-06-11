@@ -318,23 +318,6 @@ class AdmissionController extends Controller
      */
     private function generateEnrollmentNumber(Course $course)
     {
-        $prefix = $course->enrollment_prefix ?? 'STU';
-        $year = date('Y');
-
-        // Get the last enrollment number for this course and year
-        $lastStudent = Student::where('course_id', $course->id)
-            ->where('enrollment_number', 'LIKE', $prefix.$year.'%')
-            ->orderBy('enrollment_number', 'desc')
-            ->first();
-
-        if ($lastStudent) {
-            // Extract the sequence number and increment
-            $lastSequence = (int) substr($lastStudent->enrollment_number, -4);
-            $nextSequence = $lastSequence + 1;
-        } else {
-            $nextSequence = 1;
-        }
-
-        return $prefix.$year.str_pad($nextSequence, 4, '0', STR_PAD_LEFT);
+        return app(\App\Services\EnrollmentService::class)->generateForCourse($course);
     }
 }

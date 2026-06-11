@@ -1711,56 +1711,7 @@ class StudentController extends Controller
      */
     private function generateEnrollmentNumber(Batch $batch): string
     {
-        $settings = Setting::all()->keyBy('key');
-        $collegePrefix = $settings['enrollment_prefix']->value ?? 'UV';
-        $coursePrefix = $batch->course->enrollment_prefix ?? strtoupper(substr($batch->course->name, 0, 4));
-        // Remove any spaces or special chars if generated from name
-        $coursePrefix = trim($coursePrefix);
-        $batchYear = Carbon::parse($batch->created_at)->format('y');
-
-        $prefix = "{$collegePrefix}-{$coursePrefix}-{$batchYear}";
-
-        // Find the last student with this prefix in this batch
-        // We order by length first to handle 9, 10, 100 correctly if we rely on string comparison
-        // But since we use fixed padding of 3, strict string sort is usually fine.
-        // However, extraction is safer.
-        $lastStudent = Student::where('batch_id', $batch->id)
-            ->where('enrollment_number', 'like', "{$prefix}%")
-            ->orderByRaw('LENGTH(enrollment_number) DESC') // Ensure we don't mix lengths
-            ->orderBy('enrollment_number', 'desc')
-            ->first();
-
-        if ($lastStudent) {
-            // Extract the numeric part (last 3 digits)
-            $lastSequence = (int) substr($lastStudent->enrollment_number, -3);
-            $nextSequence = $lastSequence + 1;
-        } else {
-            $nextSequence = 1;
-        }
-
-        // Loop to ensure uniqueness (in case of race conditions or manual interfering)
-        // This is a safety net, but the primary logic is the max+1 above.
-        $maxAttempts = 10;
-        $attempt = 0;
-
-        do {
-            $paddedRollNo = str_pad($nextSequence + $attempt, 3, '0', STR_PAD_LEFT);
-            $enrollmentNumber = "{$collegePrefix}-{$coursePrefix}-{$batchYear}{$paddedRollNo}";
-
-            $exists = Student::where('enrollment_number', $enrollmentNumber)->exists();
-
-            if ($exists) {
-                $attempt++;
-            }
-
-        } while ($exists && $attempt < $maxAttempts);
-
-        // Fallback for extreme cases (if 10 consecutive collisions happen)
-        if ($attempt >= $maxAttempts) {
-            $enrollmentNumber = "{$collegePrefix}-{$coursePrefix}-{$batchYear}".substr(time(), -3);
-        }
-
-        return $enrollmentNumber;
+        return app(\App\Services\EnrollmentService::class)->generateForBatch($batch);
     }
 
     /**

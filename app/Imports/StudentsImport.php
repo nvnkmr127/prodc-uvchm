@@ -1389,45 +1389,7 @@ class StudentsImport implements SkipsOnFailure, ToModel, WithHeadingRow, WithVal
 
     private function generateEnrollmentNumber(): string
     {
-        $currentYear = date('Y');
-        $shortYear = substr($currentYear, -2);
-
-        $coursePrefix = $this->getCoursePrefix();
-
-        $maxAttempts = 100;
-        $attempt = 0;
-
-        do {
-            $studentCount = Student::where('batch_id', $this->batch->id)->count() + $attempt + 1;
-            $rollNumber = str_pad($studentCount, 3, '0', STR_PAD_LEFT);
-
-            $enrollmentNumber = $this->collegePrefix.'-'.$coursePrefix.'-'.$shortYear.$rollNumber;
-
-            $exists = Student::where('enrollment_number', $enrollmentNumber)->exists();
-            $attempt++;
-
-        } while ($exists && $attempt < $maxAttempts);
-
-        if ($attempt >= $maxAttempts) {
-            $enrollmentNumber = $this->collegePrefix.'-'.$coursePrefix.'-'.$shortYear.substr(time(), -3);
-        }
-
-        return $enrollmentNumber;
-    }
-
-    private function getCoursePrefix(): string
-    {
-        if ($this->batch && $this->batch->course) {
-            if (! empty($this->batch->course->enrollment_prefix)) {
-                return strtoupper($this->batch->course->enrollment_prefix);
-            }
-
-            if (! empty($this->batch->course->name)) {
-                return strtoupper(substr($this->batch->course->name, 0, 4));
-            }
-        }
-
-        return 'UNKN';
+        return app(\App\Services\EnrollmentService::class)->generateForBatch($this->batch);
     }
 
     private function parseAdmissionDate($dateValue)

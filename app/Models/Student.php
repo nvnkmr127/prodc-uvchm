@@ -765,24 +765,7 @@ class Student extends Model
             return 'UNASSIGNED-'.time();
         }
 
-        $settings = Setting::all()->keyBy('key');
-        $collegePrefix = $settings['enrollment_prefix']->value ?? 'UV';
-        $coursePrefix = $this->batch->course->enrollment_prefix ?? substr($this->batch->course->name, 0, 2);
-
-        $year = date('Y');
-        $lastStudent = static::where('batch_id', $this->batch_id)
-            ->where('enrollment_number', 'LIKE', "{$collegePrefix}{$coursePrefix}{$year}%")
-            ->orderBy('enrollment_number', 'desc')
-            ->first();
-
-        if ($lastStudent) {
-            $lastNumber = (int) substr($lastStudent->enrollment_number, -3);
-            $newNumber = str_pad($lastNumber + 1, 3, '0', STR_PAD_LEFT);
-        } else {
-            $newNumber = '001';
-        }
-
-        return "{$collegePrefix}{$coursePrefix}{$year}{$newNumber}";
+        return app(\App\Services\EnrollmentService::class)->generateForBatch($this->batch);
     }
 
     // ===================================

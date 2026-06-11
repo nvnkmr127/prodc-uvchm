@@ -79,24 +79,7 @@ class AdmissionService
      */
     private function generateSafeEnrollmentNumber(Course $course): string
     {
-        $prefix = $course->enrollment_prefix ?? strtoupper(Str::limit($course->name, 4, ''));
-        $year = date('y');
-
-        // Lock the students table to prevent other processes from creating a student simultaneously.
-        $latestStudent = Student::where('enrollment_number', 'LIKE', $prefix.'-'.$year.'%')
-            ->lockForUpdate()
-            ->orderBy('id', 'desc')
-            ->first();
-
-        $nextId = 1;
-        if ($latestStudent) {
-            // Extract the last number from the enrollment ID and increment it.
-            $lastNumber = (int) substr($latestStudent->enrollment_number, -4);
-            $nextId = $lastNumber + 1;
-        }
-
-        // Pad the number with leading zeros to ensure a consistent length (e.g., 0001, 0002).
-        return $prefix.'-'.$year.'-'.str_pad($nextId, 4, '0', STR_PAD_LEFT);
+        return app(\App\Services\EnrollmentService::class)->generateForCourse($course);
     }
 
     /**

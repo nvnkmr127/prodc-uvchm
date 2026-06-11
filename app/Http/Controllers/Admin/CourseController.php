@@ -36,42 +36,17 @@ class CourseController extends Controller
 
     public function store(Request $request)
     {
-        // ✅ Get available columns from database
-        $availableColumns = Schema::getColumnListing('courses');
-
-        // ✅ Base validation rules
-        $validationRules = [
+        $validated = $request->validate([
             'name' => 'required|string|max:255|unique:courses,name',
+            'enrollment_prefix' => 'nullable|string|max:10',
+            'code' => 'nullable|string|max:50|unique:courses,code',
+            'duration_in_years' => 'required|numeric|min:0.5|max:10',
+            'duration_months' => 'required|integer|min:1|max:120',
+            'max_batch_size' => 'required|integer|min:1|max:200',
             'description' => 'nullable|string|max:1000',
-        ];
+        ]);
 
-        // ✅ Add conditional validation rules based on available columns
-        if (in_array('enrollment_prefix', $availableColumns)) {
-            $validationRules['enrollment_prefix'] = 'nullable|string|max:10';
-        }
-
-        if (in_array('code', $availableColumns)) {
-            $validationRules['code'] = 'nullable|string|max:50|unique:courses,code';
-        }
-
-        if (in_array('duration_in_years', $availableColumns)) {
-            $validationRules['duration_in_years'] = 'required|numeric|min:0.5|max:10';
-        }
-
-        if (in_array('duration_months', $availableColumns)) {
-            $validationRules['duration_months'] = 'required|integer|min:1|max:120';
-        }
-
-        if (in_array('max_batch_size', $availableColumns)) {
-            $validationRules['max_batch_size'] = 'required|integer|min:1|max:200';
-        }
-
-        $validated = $request->validate($validationRules);
-
-        // ✅ Filter validated data to only include existing columns
-        $dataToSave = array_intersect_key($validated, array_flip($availableColumns));
-
-        Course::create($dataToSave);
+        Course::create($validated);
 
         return redirect()->route('admin.courses.index')->with('success', 'Course created successfully.');
     }
@@ -83,42 +58,17 @@ class CourseController extends Controller
 
     public function update(Request $request, Course $course)
     {
-        // ✅ Get available columns from database
-        $availableColumns = Schema::getColumnListing('courses');
-
-        // ✅ Base validation rules
-        $validationRules = [
+        $validated = $request->validate([
             'name' => ['required', 'string', 'max:255', Rule::unique('courses')->ignore($course->id)],
+            'enrollment_prefix' => 'nullable|string|max:10',
+            'code' => ['nullable', 'string', 'max:50', Rule::unique('courses')->ignore($course->id)],
+            'duration_in_years' => 'required|numeric|min:0.5|max:10',
+            'duration_months' => 'required|integer|min:1|max:120',
+            'max_batch_size' => 'required|integer|min:1|max:200',
             'description' => 'nullable|string|max:1000',
-        ];
+        ]);
 
-        // ✅ Add conditional validation rules based on available columns
-        if (in_array('enrollment_prefix', $availableColumns)) {
-            $validationRules['enrollment_prefix'] = 'nullable|string|max:10';
-        }
-
-        if (in_array('code', $availableColumns)) {
-            $validationRules['code'] = ['nullable', 'string', 'max:50', Rule::unique('courses')->ignore($course->id)];
-        }
-
-        if (in_array('duration_in_years', $availableColumns)) {
-            $validationRules['duration_in_years'] = 'required|numeric|min:0.5|max:10';
-        }
-
-        if (in_array('duration_months', $availableColumns)) {
-            $validationRules['duration_months'] = 'required|integer|min:1|max:120';
-        }
-
-        if (in_array('max_batch_size', $availableColumns)) {
-            $validationRules['max_batch_size'] = 'required|integer|min:1|max:200';
-        }
-
-        $validated = $request->validate($validationRules);
-
-        // ✅ Filter validated data to only include existing columns
-        $dataToUpdate = array_intersect_key($validated, array_flip($availableColumns));
-
-        $course->update($dataToUpdate);
+        $course->update($validated);
 
         return redirect()->route('admin.courses.index')->with('success', 'Course updated successfully.');
     }
