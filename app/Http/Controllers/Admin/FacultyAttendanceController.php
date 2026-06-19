@@ -41,7 +41,7 @@ class FacultyAttendanceController extends Controller
             ->values();
 
         // 2. Fetch Faculty Users
-        $facultyQuery = User::role('staff')
+        $facultyQuery = User::role(['staff', 'faculty'])
             ->where('status', 'active')
             ->orderBy('name');
 
@@ -285,7 +285,7 @@ class FacultyAttendanceController extends Controller
 
         [$startDate, $endDate] = $this->parseDateRange($dateRange, $startDateStr, $endDateStr);
 
-        $facultyQuery = User::role('staff')->where('status', 'active');
+        $facultyQuery = User::role(['staff', 'faculty'])->where('status', 'active');
         if ($departmentFilter) {
             $facultyQuery->where('department', $departmentFilter);
         }
