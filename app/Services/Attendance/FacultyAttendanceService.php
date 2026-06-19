@@ -67,6 +67,18 @@ class FacultyAttendanceService
             // Check if this punch is earlier than the check-in time
             $existingCheckIn = Carbon::parse($attendanceDate . ' ' . $attendance->check_in_time);
             
+            // Ignore duplicate punches or double scans within 2 minutes of check-in
+            if (abs($punchDateTime->diffInSeconds($existingCheckIn)) < 120) {
+                return $attendance;
+            }
+
+            if ($attendance->check_out_time) {
+                $existingCheckOut = Carbon::parse($attendanceDate . ' ' . $attendance->check_out_time);
+                if (abs($punchDateTime->diffInSeconds($existingCheckOut)) < 120) {
+                    return $attendance;
+                }
+            }
+
             if ($punchDateTime->lt($existingCheckIn)) {
                 // Update check-in time if earlier punch found
                 $statusData = $this->determineStatus($punchTime, [
