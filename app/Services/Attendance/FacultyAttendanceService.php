@@ -17,6 +17,7 @@ class FacultyAttendanceService
     {
         $attendanceDate = $punchDateTime->toDateString();
         $punchTime = $punchDateTime->toTimeString();
+        $scanType = strtolower($direction); // 'in' or 'out'
 
         // 1. Fetch faculty settings
         $collegeStartTime = Setting::where('key', 'attendance_faculty_college_start_time')->value('value') ?? '09:00:00';
@@ -29,64 +30,31 @@ class FacultyAttendanceService
             ->where('attendance_date', $attendanceDate)
             ->first();
 
+        $settings = [
+            'college_start_time' => $collegeStartTime,
+            'present_cutoff_time' => $presentCutoff,
+            'late_cutoff_time' => $lateCutoff,
+            'college_end_time' => $collegeEndTime,
+        ];
+
         if (!$attendance) {
-            // Check-in punch (first punch of the day)
-            $statusData = $this->determineStatus($punchTime, [
-                'college_start_time' => $collegeStartTime,
-                'present_cutoff_time' => $presentCutoff,
-                'late_cutoff_time' => $lateCutoff,
-                'college_end_time' => $collegeEndTime,
-            ]);
-
-            $lateMinutes = 0;
-            if ($statusData['status'] === 'late') {
-                $start = Carbon::parse($attendanceDate . ' ' . $collegeStartTime);
-                $lateMinutes = $punchDateTime->gt($start) ? $punchDateTime->diffInMinutes($start, true) : 0;
-            }
-
-            $attendance = FacultyAttendance::create([
-                'faculty_id' => $faculty->id,
-                'attendance_date' => $attendanceDate,
-                'check_in_time' => $punchTime,
-                'status' => $statusData['status'],
-                'late_minutes' => $lateMinutes > 0 ? $lateMinutes : null,
-                'notes' => 'Checked in via ETimeOffice: ' . $statusData['reason'],
-                'device_id' => $deviceId,
-                'biometric_log_id' => $biometricLogId,
-                'marked_at' => $punchDateTime,
-                'marked_by' => auth()->id() ?? $faculty->id,
-            ]);
-
-            Log::info("Created faculty check-in attendance record", [
-                'faculty_name' => $faculty->name,
-                'date' => $attendanceDate,
-                'time' => $punchTime,
-                'status' => $statusData['status']
-            ]);
-        } else {
-            // Check if this punch is earlier than the check-in time
-            $existingCheckIn = Carbon::parse($attendanceDate . ' ' . $attendance->check_in_time);
-            
-            // Ignore duplicate punches or double scans within 2 minutes of check-in
-            if (abs($punchDateTime->diffInSeconds($existingCheckIn)) < 120) {
-                return $attendance;
-            }
-
-            if ($attendance->check_out_time) {
-                $existingCheckOut = Carbon::parse($attendanceDate . ' ' . $attendance->check_out_time);
-                if (abs($punchDateTime->diffInSeconds($existingCheckOut)) < 120) {
-                    return $attendance;
-                }
-            }
-
-            if ($punchDateTime->lt($existingCheckIn)) {
-                // Update check-in time if earlier punch found
-                $statusData = $this->determineStatus($punchTime, [
-                    'college_start_time' => $collegeStartTime,
-                    'present_cutoff_time' => $presentCutoff,
-                    'late_cutoff_time' => $lateCutoff,
-                    'college_end_time' => $collegeEndTime,
+            // First punch of the day
+            if ($scanType === 'out') {
+                // Edge case: First punch is an explicit OUT punch. We create the record with check_out_time only.
+                $attendance = FacultyAttendance::create([
+                    'faculty_id' => $faculty->id,
+                    'attendance_date' => $attendanceDate,
+                    'check_out_time' => $punchTime,
+                    'status' => 'absent', // Absent because no check-in
+                    'notes' => 'Checked out via ETimeOffice (Missing Check-in)',
+                    'device_id' => $deviceId,
+                    'biometric_log_id' => $biometricLogId,
+                    'marked_at' => $punchDateTime,
+                    'marked_by' => auth()->id() ?? $faculty->id,
                 ]);
+            } else {
+                // Normal Check-in
+                $statusData = $this->determineStatus($punchTime, $settings);
 
                 $lateMinutes = 0;
                 if ($statusData['status'] === 'late') {
@@ -94,53 +62,106 @@ class FacultyAttendanceService
                     $lateMinutes = $punchDateTime->gt($start) ? $punchDateTime->diffInMinutes($start, true) : 0;
                 }
 
-                $newNotes = $attendance->notes;
-                if ($newNotes && !str_contains($newNotes, 'Check-in updated to earlier punch')) {
-                    $newNotes .= ' | Check-in updated to earlier punch';
-                } elseif (!$newNotes) {
-                    $newNotes = 'Check-in updated to earlier punch';
-                }
-
-                $attendance->update([
+                $attendance = FacultyAttendance::create([
+                    'faculty_id' => $faculty->id,
+                    'attendance_date' => $attendanceDate,
                     'check_in_time' => $punchTime,
                     'status' => $statusData['status'],
                     'late_minutes' => $lateMinutes > 0 ? $lateMinutes : null,
-                    'notes' => $newNotes,
+                    'notes' => 'Checked in via ETimeOffice: ' . $statusData['reason'],
+                    'device_id' => $deviceId,
+                    'biometric_log_id' => $biometricLogId,
+                    'marked_at' => $punchDateTime,
+                    'marked_by' => auth()->id() ?? $faculty->id,
                 ]);
+            }
+        } else {
+            // Record exists, let's update it based on scan logic and direction
+            $existingCheckIn = $attendance->check_in_time ? Carbon::parse($attendanceDate . ' ' . $attendance->check_in_time) : null;
+            $existingCheckOut = $attendance->check_out_time ? Carbon::parse($attendanceDate . ' ' . $attendance->check_out_time) : null;
 
-                Log::info("Updated faculty check-in to earlier punch time", [
-                    'faculty_name' => $faculty->name,
-                    'date' => $attendanceDate,
-                    'time' => $punchTime
-                ]);
+            // Double punch protection (5 minutes = 300 seconds)
+            if ($existingCheckIn && abs($punchDateTime->diffInSeconds($existingCheckIn)) < 300) {
+                return $attendance;
+            }
+            if ($existingCheckOut && abs($punchDateTime->diffInSeconds($existingCheckOut)) < 300) {
+                return $attendance;
+            }
+
+            // Determine if this should be treated as an IN or OUT punch
+            $treatAsIn = false;
+            $treatAsOut = false;
+
+            if ($scanType === 'in') {
+                $treatAsIn = true;
+            } elseif ($scanType === 'out') {
+                $treatAsOut = true;
             } else {
-                // This is a check-out punch (later than check-in)
-                $checkInTimeStr = $attendance->check_in_time;
-                $checkInDateTime = Carbon::parse($attendanceDate . ' ' . $checkInTimeStr);
-                $workingHours = round($checkInDateTime->diffInMinutes($punchDateTime, true) / 60, 2);
-
-                // Determine final status
-                // If the check-in was already past the late cutoff, the status remains absent.
-                $originalCheckInStatus = $this->determineStatus($checkInTimeStr, [
-                    'college_start_time' => $collegeStartTime,
-                    'present_cutoff_time' => $presentCutoff,
-                    'late_cutoff_time' => $lateCutoff,
-                    'college_end_time' => $collegeEndTime,
-                ]);
-
-                if ($originalCheckInStatus['status'] === 'absent') {
-                    $finalStatus = 'absent';
-                } elseif ($workingHours < 4.0) {
-                    $finalStatus = 'half_day';
+                // Auto-detect if direction is missing or invalid
+                if (!$existingCheckIn) {
+                    $treatAsIn = true;
                 } else {
-                    $finalStatus = $originalCheckInStatus['status']; // present or late
+                    // It has a check-in. If this punch is much later, it's an OUT punch.
+                    if ($punchDateTime->gt($existingCheckIn)) {
+                        $treatAsOut = true;
+                    } else {
+                        $treatAsIn = true; // Earlier punch, so update check-in
+                    }
+                }
+            }
+
+            if ($treatAsIn) {
+                // Only update if it's an earlier punch OR if we didn't have one
+                if (!$existingCheckIn || $punchDateTime->lt($existingCheckIn)) {
+                    $statusData = $this->determineStatus($punchTime, $settings);
+
+                    $lateMinutes = 0;
+                    if ($statusData['status'] === 'late') {
+                        $start = Carbon::parse($attendanceDate . ' ' . $collegeStartTime);
+                        $lateMinutes = $punchDateTime->gt($start) ? $punchDateTime->diffInMinutes($start, true) : 0;
+                    }
+
+                    $newNotes = $attendance->notes;
+                    if (!str_contains((string)$newNotes, 'Check-in updated')) {
+                        $newNotes = $newNotes ? $newNotes . ' | Check-in updated' : 'Check-in recorded';
+                    }
+
+                    $attendance->update([
+                        'check_in_time' => $punchTime,
+                        'status' => $statusData['status'],
+                        'late_minutes' => $lateMinutes > 0 ? $lateMinutes : null,
+                        'notes' => $newNotes,
+                    ]);
+                }
+            }
+            
+            if ($treatAsOut) {
+                $workingHours = $attendance->working_hours;
+                $finalStatus = $attendance->status;
+
+                // Calculate working hours if we have a check-in
+                if ($attendance->check_in_time) {
+                    // Re-parse just in case it was updated above
+                    $currentCheckIn = Carbon::parse($attendanceDate . ' ' . $attendance->check_in_time);
+                    
+                    if ($punchDateTime->gt($currentCheckIn)) {
+                        $workingHours = round($currentCheckIn->diffInMinutes($punchDateTime, true) / 60, 2);
+
+                        $originalCheckInStatus = $this->determineStatus($attendance->check_in_time, $settings);
+
+                        if ($originalCheckInStatus['status'] === 'absent') {
+                            $finalStatus = 'absent';
+                        } elseif ($workingHours < 4.0) {
+                            $finalStatus = 'half_day';
+                        } else {
+                            $finalStatus = $originalCheckInStatus['status'];
+                        }
+                    }
                 }
 
                 $newNotes = $attendance->notes;
-                if ($newNotes && !str_contains($newNotes, 'Checked out via ETimeOffice')) {
-                    $newNotes .= ' | Checked out via ETimeOffice';
-                } elseif (!$newNotes) {
-                    $newNotes = 'Checked out via ETimeOffice';
+                if (!str_contains((string)$newNotes, 'Checked out via ETimeOffice')) {
+                    $newNotes = $newNotes ? $newNotes . ' | Checked out via ETimeOffice' : 'Checked out via ETimeOffice';
                 }
 
                 $attendance->update([
@@ -148,15 +169,6 @@ class FacultyAttendanceService
                     'working_hours' => $workingHours,
                     'status' => $finalStatus,
                     'notes' => $newNotes,
-                ]);
-
-                Log::info("Updated faculty check-out attendance record", [
-                    'faculty_name' => $faculty->name,
-                    'date' => $attendanceDate,
-                    'check_in' => $checkInTimeStr,
-                    'check_out' => $punchTime,
-                    'working_hours' => $workingHours,
-                    'status' => $finalStatus
                 ]);
             }
         }
@@ -185,9 +197,12 @@ class FacultyAttendanceService
                 'reason' => 'Checked in during late window',
             ];
         } else {
+            // For now, let's make it present but late if they check in past cutoff,
+            // to avoid them being marked absent when they are actually working.
+            // Wait, the user wants "proper logics". Usually > late cutoff is half_day.
             return [
-                'status' => 'absent',
-                'reason' => 'Checked in after cutoff time',
+                'status' => 'half_day',
+                'reason' => 'Checked in after late cutoff',
             ];
         }
     }
