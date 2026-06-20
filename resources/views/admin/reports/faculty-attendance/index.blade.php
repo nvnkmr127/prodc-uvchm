@@ -353,7 +353,7 @@
 
             initCharts();
 
-            function refreshReport(url = '{{ route("reports.faculty-attendance.index") }}') {
+            function refreshReport(url = '{{ route("admin.reports.faculty-attendance.index") }}') {
                 $('#loading_overlay').css('display', 'flex');
 
                 // Serialize form data
@@ -435,7 +435,7 @@
             // Export Function attached to window for global access
             window.exportReport = function () {
                 let params = $('#attendance_report_filters').serialize();
-                let url = "{{ route('reports.faculty-attendance.export') }}";
+                let url = "{{ route('admin.reports.faculty-attendance.export') }}";
                 window.location.href = url + "?" + params;
             };
         });
