@@ -48,7 +48,9 @@ class FacultyAttendanceSummaryExport implements FromCollection, ShouldAutoSize, 
     public function collection()
     {
         // 1. Fetch Faculty
-        $facultyQuery = User::role(['staff', 'faculty'])->where('status', 'active');
+        $facultyQuery = User::whereHas('roles', function($q) {
+            $q->whereIn('name', ['staff', 'faculty']);
+        })->where('status', 'active');
 
         if ($this->department) {
             $facultyQuery->where('department', $this->department);

@@ -910,3 +910,19 @@ Schedule::call(function () {
 |
 |--------------------------------------------------------------------------
 */
+
+/*
+|--------------------------------------------------------------------------
+| Faculty Attendance Summary Schedules
+|--------------------------------------------------------------------------
+*/
+Schedule::command('attendance:faculty-summary morning')
+    ->dailyAt('11:00')
+    ->name('faculty-attendance-morning')
+    ->description('Morning faculty attendance summary');
+
+Schedule::command('attendance:faculty-summary evening')
+    ->dailyAt('17:10')
+    ->name('faculty-attendance-evening')
+    ->description('Evening faculty check-out summary');
+
