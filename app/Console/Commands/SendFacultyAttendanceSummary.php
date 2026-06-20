@@ -87,7 +87,7 @@ class SendFacultyAttendanceSummary extends Command
                     $cIn = Carbon::parse($record->check_in_time);
                     $cOut = Carbon::parse($record->check_out_time);
                     if ($cOut->greaterThan($cIn)) {
-                        $actualHours = round($cOut->diffInMinutes($cIn) / 60, 2);
+                        $actualHours = round(abs($cOut->diffInMinutes($cIn)) / 60, 2);
                     }
                 }
             }
