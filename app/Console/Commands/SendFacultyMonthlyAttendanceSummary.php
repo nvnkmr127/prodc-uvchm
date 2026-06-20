@@ -143,7 +143,7 @@ class SendFacultyMonthlyAttendanceSummary extends Command
         })->pluck('email')->filter()->toArray();
 
         // Allow adding extra specific emails via the .env file
-        $extraEmails = env('FACULTY_REPORT_EMAILS');
+        $extraEmails = config('mail.faculty_report_emails');
         if ($extraEmails) {
             $emailsList = array_map('trim', explode(',', $extraEmails));
             $recipients = array_filter(array_unique(array_merge($recipients, $emailsList)));
