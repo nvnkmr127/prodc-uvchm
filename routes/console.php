@@ -918,11 +918,18 @@ Schedule::call(function () {
 */
 Schedule::command('attendance:faculty-summary morning')
     ->dailyAt('11:00')
+    ->skip(fn() => now()->isSunday())
     ->name('faculty-attendance-morning')
     ->description('Morning faculty attendance summary');
 
 Schedule::command('attendance:faculty-summary evening')
     ->dailyAt('17:10')
+    ->skip(fn() => now()->isSunday())
     ->name('faculty-attendance-evening')
     ->description('Evening faculty check-out summary');
+
+Schedule::command('attendance:faculty-summary-monthly')
+    ->lastDayOfMonth('09:00')
+    ->name('faculty-attendance-monthly')
+    ->description('Monthly faculty attendance summary');
 

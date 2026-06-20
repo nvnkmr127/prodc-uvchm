@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Mail\FacultyAttendanceSummaryMail;
+use App\Mail\FacultyMonthlyAttendanceSummaryMail;
 use App\Models\Attendance\FacultyAttendance;
 use App\Models\User;
 use Carbon\Carbon;
@@ -10,39 +10,31 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
-class SendFacultyAttendanceSummary extends Command
+class SendFacultyMonthlyAttendanceSummary extends Command
 {
     /**
      * The name and signature of the console command.
      *
      * @var string
      */
-    protected $signature = 'attendance:faculty-summary {type : "morning" or "evening"}';
+    protected $signature = 'attendance:faculty-summary-monthly';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'Send morning or evening faculty attendance summary emails';
+    protected $description = 'Send monthly faculty attendance summary email';
 
     /**
      * Execute the console command.
      */
     public function handle()
     {
-        $type = $this->argument('type');
+        $now = Carbon::now();
+        $monthName = $now->format('F Y');
         
-        if (!in_array($type, ['morning', 'evening'])) {
-            $this->error('Type must be "morning" or "evening"');
-            return 1;
-        }
-
-        $date = Carbon::now();
-        $dateStr = $date->format('Y-m-d');
-        $displayDateStr = $date->format('l, d F Y');
-
-        $this->info("Preparing {$type} faculty attendance summary for {$displayDateStr}...");
+        $this->info("Preparing monthly faculty attendance summary for {$monthName}...");
 
         // 1. Get all active faculty
         $faculties = User::whereHas('roles', function($q) {
@@ -52,54 +44,48 @@ class SendFacultyAttendanceSummary extends Command
             ->orderBy('name')
             ->get();
 
-        // 2. Get today's attendance records
+        // 2. Get this month's attendance records
         $records = FacultyAttendance::whereIn('faculty_id', $faculties->pluck('id'))
-            ->where('attendance_date', $dateStr)
+            ->whereMonth('attendance_date', $now->month)
+            ->whereYear('attendance_date', $now->year)
             ->get()
-            ->keyBy('faculty_id');
+            ->groupBy('faculty_id');
 
         $attendanceData = [
             'total_faculty' => $faculties->count(),
-            'present_count' => 0,
-            'late_count' => 0,
-            'half_day_count' => 0,
-            'absent_count' => 0,
             'records' => [],
         ];
 
         foreach ($faculties as $faculty) {
-            $record = $records->get($faculty->id);
-            $status = 'absent';
-            $checkIn = '--';
-            $checkOut = '--';
-
-            if ($record) {
+            $facultyRecords = $records->get($faculty->id) ?? collect();
+            
+            $presentCount = 0;
+            $lateCount = 0;
+            $halfDayCount = 0;
+            $absentCount = 0;
+            
+            foreach ($facultyRecords as $record) {
                 $status = strtolower(trim($record->status));
-                if ($record->check_in_time) {
-                    $checkIn = Carbon::parse($record->check_in_time)->format('h:i A');
+                if ($status === 'present') {
+                    $presentCount++;
+                } elseif ($status === 'late') {
+                    $lateCount++;
+                } elseif ($status === 'half_day') {
+                    $halfDayCount++;
+                } elseif ($status === 'absent') {
+                    $absentCount++;
                 }
-                if ($record->check_out_time) {
-                    $checkOut = Carbon::parse($record->check_out_time)->format('h:i A');
-                }
-            }
-
-            if ($status === 'present') {
-                $attendanceData['present_count']++;
-            } elseif ($status === 'late') {
-                $attendanceData['late_count']++;
-            } elseif ($status === 'half_day') {
-                $attendanceData['half_day_count']++;
-            } else {
-                $attendanceData['absent_count']++;
             }
 
             $attendanceData['records'][] = [
                 'faculty_name' => $faculty->name,
                 'biometric_code' => $faculty->biometric_employee_code ?? $faculty->employee_id ?? 'N/A',
                 'department' => $faculty->department ?? 'General Staff',
-                'status' => $status,
-                'check_in' => $checkIn,
-                'check_out' => $checkOut,
+                'present_count' => $presentCount,
+                'late_count' => $lateCount,
+                'half_day_count' => $halfDayCount,
+                'absent_count' => $absentCount,
+                'total_days_tracked' => $facultyRecords->count()
             ];
         }
 
@@ -125,26 +111,26 @@ class SendFacultyAttendanceSummary extends Command
 
         if (empty($recipients)) {
             $this->warn('No recipients found to send the email.');
-            Log::warning("Faculty Attendance {$type} summary: No recipients found.");
+            Log::warning("Faculty Attendance Monthly summary: No recipients found.");
             return 1;
         }
 
         // 4. Send Email
         try {
-            $this->info('Dispatching email to: ' . implode(', ', $recipients));
-            Log::info("Faculty Attendance {$type} summary is preparing to send.", [
-                'type' => $type,
+            $this->info('Dispatching monthly email to: ' . implode(', ', $recipients));
+            Log::info("Faculty Attendance Monthly summary is preparing to send.", [
+                'month' => $monthName,
                 'recipients' => $recipients,
                 'total_faculty_processed' => $attendanceData['total_faculty']
             ]);
             
-            Mail::to($recipients)->send(new FacultyAttendanceSummaryMail($type, $attendanceData, $displayDateStr));
+            Mail::to($recipients)->send(new FacultyMonthlyAttendanceSummaryMail($attendanceData, $monthName));
             
-            $this->info('Email dispatched successfully.');
-            Log::info("Faculty Attendance {$type} summary dispatched successfully.");
+            $this->info('Monthly email dispatched successfully.');
+            Log::info("Faculty Attendance Monthly summary dispatched successfully.");
         } catch (\Exception $e) {
-            $this->error('Failed to send email: ' . $e->getMessage());
-            Log::error("Failed to send Faculty Attendance {$type} summary: " . $e->getMessage());
+            $this->error('Failed to send monthly email: ' . $e->getMessage());
+            Log::error("Failed to send Faculty Attendance Monthly summary: " . $e->getMessage());
             return 1;
         }
 

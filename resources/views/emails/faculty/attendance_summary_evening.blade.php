@@ -25,7 +25,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h2>Faculty Checkout Summary</h2>
+            <h2>UVCHM Faculty Checkout Summary</h2>
             <p>Date: {{ $dateStr }}</p>
         </div>
 
@@ -41,6 +41,10 @@
             <div class="stat-box bg-light text-warning">
                 <div>Late</div>
                 <div style="font-size: 24px;">{{ $attendanceData['late_count'] }}</div>
+            </div>
+            <div class="stat-box bg-light" style="color: #36b9cc;">
+                <div>Half Day</div>
+                <div style="font-size: 24px;">{{ $attendanceData['half_day_count'] }}</div>
             </div>
             <div class="stat-box bg-light text-danger">
                 <div>Absent</div>

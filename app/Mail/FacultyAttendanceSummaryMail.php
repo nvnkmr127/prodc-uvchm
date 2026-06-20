@@ -37,10 +37,10 @@ class FacultyAttendanceSummaryMail extends Mailable implements ShouldQueue
     public function build()
     {
         if ($this->type === 'morning') {
-            $subject = "Faculty Attendance Summary - {$this->dateStr} (11:00 AM)";
+            $subject = "UVCHM Faculty Attendance Morning Summary - {$this->dateStr}";
             $view = 'emails.faculty.attendance_summary_morning';
         } else {
-            $subject = "Faculty Checkout Summary - {$this->dateStr} (5:10 PM)";
+            $subject = "UVCHM Faculty Checkout Summary - {$this->dateStr}";
             $view = 'emails.faculty.attendance_summary_evening';
         }
 
