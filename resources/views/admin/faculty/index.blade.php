@@ -233,10 +233,13 @@
                                             <i class="fas fa-clock mr-2 text-muted"></i> View Attendance Logs
                                         </a>
                                         <div class="dropdown-divider"></div>
-                                        <a class="dropdown-item text-danger" href="#" 
-                                           onclick="confirmDelete({{ $faculty->id }}, '{{ addslashes($faculty->name) }}')">
-                                            <i class="fas fa-trash mr-2"></i> Delete Faculty
-                                        </a>
+                                        <form action="{{ route('admin.faculty.destroy', $faculty->id) }}" method="POST" class="m-0 p-0" onsubmit="return confirm('Are you sure you want to delete \'{{ addslashes($faculty->name) }}\'? This action is permanent and will remove their subjects, logs, and parameters.');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="dropdown-item text-danger text-left border-0 bg-transparent w-100">
+                                                <i class="fas fa-trash mr-2"></i> Delete Faculty
+                                            </button>
+                                        </form>
                                     </div>
                                 </div>
                             </div>
@@ -405,10 +408,13 @@
                                                class="btn btn-light border" title="Edit">
                                                 <i class="fas fa-edit text-primary"></i>
                                             </a>
-                                            <button type="button" class="btn btn-light border text-danger" 
-                                                    onclick="confirmDelete({{ $faculty->id }}, '{{ addslashes($faculty->name) }}')" title="Delete">
-                                                <i class="fas fa-trash-alt"></i>
-                                            </button>
+                                            <form action="{{ route('admin.faculty.destroy', $faculty->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete \'{{ addslashes($faculty->name) }}\'? This action is permanent and will remove their subjects, logs, and parameters.');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="btn btn-light border text-danger" title="Delete">
+                                                    <i class="fas fa-trash-alt"></i>
+                                                </button>
+                                            </form>
                                         </div>
                                     </td>
                                 </tr>
@@ -624,29 +630,6 @@ document.addEventListener('DOMContentLoaded', function() {
         window.location.href = "{{ route('admin.faculty-attendance.index') }}?search=" + encodeURIComponent(facultyName);
     };
 
-    // Confirm Faculty deletion
-    window.confirmDelete = function(facultyId, facultyName) {
-        if (confirm(`Are you sure you want to delete "${facultyName}"? This action is permanent and will remove their subjects, logs, and parameters.`)) {
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = '{{ url("admin/faculty") }}/' + facultyId;
-            
-            const csrfToken = document.createElement('input');
-            csrfToken.type = 'hidden';
-            csrfToken.name = '_token';
-            csrfToken.value = '{{ csrf_token() }}';
-            
-            const methodField = document.createElement('input');
-            methodField.type = 'hidden';
-            methodField.name = '_method';
-            methodField.value = 'DELETE';
-            
-            form.appendChild(csrfToken);
-            form.appendChild(methodField);
-            document.body.appendChild(form);
-            form.submit();
-        }
-    };
 });
 </script>
 @endpush

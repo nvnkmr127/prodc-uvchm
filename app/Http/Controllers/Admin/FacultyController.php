@@ -251,6 +251,7 @@ class FacultyController extends Controller
      */
     public function destroy(User $faculty)
     {
+        \Log::info("DESTROY HIT for faculty ID: " . $faculty->id);
         if (! $faculty->hasRole('staff')) {
             abort(404, 'Faculty member not found');
         }
