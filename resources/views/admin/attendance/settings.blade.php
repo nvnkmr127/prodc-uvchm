@@ -168,7 +168,7 @@
                                             <i class="fas fa-user mr-1"></i> API Username
                                         </label>
                                         <input type="text" class="form-control form-control-sm" id="etimeoffice_username" 
-                                               name="etimeoffice_username" placeholder="API username">
+                                               name="etimeoffice_username" placeholder="API username" autocomplete="username">
                                     </div>
                                 </div>
 
@@ -178,7 +178,7 @@
                                             <i class="fas fa-lock mr-1"></i> API Password
                                         </label>
                                         <input type="password" class="form-control form-control-sm" id="etimeoffice_password" 
-                                               name="etimeoffice_password" placeholder="API password">
+                                               name="etimeoffice_password" placeholder="API password" autocomplete="current-password">
                                     </div>
                                 </div>
                             </div>
@@ -249,7 +249,7 @@
                     <div class="row mb-4">
                         <div class="col-12">
                             <h6 class="text-muted mb-3">Quick Actions</h6>
-                            <div class="btn-group-toggle" data-toggle="buttons">
+                            <div>
                                 <button type="button" class="btn btn-primary mr-2 mb-2" onclick="quickPull('today')">
                                     <i class="fas fa-calendar-day mr-2"></i>Pull Today's Data
                                 </button>

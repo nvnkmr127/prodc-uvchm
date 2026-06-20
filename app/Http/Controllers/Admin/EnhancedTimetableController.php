@@ -1141,7 +1141,7 @@ class EnhancedTimetableController extends Controller
         try {
             $filename = 'timetable_'.now()->format('Y-m-d_H-i-s');
 
-            switch ($request->format) {
+            switch ($request->input('format')) {
                 case 'excel':
                     return Excel::download(
                         new TimetableExport($request->all()),

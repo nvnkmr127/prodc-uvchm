@@ -266,7 +266,7 @@ class LabAllocationController extends Controller
         ]);
 
         $academicYearId = $request->academic_year_id;
-        $format = $request->format ?? 'detailed';
+        $format = $request->input('format') ?? 'detailed';
 
         // Get current academic year if none specified
         if (! $academicYearId) {
