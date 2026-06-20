@@ -44,12 +44,18 @@ class SendFacultyMonthlyAttendanceSummary extends Command
             ->orderBy('name')
             ->get();
 
-        // 2. Get this month's attendance records
+        $startOfMonth = now()->startOfMonth()->toDateString();
+        $endOfMonth = now()->endOfMonth()->toDateString();
+
         $records = FacultyAttendance::whereIn('faculty_id', $faculties->pluck('id'))
-            ->whereMonth('attendance_date', $now->month)
-            ->whereYear('attendance_date', $now->year)
+            ->whereBetween('attendance_date', [$startOfMonth, $endOfMonth])
             ->get()
             ->groupBy('faculty_id');
+
+        $holidays = \App\Models\Holiday::whereBetween('date', [$startOfMonth, $endOfMonth])
+            ->get()
+            ->map(fn ($h) => (is_string($h->date) ? substr($h->date, 0, 10) : $h->date->format('Y-m-d')))
+            ->toArray();
 
         $attendanceData = [
             'total_faculty' => $faculties->count(),
@@ -57,7 +63,7 @@ class SendFacultyMonthlyAttendanceSummary extends Command
         ];
 
         foreach ($faculties as $faculty) {
-            $facultyRecords = $records->get($faculty->id) ?? collect();
+            $facultyRecords = ($records->get($faculty->id) ?? collect())->keyBy('attendance_date');
             
             $presentCount = 0;
             $lateCount = 0;
@@ -65,30 +71,56 @@ class SendFacultyMonthlyAttendanceSummary extends Command
             $absentCount = 0;
             $trackedHours = 0;
             $actualHours = 0;
-            
-            foreach ($facultyRecords as $record) {
-                $status = strtolower(trim($record->status));
-                if ($status === 'present') {
-                    $presentCount++;
-                } elseif ($status === 'late') {
-                    $lateCount++;
-                } elseif ($status === 'half_day') {
-                    $halfDayCount++;
-                } elseif ($status === 'absent') {
-                    $absentCount++;
-                }
+            $totalDaysTracked = 0;
 
-                // Add tracked hours (from DB)
-                $trackedHours += (float) $record->working_hours;
+            $current = Carbon::parse($startOfMonth);
+            $end = Carbon::parse($endOfMonth);
+            $todayStr = now()->toDateString();
 
-                // Calculate actual hours (checkout - checkin)
-                if ($record->check_in_time && $record->check_out_time) {
-                    $checkIn = Carbon::parse($record->check_in_time);
-                    $checkOut = Carbon::parse($record->check_out_time);
-                    if ($checkOut->greaterThan($checkIn)) {
-                        $actualHours += abs($checkOut->diffInMinutes($checkIn)) / 60;
+            // We only track up to today, or the end of the month, whichever is earlier
+            $trackingEnd = $end->isFuture() ? Carbon::parse($todayStr) : $end;
+
+            while ($current->lte($trackingEnd)) {
+                $dateStr = $current->format('Y-m-d');
+                $isSunday = $current->isSunday();
+                $isHoliday = in_array($dateStr, $holidays);
+
+                if (!$isSunday && !$isHoliday) {
+                    $totalDaysTracked++;
+
+                    if ($facultyRecords->has($dateStr)) {
+                        $record = $facultyRecords->get($dateStr);
+                        $status = strtolower(trim($record->status));
+
+                        if ($status === 'present') {
+                            $presentCount++;
+                        } elseif ($status === 'late') {
+                            $lateCount++;
+                        } elseif ($status === 'half_day') {
+                            $halfDayCount++;
+                        } elseif ($status === 'absent') {
+                            $absentCount++;
+                        } else {
+                            $absentCount++; // Default any weird status to absent
+                        }
+
+                        // Add tracked hours (from DB)
+                        $trackedHours += (float) $record->working_hours;
+
+                        // Calculate actual hours (checkout - checkin)
+                        if ($record->check_in_time && $record->check_out_time) {
+                            $checkIn = Carbon::parse($record->check_in_time);
+                            $checkOut = Carbon::parse($record->check_out_time);
+                            if ($checkOut->greaterThan($checkIn)) {
+                                $actualHours += abs($checkOut->diffInMinutes($checkIn)) / 60;
+                            }
+                        }
+                    } else {
+                        // Missing record on a working day = absent
+                        $absentCount++;
                     }
                 }
+                $current->addDay();
             }
 
             $attendanceData['records'][] = [
@@ -99,7 +131,7 @@ class SendFacultyMonthlyAttendanceSummary extends Command
                 'late_count' => $lateCount,
                 'half_day_count' => $halfDayCount,
                 'absent_count' => $absentCount,
-                'total_days_tracked' => $facultyRecords->count(),
+                'total_days_tracked' => $totalDaysTracked,
                 'tracked_hours' => round($trackedHours, 2),
                 'actual_hours' => round($actualHours, 2),
             ];
