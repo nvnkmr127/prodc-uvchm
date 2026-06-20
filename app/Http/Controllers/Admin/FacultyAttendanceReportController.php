@@ -60,10 +60,12 @@ class FacultyAttendanceReportController extends Controller
             ->map(fn ($h) => (is_string($h->date) ? substr($h->date, 0, 10) : $h->date->format('Y-m-d')))
             ->toArray();
 
+        $isSingleDay = $startDate === $endDate;
+
         // 3. Fetch Attendance Data Efficiently
         $attendanceRecords = FacultyAttendance::whereIn('faculty_id', $allFaculties->pluck('id'))
             ->whereBetween('attendance_date', [$startDate, $endDate])
-            ->select('faculty_id', 'attendance_date', 'status')
+            ->select('faculty_id', 'attendance_date', 'status', 'check_in_time', 'check_out_time')
             ->get()
             ->groupBy('faculty_id');
 
@@ -83,7 +85,7 @@ class FacultyAttendanceReportController extends Controller
         }
 
         // 4. Process Data & Calculate Percentages Per Faculty
-        $processedFaculties = $allFaculties->map(function ($faculty) use ($attendanceRecords, $startDate, $endDate, $holidays, $months, $firstPunches) {
+        $processedFaculties = $allFaculties->map(function ($faculty) use ($attendanceRecords, $startDate, $endDate, $holidays, $months, $firstPunches, $isSingleDay) {
 
             // Get Faculty Records indexed by date
             $facultyRecords = $attendanceRecords->get($faculty->id, collect())->mapWithKeys(function ($item) {
@@ -111,6 +113,12 @@ class FacultyAttendanceReportController extends Controller
             // Calculate Overall Stats
             $overall = $this->calculateFacultyStats($faculty, Carbon::parse($startDate), Carbon::parse($endDate), $holidays, $facultyRecords, $firstPunches);
 
+            $dailyRecord = null;
+            if ($isSingleDay) {
+                $dailyRecordStr = Carbon::parse($startDate)->format('Y-m-d');
+                $dailyRecord = $facultyRecords->get($dailyRecordStr);
+            }
+
             return (object) [
                 'id' => $faculty->id,
                 'faculty_name' => $faculty->name,
@@ -125,6 +133,7 @@ class FacultyAttendanceReportController extends Controller
                 'holidays' => $overall['holidays'],
                 'attendance_percentage' => round($overall['percentage'], 1),
                 'monthly_stats' => $monthlyStats,
+                'daily_record' => $dailyRecord,
             ];
         });
 
@@ -207,6 +216,7 @@ class FacultyAttendanceReportController extends Controller
                     'sortBy' => $sortBy,
                     'sortOrder' => $sortOrder,
                     'months' => $months,
+                    'isSingleDay' => $isSingleDay,
                 ])->render(),
                 'stats' => $stats,
             ]);
@@ -223,6 +233,7 @@ class FacultyAttendanceReportController extends Controller
             'pagination' => $paginatedFaculties,
             'stats' => $stats,
             'months' => $months,
+            'isSingleDay' => $isSingleDay,
         ]);
     }
 

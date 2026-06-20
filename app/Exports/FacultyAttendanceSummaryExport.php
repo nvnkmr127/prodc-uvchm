@@ -22,15 +22,17 @@ class FacultyAttendanceSummaryExport implements FromCollection, ShouldAutoSize, 
 
     protected $startDate;
 
-    protected $endDate;
-
     protected $months;
+
+    protected $isSingleDay;
 
     public function __construct($department, $startDate, $endDate)
     {
         $this->department = $department;
         $this->startDate = $startDate ? Carbon::parse($startDate) : Carbon::now()->startOfMonth();
         $this->endDate = $endDate ? Carbon::parse($endDate) : Carbon::now();
+        
+        $this->isSingleDay = $this->startDate->format('Y-m-d') === $this->endDate->format('Y-m-d');
 
         // Calculate months in range robustly
         $this->months = [];
@@ -63,7 +65,7 @@ class FacultyAttendanceSummaryExport implements FromCollection, ShouldAutoSize, 
         // 3. Fetch Attendance Data
         $attendanceRecords = FacultyAttendance::whereIn('faculty_id', $faculties->pluck('id'))
             ->whereBetween('attendance_date', [$this->startDate->format('Y-m-d'), $this->endDate->format('Y-m-d')])
-            ->select('faculty_id', 'attendance_date', 'status')
+            ->select('faculty_id', 'attendance_date', 'status', 'check_in_time', 'check_out_time', 'notes')
             ->get()
             ->groupBy('faculty_id');
 
@@ -90,6 +92,22 @@ class FacultyAttendanceSummaryExport implements FromCollection, ShouldAutoSize, 
                 $faculty->biometric_employee_code ?? $faculty->employee_id ?? 'N/A',
                 $faculty->department ?? 'General Staff',
             ];
+
+            if ($this->isSingleDay) {
+                $dailyRecordStr = $this->startDate->format('Y-m-d');
+                $record = $facultyRecordsMap->get($dailyRecordStr);
+                $status = $record ? strtolower(trim($record->status)) : 'absent';
+                $checkIn = $record && $record->check_in_time ? Carbon::parse($record->check_in_time)->format('h:i A') : '--';
+                $checkOut = $record && $record->check_out_time ? Carbon::parse($record->check_out_time)->format('h:i A') : '--';
+                $notes = $record->notes ?? '';
+                
+                $row[] = $checkIn;
+                $row[] = $checkOut;
+                $row[] = ucfirst(str_replace('_', ' ', $status));
+                $row[] = $notes;
+                $output->push($row);
+                continue;
+            }
 
             // Monthly Stats
             foreach ($this->months as $month) {
@@ -209,6 +227,12 @@ class FacultyAttendanceSummaryExport implements FromCollection, ShouldAutoSize, 
 
     public function headings(): array
     {
+        if ($this->isSingleDay) {
+            return [
+                ['Faculty Name', 'Biometric Code/ID', 'Department', 'Check In', 'Check Out', 'Status', 'Notes']
+            ];
+        }
+
         $row1 = ['Faculty Name', 'Biometric Code/ID', 'Department'];
         $row2 = ['', '', ''];
 
@@ -249,6 +273,11 @@ class FacultyAttendanceSummaryExport implements FromCollection, ShouldAutoSize, 
 
     public function styles(Worksheet $sheet)
     {
+        if ($this->isSingleDay) {
+            return [
+                1 => ['font' => ['bold' => true, 'size' => 12]],
+            ];
+        }
         return [
             1 => ['font' => ['bold' => true, 'size' => 12]],
             2 => ['font' => ['bold' => true]],
@@ -257,6 +286,10 @@ class FacultyAttendanceSummaryExport implements FromCollection, ShouldAutoSize, 
 
     public function registerEvents(): array
     {
+        if ($this->isSingleDay) {
+            return [];
+        }
+
         return [
             AfterSheet::class => function (AfterSheet $event) {
                 $sheet = $event->sheet;
