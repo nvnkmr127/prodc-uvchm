@@ -251,7 +251,6 @@ class FacultyController extends Controller
      */
     public function destroy(User $faculty)
     {
-        dd("DESTROY HIT", $faculty->id, $faculty->subjects()->exists(), (method_exists($faculty, 'timetableEntries') ? $faculty->timetableEntries()->exists() : false));
         if (! $faculty->hasRole('staff')) {
             abort(404, 'Faculty member not found');
         }
@@ -259,24 +258,22 @@ class FacultyController extends Controller
         try {
             DB::beginTransaction();
 
-            // Check if faculty has any active assignments
-            $hasActiveAssignments = $faculty->subjects()->exists();
+            // Detach active assignments instead of blocking deletion
+            $faculty->subjects()->detach();
 
-            // Check timetable entries only if the relationship exists
-            if (method_exists($faculty, 'timetableEntries') || method_exists($faculty, 'timetables')) {
-                $timetableMethod = method_exists($faculty, 'timetableEntries') ? 'timetableEntries' : 'timetables';
-                $hasActiveAssignments = $hasActiveAssignments || $faculty->{$timetableMethod}()->exists();
-            }
-
-            if ($hasActiveAssignments) {
-                return redirect()->back()
-                    ->with('error', 'Cannot delete faculty member with active subject assignments or timetable entries.');
+            if (method_exists($faculty, 'timetableEntries')) {
+                $faculty->timetableEntries()->detach();
+            } elseif (method_exists($faculty, 'timetables')) {
+                $faculty->timetables()->detach();
             }
 
             $facultyName = $faculty->name;
 
             // Remove role before deleting (optional, but cleaner)
             $faculty->removeRole('staff');
+
+            // Optionally, clear biometric mappings or other specific relationships if needed
+            // $faculty->biometricMappings()->delete();
 
             $faculty->delete();
 
