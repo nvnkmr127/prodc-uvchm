@@ -215,10 +215,10 @@
                                     <h5 class="font-weight-bold text-gray-800 text-truncate mb-0" title="{{ $faculty->name }}">
                                         {{ $faculty->name }}
                                     </h5>
-                                    @if($faculty->employee_id)
-                                        <code class="text-xs text-primary font-weight-bold">{{ $faculty->employee_id }}</code>
+                                    @if($faculty->biometric_employee_code)
+                                        <code class="text-xs text-primary font-weight-bold">Bio ID: {{ $faculty->biometric_employee_code }}</code>
                                     @else
-                                        <span class="text-xs text-muted">ID: N/A</span>
+                                        <span class="text-xs text-muted">Bio ID: N/A</span>
                                     @endif
                                 </div>
                                 <div class="ml-auto dropdown">
@@ -246,10 +246,6 @@
 
                             {{-- Detailed Metadata --}}
                             <div class="faculty-metadata text-sm text-muted mb-3 space-y-1">
-                                <div class="d-flex align-items-center">
-                                    <i class="fas fa-envelope text-muted mr-2" style="width: 16px;"></i>
-                                    <span class="text-truncate">{{ $faculty->email }}</span>
-                                </div>
                                 @if($faculty->phone)
                                     <div class="d-flex align-items-center">
                                         <i class="fas fa-phone text-muted mr-2" style="width: 16px;"></i>
@@ -304,6 +300,10 @@
                                        class="btn btn-xs btn-outline-success rounded-pill px-3" title="Edit Salary">
                                         <i class="fas fa-dollar-sign text-xs mr-1"></i> Salary
                                     </a>
+                                    <button onclick="viewAttendance('{{ addslashes($faculty->name) }}')" 
+                                       class="btn btn-xs btn-outline-primary rounded-pill px-3" title="View Attendance">
+                                        <i class="fas fa-clock text-xs mr-1"></i> Attendance
+                                    </button>
                                 </div>
                             </div>
 
@@ -356,16 +356,19 @@
                                             </div>
                                             <div>
                                                 <div class="font-weight-bold text-gray-800">{{ $faculty->name }}</div>
-                                                @if($faculty->employee_id)
-                                                    <code class="text-xs text-primary">{{ $faculty->employee_id }}</code>
+                                                @if($faculty->biometric_employee_code)
+                                                    <code class="text-xs text-primary">Bio ID: {{ $faculty->biometric_employee_code }}</code>
+                                                @else
+                                                    <span class="text-xs text-muted">Bio ID: N/A</span>
                                                 @endif
                                             </div>
                                         </div>
                                     </td>
                                     <td>
-                                        <div><i class="fas fa-envelope text-xs text-muted mr-1"></i>{{ $faculty->email }}</div>
                                         @if($faculty->phone)
-                                            <div class="text-muted text-xs"><i class="fas fa-phone text-xs text-muted mr-1"></i>{{ $faculty->phone }}</div>
+                                            <div class="text-muted text-sm"><i class="fas fa-phone text-xs text-muted mr-1"></i>{{ $faculty->phone }}</div>
+                                        @else
+                                            <span class="text-muted text-xs italic">N/A</span>
                                         @endif
                                     </td>
                                     <td>
@@ -404,6 +407,10 @@
                                                class="btn btn-light border" title="Salary">
                                                 <i class="fas fa-dollar-sign text-success"></i>
                                             </a>
+                                            <button type="button" onclick="viewAttendance('{{ addslashes($faculty->name) }}')" 
+                                               class="btn btn-light border" title="Attendance">
+                                                <i class="fas fa-clock text-info"></i>
+                                            </button>
                                             <a href="{{ route('admin.faculty.edit', $faculty) }}" 
                                                class="btn btn-light border" title="Edit">
                                                 <i class="fas fa-edit text-primary"></i>
