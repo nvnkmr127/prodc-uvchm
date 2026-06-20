@@ -25,6 +25,27 @@ class FacultyAttendanceService
         $lateCutoff = Setting::where('key', 'attendance_faculty_late_cutoff_time')->value('value') ?? '11:00:00';
         $collegeEndTime = Setting::where('key', 'attendance_college_end_time')->value('value') ?? '17:00:00';
 
+        // Apply custom timings if the faculty has them
+        if ($faculty->custom_check_in_time) {
+            $customStartObj = Carbon::parse($faculty->custom_check_in_time);
+            $globalStartObj = Carbon::parse($collegeStartTime);
+            
+            $presentOffset = Carbon::parse($presentCutoff)->diffInMinutes($globalStartObj);
+            $lateOffset = Carbon::parse($lateCutoff)->diffInMinutes($globalStartObj);
+            
+            $collegeStartTime = $customStartObj->format('H:i:s');
+            $presentCutoff = $customStartObj->copy()->addMinutes($presentOffset)->format('H:i:s');
+            $lateCutoff = $customStartObj->copy()->addMinutes($lateOffset)->format('H:i:s');
+        }
+
+        if ($faculty->custom_check_out_time) {
+            $collegeEndTime = Carbon::parse($faculty->custom_check_out_time)->format('H:i:s');
+        }
+
+        // Calculate expected half day threshold dynamically based on their specific shift length
+        $expectedHours = Carbon::parse($collegeEndTime)->diffInMinutes(Carbon::parse($collegeStartTime)) / 60;
+        $halfDayThreshold = max(2.0, $expectedHours / 2);
+
         // 2. Find existing attendance record
         $attendance = FacultyAttendance::where('faculty_id', $faculty->id)
             ->where('attendance_date', $attendanceDate)
@@ -151,7 +172,7 @@ class FacultyAttendanceService
 
                         if ($originalCheckInStatus['status'] === 'absent') {
                             $finalStatus = 'absent';
-                        } elseif ($workingHours < 4.0) {
+                        } elseif ($workingHours < $halfDayThreshold) {
                             $finalStatus = 'half_day';
                         } else {
                             $finalStatus = $originalCheckInStatus['status'];

@@ -66,6 +66,8 @@ class FacultyController extends Controller
             'department' => ['nullable', 'string', 'max:100'],
             'employee_id' => ['nullable', 'string', 'max:50', 'unique:users,employee_id'],
             'biometric_employee_code' => ['nullable', 'string', 'max:50', 'unique:users,biometric_employee_code'],
+            'custom_check_in_time' => ['nullable', 'date_format:H:i'],
+            'custom_check_out_time' => ['nullable', 'date_format:H:i'],
         ]);
 
         DB::beginTransaction();
@@ -95,6 +97,12 @@ class FacultyController extends Controller
             }
             if ($request->biometric_employee_code) {
                 $userData['biometric_employee_code'] = $request->biometric_employee_code;
+            }
+            if ($request->custom_check_in_time) {
+                $userData['custom_check_in_time'] = $request->custom_check_in_time;
+            }
+            if ($request->custom_check_out_time) {
+                $userData['custom_check_out_time'] = $request->custom_check_out_time;
             }
 
             $user = User::create($userData);
@@ -195,6 +203,8 @@ class FacultyController extends Controller
             'department' => ['nullable', 'string', 'max:100'],
             'employee_id' => ['nullable', 'string', 'max:50', 'unique:users,employee_id,'.$faculty->id],
             'biometric_employee_code' => ['nullable', 'string', 'max:50', 'unique:users,biometric_employee_code,'.$faculty->id],
+            'custom_check_in_time' => ['nullable', 'date_format:H:i'],
+            'custom_check_out_time' => ['nullable', 'date_format:H:i'],
             'password' => ['nullable', 'confirmed', Rules\Password::defaults()],
         ]);
 
@@ -216,6 +226,14 @@ class FacultyController extends Controller
             }
             if ($request->has('biometric_employee_code')) {
                 $updateData['biometric_employee_code'] = $request->biometric_employee_code;
+            }
+            
+            // Allow nulling out custom times
+            if ($request->has('custom_check_in_time')) {
+                $updateData['custom_check_in_time'] = $request->custom_check_in_time;
+            }
+            if ($request->has('custom_check_out_time')) {
+                $updateData['custom_check_out_time'] = $request->custom_check_out_time;
             }
 
             // Only update password if provided

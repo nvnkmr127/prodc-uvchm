@@ -70,6 +70,21 @@
                 </div>
             </div>
 
+            <hr class="my-4">
+            <h5 class="h6 font-weight-bold text-gray-800 mb-3">Custom Attendance Timings (Optional)</h5>
+            <p class="text-muted small mb-3">Leave these empty to use the default global college timings (09:00 AM - 05:00 PM). If you set a custom time here, it will be used specifically for this faculty member.</p>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="custom_check_in_time" class="form-label font-weight-bold">Custom Check-In Time</label>
+                    <input type="time" class="form-control" name="custom_check_in_time" id="custom_check_in_time" value="{{ old('custom_check_in_time') }}">
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="custom_check_out_time" class="form-label font-weight-bold">Custom Check-Out Time</label>
+                    <input type="time" class="form-control" name="custom_check_out_time" id="custom_check_out_time" value="{{ old('custom_check_out_time') }}">
+                </div>
+            </div>
+
             <div class="mt-4">
                 <button type="submit" class="btn btn-primary shadow-sm">
                     <i class="fas fa-save mr-1"></i> Save Faculty Member
