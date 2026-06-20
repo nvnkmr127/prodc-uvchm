@@ -51,7 +51,8 @@ class FacultyController extends Controller
      */
     public function create()
     {
-        return view('admin.faculty.create');
+        $departments = \App\Models\User::role('staff')->whereNotNull('department')->pluck('department')->unique()->sort();
+        return view('admin.faculty.create', compact('departments'));
     }
 
     /**
@@ -174,7 +175,8 @@ class FacultyController extends Controller
             abort(404, 'Faculty member not found');
         }
 
-        return view('admin.faculty.edit', compact('faculty'));
+        $departments = \App\Models\User::role('staff')->whereNotNull('department')->pluck('department')->unique()->sort();
+        return view('admin.faculty.edit', compact('faculty', 'departments'));
     }
 
     /**

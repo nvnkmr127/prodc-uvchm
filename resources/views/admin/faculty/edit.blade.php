@@ -64,7 +64,14 @@
                 </div>
                 <div class="col-md-6 mb-3">
                     <label for="department" class="form-label font-weight-bold">Department</label>
-                    <input type="text" class="form-control" name="department" id="department" value="{{ old('department', $faculty->department) }}" placeholder="e.g. Computer Science">
+                    <input type="text" class="form-control" name="department" id="department" list="departmentList" value="{{ old('department', $faculty->department) }}" placeholder="e.g. Computer Science" autocomplete="off">
+                    @if(isset($departments) && $departments->isNotEmpty())
+                    <datalist id="departmentList">
+                        @foreach($departments as $dept)
+                            <option value="{{ $dept }}">
+                        @endforeach
+                    </datalist>
+                    @endif
                 </div>
             </div>
 

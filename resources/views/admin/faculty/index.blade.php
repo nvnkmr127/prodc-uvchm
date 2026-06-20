@@ -234,7 +234,7 @@
                                         </a>
                                         <div class="dropdown-divider"></div>
                                         <a class="dropdown-item text-danger" href="#" 
-                                           onclick="confirmDelete({{ $faculty->id }}, '{{ $faculty->name }}')">
+                                           onclick="confirmDelete({{ $faculty->id }}, '{{ addslashes($faculty->name) }}')">
                                             <i class="fas fa-trash mr-2"></i> Delete Faculty
                                         </a>
                                     </div>
@@ -406,7 +406,7 @@
                                                 <i class="fas fa-edit text-primary"></i>
                                             </a>
                                             <button type="button" class="btn btn-light border text-danger" 
-                                                    onclick="confirmDelete({{ $faculty->id }}, '{{ $faculty->name }}')" title="Delete">
+                                                    onclick="confirmDelete({{ $faculty->id }}, '{{ addslashes($faculty->name) }}')" title="Delete">
                                                 <i class="fas fa-trash-alt"></i>
                                             </button>
                                         </div>
@@ -629,7 +629,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (confirm(`Are you sure you want to delete "${facultyName}"? This action is permanent and will remove their subjects, logs, and parameters.`)) {
             const form = document.createElement('form');
             form.method = 'POST';
-            form.action = `/admin/faculty/${facultyId}`;
+            form.action = '{{ url("admin/faculty") }}/' + facultyId;
             
             const csrfToken = document.createElement('input');
             csrfToken.type = 'hidden';
