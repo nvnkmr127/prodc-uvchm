@@ -20,6 +20,7 @@ use App\Http\Controllers\Admin\AssetController;
 use App\Http\Controllers\Admin\AssetReportController;
 use App\Http\Controllers\Admin\AttendanceImportController;
 use App\Http\Controllers\Admin\AttendanceReportController;
+use App\Http\Controllers\Admin\FacultyAttendanceReportController;
 // Admin Controllers
 use App\Http\Controllers\Admin\AttendanceSettingsController;
 use App\Http\Controllers\Admin\AuditController;
@@ -741,6 +742,8 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
     Route::middleware(['permission:manage reports'])->group(function () {
         Route::get('reports/attendance', [AttendanceReportController::class, 'index'])->name('reports.attendance.index');
         Route::get('reports/attendance/export', [AttendanceReportController::class, 'export'])->name('reports.attendance.export');
+        Route::get('reports/faculty-attendance', [FacultyAttendanceReportController::class, 'index'])->name('reports.faculty-attendance.index');
+        Route::get('reports/faculty-attendance/export', [FacultyAttendanceReportController::class, 'export'])->name('reports.faculty-attendance.export');
         Route::get('reports/financial', [FinancialReportController::class, 'show'])->name('reports.financial.show');
         Route::get('reports/assets', [AssetReportController::class, 'index'])->name('reports.assets.index');
         Route::get('reports/admissions', [AdmissionReportController::class, 'index'])->name('reports.admissions.index');

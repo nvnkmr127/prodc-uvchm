@@ -751,6 +751,8 @@
                             @if(auth()->user()?->hasRole('super-admin'))
                                 <a class="collapse-item" href="{{ route('admin.reports.attendance.index') }}">Attendance
                                     Reports</a>
+                                <a class="collapse-item" href="{{ route('admin.reports.faculty-attendance.index') }}">Faculty
+                                    Attendance</a>
                                 <a class="collapse-item" href="{{ route('admin.reports.financial.show') }}">Financial
                                     Reports</a>
                                 <a class="collapse-item" href="{{ route('admin.reports.assets.index') }}">Asset Reports</a>
@@ -777,6 +779,8 @@
                                 @can('view reports')
                                     <a class="collapse-item" href="{{ route('admin.reports.attendance.index') }}">Attendance
                                         Reports</a>
+                                    <a class="collapse-item" href="{{ route('admin.reports.faculty-attendance.index') }}">Faculty
+                                        Attendance</a>
                                     <a class="collapse-item" href="{{ route('admin.reports.financial.show') }}">Financial
                                         Reports</a>
                                     <a class="collapse-item" href="{{ route('admin.reports.assets.index') }}">Asset Reports</a>
