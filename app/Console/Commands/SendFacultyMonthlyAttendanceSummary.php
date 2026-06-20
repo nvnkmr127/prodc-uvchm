@@ -63,6 +63,8 @@ class SendFacultyMonthlyAttendanceSummary extends Command
             $lateCount = 0;
             $halfDayCount = 0;
             $absentCount = 0;
+            $trackedHours = 0;
+            $actualHours = 0;
             
             foreach ($facultyRecords as $record) {
                 $status = strtolower(trim($record->status));
@@ -75,6 +77,18 @@ class SendFacultyMonthlyAttendanceSummary extends Command
                 } elseif ($status === 'absent') {
                     $absentCount++;
                 }
+
+                // Add tracked hours (from DB)
+                $trackedHours += (float) $record->working_hours;
+
+                // Calculate actual hours (checkout - checkin)
+                if ($record->check_in_time && $record->check_out_time) {
+                    $checkIn = Carbon::parse($record->check_in_time);
+                    $checkOut = Carbon::parse($record->check_out_time);
+                    if ($checkOut->greaterThan($checkIn)) {
+                        $actualHours += $checkOut->diffInMinutes($checkIn) / 60;
+                    }
+                }
             }
 
             $attendanceData['records'][] = [
@@ -85,7 +99,9 @@ class SendFacultyMonthlyAttendanceSummary extends Command
                 'late_count' => $lateCount,
                 'half_day_count' => $halfDayCount,
                 'absent_count' => $absentCount,
-                'total_days_tracked' => $facultyRecords->count()
+                'total_days_tracked' => $facultyRecords->count(),
+                'tracked_hours' => round($trackedHours, 2),
+                'actual_hours' => round($actualHours, 2),
             ];
         }
 

@@ -37,6 +37,8 @@
                     <th>Late</th>
                     <th>Half Day</th>
                     <th>Absent</th>
+                    <th>Tracked Hrs</th>
+                    <th>Actual Hrs</th>
                 </tr>
             </thead>
             <tbody>
@@ -49,6 +51,8 @@
                     <td class="text-warning">{{ $record['late_count'] }}</td>
                     <td class="text-info">{{ $record['half_day_count'] }}</td>
                     <td class="text-danger">{{ $record['absent_count'] }}</td>
+                    <td><strong>{{ $record['tracked_hours'] }}</strong></td>
+                    <td><strong>{{ $record['actual_hours'] }}</strong></td>
                 </tr>
                 @endforeach
             </tbody>

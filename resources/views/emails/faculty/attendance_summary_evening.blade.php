@@ -61,6 +61,7 @@
                     <th>Status</th>
                     <th>Check In</th>
                     <th>Check Out</th>
+                    <th>Actual Hrs</th>
                 </tr>
             </thead>
             <tbody>
@@ -76,6 +77,7 @@
                     </td>
                     <td>{{ $record['check_in'] }}</td>
                     <td>{{ $record['check_out'] }}</td>
+                    <td><strong>{{ $record['actual_hours'] }}</strong></td>
                 </tr>
                 @endforeach
             </tbody>

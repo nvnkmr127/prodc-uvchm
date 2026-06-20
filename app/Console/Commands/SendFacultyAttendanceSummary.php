@@ -72,6 +72,7 @@ class SendFacultyAttendanceSummary extends Command
             $status = 'absent';
             $checkIn = '--';
             $checkOut = '--';
+            $actualHours = '--';
 
             if ($record) {
                 $status = strtolower(trim($record->status));
@@ -80,6 +81,14 @@ class SendFacultyAttendanceSummary extends Command
                 }
                 if ($record->check_out_time) {
                     $checkOut = Carbon::parse($record->check_out_time)->format('h:i A');
+                }
+                
+                if ($record->check_in_time && $record->check_out_time) {
+                    $cIn = Carbon::parse($record->check_in_time);
+                    $cOut = Carbon::parse($record->check_out_time);
+                    if ($cOut->greaterThan($cIn)) {
+                        $actualHours = round($cOut->diffInMinutes($cIn) / 60, 2);
+                    }
                 }
             }
 
@@ -100,6 +109,7 @@ class SendFacultyAttendanceSummary extends Command
                 'status' => $status,
                 'check_in' => $checkIn,
                 'check_out' => $checkOut,
+                'actual_hours' => $actualHours,
             ];
         }
 
