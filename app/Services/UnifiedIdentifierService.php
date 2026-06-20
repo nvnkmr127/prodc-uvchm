@@ -5,7 +5,7 @@ namespace App\Services;
 use App\Models\AcademicYear;
 use App\Models\Batch;
 use App\Models\Course;
-use App\Models\Faculty;
+use App\Models\User;
 use App\Models\IdSequence;
 use App\Models\Student;
 use Carbon\Carbon;
@@ -145,7 +145,7 @@ class UnifiedIdentifierService
     /**
      * Generate Biometric ID for Faculty.
      */
-    public function generateFacultyBiometricId(Faculty $faculty): string
+    public function generateFacultyBiometricId(User $faculty): string
     {
         $employeeId = $faculty->employee_id ?? '';
         
