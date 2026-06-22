@@ -44,7 +44,7 @@
             </div>
             <div class="stat-box bg-light" style="color: #36b9cc;">
                 <div>Half Day</div>
-                <div style="font-size: 24px;">{{ $attendanceData['half_day_count'] }}</div>
+                <div style="font-size: 24px;">{{ $attendanceData['half_day_count'] ?? 0 }}</div>
             </div>
             <div class="stat-box bg-light text-danger">
                 <div>Absent</div>
