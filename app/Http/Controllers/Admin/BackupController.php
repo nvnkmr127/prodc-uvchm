@@ -747,12 +747,29 @@ class BackupController extends Controller
     public function restoreSettings(Request $request)
     {
         try {
-            $request->validate([
-                'filename' => 'required|string',
-            ]);
+            // Handle both an uploaded file and an existing backup filename
+            if ($request->hasFile('backup_file')) {
+                $request->validate([
+                    'backup_file' => 'required|file|mimes:json|max:5120',
+                ]);
 
-            $filename = $request->input('filename');
-            $backupPath = storage_path("app/backups/{$filename}");
+                $uploadedFile = $request->file('backup_file');
+                $filename = 'uploaded_settings_'.now()->format('Y-m-d_H-i-s').'.json';
+                $backupPath = storage_path("app/backups/{$filename}");
+
+                if (! file_exists(dirname($backupPath))) {
+                    mkdir(dirname($backupPath), 0755, true);
+                }
+
+                $uploadedFile->move(dirname($backupPath), $filename);
+            } else {
+                $request->validate([
+                    'filename' => 'required|string',
+                ]);
+
+                $filename = $request->input('filename');
+                $backupPath = storage_path("app/backups/{$filename}");
+            }
 
             if (! file_exists($backupPath)) {
                 return response()->json([

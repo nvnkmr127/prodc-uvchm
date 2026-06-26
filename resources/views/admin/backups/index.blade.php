@@ -494,7 +494,7 @@
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
                 <form id="restoreSettingsForm" method="POST" action="{{ route('admin.backups.restore.settings') }}" enctype="multipart/form-data" class="d-inline">
                     @csrf
-                    <input type="hidden" id="restoreFileName" name="backup_filename">
+                    <input type="hidden" id="restoreFileName" name="filename">
                     <button type="submit" class="btn btn-warning">
                         <i class="fas fa-undo mr-1"></i>Restore Settings
                     </button>
