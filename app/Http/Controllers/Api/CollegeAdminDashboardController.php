@@ -33,34 +33,42 @@ class CollegeAdminDashboardController extends Controller
         $user = auth()->user();
         $today = now();
 
-        try {
-            $academicYear = app(\App\Services\AcademicYearService::class)->getCurrentAcademicYear()->name;
-        } catch (\App\Exceptions\MissingAcademicYearException $e) {
-            $academicYear = 'No Active Year';
-        }
+        $cacheKey = "api_college_admin_dashboard_user_{$user->id}";
 
-        return [
-            'academic_year' => $academicYear,
-            'current_time' => $today->format('H:i:s'),
-            'current_date' => $today->format('d M Y'),
-            'user_name' => $user->name,
-            'my_students_count' => $this->getMyStudentsCount(),
-            'students_growth' => $this->getStudentsGrowth(),
-            'my_collections' => $this->getMyCollections(),
-            'collections_growth' => $this->getCollectionsGrowth(),
-            'avg_attendance' => $this->getCurrentAttendanceRate(),
-            'attendance_trend' => $this->getAttendanceTrend(),
-            'my_activities_count' => $this->getMyActivitiesCount(),
-            'last_activity_time' => $this->getLastActivityTime(),
-            'my_activities' => $this->getMyActivities(),
-            'attendance_stats' => $this->getAttendanceStats(),
-            'payment_trends' => $this->getPaymentTrends(),
-            'attendance_chart' => $this->getAttendanceChart(),
-            'payment_modes' => $this->getPaymentModesData(),
-            'pending_collections' => $this->getPendingCollections(),
-            'birthdays' => $this->getBirthdayData(),
-            'enquiry_stats' => $this->getEnquiryStats(),
-        ];
+        $data = \Illuminate\Support\Facades\Cache::remember($cacheKey, now()->addMinutes(5), function () {
+            try {
+                $academicYear = app(\App\Services\AcademicYearService::class)->getCurrentAcademicYear()->name;
+            } catch (\App\Exceptions\MissingAcademicYearException $e) {
+                $academicYear = 'No Active Year';
+            }
+
+            return [
+                'academic_year' => $academicYear,
+                'my_students_count' => $this->getMyStudentsCount(),
+                'students_growth' => $this->getStudentsGrowth(),
+                'my_collections' => $this->getMyCollections(),
+                'collections_growth' => $this->getCollectionsGrowth(),
+                'avg_attendance' => $this->getCurrentAttendanceRate(),
+                'attendance_trend' => $this->getAttendanceTrend(),
+                'my_activities_count' => $this->getMyActivitiesCount(),
+                'last_activity_time' => $this->getLastActivityTime(),
+                'my_activities' => $this->getMyActivities(),
+                'attendance_stats' => $this->getAttendanceStats(),
+                'payment_trends' => $this->getPaymentTrends(),
+                'attendance_chart' => $this->getAttendanceChart(),
+                'payment_modes' => $this->getPaymentModesData(),
+                'pending_collections' => $this->getPendingCollections(),
+                'birthdays' => $this->getBirthdayData(),
+                'enquiry_stats' => $this->getEnquiryStats(),
+            ];
+        });
+
+        // Add dynamic fields that shouldn't be cached for 5 minutes
+        $data['current_time'] = $today->format('H:i:s');
+        $data['current_date'] = $today->format('d M Y');
+        $data['user_name'] = $user->name;
+
+        return $data;
     }
 
     /**
@@ -68,15 +76,24 @@ class CollegeAdminDashboardController extends Controller
      */
     private function getEnquiryStats()
     {
-        $today = today();
+        $todayStr = today()->toDateString();
+
+        $stats = \App\Models\Enquiry::selectRaw("
+            COUNT(*) as total_count,
+            SUM(CASE WHEN DATE(created_at) = ? THEN 1 ELSE 0 END) as today_count,
+            SUM(CASE WHEN status = 'New' THEN 1 ELSE 0 END) as new_count,
+            SUM(CASE WHEN status = 'Interested' THEN 1 ELSE 0 END) as interested_count,
+            SUM(CASE WHEN status = 'Admitted' THEN 1 ELSE 0 END) as admitted_count,
+            SUM(CASE WHEN DATE(next_follow_up_date) = ? THEN 1 ELSE 0 END) as followup_today
+        ", [$todayStr, $todayStr])->first();
 
         return [
-            'today_count' => \App\Models\Enquiry::whereDate('created_at', $today)->count(),
-            'new_count' => \App\Models\Enquiry::where('status', 'New')->count(),
-            'interested_count' => \App\Models\Enquiry::where('status', 'Interested')->count(),
-            'followup_today' => \App\Models\Enquiry::whereDate('next_follow_up_date', $today)->count(),
-            'admitted_count' => \App\Models\Enquiry::where('status', 'Admitted')->count(),
-            'total_count' => \App\Models\Enquiry::count(),
+            'today_count' => (int) ($stats->today_count ?? 0),
+            'new_count' => (int) ($stats->new_count ?? 0),
+            'interested_count' => (int) ($stats->interested_count ?? 0),
+            'followup_today' => (int) ($stats->followup_today ?? 0),
+            'admitted_count' => (int) ($stats->admitted_count ?? 0),
+            'total_count' => (int) ($stats->total_count ?? 0),
         ];
     }
 
@@ -222,7 +239,12 @@ class CollegeAdminDashboardController extends Controller
     public function getPaymentModes(Request $request)
     {
         try {
-            $paymentModes = $this->getPaymentModesData(); // Call your private method
+            $user = auth()->user();
+            $cacheKey = "api_college_admin_payment_modes_{$user->id}";
+            
+            $paymentModes = \Illuminate\Support\Facades\Cache::remember($cacheKey, now()->addMinutes(5), function () {
+                return $this->getPaymentModesData(); // Call your private method
+            });
 
             return response()->json([
                 'success' => true,
@@ -535,26 +557,30 @@ class CollegeAdminDashboardController extends Controller
 
     public function academicMetrics()
     {
-        $metrics = [
-            'total_students' => Student::count(),
-            'active_students' => Student::where('status', 'active')->count(),
-            'graduated_students' => Student::where('status', 'graduated')->count(),
-            'dropout_students' => Student::where('status', 'dropout')->count(),
-            'total_courses' => Course::count(),
-            'total_batches' => Batch::count(),
-            'current_attendance_rate' => $this->getCurrentAttendanceRate(),
-        ];
+        $metrics = \Illuminate\Support\Facades\Cache::remember('api_college_admin_academic_metrics', now()->addMinutes(5), function () {
+            return [
+                'total_students' => Student::count(),
+                'active_students' => Student::where('status', 'active')->count(),
+                'graduated_students' => Student::where('status', 'graduated')->count(),
+                'dropout_students' => Student::where('status', 'dropout')->count(),
+                'total_courses' => Course::count(),
+                'total_batches' => Batch::count(),
+                'current_attendance_rate' => $this->getCurrentAttendanceRate(),
+            ];
+        });
 
         return response()->json($metrics);
     }
 
     public function enrollmentTrends()
     {
-        $trends = [
-            'monthly_enrollments' => $this->getMonthlyEnrollments(),
-            'course_wise_enrollments' => $this->getCourseWiseEnrollments(),
-            'batch_performance' => $this->getBatchPerformance(),
-        ];
+        $trends = \Illuminate\Support\Facades\Cache::remember('api_college_admin_enrollment_trends', now()->addMinutes(5), function () {
+            return [
+                'monthly_enrollments' => $this->getMonthlyEnrollments(),
+                'course_wise_enrollments' => $this->getCourseWiseEnrollments(),
+                'batch_performance' => $this->getBatchPerformance(),
+            ];
+        });
 
         return response()->json($trends);
     }
@@ -580,74 +606,81 @@ class CollegeAdminDashboardController extends Controller
             $user = auth()->user();
             $period = $request->get('period', 'today');
             $includeComparison = $request->get('compare', true); // Add comparison by default
-            $today = now();
 
-            // Calculate current period date range
-            $currentPeriod = $this->getDateRangeForPeriod($period, $today);
+            $cacheKey = "api_college_admin_payment_data_{$user->id}_{$period}_{$includeComparison}";
+            
+            $response = \Illuminate\Support\Facades\Cache::remember($cacheKey, now()->addMinutes(5), function () use ($user, $period, $includeComparison) {
+                $today = now();
 
-            // Calculate comparison period date range
-            $comparisonPeriod = $this->getComparisonDateRange($period, $today);
+                // Calculate current period date range
+                $currentPeriod = $this->getDateRangeForPeriod($period, $today);
 
-            // Get payments for current period
-            $currentPayments = Payment::where('payment_type', 'component')
-                ->where('created_by', $user->id)
-                ->whereBetween('payment_date', [$currentPeriod['start'], $currentPeriod['end']])
-                ->get();
+                // Calculate comparison period date range
+                $comparisonPeriod = $this->getComparisonDateRange($period, $today);
 
-            // Get payments for comparison period
-            $comparisonPayments = Payment::where('payment_type', 'component')
-                ->where('created_by', $user->id)
-                ->whereBetween('payment_date', [$comparisonPeriod['start'], $comparisonPeriod['end']])
-                ->get();
+                // Get payments for current period
+                $currentPayments = Payment::where('payment_type', 'component')
+                    ->where('created_by', $user->id)
+                    ->whereBetween('payment_date', [$currentPeriod['start'], $currentPeriod['end']])
+                    ->get();
 
-            // Calculate current period stats
-            $currentStats = $this->calculatePaymentStats($currentPayments);
+                // Get payments for comparison period
+                $comparisonPayments = Payment::where('payment_type', 'component')
+                    ->where('created_by', $user->id)
+                    ->whereBetween('payment_date', [$comparisonPeriod['start'], $comparisonPeriod['end']])
+                    ->get();
 
-            // Calculate comparison period stats
-            $comparisonStats = $this->calculatePaymentStats($comparisonPayments);
+                // Calculate current period stats
+                $currentStats = $this->calculatePaymentStats($currentPayments);
 
-            // Calculate growth metrics
-            $growth = $this->calculateGrowthMetrics($currentStats, $comparisonStats, $period);
+                // Calculate comparison period stats
+                $comparisonStats = $this->calculatePaymentStats($comparisonPayments);
 
-            // Build chart data for comparison
-            $chartData = $this->buildComparisonChartData($currentStats, $comparisonStats, $period);
+                // Calculate growth metrics
+                $growth = $this->calculateGrowthMetrics($currentStats, $comparisonStats, $period);
 
-            $response = [
-                'success' => true,
-                'period' => $period,
-                'date_range' => [
-                    'start' => $currentPeriod['start']->format('Y-m-d H:i:s'),
-                    'end' => $currentPeriod['end']->format('Y-m-d H:i:s'),
-                ],
-                // Current period data (maintain backward compatibility)
-                'total_collected' => $currentStats['total_collected'],
-                'transactions_count' => $currentStats['transactions_count'],
-                'avg_amount' => $currentStats['avg_amount'],
-                'online_percentage' => $currentStats['online_percentage'],
-                'raw_data' => [
-                    'payments_found' => $currentPayments->count(),
-                    'user_id' => $user->id,
-                    'query_executed' => true,
-                ],
-            ];
+                // Build chart data for comparison
+                $chartData = $this->buildComparisonChartData($currentStats, $comparisonStats, $period);
 
-            // Add comparison data if requested
-            if ($includeComparison) {
-                $response['comparison'] = [
-                    'period_label' => $this->getComparisonPeriodLabel($period),
+                $responseData = [
+                    'success' => true,
+                    'period' => $period,
                     'date_range' => [
-                        'start' => $comparisonPeriod['start']->format('Y-m-d H:i:s'),
-                        'end' => $comparisonPeriod['end']->format('Y-m-d H:i:s'),
+                        'start' => $currentPeriod['start']->format('Y-m-d H:i:s'),
+                        'end' => $currentPeriod['end']->format('Y-m-d H:i:s'),
                     ],
-                    'total_collected' => $comparisonStats['total_collected'],
-                    'transactions_count' => $comparisonStats['transactions_count'],
-                    'avg_amount' => $comparisonStats['avg_amount'],
-                    'online_percentage' => $comparisonStats['online_percentage'],
+                    // Current period data (maintain backward compatibility)
+                    'total_collected' => $currentStats['total_collected'],
+                    'transactions_count' => $currentStats['transactions_count'],
+                    'avg_amount' => $currentStats['avg_amount'],
+                    'online_percentage' => $currentStats['online_percentage'],
+                    'raw_data' => [
+                        'payments_found' => $currentPayments->count(),
+                        'user_id' => $user->id,
+                        'query_executed' => true,
+                    ],
                 ];
 
-                $response['growth'] = $growth;
-                $response['chart_data'] = $chartData;
-            }
+                // Add comparison data if requested
+                if ($includeComparison) {
+                    $responseData['comparison'] = [
+                        'period_label' => $this->getComparisonPeriodLabel($period),
+                        'date_range' => [
+                            'start' => $comparisonPeriod['start']->format('Y-m-d H:i:s'),
+                            'end' => $comparisonPeriod['end']->format('Y-m-d H:i:s'),
+                        ],
+                        'total_collected' => $comparisonStats['total_collected'],
+                        'transactions_count' => $comparisonStats['transactions_count'],
+                        'avg_amount' => $comparisonStats['avg_amount'],
+                        'online_percentage' => $comparisonStats['online_percentage'],
+                    ];
+
+                    $responseData['growth'] = $growth;
+                    $responseData['chart_data'] = $chartData;
+                }
+                
+                return $responseData;
+            });
 
             return response()->json($response);
 
@@ -672,7 +705,12 @@ class CollegeAdminDashboardController extends Controller
      */
     public function getMyActivitiesApi(Request $request)
     {
-        $activities = $this->getMyActivities();
+        $user = auth()->user();
+        $cacheKey = "api_college_admin_activities_{$user->id}";
+        
+        $activities = \Illuminate\Support\Facades\Cache::remember($cacheKey, now()->addMinutes(5), function () {
+            return $this->getMyActivities();
+        });
 
         return response()->json([
             'success' => true,
@@ -688,18 +726,18 @@ class CollegeAdminDashboardController extends Controller
     {
         $view = $request->get('view', 'daily');
 
-        switch ($view) {
-            case 'weekly':
-                $data = $this->getWeeklyAttendanceChart();
-                break;
-            case 'monthly':
-                $data = $this->getMonthlyAttendanceChart();
-                break;
-            case 'daily':
-            default:
-                $data = $this->getAttendanceChart();
-                break;
-        }
+        $cacheKey = "api_college_admin_attendance_data_{$view}";
+        $data = \Illuminate\Support\Facades\Cache::remember($cacheKey, now()->addMinutes(5), function () use ($view) {
+            switch ($view) {
+                case 'weekly':
+                    return $this->getWeeklyAttendanceChart();
+                case 'monthly':
+                    return $this->getMonthlyAttendanceChart();
+                case 'daily':
+                default:
+                    return $this->getAttendanceChart();
+            }
+        });
 
         return response()->json([
             'success' => true,

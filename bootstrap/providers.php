@@ -5,4 +5,5 @@ return [
     App\Providers\HorizonServiceProvider::class,
     App\Providers\NotificationServiceProvider::class,
     App\Providers\ViewServiceProvider::class,
+    App\Providers\DeferredPackagesServiceProvider::class,
 ];

@@ -7,11 +7,15 @@
 
 // Import CSS
 import '../css/app.css';
-import Alpine from 'alpinejs';
-
-window.Alpine = Alpine;
-
-Alpine.start();
+// Load Alpine.js dynamically only when needed
+document.addEventListener('DOMContentLoaded', () => {
+    if (document.querySelector('[x-data]')) {
+        import('alpinejs').then((Alpine) => {
+            window.Alpine = Alpine.default;
+            window.Alpine.start();
+        });
+    }
+});
 
 // Initialize application when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {

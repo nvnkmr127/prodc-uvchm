@@ -978,6 +978,46 @@ class SettingController extends Controller
                     } elseif ($field['type'] === 'multiselect') {
                         $selectedValues = $request->input($key, []);
                         $value = is_array($selectedValues) ? json_encode($selectedValues) : json_encode([]);
+                    } elseif ($field['type'] === 'file') {
+                        if ($request->hasFile($key)) {
+                            $file = $request->file($key);
+                            if (str_starts_with($file->getMimeType(), 'image/')) {
+                                $image = imagecreatefromstring(file_get_contents($file->getRealPath()));
+                                $width = imagesx($image);
+                                $height = imagesy($image);
+                                
+                                // Resize to max 150px height for optimal navbar loading
+                                $newHeight = 150;
+                                $newWidth = (int) ($width * ($newHeight / $height));
+                                
+                                $resized = imagecreatetruecolor($newWidth, $newHeight);
+                                imagealphablending($resized, false);
+                                imagesavealpha($resized, true);
+                                $transparent = imagecolorallocatealpha($resized, 255, 255, 255, 127);
+                                imagefilledrectangle($resized, 0, 0, $newWidth, $newHeight, $transparent);
+                                
+                                imagecopyresampled($resized, $image, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+                                
+                                $filename = time() . '_' . pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME) . '.png';
+                                $path = 'settings/' . $filename;
+                                $fullPath = storage_path('app/public/' . $path);
+                                
+                                if (!file_exists(dirname($fullPath))) {
+                                    mkdir(dirname($fullPath), 0755, true);
+                                }
+                                
+                                imagepng($resized, $fullPath, 9); // Max compression
+                                imagedestroy($image);
+                                imagedestroy($resized);
+                                
+                                $value = $path;
+                            } else {
+                                $value = $file->store('settings', 'public');
+                            }
+                        } else {
+                            $currentSetting = Setting::where('key', $key)->first();
+                            $value = $currentSetting ? $currentSetting->value : '';
+                        }
                     } elseif ($value === null) {
                         $value = '';
                     }

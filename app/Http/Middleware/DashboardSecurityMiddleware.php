@@ -51,17 +51,15 @@ class DashboardSecurityMiddleware
      */
     private function isSuspiciousActivity(Request $request, $user): bool
     {
-        // Check for rapid requests
         $requestKey = "dashboard_requests_{$user->id}";
-        $requestCount = Cache::get($requestKey, 0);
 
-        if ($requestCount > 100) { // More than 100 requests per minute
-            return true;
+        // Atomic add returns true if the key didn't exist (sets value to 1 with 60s TTL)
+        if (\Illuminate\Support\Facades\Cache::add($requestKey, 1, 60)) {
+            return false;
         }
 
-        Cache::put($requestKey, $requestCount + 1, 60);
-
-        return false;
+        // If it already existed, atomically increment it
+        return \Illuminate\Support\Facades\Cache::increment($requestKey) > 100;
     }
 
     /**

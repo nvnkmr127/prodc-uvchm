@@ -1,16 +1,25 @@
 {
+  "node_modules/alpinejs/dist/module.esm.js": {
+    "file": "assets/vendor-alpine-D42G7h4j.js",
+    "name": "vendor-alpine",
+    "src": "node_modules/alpinejs/dist/module.esm.js",
+    "isDynamicEntry": true
+  },
   "resources/css/app.css": {
-    "file": "assets/app-C9_M7iV0.css",
+    "file": "assets/app-tn0RQdqM.css",
     "src": "resources/css/app.css",
     "isEntry": true
   },
   "resources/js/app.js": {
-    "file": "assets/app-B_oeGmHn.js",
+    "file": "assets/app-BHXFU4pw.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
+    "dynamicImports": [
+      "node_modules/alpinejs/dist/module.esm.js"
+    ],
     "css": [
-      "assets/app-C9_M7iV0.css"
+      "assets/app-tn0RQdqM.css"
     ]
   }
 }

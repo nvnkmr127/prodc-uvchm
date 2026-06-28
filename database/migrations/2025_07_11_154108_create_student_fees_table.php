@@ -27,11 +27,13 @@ return new class extends Migration
             $table->timestamps();
 
             // Indexes
+            $table->index(['student_id']);
+            $table->index(['fee_category_id']);
+            $table->index(['status']);
+            $table->index(['due_date']);
             $table->index(['student_id', 'status']);
             $table->index(['fee_structure_id']);
             $table->index(['invoice_id']);
-            $table->index(['due_date']);
-            $table->index(['status']);
         });
     }
 

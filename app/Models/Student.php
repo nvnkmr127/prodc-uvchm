@@ -24,29 +24,36 @@ class Student extends Model
     {
         parent::boot();
 
-        // Apply Global Scope for Academic Year (via Batch)
-        if (config('app.enable_academic_year_global_scope', true) && ! app()->runningInConsole() && ! request()->is('api/*')) {
-            static::addGlobalScope('academic_year', function (Builder $builder) {
-                $selectedYearId = session('selected_academic_year_id');
-                // Default to current year if session not set (optional, consistent with HasAcademicYear)
-                if (! $selectedYearId) {
-                try {
-                    $currentYear = app(\App\Services\AcademicYearService::class)->getCurrentAcademicYear();
-                } catch (\App\Exceptions\MissingAcademicYearException $e) {
-                    $currentYear = null;
-                }
-                    $selectedYearId = $currentYear?->id;
-                }
+        // Global scope for academic year has been removed due to performance impact.
+        // It was causing N+1/implicit joins on simple queries like Student::find($id).
+        // Use the local scope `forCurrentAcademicYear()` when explicit filtering is needed.
+    }
 
-                if ($selectedYearId) {
-                    $builder->where(function ($query) use ($selectedYearId) {
-                        $query->whereHas('batch', function ($q) use ($selectedYearId) {
-                            $q->where('academic_year_id', $selectedYearId);
-                        })->orWhereNull('batch_id');
-                    });
-                }
+    /**
+     * Local scope to replace the removed global scope.
+     * Use this when you specifically need to filter students by the current academic year.
+     */
+    public function scopeForCurrentAcademicYear($builder)
+    {
+        $selectedYearId = session('selected_academic_year_id');
+        
+        if (! $selectedYearId) {
+            try {
+                $currentYear = app(\App\Services\AcademicYearService::class)->getCurrentAcademicYear();
+                $selectedYearId = $currentYear?->id;
+            } catch (\App\Exceptions\MissingAcademicYearException $e) {
+                $selectedYearId = null;
+            }
+        }
+
+        if ($selectedYearId) {
+            $builder->where(function ($query) use ($selectedYearId) {
+                $query->whereIn('batch_id', \App\Models\Batch::select('id')->where('academic_year_id', $selectedYearId))
+                      ->orWhereNull('batch_id');
             });
         }
+
+        return $builder;
     }
 
     // Explicitly define the primary key (Laravel defaults to 'id')

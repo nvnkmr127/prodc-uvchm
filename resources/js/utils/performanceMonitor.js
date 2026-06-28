@@ -52,18 +52,25 @@ class PerformanceMonitor {
     if (!this.metrics.has(name)) {
       this.metrics.set(name, [])
     }
-    this.metrics.get(name).push({
+    
+    const metricArray = this.metrics.get(name)
+    // Enforce a strict batching cap of 50 items per metric type
+    if (metricArray.length >= 50) {
+      metricArray.shift()
+    }
+    
+    metricArray.push({
       ...data,
       timestamp: Date.now()
     })
 
-    // Send to backend every 30 seconds
+    // Send to backend every 2 minutes instead of 30 seconds
     this.throttledSend()
   }
 
   throttledSend = throttle(() => {
     this.sendMetrics()
-  }, 30000)
+  }, 120000)
 
   async sendMetrics() {
     if (this.metrics.size === 0) return

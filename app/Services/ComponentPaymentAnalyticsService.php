@@ -51,7 +51,7 @@ class ComponentPaymentAnalyticsService
             ->havingRaw('AVG(DATEDIFF(payments.payment_date, student_fees.due_date)) <= -3') // Average 3+ days early
             ->orderByDesc('avg_early_days')
             ->limit(20)
-            ->with(['batch.course'])
+            ->with(['batch.course', 'studentFees.feeCategory', 'studentFees.componentPaymentItems'])
             ->get()
             ->map(function ($student) {
                 return [
@@ -59,7 +59,7 @@ class ComponentPaymentAnalyticsService
                     'avg_early_days' => abs($student->avg_early_days),
                     'total_component_payments' => $student->total_component_payments,
                     'consistency_score' => $this->calculateConsistencyScore($student, 'early'),
-                    'preferred_components' => $this->getPreferredPaymentComponents($student->id),
+                    'preferred_components' => $this->getPreferredPaymentComponents($student),
                 ];
             })
             ->toArray();
@@ -84,7 +84,7 @@ class ComponentPaymentAnalyticsService
             ->havingRaw('AVG(DATEDIFF(payments.payment_date, student_fees.due_date)) >= 7') // Average 7+ days late
             ->orderByDesc('avg_late_days')
             ->limit(50)
-            ->with(['batch.course'])
+            ->with(['batch.course', 'studentFees.feeCategory'])
             ->get()
             ->map(function ($student) {
                 return [
@@ -93,7 +93,7 @@ class ComponentPaymentAnalyticsService
                     'total_component_payments' => $student->total_component_payments,
                     'total_late_payments' => $student->total_late_payments,
                     'risk_score' => $this->calculateRiskScore($student),
-                    'problematic_components' => $this->getProblematicComponents($student->id),
+                    'problematic_components' => $this->getProblematicComponents($student),
                 ];
             })
             ->toArray();
@@ -115,7 +115,7 @@ class ComponentPaymentAnalyticsService
             ->havingRaw('(COUNT(CASE WHEN student_fees.status IN ("unpaid", "partial") AND student_fees.due_date < NOW() THEN 1 END) / COUNT(student_fees.id)) >= 0.5')
             ->orderByDesc('total_overdue_amount')
             ->limit(30)
-            ->with(['batch.course'])
+            ->with(['batch.course', 'studentFees.feeCategory'])
             ->get()
             ->map(function ($student) {
                 return [
@@ -125,7 +125,7 @@ class ComponentPaymentAnalyticsService
                     'total_overdue_amount' => $student->total_overdue_amount,
                     'affected_categories' => $student->affected_categories,
                     'defaulter_severity' => $this->calculateDefaulterSeverity($student),
-                    'category_breakdown' => $this->getDefaulterCategoryBreakdown($student->id),
+                    'category_breakdown' => $this->getDefaulterCategoryBreakdown($student),
                 ];
             })
             ->toArray();
@@ -455,21 +455,24 @@ class ComponentPaymentAnalyticsService
         return 85.5; // Placeholder
     }
 
-    private function getPreferredPaymentComponents(int $studentId): array
+    private function getPreferredPaymentComponents(Student $student): array
     {
-        return ComponentPaymentItem::whereHas('studentFee', function ($q) use ($studentId) {
-            $q->where('student_id', $studentId);
-        })
-            ->with('studentFee.feeCategory')
-            ->get()
-            ->groupBy('studentFee.fee_category_id')
-            ->map(function ($items, $categoryId) {
-                $category = $items->first()->studentFee->feeCategory;
+        $items = collect();
+        foreach ($student->studentFees as $fee) {
+            foreach ($fee->componentPaymentItems as $item) {
+                $item->studentFee = $fee;
+                $items->push($item);
+            }
+        }
+
+        return $items->groupBy('studentFee.fee_category_id')
+            ->map(function ($group) {
+                $category = $group->first()->studentFee->feeCategory;
 
                 return [
-                    'category_name' => $category->name,
-                    'payment_count' => $items->count(),
-                    'total_amount' => $items->sum('amount_paid'),
+                    'category_name' => $category ? $category->name : 'Unknown',
+                    'payment_count' => $group->count(),
+                    'total_amount' => $group->sum('amount_paid'),
                 ];
             })
             ->sortByDesc('payment_count')
@@ -484,20 +487,20 @@ class ComponentPaymentAnalyticsService
         return 72.3; // Placeholder
     }
 
-    private function getProblematicComponents(int $studentId): array
+    private function getProblematicComponents(Student $student): array
     {
-        return StudentFee::where('student_id', $studentId)
-            ->whereIn('status', ['unpaid', 'partial'])
-            ->where('due_date', '<', now())
-            ->with('feeCategory')
-            ->get()
+        return $student->studentFees
+            ->filter(function ($fee) {
+                return in_array($fee->status, ['unpaid', 'partial']) && $fee->due_date && $fee->due_date < now();
+            })
             ->map(function ($fee) {
                 return [
-                    'category_name' => $fee->feeCategory->name,
+                    'category_name' => $fee->feeCategory ? $fee->feeCategory->name : 'Unknown',
                     'overdue_amount' => $fee->amount - $fee->concession_amount - $fee->paid_amount,
                     'days_overdue' => now()->diffInDays($fee->due_date),
                 ];
             })
+            ->values()
             ->toArray();
     }
 
@@ -516,19 +519,18 @@ class ComponentPaymentAnalyticsService
         return 'low';
     }
 
-    private function getDefaulterCategoryBreakdown(int $studentId): array
+    private function getDefaulterCategoryBreakdown(Student $student): array
     {
-        return StudentFee::where('student_id', $studentId)
-            ->whereIn('status', ['unpaid', 'partial'])
-            ->where('due_date', '<', now())
-            ->with('feeCategory')
-            ->get()
+        return $student->studentFees
+            ->filter(function ($fee) {
+                return in_array($fee->status, ['unpaid', 'partial']) && $fee->due_date && $fee->due_date < now();
+            })
             ->groupBy('fee_category_id')
-            ->map(function ($fees, $categoryId) {
+            ->map(function ($fees) {
                 $category = $fees->first()->feeCategory;
 
                 return [
-                    'category_name' => $category->name,
+                    'category_name' => $category ? $category->name : 'Unknown',
                     'overdue_amount' => $fees->sum(function ($fee) {
                         return $fee->amount - $fee->concession_amount - $fee->paid_amount;
                     }),

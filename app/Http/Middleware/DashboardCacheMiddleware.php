@@ -75,7 +75,6 @@ class DashboardCacheMiddleware
             $user->id,
             $user->getRoleNames()->first(),
             md5($request->getRequestUri()),
-            md5(serialize($request->query->all())),
         ];
 
         return implode('_', array_filter($keyParts));

@@ -11,4 +11,22 @@ export default defineConfig({
       refresh: true,
     }),
   ],
+  build: {
+    sourcemap: process.env.NODE_ENV === 'development',
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('alpinejs')) {
+              return 'vendor-alpine';
+            }
+            if (id.includes('axios')) {
+              return 'vendor-axios';
+            }
+            return 'vendor';
+          }
+        }
+      }
+    }
+  }
 })

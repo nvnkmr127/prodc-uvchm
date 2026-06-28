@@ -33,8 +33,21 @@ class LogStudentActivity
         $action = $this->getActionFromRoute($routeName);
 
         if ($action) {
+            $user = auth()->user();
+            
+            // Debounce page visits to once per hour per user to prevent DB bloat
+            if ($action === 'profile' || $action === 'edit') {
+                $cacheKey = "student_view_{$student->id}_by_{$user->id}_{$action}";
+                
+                if (\Illuminate\Support\Facades\Cache::has($cacheKey)) {
+                    return;
+                }
+                
+                \Illuminate\Support\Facades\Cache::put($cacheKey, true, now()->addMinutes(60));
+            }
+
             activity()
-                ->causedBy(auth()->user())
+                ->causedBy($user)
                 ->performedOn($student)
                 ->withProperties([
                     'route' => $routeName,

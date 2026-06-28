@@ -155,8 +155,13 @@ class StudentController extends Controller
         }
 
         // Data for filter dropdowns
-        $courses = Course::select('id', 'name')->orderBy('name')->get();
-        $batches = Batch::with('course:id,name')->orderBy('name')->get();
+        $courses = \Illuminate\Support\Facades\Cache::remember('filter_dropdown_courses', now()->addDay(), function () {
+            return Course::select('id', 'name')->orderBy('name')->get();
+        });
+        
+        $batches = \Illuminate\Support\Facades\Cache::remember('filter_dropdown_batches', now()->addDay(), function () {
+            return Batch::with('course:id,name')->orderBy('name')->get();
+        });
 
         return view('admin.students.index', compact('students', 'courses', 'batches', 'stats'));
     }
@@ -326,7 +331,7 @@ class StudentController extends Controller
             // Handle photo upload
             $photoPath = null;
             if ($request->hasFile('photo')) {
-                $photoPath = $request->file('photo')->store('students', 'public');
+                $photoPath = $this->processPhoto($request->file('photo'), 'students');
             }
 
             // Generate enrollment number
@@ -1643,7 +1648,7 @@ class StudentController extends Controller
             if ($student->photo) {
                 Storage::disk('public')->delete($student->photo);
             }
-            $validated['photo'] = $request->file('photo')->store('student_photos', 'public');
+            $validated['photo'] = $this->processPhoto($request->file('photo'), 'student_photos');
         }
 
         // âœ… CHANGED: If batch changed, update enrollment number and generate new fee components
@@ -2399,5 +2404,51 @@ class StudentController extends Controller
         }
 
         return response()->json($suggestions);
+    }
+
+    /**
+     * Process, resize and compress student photo.
+     */
+    private function processPhoto($file, $folder)
+    {
+        if (!str_starts_with($file->getMimeType(), 'image/')) {
+            return $file->store($folder, 'public');
+        }
+        
+        $image = imagecreatefromstring(file_get_contents($file->getRealPath()));
+        $width = imagesx($image);
+        $height = imagesy($image);
+        
+        $newHeight = 300;
+        if ($height > $newHeight) {
+            $newWidth = (int) ($width * ($newHeight / $height));
+        } else {
+            $newWidth = $width;
+            $newHeight = $height;
+        }
+        
+        $resized = imagecreatetruecolor($newWidth, $newHeight);
+        imagealphablending($resized, false);
+        imagesavealpha($resized, true);
+        $transparent = imagecolorallocatealpha($resized, 255, 255, 255, 127);
+        imagefilledrectangle($resized, 0, 0, $newWidth, $newHeight, $transparent);
+        
+        imagecopyresampled($resized, $image, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+        
+        $filename = time() . '_' . \Illuminate\Support\Str::random(10) . '.jpg';
+        $path = $folder . '/' . $filename;
+        $fullPath = storage_path('app/public/' . $path);
+        
+        if (!file_exists(dirname($fullPath))) {
+            mkdir(dirname($fullPath), 0755, true);
+        }
+        
+        // Save as heavily compressed JPEG for student photos
+        imagejpeg($resized, $fullPath, 75);
+        
+        imagedestroy($image);
+        imagedestroy($resized);
+        
+        return $path;
     }
 }

@@ -25,12 +25,33 @@ class ApplyDynamicSettings
         }
 
         try {
+            // Cache settings to prevent DB queries on every HTTP request
+            $settings = cache()->remember('app_dynamic_settings', now()->addMinutes(60), function () {
+                return [
+                    'app_name' => setting('app_name'),
+                    'app_url' => setting('app_url'),
+                    'debug_mode' => setting('debug_mode', null, 'bool'),
+                    'timezone' => setting('timezone'),
+                    'mail_driver' => setting('mail_driver'),
+                    'mail_host' => setting('mail_host'),
+                    'mail_port' => setting('mail_port'),
+                    'mail_username' => setting('mail_username'),
+                    'mail_password' => setting('mail_password'),
+                    'mail_encryption' => setting('mail_encryption'),
+                    'notification_sender_email' => setting('notification_sender_email'),
+                    'notification_sender_name' => setting('notification_sender_name'),
+                    'session_timeout' => setting('session_timeout'),
+                    'session_driver' => setting('session_driver'),
+                    'maintenance_mode' => setting('maintenance_mode', false, 'bool'),
+                ];
+            });
+
             // Apply dynamic settings
-            $this->applyAppSettings();
-            $this->applyTimezoneSettings();
-            $this->applyMailSettings();
-            $this->applySessionSettings();
-            $this->applyMaintenanceMode();
+            $this->applyAppSettings($settings);
+            $this->applyTimezoneSettings($settings);
+            $this->applyMailSettings($settings);
+            $this->applySessionSettings($settings);
+            $this->applyMaintenanceMode($settings);
 
         } catch (\Exception $e) {
             // Log error but don't break the application
@@ -43,22 +64,22 @@ class ApplyDynamicSettings
     /**
      * Apply general application settings
      */
-    private function applyAppSettings()
+    private function applyAppSettings(array $settings)
     {
         // Set application name dynamically
-        $appName = setting('app_name');
+        $appName = $settings['app_name'];
         if ($appName) {
             config(['app.name' => $appName]);
         }
 
         // Set application URL if different
-        $appUrl = setting('app_url');
+        $appUrl = $settings['app_url'];
         if ($appUrl && $appUrl !== config('app.url')) {
             config(['app.url' => $appUrl]);
         }
 
         // Set debug mode from settings (be careful with this)
-        $debugMode = setting('debug_mode', null, 'bool');
+        $debugMode = $settings['debug_mode'];
         if ($debugMode !== null && config('app.env') !== 'production') {
             config(['app.debug' => $debugMode]);
         }
@@ -67,9 +88,9 @@ class ApplyDynamicSettings
     /**
      * Apply timezone settings
      */
-    private function applyTimezoneSettings()
+    private function applyTimezoneSettings(array $settings)
     {
-        $timezone = setting('timezone');
+        $timezone = $settings['timezone'];
         if ($timezone) {
             config(['app.timezone' => $timezone]);
             date_default_timezone_set($timezone);
@@ -79,16 +100,16 @@ class ApplyDynamicSettings
     /**
      * Apply mail configuration settings
      */
-    private function applyMailSettings()
+    private function applyMailSettings(array $settings)
     {
-        $mailDriver = setting('mail_driver');
-        $mailHost = setting('mail_host');
-        $mailPort = setting('mail_port');
-        $mailUsername = setting('mail_username');
-        $mailPassword = setting('mail_password');
-        $mailEncryption = setting('mail_encryption');
-        $mailFromAddress = setting('notification_sender_email');
-        $mailFromName = setting('notification_sender_name');
+        $mailDriver = $settings['mail_driver'];
+        $mailHost = $settings['mail_host'];
+        $mailPort = $settings['mail_port'];
+        $mailUsername = $settings['mail_username'];
+        $mailPassword = $settings['mail_password'];
+        $mailEncryption = $settings['mail_encryption'];
+        $mailFromAddress = $settings['notification_sender_email'];
+        $mailFromName = $settings['notification_sender_name'];
 
         if ($mailDriver) {
             config(['mail.default' => $mailDriver]);
@@ -126,15 +147,15 @@ class ApplyDynamicSettings
     /**
      * Apply session configuration
      */
-    private function applySessionSettings()
+    private function applySessionSettings(array $settings)
     {
-        $sessionTimeout = setting('session_timeout');
+        $sessionTimeout = $settings['session_timeout'];
         if ($sessionTimeout) {
             // Convert minutes to seconds
             config(['session.lifetime' => (int) $sessionTimeout]);
         }
 
-        $sessionDriver = setting('session_driver');
+        $sessionDriver = $settings['session_driver'];
         if ($sessionDriver) {
             config(['session.driver' => $sessionDriver]);
         }
@@ -143,9 +164,9 @@ class ApplyDynamicSettings
     /**
      * Apply maintenance mode if enabled
      */
-    private function applyMaintenanceMode()
+    private function applyMaintenanceMode(array $settings)
     {
-        $maintenanceMode = setting('maintenance_mode', false, 'bool');
+        $maintenanceMode = $settings['maintenance_mode'];
 
         if ($maintenanceMode && ! app()->isDownForMaintenance()) {
             // Only apply if not already in maintenance mode
@@ -153,6 +174,3 @@ class ApplyDynamicSettings
         }
     }
 }
-
-// Add this to app/Http/Kernel.php in the $middleware array:
-// \App\Http\Middleware\ApplyDynamicSettings::class,

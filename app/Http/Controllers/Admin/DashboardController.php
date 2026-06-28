@@ -148,17 +148,23 @@ class DashboardController extends Controller
             return redirect('/profile')->with('error', 'Please complete your student profile.');
         }
 
+        $cacheKey = 'student_dashboard_data_' . $student->id;
+        $dashboardData = cache()->remember($cacheKey, now()->addMinutes(5), function () use ($student) {
+            return [
+                'attendance_summary' => $this->getMyAttendanceSummary($student),
+                'fee_summary' => $this->getMyFeeSummary($student),
+                'academic_progress' => $this->getMyAcademicProgress($student),
+                'upcoming_events' => $this->getMyUpcomingEvents($student),
+                'recent_payments' => $this->getMyRecentPayments($student),
+                'outstanding_fees' => $this->getMyOutstandingFees($student),
+                'payment_history' => $this->getMyPaymentHistory($student),
+            ];
+        });
+
         $data = [
             'user' => $user,
             'student' => $student,
-            'attendance_summary' => $this->getMyAttendanceSummary($student),
-            'fee_summary' => $this->getMyFeeSummary($student),
-            'academic_progress' => $this->getMyAcademicProgress($student),
-            'upcoming_events' => $this->getMyUpcomingEvents($student),
-            'recent_payments' => $this->getMyRecentPayments($student),
-            'outstanding_fees' => $this->getMyOutstandingFees($student),
-            'payment_history' => $this->getMyPaymentHistory($student),
-        ];
+        ] + $dashboardData;
 
         return view('student.dashboard', $data);
     }
@@ -288,9 +294,9 @@ class DashboardController extends Controller
                 'studentFees' => function ($query) {
                     $query->where('due_date', '<', Carbon::now())
                         ->whereIn('status', ['unpaid', 'partial'])
-                        ->whereRaw('amount - paid_amount - concession_amount > 0')
-                        ->with('feeCategory');
+                        ->whereRaw('amount - paid_amount - concession_amount > 0');
                 },
+                'studentFees.feeCategory'
             ])
             ->get();
 
@@ -328,83 +334,87 @@ class DashboardController extends Controller
      */
     private function calculateRealDashboardData()
     {
-        return [
-            // Basic Stats
-            'total_students' => Student::where('students.status', 'active')->count(),
-            'student_growth' => $this->calculateStudentGrowth(),
-            'total_revenue' => $this->calculateTotalRevenue(),
-            'revenue_growth' => $this->calculateRevenueGrowth(),
-            'active_courses' => Course::count(),
-            'total_batches' => Batch::count(),
-            'total_faculty' => User::role('staff')->count(),
-            'active_faculty' => User::role('staff')->where('users.status', 'active')->count(),
-            'outstanding_fees' => $this->calculateOutstandingFees(),
-            'defaulters_count' => $this->getDefaultersCount(),
-            'total_alumni' => Student::where('students.status', 'graduated')->count(),
-            'total_enquiries' => Enquiry::count(),
-            'pending_enquiries' => Enquiry::where('status', 'pending')->count(),
-            'avg_attendance' => $this->calculateAverageAttendance(),
-            'collection_rate' => $this->calculateCollectionRate(),
-            'new_admissions' => Student::whereMonth('created_at', now()->month)->count(),
-            'pending_certificates' => Student::where('status', 'active')->where('is_certificate_received', false)->count(),
+        $cacheKey = 'admin_dashboard_data_' . (session('selected_academic_year_id') ?: 'default');
 
-            // Enhanced Payment Analysis
-            'daily_payment_analysis' => $this->getDailyPaymentAnalysis(),
-            'recent_payments' => $this->getRecentPayments(),
-            'pending_component_payments' => $this->getPendingComponentPayments(),
-            'non_paying_students' => $this->getNonPayingStudents(),
-            'payment_trends' => $this->getPaymentTrends(),
+        return cache()->remember($cacheKey, now()->addMinutes(5), function () {
+            return [
+                // Basic Stats
+                'total_students' => Student::where('students.status', 'active')->count(),
+                'student_growth' => $this->calculateStudentGrowth(),
+                'total_revenue' => $this->calculateTotalRevenue(),
+                'revenue_growth' => $this->calculateRevenueGrowth(),
+                'active_courses' => Course::count(),
+                'total_batches' => Batch::count(),
+                'total_faculty' => User::role('staff')->count(),
+                'active_faculty' => User::role('staff')->where('users.status', 'active')->count(),
+                'outstanding_fees' => $this->calculateOutstandingFees(),
+                'defaulters_count' => $this->getDefaultersCount(),
+                'total_alumni' => Student::where('students.status', 'graduated')->count(),
+                'total_enquiries' => Enquiry::count(),
+                'pending_enquiries' => Enquiry::where('status', 'pending')->count(),
+                'avg_attendance' => $this->calculateAverageAttendance(),
+                'collection_rate' => $this->calculateCollectionRate(),
+                'new_admissions' => Student::whereMonth('created_at', now()->month)->count(),
+                'pending_certificates' => Student::where('status', 'active')->where('is_certificate_received', false)->count(),
 
-            // Fee Collection Data
-            'fee_collection' => $this->getFeeCollectionMetrics(),
+                // Enhanced Payment Analysis
+                'daily_payment_analysis' => $this->getDailyPaymentAnalysis(),
+                'recent_payments' => $this->getRecentPayments(),
+                'pending_component_payments' => $this->getPendingComponentPayments(),
+                'non_paying_students' => $this->getNonPayingStudents(),
+                'payment_trends' => $this->getPaymentTrends(),
 
-            // Defaulters Analysis
-            'defaulters_analysis' => $this->getDefaultersAnalysis(),
+                // Fee Collection Data
+                'fee_collection' => $this->getFeeCollectionMetrics(),
 
-            // Performance Metrics
-            'attendance_analytics' => $this->getAttendanceAnalytics(),
-            'faculty_performance' => $this->getFacultyPerformance(),
-            'course_performance' => $this->getCoursePerformance(),
+                // Defaulters Analysis
+                'defaulters_analysis' => $this->getDefaultersAnalysis(),
 
-            // Charts Data
-            'revenue_expense_chart' => $this->getRevenueExpenseChartData(),
-            'revenue_chart' => $this->getRevenueChartData(),
-            'student_distribution' => $this->getStudentDistribution(),
+                // Performance Metrics
+                'attendance_analytics' => $this->getAttendanceAnalytics(),
+                'faculty_performance' => $this->getFacultyPerformance(),
+                'course_performance' => $this->getCoursePerformance(),
 
-            // Activity & Alerts
-            'recent_activities' => $this->getRecentActivities(),
-            'system_alerts' => $this->getSystemAlerts(),
-            'pending_collections' => $this->getPendingCollectionsModels(),
+                // Charts Data
+                'revenue_expense_chart' => $this->getRevenueExpenseChartData(),
+                'revenue_chart' => $this->getRevenueChartData(),
+                'student_distribution' => $this->getStudentDistribution(),
 
-            // New Module Stats
-            'inventory_stats' => [
-                'total_assets' => Asset::count(),
-                'total_value' => Asset::sum('purchase_price') ?? 0,
-                'assigned_assets' => Asset::where('condition', 'Good')->count(),
-            ],
-            'hr_stats' => [
-                'pending_leaves' => LeaveApplication::where('status', 'Pending')->count(),
-                'today_leaves' => LeaveApplication::where('status', 'Approved')
-                    ->whereDate('start_date', '<=', now())
-                    ->whereDate('end_date', '>=', now())
-                    ->count(),
-            ],
-            'enquiry_stats' => [
-                'today_new' => Enquiry::whereDate('created_at', now())->count(),
-                'pending_followups' => 0, // FollowUp table has no status column
-                'conversion_rate' => $this->calculateConversionRate(),
-                'webhooks_count' => InboundWebhook::count(),
-                'active_webhooks' => InboundWebhook::where('is_active', true)->count(),
-            ],
-            'academic_stats' => [
-                'total_subjects' => Subject::count(),
-                'total_exams' => 0, // Placeholder as Exam model not found
-            ],
+                // Activity & Alerts
+                'recent_activities' => $this->getRecentActivities(),
+                'system_alerts' => $this->getSystemAlerts(),
+                'pending_collections' => $this->getPendingCollectionsModels(),
 
-            // System Health
-            'concurrent_sessions' => $this->getConcurrentSessions(),
-            'birthdays' => $this->getBirthdayData(),
-        ];
+                // New Module Stats
+                'inventory_stats' => [
+                    'total_assets' => Asset::count(),
+                    'total_value' => Asset::sum('purchase_price') ?? 0,
+                    'assigned_assets' => Asset::where('condition', 'Good')->count(),
+                ],
+                'hr_stats' => [
+                    'pending_leaves' => LeaveApplication::where('status', 'Pending')->count(),
+                    'today_leaves' => LeaveApplication::where('status', 'Approved')
+                        ->whereDate('start_date', '<=', now())
+                        ->whereDate('end_date', '>=', now())
+                        ->count(),
+                ],
+                'enquiry_stats' => [
+                    'today_new' => Enquiry::whereDate('created_at', now())->count(),
+                    'pending_followups' => 0, // FollowUp table has no status column
+                    'conversion_rate' => $this->calculateConversionRate(),
+                    'webhooks_count' => InboundWebhook::count(),
+                    'active_webhooks' => InboundWebhook::where('is_active', true)->count(),
+                ],
+                'academic_stats' => [
+                    'total_subjects' => Subject::count(),
+                    'total_exams' => 0, // Placeholder as Exam model not found
+                ],
+
+                // System Health
+                'concurrent_sessions' => $this->getConcurrentSessions(),
+                'birthdays' => $this->getBirthdayData(),
+            ];
+        });
     }
 
     private function getBirthdayData()
@@ -538,63 +548,81 @@ class DashboardController extends Controller
      */
     private function getPendingComponentPayments()
     {
-        // Get all unpaid and partial student fees
-        $pendingFees = StudentFee::whereIn('status', ['unpaid', 'partial'])
-            ->with(['student.batch.course', 'feeCategory'])
-            ->get();
+        $now = now();
+        $nextWeek = now()->addWeek();
 
-        $totalPendingAmount = $pendingFees->sum(function ($fee) {
-            return max(0, ($fee->amount ?? 0) - ($fee->paid_amount ?? 0) - ($fee->concession_amount ?? 0));
-        });
+        // 1. Calculate overall totals
+        $totals = StudentFee::whereIn('status', ['unpaid', 'partial'])
+            ->selectRaw('
+                COUNT(id) as total_fees,
+                COUNT(DISTINCT student_id) as total_students,
+                SUM(GREATEST(0, COALESCE(amount, 0) - COALESCE(paid_amount, 0) - COALESCE(concession_amount, 0))) as total_amount,
+                SUM(CASE WHEN due_date < ? THEN GREATEST(0, COALESCE(amount, 0) - COALESCE(paid_amount, 0) - COALESCE(concession_amount, 0)) ELSE 0 END) as overdue_amount,
+                SUM(CASE WHEN due_date BETWEEN ? AND ? THEN GREATEST(0, COALESCE(amount, 0) - COALESCE(paid_amount, 0) - COALESCE(concession_amount, 0)) ELSE 0 END) as due_this_week_amount
+            ', [$now, $now, $nextWeek])
+            ->first();
 
-        // Group by fee category
-        $categoryBreakdown = $pendingFees->groupBy('feeCategory.name')->map(function ($fees, $categoryName) {
-            $totalAmount = $fees->sum(function ($fee) {
-                return max(0, ($fee->amount ?? 0) - ($fee->paid_amount ?? 0) - ($fee->concession_amount ?? 0));
+        // 2. Group by fee category
+        $categoryBreakdown = StudentFee::whereIn('student_fees.status', ['unpaid', 'partial'])
+            ->leftJoin('fee_categories', 'student_fees.fee_category_id', '=', 'fee_categories.id')
+            ->selectRaw('
+                COALESCE(fee_categories.name, "Unknown") as category_name,
+                COUNT(student_fees.id) as fee_count,
+                COUNT(DISTINCT student_fees.student_id) as student_count,
+                SUM(GREATEST(0, COALESCE(student_fees.amount, 0) - COALESCE(student_fees.paid_amount, 0) - COALESCE(student_fees.concession_amount, 0))) as total_amount
+            ')
+            ->groupBy('fee_categories.name')
+            ->orderByDesc('total_amount')
+            ->limit(10)
+            ->get()
+            ->keyBy('category_name')
+            ->map(function ($item) {
+                return [
+                    'category_name' => $item->category_name,
+                    'total_amount' => (float) $item->total_amount,
+                    'fee_count' => (int) $item->fee_count,
+                    'student_count' => (int) $item->student_count,
+                ];
             });
 
-            return [
-                'category_name' => $categoryName ?: 'Unknown',
-                'total_amount' => $totalAmount,
-                'fee_count' => $fees->count(),
-                'student_count' => $fees->pluck('student_id')->unique()->count(),
-            ];
-        });
-
-        // Group by course
-        $courseBreakdown = $pendingFees->groupBy('student.batch.course.name')->map(function ($fees, $courseName) {
-            $totalAmount = $fees->sum(function ($fee) {
-                return max(0, ($fee->amount ?? 0) - ($fee->paid_amount ?? 0) - ($fee->concession_amount ?? 0));
+        // 3. Group by course
+        $courseBreakdown = StudentFee::whereIn('student_fees.status', ['unpaid', 'partial'])
+            ->join('students', 'student_fees.student_id', '=', 'students.id')
+            ->join('batches', 'students.batch_id', '=', 'batches.id')
+            ->join('courses', 'batches.course_id', '=', 'courses.id')
+            ->selectRaw('
+                COALESCE(courses.name, "Unknown") as course_name,
+                COUNT(DISTINCT student_fees.student_id) as student_count,
+                SUM(GREATEST(0, COALESCE(student_fees.amount, 0) - COALESCE(student_fees.paid_amount, 0) - COALESCE(student_fees.concession_amount, 0))) as total_amount
+            ')
+            ->groupBy('courses.name')
+            ->orderByDesc('total_amount')
+            ->limit(10)
+            ->get()
+            ->keyBy('course_name')
+            ->map(function ($item) {
+                return [
+                    'course_name' => $item->course_name,
+                    'total_amount' => (float) $item->total_amount,
+                    'student_count' => (int) $item->student_count,
+                ];
             });
-
-            return [
-                'course_name' => $courseName ?: 'Unknown',
-                'total_amount' => $totalAmount,
-                'student_count' => $fees->pluck('student_id')->unique()->count(),
-            ];
-        });
 
         return [
-            'total_pending_amount' => $totalPendingAmount,
-            'total_pending_fees' => $pendingFees->count(),
-            'total_students_with_pending' => $pendingFees->pluck('student_id')->unique()->count(),
-            'category_breakdown' => $categoryBreakdown->sortByDesc('total_amount')->take(10),
-            'course_breakdown' => $courseBreakdown->sortByDesc('total_amount')->take(10),
-            'overdue_amount' => $pendingFees->where('due_date', '<', now())->sum(function ($fee) {
-                return max(0, ($fee->amount ?? 0) - ($fee->paid_amount ?? 0) - ($fee->concession_amount ?? 0));
-            }),
-            'due_this_week' => $pendingFees->whereBetween('due_date', [now(), now()->addWeek()])->sum(function ($fee) {
-                return max(0, ($fee->amount ?? 0) - ($fee->paid_amount ?? 0) - ($fee->concession_amount ?? 0));
-            }),
+            'total_pending_amount' => (float) ($totals->total_amount ?? 0),
+            'total_pending_fees' => (int) ($totals->total_fees ?? 0),
+            'total_students_with_pending' => (int) ($totals->total_students ?? 0),
+            'category_breakdown' => $categoryBreakdown,
+            'course_breakdown' => $courseBreakdown,
+            'overdue_amount' => (float) ($totals->overdue_amount ?? 0),
+            'due_this_week' => (float) ($totals->due_this_week_amount ?? 0),
         ];
     }
 
-    /**
-     * Get recent payments with detailed information
-     */
     private function getRecentPayments()
     {
         return Payment::with(['student.batch.course', 'createdBy'])
+            ->withCount('componentItems')
             ->where('payment_type', 'component')
             ->latest('payment_date')
             ->limit(20)
@@ -614,7 +642,7 @@ class DashboardController extends Controller
                     'created_by' => $payment->createdBy->name ?? 'System',
                     'created_at' => $payment->created_at,
                     'time_ago' => $payment->created_at->diffForHumans(),
-                    'components_paid' => $payment->componentItems->count() ?? 0,
+                    'components_paid' => $payment->component_items_count ?? 0,
                 ];
             });
     }

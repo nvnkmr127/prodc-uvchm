@@ -55,6 +55,9 @@
         }
     },
     "scripts": {
+        "pre-autoload-dump": [
+            "Google\\Task\\Composer::cleanup"
+        ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
             "@php artisan package:discover --ansi"
@@ -76,8 +79,15 @@
         ]
     },
     "extra": {
+        "google/apiclient-services": [
+            "Drive"
+        ],
         "laravel": {
-            "dont-discover": [],
+            "dont-discover": [
+                "barryvdh/laravel-dompdf",
+                "maatwebsite/excel",
+                "spatie/laravel-backup"
+            ],
             "providers": [
                 "App\\Providers\\ViewServiceProvider"
             ]
