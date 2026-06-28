@@ -2293,6 +2293,7 @@ class SettingController extends Controller
             // Clear any other settings-related cache
             Cache::forget('public_settings');
             Cache::forget('system_settings');
+            Cache::forget('app_dynamic_settings');
 
             // Clear individual setting caches
             $settings = Setting::pluck('key');

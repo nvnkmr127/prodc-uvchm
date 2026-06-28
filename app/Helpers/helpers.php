@@ -289,6 +289,7 @@ if (! function_exists('clear_settings_cache')) {
             if (! settings_table_available()) {
                 Cache::forget('all_settings');
                 Cache::forget('public_settings');
+                Cache::forget('app_dynamic_settings');
 
                 return;
             }
@@ -302,6 +303,7 @@ if (! function_exists('clear_settings_cache')) {
             // Clear bulk caches
             Cache::forget('all_settings');
             Cache::forget('public_settings');
+            Cache::forget('app_dynamic_settings');
             Cache::tags(['settings'])->flush();
 
         } catch (\Exception $e) {
