@@ -44,14 +44,6 @@
                 </li>
             @endcan
 
-            @if(auth()->user()?->hasRole('super-admin'))
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ route('admin.staff-activity.index') }}">
-                        <i class="fas fa-fw fa-user-clock text-info"></i>
-                        <span>Staff Performance</span>
-                    </a>
-                </li>
-            @endif
 
             @can('view attendance')
                 <li class="nav-item">
@@ -186,7 +178,6 @@
                                 <a class="collapse-item" href="{{ route('admin.students.index') }}">Students</a>
                                 <a class="collapse-item" href="{{ route('admin.faculty.index') }}">Faculty</a>
                                 <a class="collapse-item" href="{{ route('admin.alumni.index') }}">Alumni Network</a>
-                                <a class="collapse-item" href="{{ route('admin.enquiries.index') }}">Enquiry Hub</a>
                                 <div class="dropdown-divider"></div>
                                 <h6 class="dropdown-header">Biometric System:</h6>
                                 <a class="collapse-item" href="{{ route('admin.students.biometric-mapping') }}">
@@ -212,7 +203,6 @@
                             @else
                                 @can('view admissions')
                                     <a class="collapse-item" href="{{ route('admin.admissions.index') }}">Admissions</a>
-                                    <a class="collapse-item" href="{{ route('admin.enquiries.index') }}">Enquiry Hub</a>
                                 @endcan
 
                                 @can('view students')
@@ -457,28 +447,9 @@
                         @if(auth()->user()?->hasRole('super-admin'))
                             <div class="dropdown-divider"></div>
                             <h6 class="collapse-header">Admin Tools:</h6>
-                            <a class="collapse-item" href="{{ route('admin.daily-attendance.index') }}">
-                                <i class="fas fa-calendar-day fa-sm fa-fw mr-1"></i> Daily Attendance
-                            </a>
-                            <a class="collapse-item" href="{{ route('admin.attendance.import.show') }}">
-                                <i class="fas fa-upload fa-sm fa-fw mr-1"></i> Bulk Import
-                            </a>
                             <a class="collapse-item" href="{{ route('admin.attendance.settings') }}">
                                 <i class="fas fa-cog fa-sm fa-fw mr-1"></i> Settings
                             </a>
-                        @else
-                            @if(auth()->user()?->canAny(['manage attendance', 'view id-cards', 'view certificates']))
-                                <div class="dropdown-divider"></div>
-                                <h6 class="collapse-header">Admin Tools:</h6>
-                                @can('manage attendance')
-                                    <a class="collapse-item" href="{{ route('admin.daily-attendance.create') }}">
-                                        <i class="fas fa-calendar-day fa-sm fa-fw mr-1"></i> Mark Attendance
-                                    </a>
-                                    <a class="collapse-item" href="{{ route('admin.attendance.import.show') }}">
-                                        <i class="fas fa-upload fa-sm fa-fw mr-1"></i> Bulk Import
-                                    </a>
-                                @endcan
-                            @endif
                         @endif
                     </div>
                 </div>
@@ -717,8 +688,6 @@
                                 </a>
                                 <a class="collapse-item" href="{{ route('admin.reports.referrals.index') }}">Referral
                                     Tracking</a>
-                                <a class="collapse-item" href="{{ route('admin.reports.referrals.index') }}">Referral
-                                    Tracking</a>
                                 <a class="collapse-item" href="{{ route('admin.reports.age.index') }}">Age Report</a>
                                 <a class="collapse-item" href="{{ route('admin.reports.address.index') }}">Address Report</a>
                                 <a class="collapse-item" href="{{ route('admin.reports.students.index') }}">Student Data Report</a>
@@ -743,8 +712,6 @@
                                     <a class="collapse-item" href="{{ route('admin.staff-activity.index') }}">
                                         <i class="fas fa-user-clock text-primary"></i> Staff Activity
                                     </a>
-                                    <a class="collapse-item" href="{{ route('admin.reports.referrals.index') }}">Referral
-                                        Tracking</a>
                                     <a class="collapse-item" href="{{ route('admin.reports.referrals.index') }}">Referral
                                         Tracking</a>
                                     <a class="collapse-item" href="{{ route('admin.reports.age.index') }}">Age Report</a>
