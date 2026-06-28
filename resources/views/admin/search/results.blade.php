@@ -18,7 +18,7 @@
     <div class="card-header"><h6 class="m-0 font-weight-bold text-primary">Matching Courses</h6></div>
     <div class="card-body">
          @forelse($courses as $course)
-            <p><a href="{{ route('admin.courses.show', $course) }}">{{ $course->name }}</a></p>
+            <p><a href="{{ route('admin.courses.edit', $course) }}">{{ $course->name }}</a></p>
         @empty
             <p>No courses found.</p>
         @endforelse
