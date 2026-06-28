@@ -10,7 +10,10 @@ class Kernel extends ConsoleKernel
     /**
      * Define the application's command schedule.
      */
-    protected function schedule(Schedule $schedule): void {}
+    protected function schedule(Schedule $schedule): void
+    {
+        $schedule->command('logs:prune --days=15')->dailyAt('02:00');
+    }
 
     /**
      * Register the commands for the application.
