@@ -590,8 +590,8 @@
                                 <a class="collapse-item" href="{{ route('admin.settings.index') }}">
                                     <i class="fas fa-cog fa-sm fa-fw mr-1"></i> Settings
                                 </a>
-                                <a class="collapse-item" href="{{ route('admin.settings.health-check') }}">
-                                    <i class="fas fa-heartbeat fa-sm fa-fw mr-1"></i> Health Check
+                                <a class="collapse-item" href="{{ route('admin.settings.system-info') }}">
+                                    <i class="fas fa-server fa-sm fa-fw mr-1"></i> System Info
                                 </a>
 
                                 <a class="collapse-item" href="{{ route('admin.backups.index') }}">

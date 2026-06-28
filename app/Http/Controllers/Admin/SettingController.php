@@ -1891,8 +1891,12 @@ class SettingController extends Controller
     /**
      * Run system health check
      */
-    public function healthCheck()
+    public function healthCheck(Request $request)
     {
+        if ($request->isMethod('get') && !$request->ajax()) {
+            return redirect()->route('admin.settings.system-info');
+        }
+
         try {
             $checks = [];
             $passed = 0;
