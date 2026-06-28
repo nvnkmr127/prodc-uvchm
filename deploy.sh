@@ -1,130 +1,248 @@
 #!/bin/bash
 
-# ==============================================================================
-# UVCHM ULTIMATE DEPLOYMENT SYSTEM 🚀
-# ==============================================================================
-# Author: Antigravity AI
-# Version: 2.0 (Powered Up)
-# Purpose: Professional, production-safe, automated zero-downtime deployment.
-# ==============================================================================
+# cPanel Laravel Deployment Script
+# This script automates the deployment process for Laravel applications on cPanel
 
-set -e
-
-# --- Configuration ---
-APP_DIR="/home/digiclou/portal.uvchm.com"
-BACKUP_DIR="/home/digiclou/backups"
-LOG_FILE="/home/digiclou/deployment.log"
-LOCK_FILE="/tmp/uvchm_deploy.lock"
-RETRY_LIMIT=3
-
-# --- UI & Logging ---
+# Colors for output
 GREEN='\033[0;32m'
-BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
-log() {
-    local message="[$(date +'%Y-%m-%d %H:%M:%S')] $1"
-    echo -e "${BLUE}${message}${NC}"
-    echo "$message" >> "$LOG_FILE"
+# Function to print colored output
+print_success() {
+    echo -e "${GREEN}✓ $1${NC}"
 }
 
-error_handler() {
-    log "❌ ERROR: Deployment failed at line $1"
-    # Try to bring the app back up if it was down
-    php artisan up 2>/dev/null || true
-    rm -f "$LOCK_FILE"
-    exit 1
+print_warning() {
+    echo -e "${YELLOW}⚠ $1${NC}"
 }
 
-trap 'error_handler $LINENO' ERR
+print_error() {
+    echo -e "${RED}✗ $1${NC}"
+}
 
-# --- 1. Guard Checks ---
-if [ -f "$LOCK_FILE" ]; then
-    log "⚠️  Deployment already in progress (lock file exists). Force remove it if stale: rm $LOCK_FILE"
+print_info() {
+    echo -e "${BLUE}ℹ $1${NC}"
+}
+
+print_header() {
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${CYAN}$1${NC}"
+    echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+}
+
+# Function to ensure app is brought back online even on error
+cleanup() {
+    if [ -f "storage/framework/down" ]; then
+        echo ""
+        print_warning "Ensuring application is brought back online..."
+        php artisan up || true
+    fi
+}
+
+# Set trap to run cleanup on exit (success or failure)
+trap cleanup EXIT
+
+echo "🚀 Starting Laravel Deployment..."
+echo ""
+
+# Step 1: Fetch latest changes to compare
+print_header "📡 FETCHING LATEST CHANGES"
+git fetch origin main 2>/dev/null || git fetch origin master 2>/dev/null
+
+# Step 2: Show what will change
+print_header "📊 CHANGES PREVIEW"
+
+# Get current commit
+CURRENT_COMMIT=$(git rev-parse HEAD)
+CURRENT_BRANCH=$(git branch --show-current)
+
+# Get remote commit
+REMOTE_COMMIT=$(git rev-parse origin/main 2>/dev/null || git rev-parse origin/master 2>/dev/null)
+
+echo ""
+print_info "Current Production Version:"
+echo "  Branch: $CURRENT_BRANCH"
+echo "  Commit: ${CURRENT_COMMIT:0:8}"
+git log -1 --pretty=format:"  Message: %s%n  Author: %an%n  Date: %ar%n" HEAD
+echo ""
+
+print_info "Latest Git Version:"
+echo "  Commit: ${REMOTE_COMMIT:0:8}"
+git log -1 --pretty=format:"  Message: %s%n  Author: %an%n  Date: %ar%n" origin/main 2>/dev/null || git log -1 --pretty=format:"  Message: %s%n  Author: %an%n  Date: %ar%n" origin/master 2>/dev/null
+echo ""
+
+# Check if there are changes
+if [ "$CURRENT_COMMIT" = "$REMOTE_COMMIT" ]; then
+    print_warning "No new changes to deploy. Production is up to date!"
+    echo ""
+    read -p "Continue anyway? (y/N): " -n 1 -r
+    echo ""
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        print_info "Deployment cancelled."
+        exit 0
+    fi
+else
+    echo ""
+    print_header "📝 FILES THAT WILL CHANGE"
+    echo ""
+    
+    # Show files that will change
+    git diff --name-status HEAD..origin/main 2>/dev/null || git diff --name-status HEAD..origin/master 2>/dev/null | head -20
+    
+    echo ""
+    print_info "Commits to be deployed:"
+    git log --oneline HEAD..origin/main 2>/dev/null || git log --oneline HEAD..origin/master 2>/dev/null | head -10
+    
+    echo ""
+    echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    read -p "Deploy these changes? (Y/n): " -n 1 -r
+    echo ""
+    echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    
+    if [[ $REPLY =~ ^[Nn]$ ]]; then
+        print_info "Deployment cancelled by user."
+        exit 0
+    fi
+fi
+
+echo ""
+print_header "🚀 STARTING DEPLOYMENT"
+
+# Step 3: Put application in maintenance mode
+echo "📦 Putting application in maintenance mode..."
+php artisan down || print_warning "Could not enable maintenance mode"
+print_success "Maintenance mode enabled"
+
+# Step 4: Handle Git conflicts and pull latest changes
+echo "📥 Pulling latest changes from repository..."
+
+# Check for local changes
+if ! git diff-index --quiet HEAD --; then
+    print_warning "Local changes detected, stashing them..."
+    git stash push -m "Auto-stash before deployment $(date +%Y-%m-%d_%H-%M-%S)"
+    print_success "Local changes stashed"
+fi
+
+# Pull latest changes
+if git pull origin main 2>/dev/null; then
+    print_success "Code updated from main branch"
+elif git pull origin master 2>/dev/null; then
+    print_success "Code updated from master branch"
+else
+    print_error "Failed to pull from repository"
     exit 1
 fi
-touch "$LOCK_FILE"
-trap 'rm -f "$LOCK_FILE"' EXIT
 
-log "🚀 INIT: Starting UVCHM Ultimate Deployment..."
+# Step 5: Install/Update Composer dependencies
+echo "📚 Installing Composer dependencies..."
 
-cd "$APP_DIR" || { log "❌ FATAL: Directory $APP_DIR not found!"; exit 1; }
+# First attempt
+if ! composer install --no-dev --optimize-autoloader --no-interaction 2>&1; then
+    print_warning "Initial composer install failed, attempting recovery..."
+    
+    # Clear composer cache
+    echo "  → Clearing composer cache..."
+    composer clear-cache 2>/dev/null || true
+    
+    # Remove vendor directory and lock file to force clean install
+    echo "  → Removing vendor directory and composer.lock..."
+    rm -rf vendor
+    rm -f composer.lock
+    
+    # Remove bootstrap/cache files
+    echo "  → Clearing bootstrap cache..."
+    rm -rf bootstrap/cache/*.php 2>/dev/null || true
+    
+    # Second attempt with clean slate
+    echo "  → Retrying composer install..."
+    if ! composer install --no-dev --optimize-autoloader --no-interaction; then
+        print_error "Composer install failed after recovery attempt"
+        print_info "Manual intervention required:"
+        echo "    1. SSH into your server"
+        echo "    2. Run: rm -rf vendor composer.lock"
+        echo "    3. Run: composer install --no-dev --optimize-autoloader"
+        exit 1
+    fi
+    
+    print_success "Composer dependencies installed (after recovery)"
+else
+    print_success "Composer dependencies installed"
+fi
 
-# --- 2. Pre-Flight Diagnostics ---
-log "🔍 DIAG: Checking server health..."
-DISK_FREE=$(df -m . | awk 'NR==2 {print $4}')
-if [ "$DISK_FREE" -lt 500 ]; then
-    log "❌ FATAL: Disk space critically low (${DISK_FREE}MB). Free up space before deploying."
+# Step 6: Install/Update NPM dependencies and build assets
+echo "🎨 Building frontend assets..."
+if command -v npm &> /dev/null; then
+    npm install --production --silent || print_warning "NPM install had warnings"
+    npm run build || print_warning "Asset build had warnings"
+    print_success "Frontend assets built"
+else
+    print_warning "NPM not found, skipping asset build"
+fi
+
+# Step 7: Run database migrations
+echo "🗄️  Running database migrations..."
+php artisan migrate --force || {
+    print_error "Database migrations failed"
     exit 1
-fi
-log "✅ OK: Disk space sufficient (${DISK_FREE}MB free)."
+}
+print_success "Database migrations completed"
 
-# Capture current state for potential manual rollback
-PREV_HASH=$(git rev-parse --short HEAD)
-log "📦 STATE: Current commit is ${PREV_HASH}"
+# Step 8: Clear all caches
+echo "🧹 Clearing all caches..."
+php artisan config:clear || true
+php artisan cache:clear || true
+php artisan route:clear || true
+php artisan view:clear || true
+print_success "Cache cleared"
 
-# --- 3. Maintenance Window ---
-log "⏳ STAGE: Preparing application..."
-php artisan down --render="errors::503" --secret="uvchm-deploy-$(date +%s)" || true
+# Step 9: Cache configuration for performance
+echo "💾 Caching configuration..."
+php artisan config:cache || print_warning "Config cache failed"
+php artisan route:cache || print_warning "Route cache failed"
+php artisan view:cache || print_warning "View cache failed"
+print_success "Configuration cached"
 
-# --- 4. Safety First (Database Backup) ---
-log "💾 BACKUP: Safeguarding database..."
-mkdir -p "$BACKUP_DIR"
-# Remove database backups older than 7 days to conserve space
-find "$BACKUP_DIR" -name "pre-deployment-*.zip" -type f -mtime +7 -delete 2>/dev/null || true
-php artisan backup:run --only-db --filename="pre-deployment-$(date +%Y%m%d_%H%M%S).zip" || log "⚠️  Backup failed, but proceeding at risk..."
+# Step 10: Optimize application
+echo "⚡ Optimizing application..."
+php artisan optimize || print_warning "Optimization had warnings"
+print_success "Application optimized"
 
-# --- 5. Update Cycle ---
-log "🔄 UPDATE: Pulling latest changes from main branch..."
-git stash || true
-git fetch origin main
-git reset --hard origin/main
-git clean -fd # Clean up untracked artifacts
+# Step 11: Restart queue workers (if using queues)
+echo "🔄 Restarting queue workers..."
+php artisan queue:restart 2>/dev/null || print_warning "Queue workers not running"
 
-# --- 6. Build Environment ---
-log "🏗️  BUILD: Installing optimized dependencies..."
-composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+# Step 12: Permissions
+echo "🔐 Setting permissions..."
+chmod -R 775 storage bootstrap/cache 2>/dev/null || \
+chmod -R 755 storage bootstrap/cache
+print_success "Permissions set"
 
-# --- 7. Database Logic ---
-log "🗃️  DB: Synchronizing schema..."
-php artisan migrate --force
+# Step 12.5: Storage symlink
+echo "🔗 Creating storage symlink..."
+# Force recreate the link to ensure it's not broken
+php artisan storage:link --force || print_warning "Symlink creation failed, you may need to delete public/storage manually"
+print_success "Storage symlink connected"
 
-# --- 8. Power Optimization ---
-log "⚡ OPTIMIZE: Caching application layers..."
-# Pre-clear ensure we don't have stale cached config/routes
-php artisan config:clear
-php artisan route:clear
-php artisan optimize      # Caches config and routes
-php artisan view:cache    # Pre-compile templates
-php artisan event:cache   # Cache events/listeners
-
-# --- 9. Storage Architecture ---
-log "📂 FILES: Verifying storage architecture..."
-if [ -d "public/storage" ] && [ ! -L "public/storage" ]; then
-    log "⚠️  Broken storage detected (directory where link should be). Repairing..."
-    rm -rf public/storage
-fi
-php artisan storage:link || true
-
-# --- 10. Robust Permissions ---
-log "🔐 SECURITY: Hardening permissions..."
-chmod -R 775 storage bootstrap/cache
-chown -R $USER:www-data storage bootstrap/cache 2>/dev/null || true
-
-# --- 11. Final Validation ---
-log "🩺 HEALTH: Verifying system services..."
-# Force health check to run and notify if configured
-php artisan system:health-check --notify || log "⚠️  System health check reported warnings."
-
-# --- 12. Cleanup & Go Live ---
-log "✨ CLEAN: Wiping build noise..."
-# Cleanup telemetry or temp files if needed
-php artisan view:clear 2>/dev/null || true
-
-log "🌍 ONLINE: Bringing application back to the public..."
+# Step 13: Bring application back online (also handled by trap)
+echo "🌐 Bringing application back online..."
 php artisan up
+print_success "Application is now live"
 
-log "✅ SUCCESS: Deployment of revision ${PREV_HASH} completed successfully!"
-log "=========================================================================="
+# Get new commit info
+NEW_COMMIT=$(git rev-parse HEAD)
+
+echo ""
+print_header "✅ DEPLOYMENT COMPLETED SUCCESSFULLY"
+echo ""
+print_info "Deployed Version:"
+echo "  Commit: ${NEW_COMMIT:0:8}"
+git log -1 --pretty=format:"  Message: %s%n  Author: %an%n  Date: %ar%n" HEAD
+echo ""
+echo "📊 Quick health check:"
+echo "   • Check site"
+echo "   • View logs: tail -f storage/logs/laravel.log"
+echo ""
