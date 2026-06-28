@@ -57,3 +57,4 @@
                     Last {{ $dashboard_data['last_activity_time'] ?? 'unknown' }}
                 </div>
             </div>
+        </div>
