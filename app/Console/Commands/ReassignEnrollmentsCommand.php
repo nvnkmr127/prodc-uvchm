@@ -76,13 +76,15 @@ class ReassignEnrollmentsCommand extends Command
                 // Skip if old enrollment doesn't exist
                 if (!$oldEnrollment) continue;
 
-                // Extract suffix digits using regex
-                if (!preg_match('/(\d+)$/', $oldEnrollment, $matches)) {
-                    $this->warn("Could not extract suffix from: {$oldEnrollment}. Skipping.");
+                // Extract year and suffix digits using regex
+                // Format is typically UV-COURSE-YYSEQ (e.g. UV-DHM-26001)
+                if (!preg_match('/^UV-[A-Z]+-(\d{2})(\d+)$/i', $oldEnrollment, $matches)) {
+                    $this->warn("Could not extract year and suffix from: {$oldEnrollment}. Skipping.");
                     continue;
                 }
 
-                $suffixStr = $matches[1];
+                $oldYear = $matches[1]; // e.g. '26'
+                $suffixStr = $matches[2]; // e.g. '001'
                 $suffixInt = (int) $suffixStr;
 
                 // Build the new prefix
@@ -94,6 +96,24 @@ class ReassignEnrollmentsCommand extends Command
                 $newEnrollment = $newPrefix . str_pad($suffixStr, 3, '0', STR_PAD_LEFT);
 
                 if ($oldEnrollment !== $newEnrollment) {
+                    // Check for collision
+                    if (Student::where('enrollment_number', $newEnrollment)->where('id', '!=', $student->id)->exists()) {
+                        $this->warn("Collision detected for {$newEnrollment}. Assigning next available number.");
+                        
+                        // Find the highest known suffix for this prefix, or start from current suffix
+                        $nextSuffix = isset($prefixesProcessed[$newPrefix]) 
+                            ? max($prefixesProcessed[$newPrefix] + 1, $suffixInt + 1)
+                            : $suffixInt + 1;
+                        
+                        // Ensure it's truly unique in the DB
+                        while (Student::where('enrollment_number', $newPrefix . str_pad($nextSuffix, 3, '0', STR_PAD_LEFT))->exists()) {
+                            $nextSuffix++;
+                        }
+                        
+                        $newEnrollment = $newPrefix . str_pad($nextSuffix, 3, '0', STR_PAD_LEFT);
+                        $suffixInt = $nextSuffix;
+                    }
+
                     $student->enrollment_number = $newEnrollment;
                     $student->save();
                     $this->line("Updated: {$oldEnrollment} -> {$newEnrollment}");
