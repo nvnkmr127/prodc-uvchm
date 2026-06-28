@@ -36,15 +36,11 @@
                         @endif
                     </div>
                 </div>
-            </div>
-        </div>
-    </div>
-@endsection
 @php
     // Real payment data instead of test data
     $user = auth()->user();
 
-    // Get payment modes from last 30 days (more likely to have data)
+    // Get payment modes from last 30 days
     $paymentModes = \App\Models\Payment::where('payment_type', 'component')
         ->where('created_by', $user->id)
         ->whereBetween('payment_date', [now()->subDays(30), now()])
@@ -57,11 +53,6 @@
     $defaultModes = ['cash' => 0, 'online' => 0, 'card' => 0, 'upi' => 0];
     $paymentModes = array_merge($defaultModes, $paymentModes);
 
-    // If no real data found, keep test data for demo
-    if (array_sum($paymentModes) == 0) {
-        $paymentModes = ['cash' => 25000, 'online' => 35000, 'card' => 15000, 'upi' => 20000];
-    }
-
     $dashboard_data['payment_modes'] = [
         'labels' => ['Cash', 'Online', 'Card', 'UPI'],
         'values' => [
@@ -71,8 +62,4 @@
             (float) $paymentModes['upi'],
         ]
     ];
-
-    // Debug what we found
-    \Log::info('Payment modes data for user ' . $user->id . ':', $paymentModes);
 @endphp
-@push('scripts')
