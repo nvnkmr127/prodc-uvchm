@@ -103,7 +103,6 @@
             "pestphp/pest-plugin": true,
             "php-http/discovery": true
         },
-        "cache-dir": "/home/digiclou/portal.uvchm.com/cache",
         "audit": {
             "block-insecure": false
         }
