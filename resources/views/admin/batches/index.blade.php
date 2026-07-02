@@ -102,6 +102,20 @@
             font-weight: 600;
             padding: 0.5em 0.8em;
         }
+
+        .badge-soft-secondary {
+            color: #858796;
+            background-color: rgba(133, 135, 150, 0.1);
+            font-weight: 600;
+            padding: 0.5em 0.8em;
+        }
+
+        .badge-soft-danger {
+            color: #e74a3b;
+            background-color: rgba(231, 74, 59, 0.1);
+            font-weight: 600;
+            padding: 0.5em 0.8em;
+        }
     </style>
 @endpush
 
@@ -275,8 +289,24 @@
                                     <div class="small text-muted">{{ $batch->course->name }}</div>
                                 </td>
                                 <td>
+                                    {{-- Batch lifecycle status (active / completed / archived) --}}
+                                    @php
+                                        $statusMap = [
+                                            'active' => ['success', 'fa-circle-play', 'Active'],
+                                            'completed' => ['primary', 'fa-graduation-cap', 'Completed'],
+                                            'archived' => ['secondary', 'fa-box-archive', 'Archived'],
+                                            'inactive' => ['secondary', 'fa-pause', 'Inactive'],
+                                            'cancelled' => ['danger', 'fa-ban', 'Cancelled'],
+                                        ];
+                                        [$statusColor, $statusIcon, $statusLabel] = $statusMap[$batch->status] ?? ['secondary', 'fa-circle', ucfirst($batch->status)];
+                                    @endphp
+                                    <div class="mb-2">
+                                        <span class="badge badge-soft-{{ $statusColor }} badge-pill">
+                                            <i class="fas {{ $statusIcon }} mr-1"></i> {{ $statusLabel }}
+                                        </span>
+                                    </div>
                                     <div class="custom-control custom-switch">
-                                        <input type="checkbox" class="custom-control-input toggle-internship" 
+                                        <input type="checkbox" class="custom-control-input toggle-internship"
                                             id="internship_switch_{{ $batch->id }}" 
                                             data-id="{{ $batch->id }}"
                                             data-url="{{ route('admin.batches.toggleInternship', $batch) }}"

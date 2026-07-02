@@ -163,12 +163,41 @@ class BatchController extends Controller
 
     public function graduate(Batch $batch)
     {
-        $studentCount = Student::where('batch_id', $batch->id)
+        // Students being graduated (active only). Eager-load fees so the
+        // informational fee check below does not trigger an N+1 query.
+        $studentsToGraduate = Student::withoutGlobalScope('academic_year')
+            ->where('batch_id', $batch->id)
             ->where('status', 'active')
-            ->update(['status' => 'graduated']);
+            ->with('studentFees')
+            ->get();
 
-        return redirect()->route('admin.batches.index')
-            ->with('success', $studentCount.' students from '.$batch->name.' have been marked as graduated.');
+        // Informational fee check ONLY - graduation is never blocked by fees.
+        $withOutstanding = $studentsToGraduate->filter(function (Student $student) {
+            return $student->studentFees->sum(function ($fee) {
+                return max(0, ($fee->amount ?? 0) - ($fee->concession_amount ?? 0) - ($fee->paid_amount ?? 0));
+            }) > 0;
+        })->count();
+
+        DB::transaction(function () use ($batch) {
+            // 1. Push graduated people to the archive: active students -> graduated
+            //    (graduated students automatically appear in the Alumni Network).
+            Student::withoutGlobalScope('academic_year')
+                ->where('batch_id', $batch->id)
+                ->where('status', 'active')
+                ->update(['status' => 'graduated']);
+
+            // 2. Archive the batch itself now that its cohort has graduated.
+            $batch->update(['status' => 'completed']);
+        });
+
+        $count = $studentsToGraduate->count();
+        $message = $count.' student(s) from '.$batch->name.' have been marked as graduated, and the batch has been archived (marked completed).';
+
+        if ($withOutstanding > 0) {
+            $message .= ' Note: '.$withOutstanding.' of them still had outstanding fees at graduation.';
+        }
+
+        return redirect()->route('admin.batches.index')->with('success', $message);
     }
 
     public function getStudentsWithAttendance(Request $request, Batch $batch)

@@ -18,6 +18,7 @@
                         <th>Course / Batch</th>
                         <th>Current Employer</th>
                         <th>Job Title</th>
+                        <th>Fees</th>
                         <th style="width: 15%;">Actions</th>
                     </tr>
                 </thead>
@@ -34,6 +35,22 @@
                         <td>{{ $alumnus->current_employer ?? 'N/A' }}</td>
                         <td>{{ $alumnus->job_title ?? 'N/A' }}</td>
                         <td>
+                            @php
+                                $outstanding = $alumnus->studentFees->sum(function ($fee) {
+                                    return max(0, ($fee->amount ?? 0) - ($fee->concession_amount ?? 0) - ($fee->paid_amount ?? 0));
+                                });
+                            @endphp
+                            @if($alumnus->studentFees->isEmpty())
+                                <span class="badge badge-secondary" data-order="0">No Fees</span>
+                            @elseif($outstanding > 0)
+                                <span class="badge badge-danger" data-order="{{ $outstanding }}" title="Outstanding balance">
+                                    Due ₹{{ number_format($outstanding, 2) }}
+                                </span>
+                            @else
+                                <span class="badge badge-success" data-order="0">Paid</span>
+                            @endif
+                        </td>
+                        <td>
                             <a href="{{ route('admin.students.edit', $alumnus) }}" class="btn btn-warning btn-sm" title="Update Alumni Info">
                                 <i class="fas fa-edit"></i> Update Info
                             </a>
@@ -41,7 +58,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="5" class="text-center">No alumni found. Students marked as 'graduated' will appear here.</td>
+                        <td colspan="6" class="text-center">No alumni found. Students marked as 'graduated' will appear here.</td>
                     </tr>
                     @endforelse
                 </tbody>
