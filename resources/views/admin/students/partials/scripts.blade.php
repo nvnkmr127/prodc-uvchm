@@ -620,6 +620,16 @@
         }
     }
 
+    function openConcessionModal(feeId = null, feeName = null, remainingAmount = null) {
+        $('#applyConcessionModal').modal('show');
+        
+        if (feeId) {
+            setTimeout(() => {
+                $('#concessionComponentSelect').val(feeId).trigger('change');
+            }, 500);
+        }
+    }
+
     function viewReceipt(paymentId) {
         // Implement receipt viewing
         alert('Receipt viewing for payment ID: ' + paymentId);
@@ -2049,17 +2059,7 @@
         loadAttendanceData();
     });
 
-    // Missing function implementations
-    function openPaymentModal() {
-        // Check if payment modal exists
-        if ($('#paymentModal').length) {
-            $('#paymentModal').modal('show');
-        } else {
-            // Fallback: redirect to payment page or show alert
-            alert('Payment modal not found. Please ensure the payment modal is properly loaded.');
-            console.error('Payment modal element not found');
-        }
-    }
+
 
 
 

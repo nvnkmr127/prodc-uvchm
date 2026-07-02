@@ -370,14 +370,20 @@
 
                                             <div class="dropdown-divider"></div>
 
-                                            <form action="{{ route('admin.batches.graduate', $batch) }}" method="POST"
-                                                class="d-inline">
-                                                @csrf
-                                                <button type="submit" class="dropdown-item"
-                                                    onclick="return confirm('Are you sure you want to graduate all active students in this batch?')">
-                                                    <i class="fas fa-graduation-cap fa-fw mr-2 text-success"></i> Graduate Batch
-                                                </button>
-                                            </form>
+                                            @if($batch->status === 'active')
+                                                <form action="{{ route('admin.batches.graduate', $batch) }}" method="POST"
+                                                    class="d-inline">
+                                                    @csrf
+                                                    <button type="submit" class="dropdown-item"
+                                                        onclick="return confirm('Are you sure you want to graduate all active students in this batch?')">
+                                                        <i class="fas fa-graduation-cap fa-fw mr-2 text-success"></i> Graduate Batch
+                                                    </button>
+                                                </form>
+                                            @endif
+                                            
+                                            <a class="dropdown-item" href="{{ route('admin.fee-structures.index', ['batch_id' => $batch->id]) }}">
+                                                <i class="fas fa-file-invoice-dollar fa-fw mr-2 text-primary"></i> Fee Setup
+                                            </a>
 
                                             <form action="{{ route('admin.batches.destroy', $batch) }}" method="POST"
                                                 class="d-inline"
@@ -538,9 +544,17 @@
                             <label class="font-weight-bold text-gray-700">Status</label>
                             <select name="status" id="edit_status" class="form-control" required>
                                 <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
                                 <option value="completed">Completed</option>
-                                <option value="archived">Archived</option>
+                                <option value="cancelled">Cancelled</option>
                             </select>
+                        </div>
+
+                        <div class="form-group">
+                            <div class="custom-control custom-checkbox">
+                                <input type="checkbox" class="custom-control-input" id="edit_is_on_internship" name="is_on_internship" value="1">
+                                <label class="custom-control-label" for="edit_is_on_internship">Is on Internship?</label>
+                            </div>
                         </div>
 
                         <div class="text-right mt-4">
@@ -638,6 +652,7 @@
                 modal.find('#edit_start_date').val(startDate);
                 modal.find('#edit_end_date').val(endDate);
                 modal.find('#edit_status').val(status);
+                modal.find('#edit_is_on_internship').prop('checked', button.data('is-on-internship') == 1);
             });
         });
     </script>

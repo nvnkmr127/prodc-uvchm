@@ -1,17 +1,7 @@
 @extends('layouts.theme')
 
 @section('title', 'Student Profile: ' . $student->name)
-@if(session('success'))
-    <div class="alert alert-success alert-dismissible fade show"
-        style="position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px; border-radius: 10px;">
-        <i class="fas fa-check-circle mr-2"></i>
-        <strong>Success!</strong><br>
-        {{ session('success') }}
-        <button type="button" class="close" data-dismiss="alert">
-            <span>&times;</span>
-        </button>
-    </div>
-@endif
+
 @include('admin.students.partials.styles')
 
 @section('content')
@@ -45,47 +35,13 @@ if (!isset($attendanceData)) {
                 <div class="col-lg-auto text-center text-lg-left">
                     <div class="student-avatar-container">
                         @php
-// 1. Determine Photo URL with robust fallback
-$photoUrl = null;
-
-if ($student->photo) {
-    $photoPath = $student->photo;
-
-    // Try multiple methods to find the photo
-    if (\Storage::disk('public')->exists($photoPath)) {
-        $photoUrl = asset('storage/' . $photoPath);
-    } elseif (!str_contains($photoPath, '/')) {
-        // Check if it needs student_photos prefix
-        $prefixedPath = 'student_photos/' . $photoPath;
-        if (\Storage::disk('public')->exists($prefixedPath)) {
-            $photoUrl = asset('storage/' . $prefixedPath);
-        }
-    } else {
-        // Direct filesystem check
-        $fullPath = storage_path('app/public/' . $photoPath);
-        if (file_exists($fullPath)) {
-            $photoUrl = asset('storage/' . $photoPath);
-        } else {
-            // Check with student_photos prefix on filesystem
-            $fullPathWithPrefix = storage_path('app/public/student_photos/' . basename($photoPath));
-            if (file_exists($fullPathWithPrefix)) {
-                $photoUrl = asset('storage/student_photos/' . basename($photoPath));
-            }
-        }
-    }
-}
-
-// 2. Fallback to UI Avatars if photo not found
-if (!$photoUrl) {
-    $name = urlencode($student->name);
-    $photoUrl = "https://ui-avatars.com/api/?name={$name}&background=random&color=fff&size=200&font-size=0.33&bold=true";
-}
+$photoUrl = \App\Models\Student::getStudentPhotoUrl($student, 200);
 
 // 3. Status Color Logic
 $statusColor = match ($student->status) {
     'active' => '#1cc88a', // Green
     'graduated' => '#36b9cc', // Info Blue
-    'dropped' => '#e74a3b', // Red
+    'dropout' => '#e74a3b', // Red
     default => '#858796' // Grey
 };
                         @endphp
@@ -392,11 +348,264 @@ $statusColor = match ($student->status) {
                                 @include('admin.students.partials.tabs.fees')
                                 @include('admin.students.partials.tabs.payments')
                                 @include('admin.students.partials.tabs.attendance')
+                            </div>
+                        </div>
+                    </div>
+                    <br>
+                    {{-- Recent Activity Timeline (Optional) --}}
+                    @if($recentActivity->count() > 0)
+                        <div class="card shadow mb-4">
+                            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                                <h6 class="m-0 font-weight-bold text-primary">
+                                    <i class="fas fa-history mr-2"></i>Recent Activity Timeline
+                                </h6>
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" data-toggle="dropdown">
+                                        <i class="fas fa-filter"></i> Filter
+                                    </button>
+                                    <div class="dropdown-menu">
+                                        <a class="dropdown-item activity-filter" href="#" data-type="all">
+                                            <i class="fas fa-list mr-2"></i>All Activities
+                                        </a>
+                                        <div class="dropdown-divider"></div>
+                                        <a class="dropdown-item activity-filter" href="#" data-type="payment">
+                                            <i class="fas fa-money-bill-wave mr-2"></i>Payments Only
+                                        </a>
+                                        <a class="dropdown-item activity-filter" href="#" data-type="concession">
+                                            <i class="fas fa-percent mr-2"></i>Concessions Only
+                                        </a>
+                                        <a class="dropdown-item activity-filter" href="#" data-type="attendance">
+                                            <i class="fas fa-user-check mr-2"></i>Attendance Only
+                                        </a>
+                                        <a class="dropdown-item activity-filter" href="#" data-type="spatie_log">
+                                            <i class="fas fa-cogs mr-2"></i>System Changes
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="activity-timeline" id="activityTimeline" style="max-height: 500px; overflow-y: auto;">
+                                    @foreach($recentActivity as $activity)
+                                        <div class="timeline-item" data-type="{{ $activity['type'] ?? 'general' }}">
+                                            <div class="timeline-marker bg-{{ $activity['color'] ?? 'primary' }}">
+                                                <i class="fas {{ $activity['icon'] ?? 'fa-info-circle' }}"></i>
+                                            </div>
+                                            <div class="timeline-content">
+                                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                                    <div class="timeline-header">
+                                                        <h6 class="mb-1 font-weight-bold">{{ $activity['title'] ?? 'Activity' }}</h6>
+                                                        <p class="text-muted mb-1">
+                                                            {{ $activity['description'] ?? 'No description available' }}</p>
+                                                    </div>
+                                                    <div class="timeline-meta text-right">
+                                                        <small
+                                                            class="text-muted d-block">{{ $activity['timestamp']->format('M d, Y') }}</small>
+                                                        <small class="text-muted">{{ $activity['timestamp']->format('h:i A') }}</small>
+                                                    </div>
+                                                </div>
+
+                                                @if(!empty($activity['properties'] ?? []))
+                                                    <div class="timeline-details">
+                                                        <button class="btn btn-sm btn-outline-secondary toggle-details" type="button"
+                                                            data-toggle="collapse" data-target="#details-{{ $loop->index }}">
+                                                            <i class="fas fa-chevron-down"></i> Details
+                                                        </button>
+                                                        <div class="collapse mt-2" id="details-{{ $loop->index }}">
+                                                            <div class="card card-body bg-light">
+                                                                @if(($activity['type'] ?? '') === 'payment')
+                                                                    <div class="row">
+                                                                        <div class="col-md-6">
+                                                                            <small><strong>Amount:</strong>
+                                                                                ₹{{ number_format($activity['properties']['amount'] ?? 0, 2) }}</small><br>
+                                                                            <small><strong>Method:</strong>
+                                                                                {{ ucfirst($activity['properties']['method'] ?? 'Unknown') }}</small>
+                                                                        </div>
+                                                                        <div class="col-md-6">
+                                                                            <small><strong>Receipt:</strong>
+                                                                                {{ $activity['properties']['receipt'] ?? 'N/A' }}</small><br>
+                                                                            <small><strong>Components:</strong>
+                                                                                {{ $activity['properties']['components'] ?? 0 }} items</small>
+                                                                        </div>
+                                                                    </div>
+                                                                @elseif(($activity['type'] ?? '') === 'concession')
+                                                                    <div class="row">
+                                                                        <div class="col-md-6">
+                                                                            <small><strong>Amount:</strong>
+                                                                                ₹{{ number_format($activity['properties']['amount'] ?? 0, 2) }}</small><br>
+                                                                            <small><strong>Status:</strong>
+                                                                                {{ ucfirst($activity['properties']['status'] ?? 'Unknown') }}</small>
+                                                                        </div>
+                                                                        <div class="col-md-6">
+                                                                            @if(!empty($activity['properties']['reason'] ?? null))
+                                                                                <small><strong>Reason:</strong>
+                                                                                    {{ $activity['properties']['reason'] }}</small>
+                                                                            @endif
+                                                                        </div>
+                                                                    </div>
+                                                                @else
+                                                                    <div class="properties-list">
+                                                                        @foreach(($activity['properties'] ?? []) as $key => $value)
+                                                                            @if(!is_array($value))
+                                                                                <small><strong>{{ ucfirst(str_replace('_', ' ', $key)) }}:</strong>
+                                                                                    {{ $value }}</small><br>
+                                                                            @endif
+                                                                        @endforeach
+                                                                    </div>
+                                                                @endif
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                @endif
+
+                                                <div class="timeline-footer mt-2">
+                                                    <small class="text-muted">
+                                                        <i class="fas fa-user mr-1"></i>{{ $activity['user'] ?? 'System' }}
+                                                        <span class="mx-2">•</span>
+                                                        <i class="fas fa-clock mr-1"></i>{{ $activity['timestamp']->diffForHumans() }}
+                                                    </small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                </div>
+
+                                {{-- Load More Button --}}
+
+                            </div>
+                        </div>
+                    @endif
                 </div>
-            </div>
 
+                {{-- Right Sidebar - Quick Actions --}}
+                <div class="col-lg-4">
+                    {{-- Financial Summary Card --}}
+                    <div class="card modern-card mb-4">
+                        <div class="card-header bg-white">
+                            <h6 class="m-0 font-weight-bold text-primary">
+                                <i class="fas fa-chart-pie mr-2"></i> Financial Summary
+                            </h6>
+                        </div>
+                        <div class="card-body text-center">
+                            <div class="mb-3">
+                                <div class="h4 font-weight-bold text-gray-800 amount-counter">
+                                    ₹{{ number_format(isset($financialSummary['total_amount']) ? $financialSummary['total_amount'] : 0, 0) }}
+                                </div>
+                                <small class="text-muted">Total Fee Amount</small>
+                            </div>
 
+                            <div class="progress mb-3" style="height: 15px;">
+                                <div class="progress-bar 
+                                    @if(isset($financialSummary['payment_percentage']) && $financialSummary['payment_percentage'] >= 75) bg-success 
+                                    @elseif(isset($financialSummary['payment_percentage']) && $financialSummary['payment_percentage'] >= 50) bg-warning 
+                                    @else bg-danger @endif" role="progressbar"
+                                    style="width: {{ isset($financialSummary['payment_percentage']) ? $financialSummary['payment_percentage'] : 0 }}%">
+                                    {{ isset($financialSummary['payment_percentage']) ? $financialSummary['payment_percentage'] : 0 }}%
+                                </div>
+                            </div>
 
+                            <div class="row">
+                                <div class="col-6">
+                                    <div class="p-2 rounded bg-light">
+                                        <div class="text-success font-weight-bold">
+                                            ₹{{ number_format(isset($financialSummary['paid_amount']) ? $financialSummary['paid_amount'] : 0, 0) }}
+                                        </div>
+                                        <div class="small text-muted">Paid</div>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="p-2 rounded bg-light">
+                                        <div class="text-danger font-weight-bold">
+                                            ₹{{ number_format(isset($financialSummary['remaining_amount']) ? $financialSummary['remaining_amount'] : 0, 0) }}
+                                        </div>
+                                        <div class="small text-muted">Due</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Quick Actions Card --}}
+                    <div class="card modern-card">
+                        <div class="card-header bg-white">
+                            <h6 class="m-0 font-weight-bold text-primary">
+                                <i class="fas fa-bolt mr-2"></i> Quick Actions
+                            </h6>
+                        </div>
+                        <div class="card-body p-2">
+                            <div class="quick-action-card" onclick="openPaymentModal()">
+                                <div class="d-flex align-items-center">
+                                    <div class="quick-action-icon bg-success text-white">
+                                        <i class="fas fa-credit-card"></i>
+                                    </div>
+                                    <div>
+                                        <div class="font-weight-bold">Record Payment</div>
+                                        <small class="text-muted">Add new payment entry</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="quick-action-card" data-toggle="modal" data-target="#applyConcessionModal">
+                                <div class="d-flex align-items-center">
+                                    <div class="quick-action-icon bg-warning text-white">
+                                        <i class="fas fa-percent"></i>
+                                    </div>
+                                    <div>
+                                        <div class="font-weight-bold">Apply Concession</div>
+                                        <small class="text-muted">
+                                            Discount fee components
+                                            @if(($student->gender ?? null) === 'Female' && setting('womens_discount_percentage', 0) > 0)
+                                                <br><span class="badge badge-success mt-1">
+                                                    <i class="fas fa-female"></i> {{ setting('womens_discount_percentage') }}% Eligible
+                                                </span>
+                                            @endif
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="quick-action-card"
+                                onclick="window.location.href='{{ route('admin.students.edit', $student) }}'">
+                                <div class="d-flex align-items-center">
+                                    <div class="quick-action-icon bg-primary text-white">
+                                        <i class="fas fa-edit"></i>
+                                    </div>
+                                    <div>
+                                        <div class="font-weight-bold">Edit Profile</div>
+                                        <small class="text-muted">Update student information</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            @if(Route::has('admin.payments.component-dashboard'))
+                                <div class="quick-action-card"
+                                    onclick="window.location.href='{{ route('admin.payments.component-dashboard', $student) }}'">
+                                    <div class="d-flex align-items-center">
+                                        <div class="quick-action-icon bg-info text-white">
+                                            <i class="fas fa-file-invoice-dollar"></i>
+                                        </div>
+                                        <div>
+                                            <div class="font-weight-bold">Fee Dashboard</div>
+                                            <small class="text-muted">Detailed fee management</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endif
+
+                            <div class="quick-action-card" onclick="window.print()">
+                                <div class="d-flex align-items-center">
+                                    <div class="quick-action-icon bg-secondary text-white">
+                                        <i class="fas fa-print"></i>
+                                    </div>
+                                    <div>
+                                        <div class="font-weight-bold">Print Profile</div>
+                                        <small class="text-muted">Generate printable version</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div> <!-- /col-lg-4 -->
+            </div> <!-- /row -->
             @include('admin.students.partials.modals.payment-filter')
             @include('admin.students.partials.modals.add-fee-component')
             @include('admin.students.partials.modals.apply-concession')

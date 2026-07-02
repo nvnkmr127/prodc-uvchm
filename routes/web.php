@@ -424,6 +424,9 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
         Route::post('students/{student}/process-dropout', [DropoutController::class, 'processDropout'])
             ->name('students.process-dropout');
 
+        Route::post('students/{student}/reactivate', [StudentController::class, 'reactivateStudent'])
+            ->name('students.reactivate');
+
         // ... rest of dropout routes ...
 
         // Other specific students routes
@@ -1305,7 +1308,7 @@ Route::prefix('api')->name('api.')->group(function () {
         Route::get('/students/{student}/dashboard', [StudentApiController::class, 'dashboard'])
             ->name('students.dashboard')
             ->where('student', '[0-9]+');
-        Route::get('students/export', [StudentController::class, 'export'])->name('students.export');
+
 
         // Attendance API
 

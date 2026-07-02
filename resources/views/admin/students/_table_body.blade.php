@@ -20,9 +20,6 @@
             </div>
         </td>
         <td>
-            <span class="badge badge-light">{{ $student->enrollment_number }}</span>
-        </td>
-        <td>
             @if ($student->batch)
                 <div>
                     <strong>{{ $student->batch->course->name ?? 'N/A' }}</strong>

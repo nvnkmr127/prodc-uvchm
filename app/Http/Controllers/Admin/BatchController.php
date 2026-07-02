@@ -44,7 +44,7 @@ class BatchController extends Controller
             'name' => 'required|string|max:255',
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
-            'status' => 'nullable|in:active,completed,archived', // Changed to nullable
+            'status' => 'nullable|in:active,inactive,completed,cancelled', // Match DB enum
             'is_on_internship' => 'nullable',
         ]);
 
@@ -71,7 +71,7 @@ class BatchController extends Controller
             'name' => 'required|string|max:255',
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
-            'status' => 'required|in:active,completed,archived',
+            'status' => 'required|in:active,inactive,completed,cancelled',
             'is_on_internship' => 'nullable',
         ]);
         // Handle checkbox for update
@@ -86,6 +86,14 @@ class BatchController extends Controller
     {
         if ($batch->students()->count() > 0) {
             return redirect()->route('admin.batches.index')->with('error', 'Cannot delete a batch that has students assigned to it.');
+        }
+        
+        if ($batch->timetableEntries()->exists()) {
+            return redirect()->route('admin.batches.index')->with('error', 'Cannot delete a batch that has timetables assigned to it.');
+        }
+        
+        if ($batch->feeStructure()->exists()) {
+            return redirect()->route('admin.batches.index')->with('error', 'Cannot delete a batch that has a fee structure defined.');
         }
 
         $batch->delete();
@@ -131,7 +139,29 @@ class BatchController extends Controller
     {
         $assignedStudentIds = $request->input('assigned_student_ids', []);
 
+        // Capacity Enforcement
+        if (count($assignedStudentIds) > $batch->course->max_batch_size) {
+            return redirect()->back()->with('error', 'Cannot assign more students than the maximum batch size of ' . $batch->course->max_batch_size . '.');
+        }
+
+        // Course Integrity
+        $invalidStudents = Student::whereIn('id', $assignedStudentIds)->where('course_id', '!=', $batch->course_id)->count();
+        if ($invalidStudents > 0) {
+            return redirect()->back()->with('error', 'Cannot assign students from a different course to this batch.');
+        }
+
         DB::transaction(function () use ($batch, $assignedStudentIds) {
+            $originalIds = Student::withoutGlobalScope('academic_year')
+                ->where('batch_id', $batch->id)
+                ->pluck('id')->toArray();
+            
+            $added = array_diff($assignedStudentIds, $originalIds);
+            $removed = array_diff($originalIds, $assignedStudentIds);
+            
+            if (count($added) > 0 || count($removed) > 0) {
+                \Log::info("Batch {$batch->id} ({$batch->name}) students synced. Added: " . implode(',', $added) . ". Removed: " . implode(',', $removed));
+            }
+
             // Use withoutGlobalScope to ensure updates happen correctly regardless of session state
             Student::withoutGlobalScope('academic_year')
                 ->where('batch_id', $batch->id)

@@ -383,22 +383,7 @@
             border-color: transparent;
         }
 
-        /* Load More Button */
-        #loadMoreContainer {
-            animation: fadeIn 0.5s ease;
-        }
 
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
 
         .status-inactive {
             background: #f3f4f6;
@@ -616,6 +601,9 @@
                             <button class="btn btn-light btn-modern" id="exportDataBtn">
                                 <i class="fas fa-download"></i> Export
                             </button>
+                            <button class="btn btn-light btn-modern" id="showImportModalBtn">
+                                <i class="fas fa-file-import"></i> Import
+                            </button>
                             <a href="{{ route('admin.students.create') }}" class="btn btn-success-modern btn-modern">
                                 <i class="fas fa-plus"></i> Add Student
                             </a>
@@ -628,27 +616,27 @@
         <!-- Quick Stats -->
         <div class="stats-grid animate-fade-in">
             <div class="stat-card">
-                <div class="stat-number">{{ $stats['active'] ?? 0 }}</div>
+                <div class="stat-number" id="stat-active">{{ $stats['active'] ?? 0 }}</div>
                 <div class="stat-label">Active Students</div>
                 <i class="fas fa-user-check stat-icon"></i>
             </div>
             <div class="stat-card">
-                <div class="stat-number">{{ $stats['graduated'] ?? 0 }}</div>
+                <div class="stat-number" id="stat-graduated">{{ $stats['graduated'] ?? 0 }}</div>
                 <div class="stat-label">Graduated</div>
                 <i class="fas fa-graduation-cap stat-icon"></i>
             </div>
             <div class="stat-card">
-                <div class="stat-number">{{ $stats['dropout'] ?? 0 }}</div>
+                <div class="stat-number" id="stat-dropout">{{ $stats['dropout'] ?? 0 }}</div>
                 <div class="stat-label">Dropouts</div>
                 <i class="fas fa-user-times stat-icon"></i>
             </div>
             <div class="stat-card">
-                <div class="stat-number">{{ $stats['on_internship'] ?? 0 }}</div>
+                <div class="stat-number" id="stat-on_internship">{{ $stats['on_internship'] ?? 0 }}</div>
                 <div class="stat-label">On Internship</div>
                 <i class="fas fa-briefcase stat-icon"></i>
             </div>
             <div class="stat-card">
-                <div class="stat-number">{{ $stats['total'] ?? 0 }}</div>
+                <div class="stat-number" id="stat-total">{{ $stats['total'] ?? 0 }}</div>
                 <div class="stat-label">Total Students</div>
                 <i class="fas fa-users stat-icon"></i>
             </div>
@@ -657,7 +645,7 @@
         <!-- Alerts -->
         @if(session('success'))
             <div class="alert alert-success alert-dismissible fade show animate-fade-in">
-                <i class="fas fa-check-circle me-2"></i>{{ session('success') }}
+                <i class="fas fa-check-circle mr-2"></i>{{ session('success') }}
                 <button type="button" class="close" data-dismiss="alert">
                     <span aria-hidden="true">&times;</span>
                 </button>
@@ -666,7 +654,7 @@
 
         @if(session('error'))
             <div class="alert alert-danger alert-dismissible fade show animate-fade-in">
-                <i class="fas fa-exclamation-triangle me-2"></i>{{ session('error') }}
+                <i class="fas fa-exclamation-triangle mr-2"></i>{{ session('error') }}
                 <button type="button" class="close" data-dismiss="alert">
                     <span aria-hidden="true">&times;</span>
                 </button>
@@ -713,7 +701,6 @@
                         <option value="active" {{ request('status') == 'active' ? 'selected' : '' }}>Active</option>
                         <option value="graduated" {{ request('status') == 'graduated' ? 'selected' : '' }}>Graduated</option>
                         <option value="dropout" {{ request('status') == 'dropout' ? 'selected' : '' }}>Dropout</option>
-                        <option value="inactive" {{ request('status') == 'inactive' ? 'selected' : '' }}>Inactive</option>
                     </select>
                 </div>
 
@@ -729,6 +716,7 @@
                 <button class="quick-filter-btn active" data-filter="all">All Students</button>
                 <button class="quick-filter-btn" data-filter="active">Active Only</button>
                 <button class="quick-filter-btn" data-filter="graduated">Graduated</button>
+                <button class="quick-filter-btn" data-filter="dropout">Dropout</button>
                 <button class="quick-filter-btn" data-filter="recent">Recently Added</button>
                 <button class="quick-filter-btn" data-filter="no-contact">Missing Contact</button>
             </div>
@@ -738,7 +726,7 @@
         <div class="selection-counter" id="selectionCounter">
             <i class="fas fa-check-circle"></i>
             <span id="selectedCount">0</span> students selected
-            <div class="ms-auto">
+            <div class="ml-auto">
                 <button class="btn btn-sm btn-light" id="clearSelectionBtn">Clear</button>
                 <button class="btn btn-sm btn-primary" id="showBulkActionsBtn">Actions</button>
             </div>
@@ -757,7 +745,6 @@
                             <input type="checkbox" class="custom-checkbox" id="selectAll">
                         </th>
                         <th>Student Details</th>
-                        <th>Enrollment #</th>
                         <th>Course & Batch</th>
                         <th>Contact Info</th>
                         <th>Status</th>
@@ -772,12 +759,12 @@
 
         <!-- Total Count Info & Pagination -->
         <div class="d-flex justify-content-between align-items-center mt-4 mb-4 flex-wrap">
-            <div class="pagination-info mb-2 mb-md-0">
-                Showing <strong id="visibleCount">{{ $students->count() }}</strong> of <strong
+            <div class="d-flex align-items-center mb-2 mb-md-0">
+                Showing <strong id="visibleCount">{{ $students->firstItem() ?? 0 }} to {{ $students->lastItem() ?? 0 }}</strong> of <strong
                     id="totalCount">{{ $students->total() }}</strong> students
             </div>
             <div id="paginationContainer">
-                {{ $students->links('pagination::bootstrap-5') }}
+                {{ $students->links('pagination::bootstrap-4') }}
             </div>
         </div>
 
@@ -788,7 +775,7 @@
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title">
-                            <i class="fas fa-tasks me-2"></i>Bulk Actions
+                            <i class="fas fa-tasks mr-2"></i>Bulk Actions
                         </h5>
                         <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                             <span aria-hidden="true">&times;</span>
@@ -837,7 +824,7 @@
                                         <div class="row">
                                             <div class="col-md-6">
                                                 <label class="form-label">Course</label>
-                                                <select class="form-select" id="bulkCourseSelect">
+                                                <select class="custom-select" id="bulkCourseSelect">
                                                     <option value="">Select Course</option>
                                                     @foreach($courses as $course)
                                                         <option value="{{ $course->id }}">{{ $course->name }}</option>
@@ -846,7 +833,7 @@
                                             </div>
                                             <div class="col-md-6">
                                                 <label class="form-label">Batch</label>
-                                                <select class="form-select" id="bulkBatchSelect" disabled>
+                                                <select class="custom-select" id="bulkBatchSelect" disabled>
                                                     <option value="">Select Course First</option>
                                                 </select>
                                             </div>
@@ -877,7 +864,7 @@
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title">
-                            <i class="fas fa-file-import me-2"></i>Import Students
+                            <i class="fas fa-file-import mr-2"></i>Import Students
                         </h5>
                         <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                             <span aria-hidden="true">&times;</span>
@@ -885,7 +872,7 @@
                     </div>
                     <div class="modal-body">
                         <div class="alert alert-info">
-                            <h6><i class="fas fa-info-circle me-2"></i>Import Instructions</h6>
+                            <h6><i class="fas fa-info-circle mr-2"></i>Import Instructions</h6>
                             <ol class="mb-0">
                                 <li>Download the sample template</li>
                                 <li>Fill in student data following the format</li>
@@ -899,7 +886,7 @@
                             <div class="row mb-3">
                                 <div class="col-md-6">
                                     <label class="form-label">Target Course *</label>
-                                    <select class="form-select" id="importCourseSelect" required>
+                                    <select class="custom-select" id="importCourseSelect" required>
                                         <option value="">Select Course</option>
                                         @foreach($courses as $course)
                                             <option value="{{ $course->id }}">{{ $course->name }}</option>
@@ -908,7 +895,7 @@
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label">Target Batch *</label>
-                                    <select class="form-select" id="importBatchSelect" disabled required>
+                                    <select class="custom-select" id="importBatchSelect" disabled required>
                                         <option value="">Select Course First</option>
                                     </select>
                                 </div>
@@ -951,7 +938,7 @@
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title text-danger">
-                            <i class="fas fa-trash me-2"></i>Confirm Deletion
+                            <i class="fas fa-trash mr-2"></i>Confirm Deletion
                         </h5>
                         <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                             <span aria-hidden="true">&times;</span>
@@ -980,7 +967,7 @@
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title text-success">
-                            <i class="fas fa-user-check me-2"></i>Reactivate Student
+                            <i class="fas fa-user-check mr-2"></i>Reactivate Student
                         </h5>
                         <button type="button" class="close" data-dismiss="modal">
                             <span aria-hidden="true">&times;</span>
@@ -1025,12 +1012,23 @@
             init() {
                 // Initialize Select2 if available
                 if ($.fn.select2) {
-                    $('.select2').select2({ width: '100%' });
+                    $('.filter-select').select2({ width: '100%' });
                 }
 
                 // Bind filter change events
-                ['courseFilter', 'batchFilter', 'statusFilter'].forEach(id => {
+                ['courseFilter', 'batchFilter'].forEach(id => {
                     $(`#${id}`).on('change', () => this.applyFilters());
+                });
+
+                $('#statusFilter').on('change', (e) => {
+                    const val = $(e.currentTarget).val();
+                    $('.quick-filter-btn').removeClass('active');
+                    if (val) {
+                        $(`.quick-filter-btn[data-filter="${val}"]`).addClass('active');
+                    } else {
+                        $('.quick-filter-btn[data-filter="all"]').addClass('active');
+                    }
+                    this.applyFilters();
                 });
 
                 // Clear filters button
@@ -1058,14 +1056,57 @@
                     const url = $(e.currentTarget).attr('href');
                     if (url) this.loadUrl(url);
                 });
+
+                // Bind Delete Student Clicks (Delegation)
+                $(document).on('click', '.delete-student-btn', (e) => {
+                    e.preventDefault();
+                    const btn = $(e.currentTarget);
+                    this.deleteStudent(btn.data('student-id'), btn.data('student-name'));
+                });
+
+                // Bind Reactivate Student Clicks (Delegation)
+                $(document).on('click', '.reactivate-student-btn', (e) => {
+                    e.preventDefault();
+                    const btn = $(e.currentTarget);
+                    this.showReactivationModal(btn.data('student-id'), btn.data('student-name'));
+                });
+
+                // Bind Confirm Reactivate Button
+                $('#confirmReactivateBtn').on('click', () => {
+                    this.executeReactivation();
+                });
+
+                // Bulk Selection Bindings
+                $('#selectAll').on('change', (e) => this.toggleAllSelection(e));
+                $(document).on('change', '.student-checkbox', () => this.updateSelectionCount());
+                $('#showBulkActionsBtn').on('click', () => this.showBulkActionsModal());
+                $('#clearSelectionBtn').on('click', () => this.clearSelection());
+
+                // Bulk Action Modal Bindings
+                $('.bulk-action-item').on('click', (e) => {
+                    $('.bulk-action-item').removeClass('active');
+                    $(e.currentTarget).addClass('active');
+                    this.handleBulkActionSelection($(e.currentTarget).data('action'));
+                });
+
+                $('#bulkCourseSelect').on('change', (e) => this.loadBatchesForBulkAction($(e.currentTarget).val()));
+                $('#executeBulkAction').on('click', () => this.executeBulkAction());
+
+                // Import Bindings
+                $('#showImportModalBtn').on('click', () => this.showImportModal());
+                $('#downloadTemplateBtn').on('click', () => this.downloadTemplate());
+                $('#importSubmitBtn').on('click', () => this.importStudents());
+                $('#importCourseSelect').on('change', (e) => this.loadBatchesForImport($(e.currentTarget).val()));
             }
 
             // Load specific URL (for pagination)
-            loadUrl(url) {
+            loadUrl(url, pushState = true) {
                 this.showLoading(true);
 
                 // Update browser history
-                window.history.pushState({}, '', url);
+                if (pushState) {
+                    window.history.pushState({}, '', url);
+                }
 
                 $.ajax({
                     url: url,
@@ -1078,7 +1119,7 @@
                 });
             }
 
-            applyFilters(pushState = true) {
+            applyFilters(pushState = true, targetPage = 1) {
                 this.showLoading(true);
 
                 const params = new URLSearchParams();
@@ -1096,17 +1137,18 @@
                 const search = $('#globalSearch').val();
                 if (search) params.append('search', search);
 
-                // Reset to page 1 when filtering
-                params.append('page', 1);
+                const quickFilter = $('.quick-filter-btn.active').data('filter');
+                if (quickFilter === 'recent' || quickFilter === 'no-contact') {
+                    params.append('quick_filter', quickFilter);
+                }
+
+                // Append target page
+                params.append('page', targetPage);
 
                 const queryString = params.toString();
                 const url = `${window.location.pathname}?${queryString}`;
 
-                if (pushState) {
-                    window.history.pushState({}, '', url);
-                }
-
-                this.loadUrl(url); // Reuse loadUrl
+                this.loadUrl(url, pushState); // Reuse loadUrl
             }
 
             // Refactored response handler
@@ -1114,7 +1156,7 @@
                 if (data.success) {
                     this.updateTable(data.html);
                     this.updateStats(data.stats);
-                    this.updateCount(data.count, data.pagination);
+                    this.updateCount(data.count, data.pagination, data.firstItem, data.lastItem);
                 }
             }
 
@@ -1133,31 +1175,166 @@
             }
 
             updateStats(stats) {
-                // Update stats cards by targeting unique labels or indexes
-                // Stat 1: Active
-                const cards = document.querySelectorAll('.stat-card');
-                if (cards.length >= 5) {
-                    // Update stats based on verified order in view
-                    // Active (0), Graduated (1), Dropout (2), Internship (3), Total (4)
-                    if (stats.active !== undefined) cards[0].querySelector('.stat-number').textContent = stats.active;
-                    if (stats.graduated !== undefined) cards[1].querySelector('.stat-number').textContent = stats.graduated;
-                    if (stats.dropout !== undefined) cards[2].querySelector('.stat-number').textContent = stats.dropout;
-                    if (stats.on_internship !== undefined) cards[3].querySelector('.stat-number').textContent = stats.on_internship;
-                    if (stats.total !== undefined) cards[4].querySelector('.stat-number').textContent = stats.total;
-                }
+                if (stats.active !== undefined) document.getElementById('stat-active').textContent = stats.active;
+                if (stats.graduated !== undefined) document.getElementById('stat-graduated').textContent = stats.graduated;
+                if (stats.dropout !== undefined) document.getElementById('stat-dropout').textContent = stats.dropout;
+                if (stats.on_internship !== undefined) document.getElementById('stat-on_internship').textContent = stats.on_internship;
+                if (stats.total !== undefined) document.getElementById('stat-total').textContent = stats.total;
             }
 
-            updateCount(count, paginationHtml) {
-                $('#visibleCount').text(document.querySelectorAll('#studentsTable tbody tr').length); // Actual visible rows
+            updateCount(count, paginationHtml, firstItem, lastItem) {
+                if (firstItem !== undefined && lastItem !== undefined) {
+                    $('#visibleCount').text(`${firstItem} to ${lastItem}`);
+                } else {
+                    $('#visibleCount').text(document.querySelectorAll('#studentsTable tbody tr').length);
+                }
                 $('#totalCount').text(count); // Total from server
-
+                
                 if (paginationHtml) {
-                    $('#paginationContainer').html(paginationHtml);
+                    $('#paginationContainer').html(paginationHtml); // Replace pagination links
                 }
 
                 $('#selectedCount').text('0'); // Reset selection
                 $('.student-checkbox').prop('checked', false);
                 $('#selectAll').prop('checked', false);
+            }
+
+            toggleAllSelection(e) {
+                const isChecked = $(e.currentTarget).prop('checked');
+                $('.student-checkbox').prop('checked', isChecked);
+                this.updateSelectionCount();
+            }
+
+            updateSelectionCount() {
+                const count = $('.student-checkbox:checked').length;
+                $('#selectedCount').text(count);
+                if (count > 0) {
+                    $('#selectionCounter').removeClass('d-none');
+                } else {
+                    $('#selectionCounter').addClass('d-none');
+                }
+            }
+
+            clearSelection() {
+                $('.student-checkbox').prop('checked', false);
+                $('#selectAll').prop('checked', false);
+                this.updateSelectionCount();
+            }
+
+            getSelectedStudentIds() {
+                return $('.student-checkbox:checked').map(function() {
+                    return $(this).val();
+                }).get();
+            }
+
+            showBulkActionsModal() {
+                const selectedIds = this.getSelectedStudentIds();
+                if (selectedIds.length === 0) {
+                    this.showToast('Please select at least one student.', 'error');
+                    return;
+                }
+                $('#bulkSelectedCount').text(selectedIds.length);
+                $('#bulkActionsModal').modal('show');
+            }
+
+            handleBulkActionSelection(action) {
+                $('.bulk-action-options').addClass('d-none');
+                if (action === 'batch') {
+                    $('#batchChangeOptions').removeClass('d-none');
+                }
+            }
+
+            loadBatchesForBulkAction(courseId) {
+                if (!courseId) {
+                    $('#bulkBatchSelect').prop('disabled', true).html('<option value="">Select Course First</option>');
+                    return;
+                }
+                
+                $.get(`/admin/get-batches-for-course/${courseId}`, (data) => {
+                    let options = '<option value="">Select Batch</option>';
+                    data.forEach(batch => {
+                        options += `<option value="${batch.id}">${batch.name}</option>`;
+                    });
+                    $('#bulkBatchSelect').prop('disabled', false).html(options);
+                }).fail(() => {
+                    this.showToast('Failed to load batches', 'error');
+                });
+            }
+            loadBatchesForImport(courseId) {
+                if (!courseId) {
+                    $('#importBatchSelect').prop('disabled', true).html('<option value="">Select Course First</option>');
+                    return;
+                }
+                
+                $.get(`/admin/get-batches-for-course/${courseId}`, (data) => {
+                    let options = '<option value="">Select Batch</option>';
+                    data.forEach(batch => {
+                        options += `<option value="${batch.id}">${batch.name}</option>`;
+                    });
+                    $('#importBatchSelect').prop('disabled', false).html(options);
+                }).fail(() => {
+                    this.showToast('Failed to load batches', 'error');
+                });
+            }
+
+            executeBulkAction() {
+                const selectedActionItem = $('.bulk-action-item.active');
+                if (selectedActionItem.length === 0) {
+                    this.showToast('Please select a bulk action.', 'error');
+                    return;
+                }
+                
+                let action = selectedActionItem.data('action');
+                let value = selectedActionItem.data('value');
+                
+                if (action === 'batch') {
+                    action = 'assign_batch';
+                    value = $('#bulkBatchSelect').val();
+                    if (!value) {
+                        this.showToast('Please select a target batch.', 'error');
+                        return;
+                    }
+                } else if (action === 'status') {
+                    action = 'change_status';
+                }
+
+                const selectedIds = this.getSelectedStudentIds();
+                if (selectedIds.length === 0) return;
+
+                if (selectedActionItem.data('action') === 'export') {
+                    const params = new URLSearchParams(window.location.search);
+                    selectedIds.forEach(id => params.append('student_ids[]', id));
+                    window.location.href = `/admin/students/export?${params.toString()}`;
+                    $('#bulkActionsModal').modal('hide');
+                    this.clearSelection();
+                    return;
+                }
+                
+                const btn = $('#executeBulkAction');
+                const originalHtml = btn.html();
+                btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Processing...');
+                
+                $.post('/admin/students/bulk-actions', {
+                    _token: $('meta[name="csrf-token"]').attr('content'),
+                    action: action,
+                    value: value,
+                    batch_id: action === 'assign_batch' ? value : null,
+                    status: action === 'change_status' ? value : null,
+                    student_ids: selectedIds
+                }, (res) => {
+                    if (res.success) {
+                        this.showToast(res.message || 'Bulk action completed successfully.', 'success');
+                        $('#bulkActionsModal').modal('hide');
+                        this.clearSelection();
+                        this.refreshData();
+                    } else {
+                        this.showToast(res.message || 'Bulk action failed.', 'error');
+                    }
+                }).fail((xhr) => {
+                    this.showToast(xhr.responseJSON?.message || 'Error executing bulk action.', 'error');
+                }).always(() => {
+                    btn.prop('disabled', false).html(originalHtml);
+                });
             }
 
             clearFilters() {
@@ -1169,19 +1346,45 @@
             }
 
             applyQuickFilter(filterType) {
-                if (filterType === 'active' || filterType === 'graduated') {
-                    $('#statusFilter').val(filterType).trigger('change');
+                $('.quick-filter-btn').removeClass('active');
+                $(`.quick-filter-btn[data-filter="${filterType}"]`).addClass('active');
+
+                if (filterType === 'all') {
+                    $('#statusFilter').val('');
+                } else if (filterType === 'active' || filterType === 'graduated' || filterType === 'dropout') {
+                    $('#statusFilter').val(filterType);
+                } else {
+                    $('#statusFilter').val('');
                 }
+                
+                this.applyFilters();
             }
 
             loadFiltersFromUrl() {
                 const params = new URLSearchParams(window.location.search);
-                if (params.has('course_id')) $('#courseFilter').val(params.get('course_id')).trigger('change.select2');
-                if (params.has('batch_id')) $('#batchFilter').val(params.get('batch_id')).trigger('change.select2');
-                if (params.has('status')) $('#statusFilter').val(params.get('status')).trigger('change');
+                if (params.has('course_id')) $('#courseFilter').val(params.get('course_id')).trigger('change');
+                if (params.has('batch_id')) $('#batchFilter').val(params.get('batch_id')).trigger('change');
+                
+                $('.quick-filter-btn').removeClass('active');
+                if (params.has('quick_filter')) {
+                    $(`.quick-filter-btn[data-filter="${params.get('quick_filter')}"]`).addClass('active');
+                    $('#statusFilter').val('');
+                } else if (params.has('status')) {
+                    $(`.quick-filter-btn[data-filter="${params.get('status')}"]`).addClass('active');
+                    $('#statusFilter').val(params.get('status'));
+                } else {
+                    $(`.quick-filter-btn[data-filter="all"]`).addClass('active');
+                    $('#statusFilter').val('');
+                }
+
                 if (params.has('search')) $('#globalSearch').val(params.get('search'));
 
-                this.applyFilters(false);
+                let targetPage = 1;
+                if (params.has('page')) {
+                    targetPage = parseInt(params.get('page')) || 1;
+                }
+
+                this.applyFilters(false, targetPage);
             }
 
             showLoading(show) {
@@ -1202,7 +1405,7 @@
                 const alertClass = type === 'error' ? 'danger' : type;
                 toast.className = `alert alert-${alertClass} alert-dismissible fade show position-fixed toast-notification`;
                 toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px; max-width: 500px;';
-                toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'info-circle'} me-2"></i>${message}`;
+                toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'info-circle'} mr-2"></i>${message}`;
                 document.body.appendChild(toast);
                 setTimeout(() => toast.remove(), 5000);
             }

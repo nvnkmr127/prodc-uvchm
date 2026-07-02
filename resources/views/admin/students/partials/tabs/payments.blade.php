@@ -161,13 +161,17 @@
 
 
                                                                     {{-- Manual Webhook Trigger --}}
-                                                                    <form action="{{ route('admin.payments.webhook', $payment->id) }}" method="POST" class="d-inline"
-                                                                        onsubmit="return confirm('Are you sure you want to resend the webhook for this payment?');">
-                                                                        @csrf
-                                                                        <button type="submit" class="btn btn-outline-dark btn-sm" title="Send Payment Webhook">
-                                                                            <i class="fas fa-satellite-dish"></i>
-                                                                        </button>
-                                                                    </form>
+                                                                    @if(Route::has('admin.payments.webhook'))
+                                                                        @can('edit payments')
+                                                                            <form action="{{ route('admin.payments.webhook', $payment->id) }}" method="POST" class="d-inline"
+                                                                                onsubmit="return confirm('Are you sure you want to resend the webhook for this payment?');">
+                                                                                @csrf
+                                                                                <button type="submit" class="btn btn-outline-dark btn-sm" title="Send Payment Webhook">
+                                                                                    <i class="fas fa-satellite-dish"></i>
+                                                                                </button>
+                                                                            </form>
+                                                                        @endcan
+                                                                    @endif
                                                                 </div>
                                                             </td>
                                                         </tr>
@@ -194,7 +198,7 @@
                                                             <div class="col-md-3 text-center">
                                                                 <h6 class="text-muted">Last Payment</h6>
                                                                 <h4 class="text-info">
-                                                                    {{ $paymentHistory->first() ? $paymentHistory->first()->payment_date->format('d M Y') : 'Never' }}
+                                                                    {{ $paymentHistory->first() && $paymentHistory->first()->payment_date ? $paymentHistory->first()->payment_date->format('d M Y') : 'Never' }}
                                                                 </h4>
                                                             </div>
                                                             <div class="col-md-3 text-center">

@@ -69,6 +69,7 @@ class StudentController extends Controller
         // Start with a query builder - Respect global scopes as requested
         $query = Student::query()->with('batch.course');
 
+        $selectedAcademicYearId = null;
         // 1. apply academic year filter (Global context)
         if ($request->filled('academic_year_id') || ! $request->has('show_all')) {
             if (\Schema::hasTable('academic_years') && \Schema::hasColumn('batches', 'academic_year_id')) {
@@ -115,7 +116,7 @@ class StudentController extends Controller
         // 3. Capture Query for Stats (Before applying status filter)
         // OPTIMIZED: Use single query with conditional aggregation instead of 5 separate count queries
         $statsData = (clone $query)
-            ->join('batches', 'students.batch_id', '=', 'batches.id')
+            ->leftJoin('batches', 'students.batch_id', '=', 'batches.id')
             ->selectRaw('
                 count(*) as total,
                 count(case when students.status = "active" then 1 end) as active,
@@ -133,11 +134,23 @@ class StudentController extends Controller
             'on_internship' => $statsData->on_internship ?? 0,
         ];
 
-        // 4. Apply Status Filter to main query (Default to active, unless searching)
-        if (! $request->has('status') && ! $request->has('show_all') && ! $request->filled('search')) {
-            $query->where('status', 'active');
-        } elseif ($request->filled('status')) {
+        // 4. Apply Status Filter to main query
+        if ($request->filled('status')) {
             $query->where('status', $request->status);
+        }
+
+        // 5. Apply Custom Quick Filters
+        if ($request->filled('quick_filter')) {
+            if ($request->quick_filter === 'recent') {
+                $query->where('students.created_at', '>=', now()->subDays(30));
+            } elseif ($request->quick_filter === 'no-contact') {
+                $query->where(function($q) {
+                    $q->whereNull('students.student_mobile')
+                      ->orWhere('students.student_mobile', '')
+                      ->orWhereNull('students.email')
+                      ->orWhere('students.email', '');
+                });
+            }
         }
 
         // 5. Fetch Students - OPTIMIZED: Use pagination instead of get()
@@ -148,9 +161,11 @@ class StudentController extends Controller
             return response()->json([
                 'success' => true,
                 'html' => view('admin.students._table_body', compact('students'))->render(),
-                'pagination' => (string) $students->links('pagination::bootstrap-5'), // Use Bootstrap 5 pagination
+                'pagination' => (string) $students->links('pagination::bootstrap-4'), // Use Bootstrap 4 pagination
                 'stats' => $stats,
                 'count' => $students->total(), // Use total() for paginated result
+                'firstItem' => $students->firstItem() ?? 0,
+                'lastItem' => $students->lastItem() ?? 0,
             ]);
         }
 
@@ -159,8 +174,13 @@ class StudentController extends Controller
             return Course::select('id', 'name')->orderBy('name')->get();
         });
         
-        $batches = \Illuminate\Support\Facades\Cache::remember('filter_dropdown_batches', now()->addDay(), function () {
-            return Batch::with('course:id,name')->orderBy('name')->get();
+        $cacheKey = 'filter_dropdown_batches_' . ($selectedAcademicYearId ?? 'all');
+        $batches = \Illuminate\Support\Facades\Cache::remember($cacheKey, now()->addDay(), function () use ($selectedAcademicYearId) {
+            $query = Batch::with('course:id,name')->orderBy('name');
+            if ($selectedAcademicYearId && \Schema::hasColumn('batches', 'academic_year_id')) {
+                $query->where('academic_year_id', $selectedAcademicYearId);
+            }
+            return $query->get();
         });
 
         return view('admin.students.index', compact('students', 'courses', 'batches', 'stats'));
@@ -187,7 +207,7 @@ class StudentController extends Controller
 
         if ($request->action === 'change_status') {
             $request->validate([
-                'status' => 'required|in:active,inactive,graduated,dropout',
+                'status' => 'required|in:active,graduated,dropout',
             ]);
         }
 
@@ -1747,12 +1767,25 @@ class StudentController extends Controller
      */
     public function getBatchesForCourse(Course $course)
     {
-        $batches = $course->batches()
+        $query = $course->batches()
             ->with('course')
             ->withCount('feeStructure')
             ->select('id', 'name', 'course_id', 'start_date', 'end_date')
-            ->orderBy('name')
-            ->get()
+            ->orderBy('name');
+
+        if (\Schema::hasTable('academic_years') && \Schema::hasColumn('batches', 'academic_year_id')) {
+            try {
+                $selectedYearId = app(\App\Services\AcademicYearService::class)->getActiveAcademicYearId();
+            } catch (\App\Exceptions\MissingAcademicYearException $e) {
+                $selectedYearId = null;
+            }
+            $selectedAcademicYearId = session('selected_academic_year_id', $selectedYearId);
+            if ($selectedAcademicYearId) {
+                $query->where('academic_year_id', $selectedAcademicYearId);
+            }
+        }
+
+        $batches = $query->get()
             ->map(function ($batch) {
                 return [
                     'id' => $batch->id,
@@ -1978,6 +2011,10 @@ class StudentController extends Controller
     public function export(Request $request)
     {
         $query = Student::with('batch.course');
+
+        if ($request->filled('student_ids') && is_array($request->student_ids)) {
+            $query->whereIn('id', $request->student_ids);
+        }
 
         if ($request->filled('course_id')) {
             $query->whereHas('batch', function ($q) use ($request) {
