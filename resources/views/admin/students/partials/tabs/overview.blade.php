@@ -67,7 +67,6 @@
                                                         </table>
                                                     </div>
                                                 </div>
-                                                </div>
                                             </div>
 
                                             {{-- Overall Attendance Card --}}
