@@ -46,6 +46,10 @@
                 <div>Half Day</div>
                 <div style="font-size: 24px;">{{ $attendanceData['half_day_count'] ?? 0 }}</div>
             </div>
+            <div class="stat-box bg-light" style="color: #858796;">
+                <div>Excused</div>
+                <div style="font-size: 24px;">{{ $attendanceData['excused_count'] ?? 0 }}</div>
+            </div>
             <div class="stat-box bg-light text-danger">
                 <div>Absent</div>
                 <div style="font-size: 24px;">{{ $attendanceData['absent_count'] }}</div>

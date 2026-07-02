@@ -122,9 +122,20 @@ class FacultyAttendanceService
                 if (!$existingCheckIn) {
                     $treatAsIn = true;
                 } else {
-                    // It has a check-in. If this punch is much later, it's an OUT punch.
+                    // It has a check-in. To prevent duplicate morning punches from becoming checkouts,
+                    // we require the punch to be either past the shift's midpoint or at least 60 minutes later.
+                    $shiftStart = Carbon::parse($attendanceDate . ' ' . $collegeStartTime);
+                    $shiftEnd = Carbon::parse($attendanceDate . ' ' . $collegeEndTime);
+                    $midpoint = $shiftStart->copy()->addMinutes($shiftStart->diffInMinutes($shiftEnd) / 2);
+                    
+                    $minutesSinceCheckIn = $punchDateTime->diffInMinutes($existingCheckIn, true);
+                    
                     if ($punchDateTime->gt($existingCheckIn)) {
-                        $treatAsOut = true;
+                        if ($punchDateTime->gte($midpoint) || $minutesSinceCheckIn > 60) {
+                            $treatAsOut = true;
+                        } else {
+                            $treatAsIn = true; // Treat as IN (which will be ignored since it's later than existing check-in)
+                        }
                     } else {
                         $treatAsIn = true; // Earlier punch, so update check-in
                     }
@@ -147,12 +158,31 @@ class FacultyAttendanceService
                         $newNotes = $newNotes ? $newNotes . ' | Check-in updated' : 'Check-in recorded';
                     }
 
-                    $attendance->update([
+                    $updateData = [
                         'check_in_time' => $punchTime,
                         'status' => $statusData['status'],
                         'late_minutes' => $lateMinutes > 0 ? $lateMinutes : null,
                         'notes' => $newNotes,
-                    ]);
+                    ];
+                    
+                    if ($existingCheckOut) {
+                        if ($punchDateTime->lt($existingCheckOut)) {
+                            $workingHours = round($punchDateTime->diffInMinutes($existingCheckOut, true) / 60, 2);
+                            $updateData['working_hours'] = $workingHours;
+                            
+                            if ($workingHours < $halfDayThreshold) {
+                                $updateData['status'] = 'half_day';
+                            } elseif ($updateData['status'] === 'half_day' && $workingHours >= $expectedHours) {
+                                $updateData['status'] = 'late';
+                            }
+                        } else {
+                            // Invalid range (IN after OUT) - clear the invalid checkout
+                            $updateData['check_out_time'] = null;
+                            $updateData['working_hours'] = null;
+                        }
+                    }
+
+                    $attendance->update($updateData);
                 }
             }
             
@@ -176,6 +206,11 @@ class FacultyAttendanceService
                             $finalStatus = 'half_day';
                         } else {
                             $finalStatus = $originalCheckInStatus['status'];
+                            
+                            // Upgrade half_day to late if they worked full expected hours
+                            if ($finalStatus === 'half_day' && $workingHours >= $expectedHours) {
+                                $finalStatus = 'late';
+                            }
                         }
                     }
                 }

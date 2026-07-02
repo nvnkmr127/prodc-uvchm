@@ -27,14 +27,14 @@ class BiometricWebhookController extends Controller
                 'Empcode' => 'required|string',
                 'PunchDate' => 'required|string',
                 'LogDateTime' => 'nullable|string',
-                'Direction' => 'nullable|string|in:IN,OUT',
+                'Direction' => 'nullable|string',
                 'DeviceId' => 'nullable|string',
             ]);
 
             // Extract employee code and datetime
             $biometricCode = $validated['Empcode'];
             $punchDateTime = $validated['LogDateTime'] ?? $validated['PunchDate'];
-            $direction = $validated['Direction'] ?? 'IN';
+            $direction = $validated['Direction'] ?? 'AUTO';
             $deviceId = $validated['DeviceId'] ?? 'etimeoffice-device';
 
             // Parse datetime

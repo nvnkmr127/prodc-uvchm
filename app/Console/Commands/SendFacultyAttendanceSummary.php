@@ -64,6 +64,7 @@ class SendFacultyAttendanceSummary extends Command
             'late_count' => 0,
             'half_day_count' => 0,
             'absent_count' => 0,
+            'excused_count' => 0,
             'records' => [],
         ];
 
@@ -98,6 +99,8 @@ class SendFacultyAttendanceSummary extends Command
                 $attendanceData['late_count']++;
             } elseif ($status === 'half_day') {
                 $attendanceData['half_day_count']++;
+            } elseif ($status === 'excused') {
+                $attendanceData['excused_count']++;
             } else {
                 $attendanceData['absent_count']++;
             }

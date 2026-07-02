@@ -67,6 +67,41 @@
                                                         </table>
                                                     </div>
                                                 </div>
+                                                </div>
+                                            </div>
+
+                                            {{-- Overall Attendance Card --}}
+                                            <div class="card shadow-sm mb-4 border-left-success">
+                                                <div class="card-header bg-white py-3">
+                                                    <h6 class="m-0 font-weight-bold text-success">
+                                                        <i class="fas fa-calendar-check mr-2"></i> Overall Attendance
+                                                    </h6>
+                                                </div>
+                                                <div class="card-body">
+                                                    <div class="row text-center mb-3">
+                                                        <div class="col-4 border-right">
+                                                            <div class="text-xs font-weight-bold text-uppercase text-muted mb-1">Working Days</div>
+                                                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ $totalWorkingDays ?? 0 }}</div>
+                                                        </div>
+                                                        <div class="col-4 border-right">
+                                                            <div class="text-xs font-weight-bold text-uppercase text-success mb-1">Present</div>
+                                                            <div class="h5 mb-0 font-weight-bold text-success">{{ $presentDays ?? 0 }}</div>
+                                                        </div>
+                                                        <div class="col-4">
+                                                            <div class="text-xs font-weight-bold text-uppercase text-danger mb-1">Absent</div>
+                                                            <div class="h5 mb-0 font-weight-bold text-danger">{{ $absentDays ?? 0 }}</div>
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <div class="d-flex justify-content-between mb-1">
+                                                            <span class="text-xs font-weight-bold">Attendance Percentage</span>
+                                                            <span class="text-xs font-weight-bold text-{{ ($attendancePercentage ?? 0) >= 75 ? 'success' : 'danger' }}">{{ $attendancePercentage ?? 0 }}%</span>
+                                                        </div>
+                                                        <div class="progress progress-sm">
+                                                            <div class="progress-bar bg-{{ ($attendancePercentage ?? 0) >= 75 ? 'success' : 'danger' }}" role="progressbar" style="width: {{ $attendancePercentage ?? 0 }}%" aria-valuenow="{{ $attendancePercentage ?? 0 }}" aria-valuemin="0" aria-valuemax="100"></div>
+                                                        </div>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
 

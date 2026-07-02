@@ -108,11 +108,8 @@ class FacultyAttendance extends Model
             return 0.5;
         }
 
-        // If they checked out but worked less than 4 hours
-        if ($this->working_hours !== null && $this->working_hours < 4.0) {
-            return 0.5;
-        }
-
+        // The Service handles assigning half_day status based on dynamic shift length,
+        // so we don't need a hard-coded 4.0 hours check here anymore.
         return 1.0;
     }
 

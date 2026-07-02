@@ -37,6 +37,7 @@
                     <th>Late</th>
                     <th>Half Day</th>
                     <th>Absent</th>
+                    <th>Excused</th>
                     <th>Tracked Hrs</th>
                     <th>Actual Hrs</th>
                 </tr>
@@ -51,6 +52,7 @@
                     <td class="text-warning">{{ $record['late_count'] }}</td>
                     <td class="text-info">{{ $record['half_day_count'] }}</td>
                     <td class="text-danger">{{ $record['absent_count'] }}</td>
+                    <td style="color: #858796; font-weight: bold;">{{ $record['excused_count'] ?? 0 }}</td>
                     <td><strong>{{ $record['tracked_hours'] }}</strong></td>
                     <td><strong>{{ $record['actual_hours'] }}</strong></td>
                 </tr>

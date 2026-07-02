@@ -287,7 +287,9 @@ class FacultyAttendanceReportController extends Controller
                 }
             } else {
                 // No manual record, check for holiday/future/ignore
-                $shouldIgnore = $current->lt($profileStartDate) || is_null($firstBiometricUse);
+                $shouldIgnore = $current->lt($profileStartDate) || 
+                                is_null($firstBiometricUse) || 
+                                $current->lt(Carbon::parse($firstBiometricUse));
 
                 if ($isFuture || $shouldIgnore) {
                     $status = 'none';
@@ -302,7 +304,8 @@ class FacultyAttendanceReportController extends Controller
             $current->addDay();
         }
 
-        $totalCalculatedDays = $presentCount + $lateCount + $halfDayCount + $absentCount + $excusedCount;
+        // Exclude excused days from the denominator so they don't penalize the percentage
+        $totalCalculatedDays = $presentCount + $lateCount + $halfDayCount + $absentCount;
         $percentage = $totalCalculatedDays > 0 ? round((($presentCount + $lateCount + ($halfDayCount * 0.5)) / $totalCalculatedDays) * 100, 1) : 0;
 
         return [

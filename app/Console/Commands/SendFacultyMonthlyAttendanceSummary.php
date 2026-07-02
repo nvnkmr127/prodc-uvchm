@@ -69,6 +69,7 @@ class SendFacultyMonthlyAttendanceSummary extends Command
             $lateCount = 0;
             $halfDayCount = 0;
             $absentCount = 0;
+            $excusedCount = 0;
             $trackedHours = 0;
             $actualHours = 0;
             $totalDaysTracked = 0;
@@ -100,6 +101,9 @@ class SendFacultyMonthlyAttendanceSummary extends Command
                             $halfDayCount++;
                         } elseif ($status === 'absent') {
                             $absentCount++;
+                        } elseif ($status === 'excused') {
+                            $excusedCount++;
+                            $totalDaysTracked--; // Don't count excused days as required working days
                         } else {
                             $absentCount++; // Default any weird status to absent
                         }
@@ -131,6 +135,7 @@ class SendFacultyMonthlyAttendanceSummary extends Command
                 'late_count' => $lateCount,
                 'half_day_count' => $halfDayCount,
                 'absent_count' => $absentCount,
+                'excused_count' => $excusedCount,
                 'total_days_tracked' => $totalDaysTracked,
                 'tracked_hours' => round($trackedHours, 2),
                 'actual_hours' => round($actualHours, 2),
