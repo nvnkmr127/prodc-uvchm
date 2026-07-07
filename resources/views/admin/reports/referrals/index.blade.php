@@ -125,13 +125,39 @@
                 <h1 class="h3 mb-1 text-gray-800 font-weight-bold">Referral & Source Tracking</h1>
                 <p class="text-muted small mb-0">Analysis by Source and Referral (All Academic Years)</p>
             </div>
+            <div>
+                <button type="button" onclick="downloadExcel()" class="btn btn-success shadow-sm">
+                    <i class="fas fa-file-excel fa-sm text-white-50 mr-1"></i> Export to Excel
+                </button>
+            </div>
         </div>
 
         {{-- Filter Card --}}
         <div class="card shadow-sm border-0 mb-4" style="border-radius: 1rem;">
             <div class="card-body py-3">
                 <form id="filterForm">
+                    <!-- Quick Date Presets -->
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <span class="small font-weight-bold text-gray-600 mr-2">Quick Dates:</span>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button" class="btn btn-outline-primary date-preset" data-range="this_month">This Month</button>
+                                <button type="button" class="btn btn-outline-primary date-preset" data-range="last_month">Last Month</button>
+                                <button type="button" class="btn btn-outline-primary date-preset" data-range="this_year">This Year</button>
+                                <button type="button" class="btn btn-outline-primary date-preset" data-range="all_time">All Time</button>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div class="row align-items-end">
+                        <div class="col-md-2 mb-3">
+                            <label class="small font-weight-bold text-gray-600">Start Date</label>
+                            <input type="date" name="start_date" id="start_date" class="form-control bg-light border-0">
+                        </div>
+                        <div class="col-md-2 mb-3">
+                            <label class="small font-weight-bold text-gray-600">End Date</label>
+                            <input type="date" name="end_date" id="end_date" class="form-control bg-light border-0">
+                        </div>
                         <div class="col-md-2 mb-3">
                             <label class="small font-weight-bold text-gray-600">Academic Year</label>
                             <select name="academic_year_id" id="academic_year_id" class="form-control bg-light border-0">
@@ -140,14 +166,6 @@
                                     <option value="{{ $year->id }}">{{ $year->name }}</option>
                                 @endforeach
                             </select>
-                        </div>
-                        <div class="col-md-2 mb-3">
-                            <label class="small font-weight-bold text-gray-600">Start Date</label>
-                            <input type="date" name="start_date" id="start_date" class="form-control bg-light border-0">
-                        </div>
-                        <div class="col-md-2 mb-3">
-                            <label class="small font-weight-bold text-gray-600">End Date</label>
-                            <input type="date" name="end_date" id="end_date" class="form-control bg-light border-0">
                         </div>
                         <div class="col-md-2 mb-3">
                             <label class="small font-weight-bold text-gray-600">Course</label>
@@ -162,7 +180,6 @@
                             <label class="small font-weight-bold text-gray-600">Batch</label>
                             <select name="batch_id" id="batch_id" class="form-control bg-light border-0" disabled>
                                 <option value="">All Batches</option>
-                                {{-- Options populated by JS --}}
                             </select>
                         </div>
                         <div class="col-md-2 mb-3">
@@ -175,7 +192,7 @@
                             </select>
                         </div>
                         <div class="col-md-2 mb-3">
-                            <label class="small font-weight-bold text-gray-600">Status</label>
+                            <label class="small font-weight-bold text-gray-600">Student Status</label>
                             <select name="status" id="status" class="form-control bg-light border-0">
                                 <option value="">All Statuses</option>
                                 @foreach($statuses as $status)
@@ -183,13 +200,23 @@
                                 @endforeach
                             </select>
                         </div>
-                        <div class="col-md-9">
+                        <div class="col-md-2 mb-3">
+                            <label class="small font-weight-bold text-gray-600">Commission Status</label>
+                            <select name="commission_status" id="commission_status" class="form-control bg-light border-0">
+                                <option value="">All</option>
+                                <option value="paid">Paid</option>
+                                <option value="unpaid">Unpaid</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="small font-weight-bold text-gray-600">Search</label>
                             <input type="text" name="search" id="search" class="form-control bg-light border-0"
                                 placeholder="Type to search by Student Name, Referral, Source, or Enrollment No...">
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-2 mb-3">
+                            <label class="small font-weight-bold text-gray-600 d-block">&nbsp;</label>
                             <button type="button" class="btn btn-secondary w-100" id="resetBtn">
-                                <i class="fas fa-undo mr-1"></i> Reset Filters
+                                <i class="fas fa-undo mr-1"></i> Reset
                             </button>
                         </div>
                     </div>
@@ -211,6 +238,34 @@
                     <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Total Students</div>
                     <div class="h3 mb-0 font-weight-bold text-gray-800" id="totalStudents">-</div>
                     <div class="mt-2 small text-muted">All Students in Filter</div>
+                </div>
+            </div>
+        </div>
+
+        {{-- Charts Row --}}
+        <div class="row mb-4">
+            <div class="col-lg-6 mb-4 mb-lg-0">
+                <div class="card shadow-sm border-0 h-100" style="border-radius: 1rem;">
+                    <div class="card-header bg-white py-3">
+                        <h6 class="m-0 font-weight-bold text-primary">Admissions by Source</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-area" style="height: 300px; position: relative;">
+                            <canvas id="sourcePieChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card shadow-sm border-0 h-100" style="border-radius: 1rem;">
+                    <div class="card-header bg-white py-3">
+                        <h6 class="m-0 font-weight-bold text-primary">Top Referrers</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-bar" style="height: 300px; position: relative;">
+                            <canvas id="referralBarChart"></canvas>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -279,15 +334,26 @@
             </div>
             <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
                 <h6 class="m-0 font-weight-bold text-gray-800">Detailed Student List (With Financials)</h6>
-                <button class="btn btn-sm btn-success shadow-sm" onclick="downloadExcel()">
-                    <i class="fas fa-file-excel fa-sm"></i> Download Excel
-                </button>
+                <div>
+                    <button class="btn btn-sm btn-primary shadow-sm mr-2" id="bulkPayBtn" style="display: none;" onclick="openBulkPaymentModal()">
+                        <i class="fas fa-money-bill-wave fa-sm"></i> Bulk Pay Selected (<span id="bulkPayCount">0</span>)
+                    </button>
+                    <button class="btn btn-sm btn-success shadow-sm" onclick="downloadExcel()">
+                        <i class="fas fa-file-excel fa-sm"></i> Download Excel
+                    </button>
+                </div>
             </div>
             <div class="card-body p-0">
                 <div class="table-scrollable">
-                    <table class="table table-custom m-0">
+                    <table class="table table-custom m-0" id="detailedTable">
                         <thead>
                             <tr>
+                                <th style="width: 40px;" class="text-center">
+                                    <div class="custom-control custom-checkbox">
+                                        <input type="checkbox" class="custom-control-input" id="selectAllCheckbox">
+                                        <label class="custom-control-label" for="selectAllCheckbox"></label>
+                                    </div>
+                                </th>
                                 <th>Adm Date</th>
                                 <th>Student Name</th>
                                 <th>Course / Batch</th>
@@ -334,12 +400,61 @@
         </div>
     </div>
     @include('admin.reports.referrals.partials.payment_modal')
+
+    <!-- Bulk Payment Modal -->
+    <div class="modal fade" id="bulkPaymentModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 1rem;">
+                <div class="modal-header bg-primary text-white" style="border-radius: 1rem 1rem 0 0;">
+                    <h5 class="modal-title font-weight-bold"><i class="fas fa-money-bill-wave mr-2"></i>Bulk Commission Payout</h5>
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <form id="bulkPaymentForm">
+                    @csrf
+                    <div class="modal-body p-4">
+                        <div class="alert alert-info">
+                            You are about to mark <strong id="bulkSelectedCount">0</strong> students as having their referral commission paid.
+                        </div>
+                        <div class="form-group mb-4">
+                            <label class="font-weight-bold text-gray-800">Payment Mode (for all selected) <span class="text-danger">*</span></label>
+                            <select name="payment_mode" class="form-control" required>
+                                <option value="">Select Mode...</option>
+                                <option value="Cash">Cash</option>
+                                <option value="UPI">UPI (Google Pay / PhonePe)</option>
+                                <option value="Bank Transfer">Bank Transfer (NEFT/IMPS)</option>
+                                <option value="Adjusted in Fees">Adjusted in Fees</option>
+                                <option value="Other">Other / Gift</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="font-weight-bold text-gray-800">Notes / Reference (Optional)</label>
+                            <textarea name="notes" class="form-control" rows="2" placeholder="Transaction IDs or general notes..."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-light" style="border-radius: 0 0 1rem 1rem;">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary px-4" id="submitBulkPaymentBtn">
+                            Confirm Bulk Payout
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 @endsection
 
 @push('scripts')
+    <!-- Include Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <script>
         // Batches Data passed from controller
         const batchesByCourse = @json($batches);
+        
+        let sourcePieChart = null;
+        let referralBarChart = null;
 
         $(document).ready(function () {
             // Initial Fetch
@@ -350,6 +465,38 @@
                 if (this.id === 'course_id' || this.id === 'academic_year_id') {
                     updateBatchDropdown($('#course_id').val(), $('#academic_year_id').val());
                 }
+                fetchReportData();
+            });
+
+            // Date Preset Buttons
+            $('.date-preset').click(function() {
+                const range = $(this).data('range');
+                const today = new Date();
+                let start = '';
+                let end = '';
+
+                if (range === 'this_month') {
+                    start = new Date(today.getFullYear(), today.getMonth(), 1);
+                    end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                } else if (range === 'last_month') {
+                    start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                    end = new Date(today.getFullYear(), today.getMonth(), 0);
+                } else if (range === 'this_year') {
+                    start = new Date(today.getFullYear(), 0, 1);
+                    end = new Date(today.getFullYear(), 11, 31);
+                }
+
+                if (start && end) {
+                    // Format as YYYY-MM-DD
+                    const startStr = start.toISOString().split('T')[0];
+                    const endStr = end.toISOString().split('T')[0];
+                    $('#start_date').val(startStr);
+                    $('#end_date').val(endStr);
+                } else {
+                    $('#start_date').val('');
+                    $('#end_date').val('');
+                }
+                
                 fetchReportData();
             });
 
@@ -410,6 +557,7 @@
                     updateReferralTable(response.referral_stats);
                     updateDetailedTable(response.students);
                     updatePayoutTable(response.students);
+                    updateCharts(response.source_stats, response.referral_stats);
                 },
                 error: function (xhr) {
                     console.error("Error fetching data:", xhr);
@@ -419,6 +567,72 @@
                     $('.loading-overlay').hide();
                 }
             });
+        }
+        
+        function updateCharts(sourceStats, referralStats) {
+            // Update Pie Chart
+            const sourceLabels = sourceStats.map(s => s.source);
+            const sourceData = sourceStats.map(s => s.total_admissions);
+            const sourceColors = ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b', '#858796', '#5a5c69'];
+            
+            if (sourcePieChart) {
+                sourcePieChart.destroy();
+            }
+            const ctxPie = document.getElementById('sourcePieChart');
+            if (ctxPie) {
+                sourcePieChart = new Chart(ctxPie, {
+                    type: 'pie',
+                    data: {
+                        labels: sourceLabels,
+                        datasets: [{
+                            data: sourceData,
+                            backgroundColor: sourceColors.slice(0, sourceLabels.length),
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'right'
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Update Bar Chart (Top 10 Referrers)
+            const topReferrals = referralStats.slice(0, 10);
+            const refLabels = topReferrals.map(r => r.referral_name);
+            const refData = topReferrals.map(r => r.total_admissions);
+            
+            if (referralBarChart) {
+                referralBarChart.destroy();
+            }
+            const ctxBar = document.getElementById('referralBarChart');
+            if (ctxBar) {
+                referralBarChart = new Chart(ctxBar, {
+                    type: 'bar',
+                    data: {
+                        labels: refLabels,
+                        datasets: [{
+                            label: 'Admissions',
+                            data: refData,
+                            backgroundColor: '#4e73df',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: { stepSize: 1 }
+                            }
+                        }
+                    }
+                });
+            }
         }
 
         function updateStats(data) {
@@ -525,9 +739,13 @@
         function updateDetailedTable(students) {
             const tbody = $('#detailedTableBody');
             tbody.empty();
+            
+            // Reset bulk pay state
+            $('#selectAllCheckbox').prop('checked', false);
+            updateBulkPayButton();
 
             if (students.length === 0) {
-                tbody.append('<tr><td colspan="6" class="text-center text-muted py-5">No records found matching criteria</td></tr>');
+                tbody.append('<tr><td colspan="9" class="text-center text-muted py-5">No records found matching criteria</td></tr>');
                 return;
             }
 
@@ -537,11 +755,24 @@
                 if (std.status === 'Dropout') statusClass = 'badge-danger';
                 if (std.status === 'Graduated') statusClass = 'badge-info';
 
+                let checkboxHtml = '';
+                if (std.referral_name !== '-' && std.is_eligible && !std.is_commission_paid) {
+                    checkboxHtml = `
+                        <div class="custom-control custom-checkbox">
+                            <input type="checkbox" class="custom-control-input student-checkbox" id="chk_${std.student_id}" value="${std.student_id}">
+                            <label class="custom-control-label" for="chk_${std.student_id}"></label>
+                        </div>
+                    `;
+                }
+
                 tbody.append(`
                                                                                 <tr>
+                                                                                    <td class="text-center">${checkboxHtml}</td>
                                                                                     <td class="small text-muted">${std.admission_date}</td>
                                                                                     <td>
-                                                                                        <div class="font-weight-bold text-gray-800">${std.student_name}</div>
+                                                                                        <a href="/admin/students/${std.student_id}" target="_blank" class="font-weight-bold text-primary text-decoration-none" title="View Student Profile">
+                                                                                            ${std.student_name} <i class="fas fa-external-link-alt small ml-1 text-muted"></i>
+                                                                                        </a>
                                                                                     </td>
                                                                                     <td>
                                                                                         <div class="small font-weight-bold">${std.course_name}</div>
@@ -573,6 +804,37 @@
                                                                                 </tr>
                                                                             `);
             });
+            
+            // Re-bind checkbox events
+            bindCheckboxEvents();
+        }
+        
+        function bindCheckboxEvents() {
+            // Select All Checkbox
+            $('#selectAllCheckbox').off('change').on('change', function() {
+                $('.student-checkbox').prop('checked', $(this).prop('checked'));
+                updateBulkPayButton();
+            });
+
+            // Individual Checkboxes
+            $('.student-checkbox').off('change').on('change', function() {
+                const totalCheckboxes = $('.student-checkbox').length;
+                const checkedCheckboxes = $('.student-checkbox:checked').length;
+                
+                $('#selectAllCheckbox').prop('checked', totalCheckboxes > 0 && totalCheckboxes === checkedCheckboxes);
+                updateBulkPayButton();
+            });
+        }
+        
+        function updateBulkPayButton() {
+            const checkedCount = $('.student-checkbox:checked').length;
+            $('#bulkPayCount').text(checkedCount);
+            
+            if (checkedCount > 0) {
+                $('#bulkPayBtn').fadeIn(200);
+            } else {
+                $('#bulkPayBtn').fadeOut(200);
+            }
         }
 
         function getCommissionStatusHtml(std) {
@@ -682,5 +944,56 @@
             const url = "{{ route('admin.reports.referrals.index') }}?" + formData + "&export=excel";
             window.location.href = url;
         }
+        // Bulk Pay Functions
+        function openBulkPaymentModal() {
+            const checkedCount = $('.student-checkbox:checked').length;
+            if (checkedCount === 0) return;
+            
+            $('#bulkSelectedCount').text(checkedCount);
+            $('#bulkPaymentForm')[0].reset();
+            $('#bulkPaymentModal').modal('show');
+        }
+
+        $('#bulkPaymentForm').on('submit', function(e) {
+            e.preventDefault();
+            
+            const btn = $('#submitBulkPaymentBtn');
+            btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Processing...');
+            
+            // Collect selected student IDs
+            const studentIds = [];
+            $('.student-checkbox:checked').each(function() {
+                studentIds.push($(this).val());
+            });
+            
+            const formData = {
+                _token: '{{ csrf_token() }}',
+                student_ids: studentIds,
+                payment_mode: $('select[name="payment_mode"]', this).val(),
+                notes: $('textarea[name="notes"]', this).val()
+            };
+
+            $.ajax({
+                url: "{{ route('admin.reports.referrals.bulk_pay') }}",
+                type: "POST",
+                data: formData,
+                success: function (response) {
+                    $('#bulkPaymentModal').modal('hide');
+                    alert(response.message || 'Successfully marked selected students as paid!');
+                    fetchReportData();
+                },
+                error: function (xhr) {
+                    console.error("Error processing bulk payment:", xhr);
+                    let errMsg = "Failed to process bulk payment.";
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        errMsg = xhr.responseJSON.message;
+                    }
+                    alert(errMsg);
+                },
+                complete: function () {
+                    btn.prop('disabled', false).html('Confirm Bulk Payout');
+                }
+            });
+        });
     </script>
 @endpush

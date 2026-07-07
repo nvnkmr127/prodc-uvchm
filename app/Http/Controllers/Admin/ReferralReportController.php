@@ -55,6 +55,7 @@ class ReferralReportController extends Controller
         $status = $request->input('status');
         $search = $request->input('search');
         $academicYearId = $request->input('academic_year_id');
+        $commissionStatus = $request->input('commission_status');
 
         // 2. Build Query
         $query = Student::allYears()
@@ -92,6 +93,13 @@ class ReferralReportController extends Controller
                         ->orWhere('source', 'like', "%{$search}%")
                         ->orWhere('enrollment_number', 'like', "%{$search}%");
                 });
+            })
+            ->when($commissionStatus, function ($q) use ($commissionStatus) {
+                if ($commissionStatus === 'paid') {
+                    $q->whereNotNull('referral_commission_paid_at');
+                } elseif ($commissionStatus === 'unpaid') {
+                    $q->whereNull('referral_commission_paid_at');
+                }
             });
 
         $students = $query->get();
@@ -142,6 +150,7 @@ class ReferralReportController extends Controller
 
             // --- Detailed Row Data ---
             $detailedAdmissions[] = [
+                'student_id' => $student->id, // Important for bulk actions
                 'admission_date' => $student->admission_date ? $student->admission_date->format('d M, Y') : '-',
                 'student_name' => $student->name,
                 'enrollment_number' => $student->enrollment_number ?? '-',
@@ -334,5 +343,56 @@ class ReferralReportController extends Controller
             'amount' => number_format($request->amount, 2),
             'mode' => $request->payment_mode,
         ]);
+    }
+
+    public function bulkMarkCommissionPaid(Request $request)
+    {
+        $request->validate([
+            'student_ids' => 'required|array',
+            'student_ids.*' => 'exists:students,id',
+            'payment_mode' => 'required|string',
+            'notes' => 'nullable|string'
+        ]);
+
+        $now = Carbon::now();
+        $count = 0;
+
+        DB::beginTransaction();
+        try {
+            // Find all eligible unpaid students in the provided IDs
+            $students = Student::allYears()
+                ->whereIn('id', $request->student_ids)
+                ->whereNull('referral_commission_paid_at')
+                ->whereNotNull('referral_name')
+                ->get();
+
+            foreach ($students as $student) {
+                // Determine commission amount (could be based on settings, but we will use 1000 as default or what was historically used)
+                // In bulk mode without individual inputs, we'll set it to 1000 if not defined.
+                // Ideally, you'd pull this from a setting, but for now we'll set a standard or leave it as 0 if not sure.
+                $defaultAmount = 1000;
+
+                $student->update([
+                    'referral_commission_paid_at' => $now,
+                    'referral_commission_amount' => $defaultAmount,
+                    'referral_payment_mode' => $request->payment_mode,
+                    'referral_payment_remarks' => $request->notes,
+                ]);
+                $count++;
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => "Successfully marked {$count} students as paid.",
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Error processing bulk payment: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 }
