@@ -133,6 +133,15 @@
                 <form id="filterForm">
                     <div class="row align-items-end">
                         <div class="col-md-2 mb-3">
+                            <label class="small font-weight-bold text-gray-600">Academic Year</label>
+                            <select name="academic_year_id" id="academic_year_id" class="form-control bg-light border-0">
+                                <option value="">All Years</option>
+                                @foreach($academicYears as $year)
+                                    <option value="{{ $year->id }}">{{ $year->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-md-2 mb-3">
                             <label class="small font-weight-bold text-gray-600">Start Date</label>
                             <input type="date" name="start_date" id="start_date" class="form-control bg-light border-0">
                         </div>
@@ -338,8 +347,8 @@
 
             // Filter Change Events
             $('#filterForm input, #filterForm select').on('change', function () {
-                if (this.id === 'course_id') {
-                    updateBatchDropdown($(this).val());
+                if (this.id === 'course_id' || this.id === 'academic_year_id') {
+                    updateBatchDropdown($('#course_id').val(), $('#academic_year_id').val());
                 }
                 fetchReportData();
             });
@@ -359,6 +368,7 @@
                 // Explicitly clear the date fields (reset() only restores default values)
                 $('#start_date').val('');
                 $('#end_date').val('');
+                $('#academic_year_id').val('');
 
                 // Disable batch select and reset it
                 $('#batch_id').prop('disabled', true).empty().append('<option value="">All Batches</option>');
@@ -368,14 +378,16 @@
             });
         });
 
-        function updateBatchDropdown(courseId) {
+        function updateBatchDropdown(courseId, academicYearId) {
             const batchSelect = $('#batch_id');
             batchSelect.empty().append('<option value="">All Batches</option>');
 
             if (courseId && batchesByCourse[courseId]) {
                 batchSelect.prop('disabled', false);
                 batchesByCourse[courseId].forEach(batch => {
-                    batchSelect.append(`<option value="${batch.id}">${batch.name}</option>`);
+                    if (!academicYearId || batch.academic_year_id == academicYearId) {
+                        batchSelect.append(`<option value="${batch.id}">${batch.name}</option>`);
+                    }
                 });
             } else {
                 batchSelect.prop('disabled', true);

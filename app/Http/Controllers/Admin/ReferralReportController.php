@@ -28,7 +28,9 @@ class ReferralReportController extends Controller
         // 3. Normal Request - Return View with Options
         $courses = \App\Models\Course::select('id', 'name')->get();
         // Load all batches grouped by course_id for dynamic JS filtering
-        $batches = \App\Models\Batch::select('id', 'name', 'course_id')->get()->groupBy('course_id');
+        $batches = \App\Models\Batch::select('id', 'name', 'course_id', 'academic_year_id')->get()->groupBy('course_id');
+
+        $academicYears = \App\Models\AcademicYear::orderBy('start_date', 'desc')->get();
 
         $uniqueSources = \App\Models\Student::withoutGlobalScope('academic_year')
             ->select('source')
@@ -39,7 +41,7 @@ class ReferralReportController extends Controller
 
         $statuses = ['active', 'graduated', 'dropout', 'completed'];
 
-        return view('admin.reports.referrals.index', compact('courses', 'batches', 'uniqueSources', 'statuses'));
+        return view('admin.reports.referrals.index', compact('courses', 'batches', 'uniqueSources', 'statuses', 'academicYears'));
     }
 
     private function fetchData(Request $request)
@@ -52,13 +54,24 @@ class ReferralReportController extends Controller
         $source = $request->input('source');
         $status = $request->input('status');
         $search = $request->input('search');
+        $academicYearId = $request->input('academic_year_id');
 
         // 2. Build Query
         $query = Student::allYears()
-            ->with(['batch', 'batch.course', 'studentFees', 'studentFees.payments'])
+            ->with([
+                'batch', 
+                'batch.course', 
+                'studentFees' => function ($q) {
+                    $q->withoutGlobalScope('academic_year');
+                }, 
+                'studentFees.payments'
+            ])
             ->when($startDate && $endDate, function ($q) use ($startDate, $endDate) {
                 $q->whereDate('admission_date', '>=', $startDate)
                     ->whereDate('admission_date', '<=', $endDate);
+            })
+            ->when($academicYearId, function ($q) use ($academicYearId) {
+                $q->whereHas('batch', fn ($b) => $b->where('academic_year_id', $academicYearId));
             })
             ->when($courseId, function ($q) use ($courseId) {
                 $q->whereHas('batch', fn ($b) => $b->where('course_id', $courseId));
@@ -256,8 +269,8 @@ class ReferralReportController extends Controller
 
         // Auto-apply concession if mode is "Fee Discount"
         if ($request->payment_mode === 'Fee Discount') {
-            // Find Referrer Student
-            $referrer = Student::where('name', $student->referral_name)->first();
+            // Find Referrer Student (across all years)
+            $referrer = Student::allYears()->where('name', $student->referral_name)->first();
 
             if ($referrer) {
                 // Find Active Fee Record (latest unpaid/partial first, fallback to any latest)

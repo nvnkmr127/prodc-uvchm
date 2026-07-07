@@ -117,17 +117,18 @@ class SendDailySummaryWebhook extends Command
         $timezone = config('app.timezone', 'UTC');
         $reportTimestamp = now($timezone);
 
-        // ===== ENHANCED PAYMENTS SUMMARY - USE CREATION DATE =====
-        // Since logs have proper dates but payment_date field has issues,
-        // use created_at date which reflects when payment was actually made
+        // ===== PAYMENTS SUMMARY - USE PAYMENT DATE =====
+        // Use payment_date to accurately reflect the dashboard's daily collections
+        // and match what the user sees in the Component Payments view.
 
-        $paymentsQuery = Payment::whereDate('created_at', $date)
-            ->where('status', '!=', 'cancelled');
+        $paymentsQuery = Payment::withoutGlobalScope('academic_year')
+            ->whereDate('payment_date', $date)
+            ->whereIn('status', ['completed', 'paid']);
 
         $paymentsData = [
             'total_amount' => (float) $paymentsQuery->sum('amount') ?: 0.0,
             'total_payers' => $paymentsQuery->distinct('student_id')->count() ?: 0,
-            'calculation_method' => 'by_creation_date', // Track which method was used
+            'calculation_method' => 'by_payment_date', // Track which method was used
         ];
 
         // Debug information to show the difference
@@ -135,7 +136,7 @@ class SendDailySummaryWebhook extends Command
             $this->line('🔍 Payment Query Comparison:');
 
             // Original method (by payment_date)
-            $originalQuery = Payment::whereDate('payment_date', $date);
+            $originalQuery = Payment::withoutGlobalScope('academic_year')->whereDate('payment_date', $date);
             $originalAmount = $originalQuery->sum('amount') ?: 0.0;
             $originalPayers = $originalQuery->distinct('student_id')->count() ?: 0;
             $originalCount = $originalQuery->count() ?: 0;
@@ -149,7 +150,7 @@ class SendDailySummaryWebhook extends Command
             $this->line("  By created_at: {$newCount} payments, ₹{$newAmount}, {$newPayers} payers");
 
             // Show individual payments for today
-            $todayPayments = Payment::whereDate('created_at', $date)->get();
+            $todayPayments = Payment::withoutGlobalScope('academic_year')->whereDate('created_at', $date)->get();
             $this->line("  Today's Payments (by creation):");
             foreach ($todayPayments as $payment) {
                 $this->line("    - ID: {$payment->id}, Student: {$payment->student_id}, Amount: ₹{$payment->amount}, Payment Date: {$payment->payment_date}, Created: {$payment->created_at}");
@@ -157,8 +158,9 @@ class SendDailySummaryWebhook extends Command
         }
 
         // ===== ATTENDANCE SUMMARY (KEEP EXISTING LOGIC) =====
-        // Get all active students (excluding those on internship)
-        $totalActiveStudents = Student::where('status', 'active')
+        // Get all active students (excluding those on internship) across all years
+        $totalActiveStudents = Student::allYears()
+            ->where('status', 'active')
             ->whereHas('batch', function ($q) {
                 $q->where('is_on_internship', 0);
             })
@@ -166,22 +168,34 @@ class SendDailySummaryWebhook extends Command
 
         // Create separate queries to avoid conflict
         $presentCount = Attendance::whereDate('attendance_date', $date)
-            ->whereHas('student.batch', function ($q) {
-                $q->where('is_on_internship', 0);
+            ->whereHas('student', function ($q) {
+                $q->withoutGlobalScope('academic_year')
+                  ->where('status', 'active')
+                  ->whereHas('batch', function ($bq) {
+                      $bq->where('is_on_internship', 0);
+                  });
             })
             ->whereIn('status', ['present', 'late'])
             ->count() ?: 0;
 
         $absentCount = Attendance::whereDate('attendance_date', $date)
-            ->whereHas('student.batch', function ($q) {
-                $q->where('is_on_internship', 0);
+            ->whereHas('student', function ($q) {
+                $q->withoutGlobalScope('academic_year')
+                  ->where('status', 'active')
+                  ->whereHas('batch', function ($bq) {
+                      $bq->where('is_on_internship', 0);
+                  });
             })
             ->where('status', 'absent')
             ->count() ?: 0;
 
         $totalMarkedAttendance = Attendance::whereDate('attendance_date', $date)
-            ->whereHas('student.batch', function ($q) {
-                $q->where('is_on_internship', 0);
+            ->whereHas('student', function ($q) {
+                $q->withoutGlobalScope('academic_year')
+                  ->where('status', 'active')
+                  ->whereHas('batch', function ($bq) {
+                      $bq->where('is_on_internship', 0);
+                  });
             })
             ->count() ?: 0;
 
@@ -234,10 +248,13 @@ class SendDailySummaryWebhook extends Command
             ];
         } else {
             $totalForCalculation = max($totalMarkedAttendance, $totalActiveStudents);
+            
+            // Ensure data consistency: if total > present + explicit absent, unmarked are implicitly absent
+            $calculatedAbsent = max($absentCount, $totalForCalculation - $presentCount);
 
             $attendanceData = [
                 'present' => $presentCount,
-                'absent' => $absentCount,
+                'absent' => $calculatedAbsent,
                 'total_students' => $totalForCalculation,
                 'attendance_percentage' => $totalForCalculation > 0
                     ? (float) number_format(($presentCount / $totalForCalculation) * 100, 1)
@@ -260,7 +277,7 @@ class SendDailySummaryWebhook extends Command
                 'generated_by' => 'automated_scheduler',
                 'timezone' => $timezone,
                 'server_time' => $reportTimestamp->format('Y-m-d H:i:s T'),
-                'payment_query_method' => 'creation_date', // Indicate we're using creation date
+                'payment_query_method' => 'payment_date', // Indicate we're using payment date
                 'command_options' => [
                     'test_mode' => $this->option('test'),
                     'forced' => $this->option('force'),
