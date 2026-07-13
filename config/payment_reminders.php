@@ -438,11 +438,6 @@ return [
             'whatsapp' => env('TEST_WHATSAPP_RECIPIENT'),
         ],
 
-        // Mock external services in testing
-        'mock_sms_service' => env('MOCK_SMS_SERVICE', false),
-        'mock_email_service' => env('MOCK_EMAIL_SERVICE', false),
-        'mock_whatsapp_service' => env('MOCK_WHATSAPP_SERVICE', false),
-
         // Development helpers
         'show_sql_queries' => env('SHOW_REMINDER_SQL_QUERIES', false),
         'profile_performance' => env('PROFILE_REMINDER_PERFORMANCE', false),

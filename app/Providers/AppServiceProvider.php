@@ -668,28 +668,6 @@ class AppServiceProvider extends ServiceProvider
      */
     private function registerDevelopmentServices(): void
     {
-        // Mock SMS service for testing
-        if (config('payment_reminders.development.mock_sms_service', false)) {
-            if (class_exists('\App\Services\SMSService')) {
-                $this->app->singleton(\App\Services\SMSService::class, function ($app) {
-                    return class_exists('\App\Services\MockSMSService') ?
-                        new \App\Services\MockSMSService :
-                        new \App\Services\SMSService;
-                });
-            }
-        }
-
-        // Mock WhatsApp service for testing
-        if (config('payment_reminders.development.mock_whatsapp_service', false)) {
-            if (class_exists('\App\Services\WhatsAppService')) {
-                $this->app->singleton(\App\Services\WhatsAppService::class, function ($app) {
-                    return class_exists('\App\Services\MockWhatsAppService') ?
-                        new \App\Services\MockWhatsAppService :
-                        new \App\Services\WhatsAppService;
-                });
-            }
-        }
-
         // Debug toolbar integration
         if (class_exists('\Barryvdh\Debugbar\ServiceProvider')) {
             $this->app->register(\Barryvdh\Debugbar\ServiceProvider::class);
