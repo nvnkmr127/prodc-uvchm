@@ -161,4 +161,111 @@ class AttendanceController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Send attendance summary notification to admins
+     */
+    private function sendAttendanceSummaryNotification($request, $totalStudents, $absentStudents, $lateStudents)
+    {
+        $presentCount = $totalStudents - count($absentStudents) - count($lateStudents);
+        $absentCount = count($absentStudents);
+        $lateCount = count($lateStudents);
+        $attendancePercentage = $totalStudents > 0 ? round(($presentCount / $totalStudents) * 100, 1) : 0;
+
+        // Only send notification if attendance is concerning (below 80%)
+        if ($attendancePercentage < 80 || $absentCount > 5) {
+            $this->notificationService->send([
+                'title' => 'Low Class Attendance Alert',
+                'message' => "Class attendance is {$attendancePercentage}% ({$presentCount}/{$totalStudents} present, {$absentCount} absent)",
+                'type' => $attendancePercentage < 60 ? 'error' : 'warning',
+                'category' => 'attendance',
+                'priority' => $attendancePercentage < 60 ? 'high' : 'normal',
+                'roles' => ['super-admin', 'college-admin'],
+                'data' => [
+                    'attendance_date' => $request->attendance_date,
+                    'batch_id' => $request->batch_id,
+                    'faculty_id' => Auth::id(),
+                    'total_students' => $totalStudents,
+                    'present_count' => $presentCount,
+                    'absent_count' => $absentCount,
+                    'late_count' => $lateCount,
+                    'attendance_percentage' => $attendancePercentage,
+                ],
+            ]);
+        }
+    }
+
+    /**
+     * Check for students with low attendance patterns
+     */
+    private function checkLowAttendancePatterns($absentStudents)
+    {
+        $minimumAttendance = (int) setting('minimum_attendance_percentage', 75);
+
+        foreach ($absentStudents as $attendance) {
+            $student = $attendance->student;
+            $attendancePercentage = $this->calculateAttendancePercentage($student);
+
+            if ($attendancePercentage < $minimumAttendance) {
+                $this->notificationService->sendAcademicNotification('low_attendance', [
+                    'student_id' => $student->id,
+                    'student_name' => $student->name,
+                    'attendance_percentage' => round($attendancePercentage, 2), // Fixed: was missing this key
+                    'minimum_required' => $minimumAttendance,
+                    'enrollment_number' => $student->enrollment_number,
+                    'batch_name' => $student->batch->name ?? 'Unknown',
+                ]);
+            }
+        }
+    }
+
+    /**
+     * Check for consecutive absences (red flag)
+     */
+    private function checkConsecutiveAbsences($absentStudents)
+    {
+        foreach ($absentStudents as $attendance) {
+            $student = $attendance->student;
+
+            // Check for consecutive absences in the last 7 days
+            $recentAbsences = Attendance::where('student_id', $student->id)
+                ->where('attendance_date', '>=', now()->subDays(7))
+                ->where('status', 'absent')
+                ->orderBy('attendance_date', 'desc')
+                ->get();
+
+            if ($recentAbsences->count() >= 3) {
+                $this->notificationService->send([
+                    'title' => 'URGENT: Consecutive Absences Alert',
+                    'message' => "{$student->name} has {$recentAbsences->count()} absences in the last 7 days",
+                    'type' => 'error',
+                    'category' => 'attendance',
+                    'priority' => 'urgent',
+                    'roles' => ['super-admin', 'college-admin'],
+                    'requires_action' => true,
+                    'action_url' => route('admin.students.show', $student->id),
+                    'action_text' => 'Review Student',
+                    'data' => [
+                        'student_id' => $student->id,
+                        'consecutive_absences' => $recentAbsences->count(),
+                        'last_present_date' => $this->getLastPresentDate($student),
+                        'requires_intervention' => true,
+                    ],
+                ]);
+            }
+        }
+    }
+
+    /**
+     * Get the last date the student was present
+     */
+    private function getLastPresentDate($student)
+    {
+        $lastPresent = Attendance::where('student_id', $student->id)
+            ->where('status', 'present')
+            ->orderBy('attendance_date', 'desc')
+            ->first();
+
+        return $lastPresent ? $lastPresent->attendance_date : null;
+    }
 }

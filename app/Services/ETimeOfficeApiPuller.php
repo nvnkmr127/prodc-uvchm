@@ -311,4 +311,167 @@ class ETimeOfficeApiPuller
 
         return $this->pullAttendanceData($from, $to, 'ALL');
     }
+
+    /**
+     * Find student by employee code with multiple lookup strategies
+     */
+    private function findStudentByEmployeeCode($empcode)
+    {
+        // Strategy 1: Direct biometric code match
+        $student = Student::where('biometric_employee_code', $empcode)->first();
+        if ($student) {
+            return $student;
+        }
+
+        // Strategy 2: Enrollment number exact match
+        $student = Student::where('enrollment_number', $empcode)->first();
+        if ($student) {
+            // Auto-populate biometric code
+            $student->update(['biometric_employee_code' => $empcode]);
+            Log::info('Auto-populated biometric code from enrollment match', [
+                'student_id' => $student->id,
+                'student_name' => $student->name,
+                'empcode' => $empcode,
+                'enrollment' => $student->enrollment_number,
+            ]);
+
+            return $student;
+        }
+
+        // Strategy 3: Enrollment number pattern matching
+        $patterns = [
+            "UVCHM-{$empcode}",
+            "UV-{$empcode}",
+            "ENR-{$empcode}",
+            preg_replace('/^[A-Z]+-/', '', $empcode), // Remove prefix like UVCHM-123 -> 123
+            preg_replace('/[^0-9]/', '', $empcode),    // Extract numbers only
+        ];
+
+        foreach ($patterns as $pattern) {
+            if (empty($pattern)) {
+                continue;
+            }
+
+            $student = Student::where('enrollment_number', $pattern)
+                ->orWhere('enrollment_number', 'LIKE', "%{$pattern}%")
+                ->first();
+            if ($student) {
+                // Auto-populate biometric code
+                $student->update(['biometric_employee_code' => $empcode]);
+                Log::info('Auto-populated biometric code from pattern match', [
+                    'student_id' => $student->id,
+                    'student_name' => $student->name,
+                    'empcode' => $empcode,
+                    'pattern_matched' => $pattern,
+                    'enrollment' => $student->enrollment_number,
+                ]);
+
+                return $student;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Parse punch date from various ETimeOffice formats
+     */
+    private function parsePunchDate($punchDate)
+    {
+        // ETimeOffice common date formats
+        $formats = [
+            'd/m/Y H:i:s',    // 24/08/2025 17:30:45
+            'd/m/Y_H:i',      // 24/08/2025_17:30
+            'd/m/Y H:i',      // 24/08/2025 17:30
+            'Y-m-d H:i:s',    // 2025-08-24 17:30:00
+            'd-m-Y H:i:s',    // 24-08-2025 17:30:00
+            'd/m/Y',          // 24/08/2025 (date only)
+            'Y-m-d',          // 2025-08-24 (date only)
+        ];
+
+        foreach ($formats as $format) {
+            try {
+                $parsed = Carbon::createFromFormat($format, $punchDate);
+                if ($parsed) {
+                    return $parsed;
+                }
+            } catch (\Exception $e) {
+                continue;
+            }
+        }
+
+        // Try standard parsing as fallback
+        try {
+            return Carbon::parse($punchDate);
+        } catch (\Exception $e) {
+            Log::warning('Could not parse ETimeOffice punch date', [
+                'punch_date' => $punchDate,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
+    /**
+     * Create attendance record from ETimeOffice data
+     */
+    private function createAttendanceRecord($student, $carbonDate, $direction, $rawRecord)
+    {
+        $attendanceDate = $carbonDate->toDateString();
+        $attendanceTime = $carbonDate->toTimeString();
+
+        // Determine attendance status based on college timing
+        $status = $this->determineAttendanceStatus($carbonDate);
+
+        try {
+            $attendance = Attendance::updateOrCreate(
+                [
+                    'student_id' => $student->id,
+                    'attendance_date' => $attendanceDate,
+                ],
+                [
+                    'batch_id' => $student->batch_id, // <-- Add this line
+                    'status' => $status['status'],
+
+                    'check_in_time' => $attendanceTime,
+                    'notes' => 'ETimeOffice API - '.$status['reason'],
+                    'created_by' => null, // System generated
+                ]
+            );
+
+            // Handle OUT punches for check_out_time
+            if (strtoupper($direction) === 'OUT' && $attendance->check_in_time) {
+                $checkInDateTime = Carbon::parse($attendanceDate.' '.$attendance->check_in_time);
+                if ($carbonDate->gt($checkInDateTime)) {
+                    $attendance->update([
+                        'check_out_time' => $attendanceTime,
+                        'notes' => $attendance->notes.' | OUT: '.$attendanceTime,
+                    ]);
+                }
+            }
+
+            Log::info('Processed ETimeOffice attendance', [
+                'student_id' => $student->id,
+                'student_name' => $student->name,
+                'enrollment' => $student->enrollment_number,
+                'attendance_date' => $attendanceDate,
+                'time' => $attendanceTime,
+                'status' => $status['status'],
+                'direction' => $direction,
+                'was_created' => $attendance->wasRecentlyCreated,
+            ]);
+
+            return $attendance;
+
+        } catch (\Exception $e) {
+            Log::error('Failed to create ETimeOffice attendance record', [
+                'student_id' => $student->id,
+                'attendance_date' => $attendanceDate,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
 }

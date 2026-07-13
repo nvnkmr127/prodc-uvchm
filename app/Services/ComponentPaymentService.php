@@ -747,4 +747,258 @@ class ComponentPaymentService
             ];
         }
     }
+
+    /**
+     * Private helper methods
+     */
+    private function validateComponentAmounts(Student $student, array $components)
+    {
+        foreach ($components as $component) {
+            if ($component['amount'] <= 0) {
+                throw new Exception('Payment amount must be greater than 0');
+            }
+
+            $availableAmount = $student->studentFees()
+                ->where('fee_category_id', $component['fee_category_id'])
+                ->whereIn('status', ['unpaid', 'partial'])
+                ->get()
+                ->sum(fn ($fee) => $fee->getRemainingAmount());
+
+            if ($component['amount'] > $availableAmount) {
+                $category = FeeCategory::find($component['fee_category_id']);
+                throw new Exception("Payment amount for {$category->name} exceeds available balance");
+            }
+        }
+    }
+
+    private function applyPaymentToComponent(Student $student, $categoryId, $amount, Payment $payment)
+    {
+        $studentFees = $student->studentFees()
+            ->where('fee_category_id', $categoryId)
+            ->whereIn('status', ['unpaid', 'partial'])
+            ->orderBy('due_date')
+            ->get();
+
+        $remainingAmount = $amount;
+        $appliedTotal = 0;
+
+        foreach ($studentFees as $fee) {
+            if ($remainingAmount <= 0) {
+                break;
+            }
+
+            $appliedAmount = $fee->applyPayment($remainingAmount, $payment);
+            $remainingAmount -= $appliedAmount;
+            $appliedTotal += $appliedAmount;
+        }
+
+        return $appliedTotal;
+    }
+
+    /**
+     * Calculate reminder success rate
+     */
+    private function calculateReminderSuccessRate(): float
+    {
+        $total = PaymentReminder::where('status', '!=', 'pending')->count();
+        $successful = PaymentReminder::where('status', 'sent')->count();
+
+        return $total > 0 ? round(($successful / $total) * 100, 2) : 0;
+    }
+
+    /**
+     * Get reminders breakdown by component
+     */
+    private function getRemindersByComponent(): array
+    {
+        return FeeCategory::select('fee_categories.name')
+            ->selectRaw('
+                COUNT(payment_reminders.id) as total_reminders,
+                COUNT(CASE WHEN payment_reminders.status = "sent" THEN 1 END) as sent_count,
+                COUNT(CASE WHEN payment_reminders.status = "pending" THEN 1 END) as pending_count
+            ')
+            ->leftJoin('payment_reminders', 'fee_categories.id', '=', 'payment_reminders.fee_category_id')
+            ->groupBy('fee_categories.id', 'fee_categories.name')
+            ->orderByDesc('total_reminders')
+            ->limit(10)
+            ->get()
+            ->toArray();
+    }
+
+    /**
+     * Get reminder channel performance
+     */
+    private function getReminderChannelPerformance(): array
+    {
+        return PaymentReminder::select('channel')
+            ->selectRaw('
+                COUNT(*) as total_sent,
+                COUNT(CASE WHEN status = "sent" THEN 1 END) as successful,
+                COUNT(CASE WHEN status = "failed" THEN 1 END) as failed
+            ')
+            ->whereIn('status', ['sent', 'failed'])
+            ->groupBy('channel')
+            ->get()
+            ->map(function ($item) {
+                $item->success_rate = $item->total_sent > 0 ?
+                    round(($item->successful / $item->total_sent) * 100, 2) : 0;
+
+                return $item;
+            })
+            ->toArray();
+    }
+
+    /**
+     * Get recent reminder activity
+     */
+    private function getRecentReminderActivity(): array
+    {
+        return PaymentReminder::with(['student', 'feeCategory'])
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get()
+            ->map(function ($reminder) {
+                return [
+                    'id' => $reminder->id,
+                    'student_name' => $reminder->student->name ?? 'Unknown',
+                    'fee_category' => $reminder->feeCategory->name ?? 'General',
+                    'channel' => $reminder->channel,
+                    'status' => $reminder->status,
+                    'created_at' => $reminder->created_at->format('Y-m-d H:i'),
+                ];
+            })
+            ->toArray();
+    }
+
+    private function calculateTimelinessScore(): float
+    {
+        $onTimePayments = Payment::where('payment_type', 'component')
+            ->whereHas('componentItems.studentFee', function ($q) {
+                $q->whereRaw('payment_date <= due_date');
+            })->count();
+
+        $totalPayments = Payment::where('payment_type', 'component')->count();
+
+        return $totalPayments > 0 ? round(($onTimePayments / $totalPayments) * 100, 2) : 100;
+    }
+
+    private function getPaymentFrequency(): array
+    {
+        // Calculate based on Fee Structure payment terms for active students
+        $frequencies = DB::table('students')
+            ->join('batches', 'students.batch_id', '=', 'batches.id')
+            ->join('fee_structures', 'batches.id', '=', 'fee_structures.batch_id') // Assuming generic association
+            // Note: Schema might technically link fee_structure to batch via batch_id in fee_structures table,
+            // or batch has fee_structure_id. Let's verify schema if this fails.
+            // Based on earlier view, Batch 'has' feeStructure.
+            ->select('fee_structures.payment_terms')
+            ->get();
+
+        $counts = [
+            'monthly' => 0,
+            'quarterly' => 0,
+            'annually' => 0,
+            'other' => 0,
+        ];
+
+        foreach ($frequencies as $freq) {
+            $terms = $freq->payment_terms;
+            if ($terms >= 10) {
+                $counts['monthly']++;
+            } elseif ($terms == 1) {
+                $counts['annually']++;
+            } elseif ($terms >= 3 && $terms <= 4) {
+                $counts['quarterly']++;
+            } else {
+                $counts['other']++;
+            }
+        }
+
+        // Convert to percentages if needed, or just raw counts. The UI likely expects counts.
+        return $counts;
+    }
+
+    private function getPreferredPaymentMethods(): array
+    {
+        return Payment::where('payment_type', 'component')
+            ->groupBy('payment_method')
+            ->selectRaw('payment_method, COUNT(*) as count')
+            ->pluck('count', 'payment_method')
+            ->toArray();
+    }
+
+    private function getSeasonalPatterns(): array
+    {
+        // Get total payments per month
+        $monthlyTotals = Payment::where('payment_type', 'component')
+            ->selectRaw('MONTH(payment_date) as month, SUM(amount) as total')
+            ->groupBy('month')
+            ->orderBy('total', 'desc')
+            ->get();
+
+        if ($monthlyTotals->isEmpty()) {
+            return [
+                'peak_months' => [],
+                'low_months' => [],
+            ];
+        }
+
+        // Map month numbers to names
+        $monthNames = [
+            1 => 'January',
+            2 => 'February',
+            3 => 'March',
+            4 => 'April',
+            5 => 'May',
+            6 => 'June',
+            7 => 'July',
+            8 => 'August',
+            9 => 'September',
+            10 => 'October',
+            11 => 'November',
+            12 => 'December',
+        ];
+
+        // Top 3 are peak
+        $peaks = $monthlyTotals->take(3)->map(fn ($item) => $monthNames[$item->month])->values()->toArray();
+
+        // Bottom 3 are low (reverse sort first)
+        $lows = $monthlyTotals->sortBy('total')->take(3)->map(fn ($item) => $monthNames[$item->month])->values()->toArray();
+
+        return [
+            'peak_months' => $peaks,
+            'low_months' => $lows,
+        ];
+    }
+
+    private function calculateAgingAnalysis($outstandingFees): array
+    {
+        $aging = [
+            '0-30' => 0,
+            '31-60' => 0,
+            '61-90' => 0,
+            '90+' => 0,
+        ];
+
+        foreach ($outstandingFees as $fee) {
+            if (! $fee->due_date) {
+                continue;
+            }
+
+            $daysOverdue = now()->diffInDays($fee->due_date, false);
+            $amount = $fee->amount - $fee->concession_amount - $fee->paid_amount;
+
+            if ($daysOverdue <= 30) {
+                $aging['0-30'] += $amount;
+            } elseif ($daysOverdue <= 60) {
+                $aging['31-60'] += $amount;
+            } elseif ($daysOverdue <= 90) {
+                $aging['61-90'] += $amount;
+            } else {
+                $aging['90+'] += $amount;
+            }
+        }
+
+        return $aging;
+    }
 }

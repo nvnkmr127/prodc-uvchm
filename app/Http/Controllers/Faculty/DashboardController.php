@@ -163,4 +163,95 @@ class DashboardController extends Controller
 
         return $streak;
     }
+
+    protected function getMyStudentPerformance($user): array
+    {
+        $myClasses = Timetable::where('user_id', $user->id)->pluck('id');
+
+        $attendanceData = Attendance::whereIn('timetable_id', $myClasses)
+            ->select('student_id', 'status')
+            ->get()
+            ->groupBy('student_id');
+
+        $performanceData = [];
+        foreach ($attendanceData as $studentId => $records) {
+            $total = $records->count();
+            $present = $records->where('status', 'present')->count();
+            $percentage = $total > 0 ? ($present / $total) * 100 : 0;
+
+            $performanceData[] = [
+                'student_id' => $studentId,
+                'attendance_percentage' => round($percentage, 1),
+                'total_classes' => $total,
+                'classes_attended' => $present,
+            ];
+        }
+
+        return [
+            'total_students' => count($performanceData),
+            'average_performance' => count($performanceData) > 0 ?
+                round(collect($performanceData)->avg('attendance_percentage'), 1) : 0,
+            'top_performers' => collect($performanceData)
+                ->sortByDesc('attendance_percentage')
+                ->take(5)
+                ->values()
+                ->toArray(),
+            'low_performers' => collect($performanceData)
+                ->where('attendance_percentage', '<', 75)
+                ->count(),
+        ];
+    }
+
+    protected function getPendingTasks($user): array
+    {
+        // Classes today that need attendance marking
+        $todayClasses = Timetable::where('user_id', $user->id)
+            ->whereDate('schedule_date', today())
+            ->whereDoesntHave('attendances')
+            ->count();
+
+        // Classes this week that still need attendance
+        $weeklyPendingAttendance = Timetable::where('user_id', $user->id)
+            ->whereBetween('schedule_date', [now()->startOfWeek(), now()->endOfWeek()])
+            ->whereDoesntHave('attendances')
+            ->where('schedule_date', '<=', today())
+            ->count();
+
+        // Overdue attendance (classes from previous days without attendance)
+        $overdueAttendance = Timetable::where('user_id', $user->id)
+            ->where('schedule_date', '<', today())
+            ->whereDoesntHave('attendances')
+            ->count();
+
+        // Upcoming classes today
+        $upcomingToday = Timetable::where('user_id', $user->id)
+            ->whereDate('schedule_date', today())
+            ->where('schedule_date', '>', now())
+            ->count();
+
+        return [
+            'attendance_pending' => $todayClasses,
+            'weekly_pending_attendance' => $weeklyPendingAttendance,
+            'overdue_attendance' => $overdueAttendance,
+            'upcoming_classes_today' => $upcomingToday,
+            'priority_level' => $this->calculateTaskPriority($overdueAttendance, $todayClasses),
+            'total_pending' => $todayClasses + $overdueAttendance,
+        ];
+    }
+
+    /**
+     * Calculate task priority based on overdue and pending items
+     */
+    private function calculateTaskPriority($overdueCount, $pendingCount): string
+    {
+        if ($overdueCount > 5) {
+            return 'critical';
+        } elseif ($overdueCount > 2 || $pendingCount > 10) {
+            return 'high';
+        } elseif ($overdueCount > 0 || $pendingCount > 5) {
+            return 'medium';
+        }
+
+        return 'low';
+    }
 }

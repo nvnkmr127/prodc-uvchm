@@ -54,4 +54,21 @@ class FacultyDashboardController extends Controller
 
         return round(($presentClasses / $totalClasses) * 100, 2);
     }
+
+    private function getBatchAttendanceRate($batch)
+    {
+        $totalClasses = Attendance::whereHas('student', function ($query) use ($batch) {
+            $query->where('batch_id', $batch->id);
+        })->count();
+
+        if ($totalClasses === 0) {
+            return 0;
+        }
+
+        $presentClasses = Attendance::whereHas('student', function ($query) use ($batch) {
+            $query->where('batch_id', $batch->id);
+        })->where('status', 'present')->count();
+
+        return round(($presentClasses / $totalClasses) * 100, 2);
+    }
 }

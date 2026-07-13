@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Exceptions\MissingAcademicYearException;
+use App\Exports\AttendanceExport;
 use App\Exports\StudentsExport;
 use App\Exports\StudentsSampleExport;
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
 use App\Models\Batch;
 use App\Models\Course;
+use App\Models\Holiday;
 use App\Models\Payment;
 use App\Models\Student;
 use App\Models\StudentConcession;
@@ -26,6 +28,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Maatwebsite\Excel\Facades\Excel;
 use Spatie\Activitylog\Models\Activity;
@@ -1323,5 +1326,504 @@ class StudentController extends Controller
         }
 
         return response()->json($suggestions);
+    }
+
+    /**
+     * Process, resize and compress student photo.
+     */
+    private function processPhoto($file, $folder)
+    {
+        if (! str_starts_with($file->getMimeType(), 'image/')) {
+            return $file->store($folder, 'public');
+        }
+
+        $image = imagecreatefromstring(file_get_contents($file->getRealPath()));
+        $width = imagesx($image);
+        $height = imagesy($image);
+
+        $newHeight = 300;
+        if ($height > $newHeight) {
+            $newWidth = (int) ($width * ($newHeight / $height));
+        } else {
+            $newWidth = $width;
+            $newHeight = $height;
+        }
+
+        $resized = imagecreatetruecolor($newWidth, $newHeight);
+        imagealphablending($resized, false);
+        imagesavealpha($resized, true);
+        $transparent = imagecolorallocatealpha($resized, 255, 255, 255, 127);
+        imagefilledrectangle($resized, 0, 0, $newWidth, $newHeight, $transparent);
+
+        imagecopyresampled($resized, $image, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+
+        $filename = time().'_'.Str::random(10).'.jpg';
+        $path = $folder.'/'.$filename;
+        $fullPath = storage_path('app/public/'.$path);
+
+        if (! file_exists(dirname($fullPath))) {
+            mkdir(dirname($fullPath), 0755, true);
+        }
+
+        // Save as heavily compressed JPEG for student photos
+        imagejpeg($resized, $fullPath, 75);
+
+        imagedestroy($image);
+        imagedestroy($resized);
+
+        return $path;
+    }
+
+    /**
+     * Calculate overall summary across all months
+     */
+    private function calculateOverallSummary($student)
+    {
+        // 1. Determine Start Date (Join Date)
+        $startDate = $student->admission_date ? Carbon::parse($student->admission_date)->startOfDay() : $student->created_at->startOfDay();
+
+        // 2. Determine End Date (Today)
+        $endDate = now();
+
+        // 3. Use the same core analysis logic as monthly
+        $stats = $this->calculateAttendanceStatsForPeriod($student, $startDate, $endDate);
+
+        $overallPercentage = $stats['percentage'];
+
+        // Determine status based on percentage
+        $status = 'needs_improvement';
+        if ($overallPercentage >= 90) {
+            $status = 'excellent';
+        } elseif ($overallPercentage >= 75) {
+            $status = 'good';
+        } elseif ($overallPercentage >= 60) {
+            $status = 'satisfactory';
+        }
+
+        return [
+            'overall_percentage' => $overallPercentage,
+            'total_days' => $stats['total_working_days'],
+            'present_days' => $stats['present'] + $stats['late'] + $stats['internship'],
+            'absent_days' => $stats['absent'],
+            'status' => $status,
+        ];
+    }
+
+    /**
+     * Helper to fetch comprehensive attendance data for a student and month
+     * valid for both Controller and AJAX use
+     */
+    private function fetchMonthlyAttendanceData(Student $student, $monthInput)
+    {
+        $startDate = Carbon::parse($monthInput)->startOfMonth();
+        $endDate = Carbon::parse($monthInput)->endOfMonth();
+
+        $stats = $this->calculateAttendanceStatsForPeriod($student, $startDate, $endDate);
+
+        $biometricSummary = [
+            'valid_working_days' => $stats['present'] + $stats['late'],
+            'average_working_hours' => ($stats['present'] + $stats['late']) > 0 ? round($stats['total_work_hours'] / ($stats['present'] + $stats['late']), 1) : 0,
+            'late_arrivals' => $stats['late_arrivals'],
+            'early_departures' => $stats['early_departures'],
+            'average_check_in' => '-',
+            'average_check_out' => '-',
+        ];
+
+        return [
+            'calendar' => $stats['calendar'],
+            'biometric_summary' => $biometricSummary,
+            'monthly' => [
+                'records' => $stats['attendances']->values(),
+                'present_days' => $stats['present'],
+                'absent_days' => $stats['absent'],
+                'late_days' => $stats['late'],
+                'excused_days' => $stats['excused'],
+                'internship_days' => $stats['internship'],
+                'month_name' => $startDate->format('F Y'),
+            ],
+            'summary' => [
+                'overall_percentage' => $stats['percentage'],
+                'status' => $stats['percentage'] >= 75 ? 'good' : 'needs_improvement',
+            ],
+            'overall_percentage' => $stats['percentage'], // for AJAX consistency
+        ];
+    }
+
+    /**
+     * ✨ NEW: Get comprehensive activity logs for a student
+     */
+    private function getStudentActivityLogs(Student $student, $limit = 20)
+    {
+        // Get Spatie Activity Log entries for this student - FIXED query grouping
+        $spatieActivities = Activity::where(function ($query) use ($student) {
+            $query->where(function ($q) use ($student) {
+                $q->where('subject_type', 'App\\Models\\Student')
+                    ->where('subject_id', $student->id);
+            })->orWhere(function ($q) use ($student) {
+                $q->where('causer_type', 'App\\Models\\Student')
+                    ->where('causer_id', $student->id);
+            });
+        })
+            ->with('causer')
+            ->orderBy('created_at', 'desc')
+            ->take($limit)
+            ->get()
+            // Removed toBase() to allow relationship access
+            ->map(function ($activity) {
+                return [
+                    'type' => 'system',
+                    'icon' => $this->getActivityIcon($activity->description),
+                    'title' => $activity->description,
+                    'description' => $activity->description,
+                    'user' => $activity->causer ? $activity->causer->name : 'System',
+                    'timestamp' => $activity->created_at,
+                    'properties' => $activity->properties->toArray(),
+                    'color' => 'primary',
+                ];
+            });
+
+        // Get payment activities - FIXED with global scope bypass
+        $paymentActivities = Payment::withoutGlobalScope('academic_year')
+            ->where('student_id', $student->id)
+            ->with(['createdBy', 'componentItems.studentFee.feeCategory'])
+            ->orderBy('created_at', 'desc')
+            ->take($limit)
+            ->get()
+            // Removed toBase() to ensure relationships work
+            ->map(function ($payment) {
+                $amount = $payment->amount ?? 0;
+                $method = $payment->payment_method ?? 'Unknown';
+
+                return [
+                    'type' => 'payment',
+                    'icon' => 'fa-money-bill-wave',
+                    'title' => 'Payment Received',
+                    'description' => 'Payment of ₹'.number_format($amount, 2).' received via '.ucfirst($method),
+                    'user' => optional($payment->createdBy)->name ?? 'System',
+                    'timestamp' => $payment->created_at,
+                    'properties' => [
+                        'amount' => $amount,
+                        'method' => $method,
+                        'receipt' => $payment->receipt_number ?? 'N/A',
+                        'components' => $payment->componentItems ? $payment->componentItems->count() : 0,
+                    ],
+                    'color' => 'success',
+                ];
+            });
+
+        // Get concession activities from student_concessions table
+        $concessionActivities = collect();
+        if (class_exists('App\\Models\\StudentConcession')) {
+            // Load with only relationships whose FK columns actually exist in the table
+            $concessionActivities = StudentConcession::where('student_id', $student->id)
+                ->with(['appliedBy', 'feeCategory'])
+                ->orderBy('created_at', 'desc')
+                ->take($limit)
+                ->get()
+                ->map(function ($concession) {
+                    // Resolve category name via feeCategory relationship (uses fee_category_id, which exists)
+                    $categoryName = optional($concession->feeCategory)->name ?? 'Unknown';
+
+                    return [
+                        'type' => 'concession',
+                        'icon' => 'fa-tag',
+                        'title' => 'Discount / Concession Applied',
+                        'description' => 'Concession of ₹'.number_format($concession->concession_amount ?? 0, 2).' applied to '.$categoryName,
+                        'user' => optional($concession->appliedBy)->name ?? 'System',
+                        'timestamp' => $concession->applied_at ?? $concession->created_at,
+                        'properties' => [
+                            'amount' => $concession->concession_amount ?? 0,
+                            'reason' => $concession->notes ?? 'N/A',
+                            'status' => 'applied',
+                        ],
+                        'color' => 'warning',
+                    ];
+                });
+        }
+
+        // Get attendance activities
+        $attendanceActivities = Attendance::withoutGlobalScope('academic_year')
+            ->where('student_id', $student->id)
+            ->with(['markedBy', 'batch'])
+            ->orderBy('created_at', 'desc')
+            ->take($limit)
+            ->get()
+            ->map(function ($attendance) {
+                return [
+                    'type' => 'attendance',
+                    'icon' => 'fa-user-check',
+                    'title' => 'Attendance Marked',
+                    'description' => 'Marked as '.ucfirst($attendance->status).($attendance->batch ? ' for '.$attendance->batch->name : ''),
+                    'user' => optional($attendance->markedBy)->name ?? 'System',
+                    'timestamp' => $attendance->created_at,
+                    'properties' => [
+                        'status' => $attendance->status,
+                        'date' => $attendance->attendance_date?->format('Y-m-d'),
+                        'notes' => $attendance->notes ?? 'N/A',
+                    ],
+                    'color' => $attendance->status === 'present' ? 'success' : ($attendance->status === 'absent' ? 'danger' : 'warning'),
+                ];
+            });
+
+        // Get fee generation activities from student fees - FIXED with global scope bypass
+        $feeActivities = collect();
+        $recentFees = StudentFee::withoutGlobalScope('academic_year')
+            ->where('student_id', $student->id)
+            ->orderBy('created_at', 'desc')
+            ->take(5)
+            ->get();
+
+        foreach ($recentFees as $fee) {
+            $feeActivities->push([
+                'type' => 'fee_generation',
+                'icon' => 'fa-file-invoice-dollar',
+                'title' => 'Fee Component Generated',
+                'description' => 'Fee component created: '.optional($fee->feeCategory)->name ?? 'Unknown',
+                'user' => 'System',
+                'timestamp' => $fee->created_at,
+                'properties' => [
+                    'amount' => $fee->amount ?? 0,
+                    'due_date' => $fee->due_date ?? 'N/A',
+                ],
+                'color' => 'info',
+            ]);
+        }
+
+        // Merge and sort all activities
+        $allActivities = $spatieActivities->toBase()
+            ->merge($paymentActivities)
+            ->merge($attendanceActivities)
+            ->merge($concessionActivities)
+            ->merge($feeActivities)
+            ->sortByDesc('timestamp')
+            ->values() // Reset keys to avoid any getKey issues
+            ->take($limit);
+
+        return $allActivities;
+    }
+
+    /**
+     * Export to PDF
+     */
+    private function exportAttendanceToPDF($student, $data)
+    {
+        $pdf = Pdf::loadView('admin.students.attendance-export-pdf', [
+            'student' => $student,
+            'data' => $data,
+            'generated_at' => now(),
+        ]);
+
+        $filename = "attendance_{$student->enrollment_number}_".now()->format('Y-m-d').'.pdf';
+
+        return $pdf->download($filename);
+    }
+
+    /**
+     * Export to Excel
+     */
+    private function exportAttendanceToExcel($student, $data)
+    {
+        // You can use Maatwebsite\Excel for this
+        // This is a placeholder implementation
+        $filename = "attendance_{$student->enrollment_number}_".now()->format('Y-m-d').'.xlsx';
+
+        // Wrap data because AttendanceExport expects array with 'data' key
+        return Excel::download(new AttendanceExport(['data' => $data]), $filename);
+    }
+
+    /**
+     * Core logic to calculate attendance stats for a specific date range.
+     * This logic accounts for weekends, holidays, internships, and joining dates.
+     */
+    private function calculateAttendanceStatsForPeriod(Student $student, Carbon $startDate, Carbon $endDate)
+    {
+        $todayStr = now()->format('Y-m-d');
+
+        // 1. Fetch Attendance Records
+        $attendances = Attendance\Attendance::where('student_id', $student->id)
+            ->whereBetween('attendance_date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
+            ->get()
+            ->mapWithKeys(function ($item) {
+                $d = is_string($item->attendance_date)
+                    ? substr($item->attendance_date, 0, 10)
+                    : $item->attendance_date->format('Y-m-d');
+
+                return [$d => $item];
+            });
+
+        // 2. Fetch Holidays
+        $holidays = Holiday::whereBetween('date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
+            ->pluck('name', 'date')->toArray();
+
+        // 3. Daily Punch Counts (for Low Attendance check)
+        $dailyCounts = Attendance\Attendance::whereBetween('attendance_date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
+            ->selectRaw('DATE(attendance_date) as date, count(distinct student_id) as count')
+            ->groupBy('date')
+            ->pluck('count', 'date')
+            ->toArray();
+
+        // 4. effective start dates
+        $profileStartDate = $student->admission_date ? Carbon::parse($student->admission_date)->startOfDay() : $student->created_at->startOfDay();
+        $firstBiometricUse = Attendance\Attendance::where('student_id', $student->id)
+            ->whereIn('status', ['present', 'late'])
+            ->orderBy('attendance_date', 'asc')
+            ->value('attendance_date');
+
+        // 5. Settings
+        $isOnInternship = $student->batch && $student->batch->is_on_internship;
+        $internshipStartDate = $isOnInternship ? $student->batch->internship_start_date : null;
+
+        // 6. Counters
+        $present = 0;
+        $absent = 0;
+        $late = 0;
+        $excused = 0;
+        $internship = 0;
+        $totalWorkHours = 0;
+        $lateArrivals = 0;
+        $earlyDepartures = 0;
+        $calendar = [];
+
+        // 7. Iterate
+        $current = $startDate->copy();
+        while ($current <= $endDate) {
+            $dateStr = $current->format('Y-m-d');
+            $isFuture = ($dateStr > $todayStr);
+            $isPast = ($dateStr < $todayStr);
+            $isWeekend = $current->isSunday();
+            $isExplicitHoliday = isset($holidays[$dateStr]);
+
+            $isLowAttendanceHoliday = false;
+            if (! $isFuture && ! $isWeekend && ! $isExplicitHoliday) {
+                $dayPunchCount = $dailyCounts[$dateStr] ?? 0;
+                if ($dayPunchCount < 10) {
+                    $isLowAttendanceHoliday = true;
+                }
+            }
+            $isEffectiveHoliday = $isExplicitHoliday || $isLowAttendanceHoliday;
+
+            $isBeforeProfile = $current->lt($profileStartDate);
+            $shouldIgnoreForAbsent = $isBeforeProfile || is_null($firstBiometricUse);
+
+            $status = 'none';
+            $checkIn = '-';
+            $checkOut = '-';
+            $remarks = '';
+            $workHours = 0;
+
+            if (isset($attendances[$dateStr])) {
+                $att = $attendances[$dateStr];
+                $status = strtolower(trim($att->status));
+                if (! $isFuture && $status != 'none') {
+                    if ($status == 'present') {
+                        $present++;
+                    } elseif ($status == 'late') {
+                        $late++;
+                        $lateArrivals++;
+                    } elseif ($status == 'absent') {
+                        $absent++;
+                    } elseif ($status == 'excused') {
+                        $excused++;
+                    }
+                }
+                $checkIn = $att->check_in_time ? Carbon::parse($att->check_in_time)->format('h:i A') : '-';
+                $checkOut = $att->check_out_time ? Carbon::parse($att->check_out_time)->format('h:i A') : '-';
+                $remarks = $att->remarks;
+                if ($isLowAttendanceHoliday) {
+                    $remarks = $remarks ? $remarks.' (Holiday Declared)' : 'Holiday Declared';
+                }
+                if ($att->check_in_time && $att->check_out_time) {
+                    $diff = Carbon::parse($att->check_in_time)->diffInHours(Carbon::parse($att->check_out_time));
+                    $workHours = number_format($diff, 1);
+                    $totalWorkHours += $diff;
+                }
+            } else {
+                if ($shouldIgnoreForAbsent || $isFuture) {
+                    $status = 'none';
+                } elseif ($isWeekend) {
+                    $status = 'weekend';
+                } elseif ($isEffectiveHoliday) {
+                    $status = 'holiday';
+                    $remarks = $isExplicitHoliday ? $holidays[$dateStr] : 'Holiday';
+                } else {
+                    if ($isPast) {
+                        $isInternshipDay = $isOnInternship && (! $internshipStartDate || $current->gte(Carbon::parse($internshipStartDate)));
+                        if ($isInternshipDay) {
+                            $internship++;
+                            $status = 'internship';
+                            $checkIn = 'OJT';
+                            $remarks = 'On Internship';
+                        } else {
+                            $absent++;
+                            $status = 'absent';
+                            $remarks = 'Absent';
+                        }
+                    } else {
+                        $status = 'none';
+                    }
+                }
+            }
+
+            $calendar[$dateStr] = [
+                'status' => $status,
+                'check_in_time' => $checkIn,
+                'check_out_time' => $checkOut,
+                'working_hours' => $workHours,
+                'remarks' => $remarks,
+                'is_late_arrival' => ($status == 'late'),
+                'is_early_departure' => false,
+            ];
+            $current->addDay();
+        }
+
+        $totalCalculatedDays = $present + $late + $absent + $excused + $internship;
+        $percentage = $totalCalculatedDays > 0 ? round((($present + $late + $internship) / $totalCalculatedDays) * 100, 1) : 0;
+
+        return [
+            'present' => $present,
+            'absent' => $absent,
+            'late' => $late,
+            'excused' => $excused,
+            'internship' => $internship,
+            'total_working_days' => $totalCalculatedDays,
+            'percentage' => $percentage,
+            'calendar' => $calendar,
+            'total_work_hours' => $totalWorkHours,
+            'late_arrivals' => $lateArrivals,
+            'early_departures' => $earlyDepartures,
+            'attendances' => $attendances,
+        ];
+    }
+
+    /**
+     * Get icon for activity type
+     */
+    private function getActivityIcon($description)
+    {
+        $description = strtolower($description);
+
+        if (strpos($description, 'payment') !== false) {
+            return 'fa-money-bill-wave';
+        }
+        if (strpos($description, 'concession') !== false) {
+            return 'fa-percent';
+        }
+        if (strpos($description, 'created') !== false) {
+            return 'fa-plus-circle';
+        }
+        if (strpos($description, 'updated') !== false) {
+            return 'fa-edit';
+        }
+        if (strpos($description, 'deleted') !== false) {
+            return 'fa-trash';
+        }
+        if (strpos($description, 'login') !== false) {
+            return 'fa-sign-in-alt';
+        }
+        if (strpos($description, 'fee') !== false) {
+            return 'fa-file-invoice-dollar';
+        }
+
+        return 'fa-info-circle';
     }
 }

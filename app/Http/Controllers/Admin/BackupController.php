@@ -825,4 +825,58 @@ class BackupController extends Controller
     {
         return $this->backupService->getGoogleDriveClient();
     }
+
+    /**
+     * Calculate disk usage percentage
+     */
+    private function calculateDiskUsage()
+    {
+        try {
+            $totalSpace = disk_total_space(storage_path());
+            $freeSpace = disk_free_space(storage_path());
+            $usedSpace = $totalSpace - $freeSpace;
+
+            return round(($usedSpace / $totalSpace) * 100, 1);
+        } catch (\Exception $e) {
+            return 0;
+        }
+    }
+
+    /**
+     * Create settings backup using your Setting model's export functionality
+     */
+    private function createSettingsBackup()
+    {
+        try {
+            $timestamp = Carbon::now()->format('Y-m-d_H-i-s');
+            $filename = "settings_backup_{$timestamp}.json";
+            $backupPath = storage_path("app/backups/{$filename}");
+
+            // Ensure backup directory exists
+            if (! file_exists(dirname($backupPath))) {
+                mkdir(dirname($backupPath), 0755, true);
+            }
+
+            // Use your Setting model's export functionality
+            $settings = Setting::export(null, false); // Don't include encrypted settings in backup
+
+            // Save to file
+            file_put_contents($backupPath, json_encode($settings, JSON_PRETTY_PRINT));
+
+            Log::info('Settings backup created', [
+                'filename' => $filename,
+                'path' => $backupPath,
+                'settings_count' => count($settings),
+            ]);
+
+            return $backupPath;
+
+        } catch (\Exception $e) {
+            Log::error('Settings backup failed', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return false;
+        }
+    }
 }

@@ -316,4 +316,40 @@ class RoleController extends Controller
             return back()->with('error', 'Import failed: '.$e->getMessage());
         }
     }
+
+    /**
+     * Group permissions by module for better organization
+     */
+    private function groupPermissions($permissions)
+    {
+        $grouped = [];
+
+        foreach ($permissions as $permission) {
+            // Extract module name from permission name
+            // E.g., "view students" -> "students", "manage admissions" -> "admissions"
+            $parts = explode(' ', $permission->name);
+
+            if (count($parts) >= 2) {
+                $action = $parts[0]; // view, create, edit, delete, manage
+                $module = $parts[1]; // students, courses, etc.
+
+                if (! isset($grouped[$module])) {
+                    $grouped[$module] = [];
+                }
+
+                $grouped[$module][] = $permission;
+            } else {
+                // Handle single word permissions
+                if (! isset($grouped['general'])) {
+                    $grouped['general'] = [];
+                }
+                $grouped['general'][] = $permission;
+            }
+        }
+
+        // Sort modules alphabetically
+        ksort($grouped);
+
+        return $grouped;
+    }
 }

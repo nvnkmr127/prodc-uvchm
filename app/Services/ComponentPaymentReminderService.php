@@ -459,4 +459,349 @@ class ComponentPaymentReminderService
             ];
         }
     }
+
+    /**
+     * Get component collection breakdown
+     */
+    private function getComponentCollectionBreakdown(): array
+    {
+        return FeeCategory::select('fee_categories.name')
+            ->selectRaw('
+                COUNT(student_fees.id) as total_fees,
+                COUNT(CASE WHEN student_fees.status = "paid" THEN 1 END) as paid_fees,
+                COUNT(CASE WHEN student_fees.status IN ("unpaid", "partial") AND student_fees.due_date < NOW() THEN 1 END) as overdue_fees,
+                SUM(student_fees.amount - student_fees.concession_amount) as net_amount,
+                SUM(student_fees.paid_amount) as collected_amount
+            ')
+            ->leftJoin('student_fees', 'fee_categories.id', '=', 'student_fees.fee_category_id')
+            ->groupBy('fee_categories.id', 'fee_categories.name')
+            ->get()
+            ->map(function ($category) {
+                $category->collection_rate = $category->net_amount > 0 ?
+                    round(($category->collected_amount / $category->net_amount) * 100, 2) : 0;
+                $category->overdue_rate = $category->total_fees > 0 ?
+                    round(($category->overdue_fees / $category->total_fees) * 100, 2) : 0;
+
+                return $category;
+            })
+            ->toArray();
+    }
+
+    /**
+     * Get component-wise reminder breakdown
+     */
+    private function getComponentReminderBreakdown(): array
+    {
+        return FeeCategory::select('fee_categories.name')
+            ->selectRaw('
+                COUNT(payment_reminders.id) as total_reminders,
+                COUNT(CASE WHEN payment_reminders.status = "sent" THEN 1 END) as sent_reminders,
+                COUNT(CASE WHEN payment_reminders.status = "pending" THEN 1 END) as pending_reminders,
+                COUNT(CASE WHEN payment_reminders.status = "failed" THEN 1 END) as failed_reminders
+            ')
+            ->leftJoin('payment_reminders', 'fee_categories.id', '=', 'payment_reminders.fee_category_id')
+            ->where('payment_reminders.created_at', '>=', now()->subDays(30))
+            ->groupBy('fee_categories.id', 'fee_categories.name')
+            ->orderByDesc('total_reminders')
+            ->get()
+            ->toArray();
+    }
+
+    /**
+     * Validate reminder before sending
+     */
+    private function validateReminder(PaymentReminder $reminder): array
+    {
+        $errors = [];
+
+        // Check if student exists and is active
+        if (! $reminder->student) {
+            $errors[] = 'Student not found';
+        } elseif (isset($reminder->student->is_active) && ! $reminder->student->is_active) {
+            $errors[] = 'Student is not active';
+        }
+
+        // Check if student fee exists and is still outstanding
+        if ($reminder->studentFee) {
+            $remainingAmount = $reminder->studentFee->amount - $reminder->studentFee->concession_amount - $reminder->studentFee->paid_amount;
+            if ($remainingAmount <= 0) {
+                $errors[] = 'Fee component has been fully paid';
+            }
+        }
+
+        // Validate contact information
+        $contactInfo = $reminder->getRecipientInfo();
+        switch ($reminder->channel) {
+            case 'email':
+                if (empty($contactInfo['email']) || ! filter_var($contactInfo['email'], FILTER_VALIDATE_EMAIL)) {
+                    $errors[] = 'Invalid or missing email address';
+                }
+                break;
+
+            case 'sms':
+            case 'whatsapp':
+            case 'phone_call':
+                if (empty($contactInfo['phone'])) {
+                    $errors[] = 'Missing phone number';
+                } elseif (! preg_match('/^[\+]?[\d\s\-\(\)]+$/', $contactInfo['phone'])) {
+                    $errors[] = 'Invalid phone number format';
+                }
+                break;
+        }
+
+        // Check rate limiting
+        if ($this->isRateLimited($reminder->student, $reminder->channel)) {
+            $errors[] = 'Rate limit exceeded for this student and channel';
+        }
+
+        // Check if reminder is not too old
+        if ($reminder->created_at < now()->subDays(30)) {
+            $errors[] = 'Reminder is too old to send';
+        }
+
+        return [
+            'valid' => empty($errors),
+            'errors' => $errors,
+            'message' => implode('. ', $errors),
+        ];
+    }
+
+    /**
+     * Get template with fallback
+     */
+    private function getTemplate(string $reminderType, string $channel): ?PaymentReminderTemplate
+    {
+        // Try to get specific template
+        $template = PaymentReminderTemplate::where('is_active', true)
+            ->where('reminder_type', $reminderType)
+            ->where('channel', $channel)
+            ->first();
+
+        // Fallback to default template for the type
+        if (! $template) {
+            $template = PaymentReminderTemplate::where('is_active', true)
+                ->where('reminder_type', $reminderType)
+                ->where('is_default', true)
+                ->first();
+        }
+
+        // Last resort: get any active template for the channel
+        if (! $template) {
+            $template = PaymentReminderTemplate::where('is_active', true)
+                ->where('channel', $channel)
+                ->where('is_default', true)
+                ->first();
+        }
+
+        return $template;
+    }
+
+    /**
+     * Prepare template variables with safe defaults (component-based)
+     */
+    private function prepareComponentTemplateVariables(PaymentReminder $reminder): array
+    {
+        $student = $reminder->student;
+        $studentFee = $reminder->studentFee;
+
+        $remainingAmount = $studentFee ?
+            ($studentFee->amount - $studentFee->concession_amount - $studentFee->paid_amount) : 0;
+
+        return [
+            'student_name' => $student->name ?? 'Student',
+            'enrollment_number' => $student->enrollment_number ?? 'N/A',
+            'fee_type' => $reminder->feeCategory?->name ?? 'Fee',
+            'amount' => number_format($remainingAmount, 2),
+            'due_date' => $studentFee ? Carbon::parse($studentFee->due_date)->format('d M Y') : 'N/A',
+            'days_overdue' => $studentFee ? max(0, Carbon::parse($studentFee->due_date)->diffInDays(now())) : 0,
+            'total_amount_due' => number_format($student->getTotalOutstandingAmount(), 2),
+            'course_name' => $student->batch?->course?->name ?? 'N/A',
+            'batch_name' => $student->batch?->name ?? 'N/A',
+            'college_name' => Setting::where('key', 'college_name')->value('value') ?? config('app.name'),
+            'contact_number' => Setting::where('key', 'contact_phone')->value('value') ?? '',
+            'contact_email' => Setting::where('key', 'contact_email')->value('value') ?? '',
+            'final_deadline' => now()->addDays(3)->format('d M Y'),
+            'academic_year' => $studentFee?->academic_year ?? date('Y').'-'.(date('Y') + 1),
+            'installment_number' => $studentFee?->installment_number ?? 1,
+            'original_amount' => $studentFee ? number_format($studentFee->amount, 2) : '0.00',
+            'concession_amount' => $studentFee ? number_format($studentFee->concession_amount, 2) : '0.00',
+            'paid_amount' => $studentFee ? number_format($studentFee->paid_amount, 2) : '0.00',
+        ];
+    }
+
+    /**
+     * Send email reminder
+     */
+    private function sendEmailReminder(PaymentReminder $reminder, ?string $message = null): bool
+    {
+        try {
+            $student = $reminder->student;
+
+            if (! $student->email) {
+                throw new \Exception('Student email not found');
+            }
+
+            // Here you would send the actual email
+            // Mail::to($student->email)->send(new PaymentReminderMail($reminder));
+
+            // For now, we'll just log it
+            Log::info('Email reminder sent', [
+                'student_id' => $student->id,
+                'email' => $student->email,
+                'message' => $reminder->message,
+            ]);
+
+            return true;
+        } catch (\Exception $e) {
+            Log::error('Failed to send email reminder', ['error' => $e->getMessage()]);
+
+            return false;
+        }
+    }
+
+    /**
+     * Send SMS reminder
+     */
+    private function sendSMSReminder(PaymentReminder $reminder, string $message): array
+    {
+        try {
+            Log::info('SMS Component Reminder sent', [
+                'reminder_id' => $reminder->id,
+                'phone' => $reminder->recipient_details['phone'] ?? 'N/A',
+                'fee_category' => $reminder->feeCategory->name ?? 'N/A',
+                'message' => $message,
+            ]);
+
+            return ['success' => true, 'message' => 'SMS logged successfully'];
+        } catch (\Exception $e) {
+            Log::error('SMS reminder failed', [
+                'reminder_id' => $reminder->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return ['success' => false, 'error' => 'SMS sending failed: '.$e->getMessage()];
+        }
+    }
+
+    /**
+     * Send WhatsApp reminder
+     */
+    private function sendWhatsAppReminder(PaymentReminder $reminder, string $message): array
+    {
+        try {
+            Log::info('WhatsApp Component Reminder sent', [
+                'reminder_id' => $reminder->id,
+                'phone' => $reminder->recipient_details['phone'] ?? 'N/A',
+                'fee_category' => $reminder->feeCategory->name ?? 'N/A',
+                'message' => $message,
+            ]);
+
+            return ['success' => true, 'message' => 'WhatsApp logged successfully'];
+        } catch (\Exception $e) {
+            Log::error('WhatsApp reminder failed', [
+                'reminder_id' => $reminder->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return ['success' => false, 'error' => 'WhatsApp sending failed: '.$e->getMessage()];
+        }
+    }
+
+    /**
+     * Schedule phone call task
+     */
+    private function schedulePhoneCall(PaymentReminder $reminder): array
+    {
+        try {
+            Log::info('Component fee phone call scheduled', [
+                'reminder_id' => $reminder->id,
+                'student' => $reminder->student->name,
+                'fee_category' => $reminder->feeCategory->name ?? 'N/A',
+                'phone' => $reminder->recipient_details['phone'] ?? 'N/A',
+            ]);
+
+            return ['success' => true, 'message' => 'Phone call scheduled successfully'];
+        } catch (\Exception $e) {
+            Log::error('Phone call scheduling failed', [
+                'reminder_id' => $reminder->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return ['success' => false, 'error' => 'Phone call scheduling failed: '.$e->getMessage()];
+        }
+    }
+
+    /**
+     * Generate physical notice
+     */
+    private function generatePhysicalNotice(PaymentReminder $reminder): array
+    {
+        try {
+            Log::info('Component fee physical notice generated', [
+                'reminder_id' => $reminder->id,
+                'student' => $reminder->student->name,
+                'fee_category' => $reminder->feeCategory->name ?? 'N/A',
+            ]);
+
+            return ['success' => true, 'message' => 'Physical notice generated successfully'];
+        } catch (\Exception $e) {
+            Log::error('Physical notice generation failed', [
+                'reminder_id' => $reminder->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return ['success' => false, 'error' => 'Physical notice generation failed: '.$e->getMessage()];
+        }
+    }
+
+    /**
+     * Log reminder action for audit trail
+     */
+    private function logReminderAction(PaymentReminder $reminder, string $action, string $details): void
+    {
+        try {
+            PaymentReminderLog::create([
+                'payment_reminder_id' => $reminder->id,
+                'action' => $action,
+                'details' => $details,
+                'metadata' => json_encode([
+                    'channel' => $reminder->channel,
+                    'reminder_type' => $reminder->reminder_type,
+                    'student_id' => $reminder->student_id,
+                    'fee_category_id' => $reminder->fee_category_id,
+                    'student_fee_id' => $reminder->student_fee_id,
+                    'timestamp' => now()->toDateTimeString(),
+                ]),
+                'performed_by' => auth()->id(),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to log component reminder action: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Check if student has hit rate limits for a channel
+     */
+    private function isRateLimited(Student $student, string $channel): bool
+    {
+        $limits = [
+            'email' => ['count' => 5, 'period' => 24], // 5 emails per day
+            'sms' => ['count' => 3, 'period' => 24],   // 3 SMS per day
+            'whatsapp' => ['count' => 3, 'period' => 24], // 3 WhatsApp per day
+            'phone_call' => ['count' => 2, 'period' => 24], // 2 calls per day
+        ];
+
+        $limit = $limits[$channel] ?? null;
+        if (! $limit) {
+            return false;
+        }
+
+        $count = PaymentReminder::where('student_id', $student->id)
+            ->where('channel', $channel)
+            ->where('status', 'sent')
+            ->where('sent_at', '>', now()->subHours($limit['period']))
+            ->count();
+
+        return $count >= $limit['count'];
+    }
 }

@@ -10,6 +10,7 @@ use App\Models\Attendance\Attendance;
 use App\Models\Batch;
 use App\Models\Setting;
 use App\Models\Student;
+use App\Models\Subject;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -773,6 +774,94 @@ class AttendanceController extends Controller
                 'Failed to get attendance summary',
                 500
             );
+        }
+    }
+
+    /**
+     * ✅ FIX 4: Get attendance rules based on user type (student/faculty)
+     */
+    private function getAttendanceRules(string $userType = 'student'): array
+    {
+        $defaultRules = [
+            'student' => [
+                'college_start_time' => '09:30:00',
+                'present_cutoff_time' => '11:00:00',
+                'late_cutoff_time' => '11:30:00',
+                'college_end_time' => '17:00:00',
+                'weekend_enabled' => false,
+                'grace_period_minutes' => 10,
+            ],
+            'faculty' => [
+                'college_start_time' => '09:00:00',
+                'present_cutoff_time' => '10:30:00',
+                'late_cutoff_time' => '11:00:00',
+                'college_end_time' => '17:00:00',
+                'weekend_enabled' => false,
+                'grace_period_minutes' => 10,
+            ],
+        ];
+
+        try {
+            $prefix = $userType === 'faculty' ? 'attendance_faculty_' : 'attendance_student_';
+
+            return [
+                'college_start_time' => $this->getSetting($prefix.'college_start_time', $defaultRules[$userType]['college_start_time']),
+                'present_cutoff_time' => $this->getSetting($prefix.'present_cutoff_time', $defaultRules[$userType]['present_cutoff_time']),
+                'late_cutoff_time' => $this->getSetting($prefix.'late_cutoff_time', $defaultRules[$userType]['late_cutoff_time']),
+                'college_end_time' => $this->getSetting('attendance_college_end_time', $defaultRules[$userType]['college_end_time']),
+                'weekend_enabled' => $this->getSetting('attendance_weekend_enabled', $defaultRules[$userType]['weekend_enabled']),
+                'grace_period_minutes' => $this->getSetting('attendance_grace_period_minutes', $defaultRules[$userType]['grace_period_minutes']),
+            ];
+        } catch (\Exception $e) {
+            Log::warning('Failed to load attendance rules from settings, using defaults', ['error' => $e->getMessage()]);
+
+            return $defaultRules[$userType];
+        }
+    }
+
+    /**
+     * Get default subject
+     */
+    private function getDefaultSubject(): int
+    {
+        try {
+            $generalSubject = Subject::where('name', 'General')->first();
+            if ($generalSubject) {
+                return $generalSubject->id;
+            }
+
+            $firstSubject = Subject::first();
+
+            return $firstSubject ? $firstSubject->id : 1;
+        } catch (\Exception $e) {
+            return 1;
+        }
+    }
+
+    /**
+     * Get default faculty
+     */
+    private function getDefaultFaculty(): int
+    {
+        try {
+            $systemUser = User::where('name', 'Biometric System')->first();
+            if ($systemUser) {
+                return $systemUser->id;
+            }
+
+            $adminUser = User::role(['admin', 'super-admin'])->first();
+            if ($adminUser) {
+                return $adminUser->id;
+            }
+
+            $facultyUser = User::role(['staff', 'faculty'])->first();
+            if ($facultyUser) {
+                return $facultyUser->id;
+            }
+
+            return 1;
+        } catch (\Exception $e) {
+            return 1;
         }
     }
 }

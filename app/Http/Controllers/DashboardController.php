@@ -1893,4 +1893,13 @@ class DashboardController extends Controller
 
         return $totalOverdueFees > 0 ? round(($recoveredFees / $totalOverdueFees) * 100, 1) : 0;
     }
+
+    private function calculateTotalOutstanding()
+    {
+        return StudentFee::whereIn('status', ['unpaid', 'partial'])
+            ->get()
+            ->sum(function ($fee) {
+                return max(0, ($fee->amount ?? 0) - ($fee->paid_amount ?? 0) - ($fee->concession_amount ?? 0));
+            });
+    }
 }

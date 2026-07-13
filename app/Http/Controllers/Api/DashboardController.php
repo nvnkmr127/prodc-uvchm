@@ -4,11 +4,15 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
+use App\Models\Course;
 use App\Models\Dashboard;
 use App\Models\DashboardWidget;
+use App\Models\Enquiry;
 use App\Models\Payment;
+use App\Models\Student;
 use App\Models\StudentFee;
 use App\Models\Timetable;
+use App\Models\User;
 use App\Models\Widget;
 use App\Services\DashboardDataService;
 use App\Services\DashboardPermissionService;
@@ -248,5 +252,120 @@ class DashboardController extends Controller
         $present = $attendances->where('status', 'present')->count();
 
         return $total > 0 ? round(($present / $total) * 100, 1) : 0;
+    }
+
+    /**
+     * Get quick stats for dashboard
+     */
+    public function getQuickStats(Request $request)
+    {
+        $user = auth()->user();
+        $roleName = $user->getRoleNames()->first();
+
+        $stats = $this->getStatsForRole($roleName);
+
+        return response()->json([
+            'role' => $roleName,
+            'stats' => $stats,
+            'generated_at' => now()->toISOString(),
+        ]);
+    }
+
+    protected function getStatsForRole($roleName): array
+    {
+        switch ($roleName) {
+            case 'super-admin':
+                return [
+                    'total_users' => User::count(),
+                    'total_students' => Student::count(),
+                    'monthly_revenue' => Payment::where('status', 'completed')
+                        ->whereMonth('payment_date', now()->month)
+                        ->sum('amount'),
+                    'system_health' => 'good',
+                ];
+
+            case 'college-admin':
+                return [
+                    'total_students' => Student::count(),
+                    'active_courses' => Course::where('is_active', true)->count(),
+                    'today_classes' => Timetable::whereDate('schedule_date', today())->count(),
+                    'pending_enquiries' => Enquiry::where('status', 'pending')->count(),
+                ];
+
+            case 'accountant':
+                $pendingAmount = (float) StudentFee::whereIn('status', ['unpaid', 'partial'])
+                    ->selectRaw('COALESCE(SUM(GREATEST(0, amount - COALESCE(concession_amount, 0) - COALESCE(paid_amount, 0))), 0) as due')
+                    ->value('due');
+
+                $overdueAmount = (float) StudentFee::whereIn('status', ['unpaid', 'partial'])
+                    ->whereNotNull('due_date')
+                    ->where('due_date', '<', now())
+                    ->selectRaw('COALESCE(SUM(GREATEST(0, amount - COALESCE(concession_amount, 0) - COALESCE(paid_amount, 0))), 0) as due')
+                    ->value('due');
+
+                return [
+                    'monthly_revenue' => Payment::where('status', 'completed')
+                        ->whereMonth('payment_date', now()->month)
+                        ->sum('amount'),
+                    'pending_amount' => $pendingAmount,
+                    'overdue_amount' => $overdueAmount,
+                    'collection_rate' => $this->calculateCollectionRate(),
+                ];
+
+            case 'staff':
+                $user = auth()->user();
+
+                return [
+                    'today_classes' => Timetable::where('user_id', $user->id)
+                        ->whereDate('schedule_date', today())->count(),
+                    'pending_attendance' => Timetable::where('user_id', $user->id)
+                        ->whereDate('schedule_date', today())
+                        ->whereDoesntHave('attendances')->count(),
+                    'my_students' => $this->getMyStudentsCount($user),
+                    'attendance_rate' => $this->getMyAttendanceRate($user),
+                ];
+
+            case 'student':
+                $student = auth()->user()->student;
+                if (! $student) {
+                    return [];
+                }
+
+                $pendingFees = (float) StudentFee::where('student_id', $student->id)
+                    ->whereIn('status', ['unpaid', 'partial'])
+                    ->selectRaw('COALESCE(SUM(GREATEST(0, amount - COALESCE(concession_amount, 0) - COALESCE(paid_amount, 0))), 0) as due')
+                    ->value('due');
+
+                return [
+                    'attendance_percentage' => $this->getStudentAttendancePercentage($student),
+                    'pending_fees' => $pendingFees,
+                    'today_classes' => $this->getStudentTodayClassesCount($student),
+                    'upcoming_exams' => 2, // Sample count
+                ];
+
+            default:
+                return [];
+        }
+    }
+
+    private function getMyAttendanceRate($user): float
+    {
+        $totalClasses = Timetable::where('user_id', $user->id)->count();
+        $attendanceTaken = Timetable::where('user_id', $user->id)
+            ->whereHas('attendances')->count();
+
+        return $totalClasses > 0 ? round(($attendanceTaken / $totalClasses) * 100, 1) : 0;
+    }
+
+    private function getStudentTodayClassesCount($student): int
+    {
+        $batch = $student->batch;
+        if (! $batch) {
+            return 0;
+        }
+
+        return Timetable::where('batch_id', $batch->id)
+            ->whereDate('schedule_date', today())
+            ->count();
     }
 }

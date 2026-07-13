@@ -280,4 +280,27 @@ class AttendanceService
             return 'stable';
         }
     }
+
+    /**
+     * Private helper methods
+     */
+    private function getEmptyStats(): array
+    {
+        return [
+            'total_classes' => 0,
+            'present_count' => 0,
+            'absent_count' => 0,
+            'late_count' => 0,
+            'excused_count' => 0,
+            'attendance_percentage' => 0,
+            'punctuality_percentage' => 0,
+            'consecutive_absents' => 0,
+            'attendance_streak' => 0,
+            'monthly_trends' => [],
+            'weekly_patterns' => [],
+            'late_patterns' => [],
+            'performance_level' => 'no_data',
+            'risk_level' => 'low',
+        ];
+    }
 }

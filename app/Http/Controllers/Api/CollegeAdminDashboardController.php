@@ -7,8 +7,10 @@ use App\Http\Controllers\Controller;
 use App\Models\Attendance;
 use App\Models\Batch;
 use App\Models\Course;
+use App\Models\Enquiry;
 use App\Models\Payment;
 use App\Models\Student;
+use App\Models\StudentFee;
 use App\Models\User;
 use App\Services\AcademicYearService;
 use Illuminate\Http\Request;
@@ -428,5 +430,602 @@ class CollegeAdminDashboardController extends Controller
                 'course' => $batch->course->name ?? 'Unknown',
             ];
         });
+    }
+
+    /**
+     * Get students growth percentage
+     */
+    private function getStudentsGrowth()
+    {
+        $thisMonth = Student::whereMonth('admission_date', now()->month)
+            ->whereYear('admission_date', now()->year)
+            ->count();
+
+        $lastMonth = Student::whereMonth('admission_date', now()->subMonth()->month)
+            ->whereYear('admission_date', now()->subMonth()->year)
+            ->count();
+
+        if ($lastMonth == 0) {
+            return 0;
+        }
+
+        return round((($thisMonth - $lastMonth) / $lastMonth) * 100, 1);
+    }
+
+    /**
+     * Get user's payment collections
+     */
+    private function getMyCollections()
+    {
+        $user = auth()->user();
+        $today = now();
+
+        $todayPayments = Payment::withoutGlobalScope('academic_year')
+            ->where('payment_type', 'component')
+            ->whereDate('payment_date', $today)
+            ->get();
+
+        $totalToday = $todayPayments->sum('amount');
+        $transactionsToday = $todayPayments->count();
+        $avgAmount = $transactionsToday > 0 ? ($totalToday / $transactionsToday) : 0;
+
+        // Calculate online payment percentage
+        $onlinePayments = $todayPayments->whereIn('payment_method', ['online', 'card', 'upi'])->count();
+        $onlinePercentage = $transactionsToday > 0 ? ($onlinePayments / $transactionsToday * 100) : 0;
+
+        return [
+            'today' => $totalToday,
+            'transactions' => $transactionsToday,
+            'avg_amount' => $avgAmount,
+            'online_percentage' => round($onlinePercentage, 1),
+        ];
+    }
+
+    /**
+     * Get collections growth
+     */
+    private function getCollectionsGrowth()
+    {
+        $user = auth()->user();
+        $today = now();
+
+        $todayAmount = Payment::withoutGlobalScope('academic_year')
+            ->where('payment_type', 'component')
+            ->whereDate('payment_date', $today)
+            ->sum('amount');
+
+        $yesterdayAmount = Payment::withoutGlobalScope('academic_year')
+            ->where('payment_type', 'component')
+            ->whereDate('payment_date', $today->copy()->subDay())
+            ->sum('amount');
+
+        if ($yesterdayAmount == 0) {
+            return 0;
+        }
+
+        return round((($todayAmount - $yesterdayAmount) / $yesterdayAmount) * 100, 1);
+    }
+
+    /**
+     * Get current attendance rate
+     */
+    private function getCurrentAttendanceRate()
+    {
+        $totalClasses = Attendance::whereDate('attendance_date', today())->count();
+        if ($totalClasses === 0) {
+            return 0;
+        }
+
+        $presentClasses = Attendance::whereDate('attendance_date', today())
+            ->where('status', 'present')
+            ->count();
+
+        return round(($presentClasses / $totalClasses) * 100, 2);
+    }
+
+    /**
+     * Get attendance trend
+     */
+    private function getAttendanceTrend()
+    {
+        $thisWeek = $this->getWeeklyAttendanceRate(now());
+        $lastWeek = $this->getWeeklyAttendanceRate(now()->subWeek());
+
+        if ($lastWeek == 0) {
+            return 0;
+        }
+
+        return round((($thisWeek - $lastWeek) / $lastWeek) * 100, 1);
+    }
+
+    /**
+     * Get user's activities count
+     */
+    private function getMyActivitiesCount()
+    {
+        $user = auth()->user();
+
+        return Payment::withoutGlobalScope('academic_year')
+            ->where('payment_type', 'component')
+            ->whereDate('payment_date', today())
+            ->count();
+    }
+
+    /**
+     * Get last activity time
+     */
+    private function getLastActivityTime()
+    {
+        $user = auth()->user();
+
+        $lastPayment = Payment::withoutGlobalScope('academic_year')
+            ->where('payment_type', 'component')
+            ->latest()
+            ->first();
+
+        return $lastPayment ? $lastPayment->created_at->diffForHumans() : 'No recent activity';
+    }
+
+    /**
+     * Get attendance chart data
+     */
+    private function getAttendanceChart()
+    {
+        $chart = [
+            'labels' => [],
+            'present' => [],
+            'absent' => [],
+            'late' => [],
+        ];
+
+        for ($i = 6; $i >= 0; $i--) {
+            $date = now()->subDays($i);
+
+            $attendanceData = Attendance::whereDate('attendance_date', $date)
+                ->selectRaw('status, COUNT(*) as count')
+                ->groupBy('status')
+                ->pluck('count', 'status');
+
+            $chart['labels'][] = $date->format('M d');
+            $chart['present'][] = $attendanceData['present'] ?? 0;
+            $chart['absent'][] = $attendanceData['absent'] ?? 0;
+            $chart['late'][] = $attendanceData['late'] ?? 0;
+        }
+
+        return $chart;
+    }
+
+    /**
+     * Rename your private method to avoid confusion
+     */
+    private function getPaymentModesData()
+    {
+        // Your existing getPaymentModes() code here
+        $user = auth()->user();
+        $today = now();
+
+        // Get actual payment data
+        $paymentModes = Payment::withoutGlobalScope('academic_year')
+            ->where('payment_type', 'component')
+            ->whereDate('payment_date', $today)
+            ->selectRaw('payment_method, SUM(amount) as total')
+            ->groupBy('payment_method')
+            ->pluck('total', 'payment_method')
+            ->toArray();
+
+        // Debug log
+        // Debug: Check if user has any payments at all
+        $totalPayments = Payment::where('created_by', $user->id)->count();
+        \Log::info("User {$user->id} has {$totalPayments} total payments");
+
+        if ($totalPayments == 0) {
+            \Log::info('No payments found, returning zero data');
+
+            return [
+                'labels' => ['Cash', 'Online', 'Card', 'UPI'],
+                'values' => [0, 0, 0, 0],
+            ];
+        }
+
+        // If no payments today, get last 7 days data for demo
+        if (empty($paymentModes) || array_sum($paymentModes) == 0) {
+            $paymentModes = Payment::withoutGlobalScope('academic_year')
+                ->where('payment_type', 'component')
+                ->whereBetween('payment_date', [now()->subDays(7), now()])
+                ->selectRaw('payment_method, SUM(amount) as total')
+                ->groupBy('payment_method')
+                ->pluck('total', 'payment_method')
+                ->toArray();
+
+            \Log::info('Payment modes last 7 days:', $paymentModes);
+        }
+
+        // Ensure we have all payment methods
+        $defaultModes = ['cash' => 0, 'online' => 0, 'card' => 0, 'upi' => 0];
+        $paymentModes = array_merge($defaultModes, $paymentModes);
+
+        $result = [
+            'labels' => ['Cash', 'Online', 'Card', 'UPI'],
+            'values' => [
+                (float) ($paymentModes['cash'] ?? 0),
+                (float) ($paymentModes['online'] ?? 0),
+                (float) ($paymentModes['card'] ?? 0),
+                (float) ($paymentModes['upi'] ?? 0),
+            ],
+        ];
+
+        \Log::info('Final payment modes result:', $result);
+
+        return $result;
+    }
+
+    /**
+     * Get pending collections
+     */
+    private function getPendingCollections()
+    {
+        return StudentFee::withoutGlobalScope('academic_year')
+            ->with(['student.batch.course'])
+            ->whereIn('status', ['unpaid', 'partial'])
+            ->latest('due_date')
+            ->take(10)
+            ->get();
+    }
+
+    /**
+     * Get real-time enquiry statistics
+     */
+    private function getEnquiryStats()
+    {
+        $todayStr = today()->toDateString();
+
+        $stats = Enquiry::selectRaw("
+            COUNT(*) as total_count,
+            SUM(CASE WHEN DATE(created_at) = ? THEN 1 ELSE 0 END) as today_count,
+            SUM(CASE WHEN status = 'New' THEN 1 ELSE 0 END) as new_count,
+            SUM(CASE WHEN status = 'Interested' THEN 1 ELSE 0 END) as interested_count,
+            SUM(CASE WHEN status = 'Admitted' THEN 1 ELSE 0 END) as admitted_count,
+            SUM(CASE WHEN DATE(next_follow_up_date) = ? THEN 1 ELSE 0 END) as followup_today
+        ", [$todayStr, $todayStr])->first();
+
+        return [
+            'today_count' => (int) ($stats->today_count ?? 0),
+            'new_count' => (int) ($stats->new_count ?? 0),
+            'interested_count' => (int) ($stats->interested_count ?? 0),
+            'followup_today' => (int) ($stats->followup_today ?? 0),
+            'admitted_count' => (int) ($stats->admitted_count ?? 0),
+            'total_count' => (int) ($stats->total_count ?? 0),
+        ];
+    }
+
+    /**
+     * Get student attendance rate
+     */
+    private function getStudentAttendanceRate($studentId)
+    {
+        $totalClasses = Attendance::where('student_id', $studentId)->count();
+        if ($totalClasses === 0) {
+            return 0;
+        }
+
+        $presentClasses = Attendance::where('student_id', $studentId)
+            ->where('status', 'present')
+            ->count();
+
+        return round(($presentClasses / $totalClasses) * 100, 2);
+    }
+
+    private function getMonthlyEnrollments()
+    {
+        return Student::selectRaw('MONTH(admission_date) as month, COUNT(*) as count')
+            ->whereYear('admission_date', now()->year)
+            ->groupBy('month')
+            ->pluck('count', 'month');
+    }
+
+    private function getCourseWiseEnrollments()
+    {
+        return Student::with('batch.course')
+            ->get()
+            ->groupBy('batch.course.name')
+            ->map->count();
+    }
+
+    /**
+     * Get date range for a given period
+     */
+    private function getDateRangeForPeriod($period, $today)
+    {
+        switch ($period) {
+            case 'yesterday':
+                return [
+                    'start' => $today->copy()->subDay()->startOfDay(),
+                    'end' => $today->copy()->subDay()->endOfDay(),
+                ];
+            case 'this_week':
+                return [
+                    'start' => $today->copy()->startOfWeek(),
+                    'end' => $today->copy()->endOfWeek(),
+                ];
+            case 'last_7_days':
+                return [
+                    'start' => $today->copy()->subDays(7),
+                    'end' => $today->copy(),
+                ];
+            case 'this_month':
+                return [
+                    'start' => $today->copy()->startOfMonth(),
+                    'end' => $today->copy()->endOfMonth(),
+                ];
+            case 'last_30_days':
+                return [
+                    'start' => $today->copy()->subDays(30),
+                    'end' => $today->copy(),
+                ];
+            case 'today':
+            default:
+                return [
+                    'start' => $today->copy()->startOfDay(),
+                    'end' => $today->copy()->endOfDay(),
+                ];
+        }
+    }
+
+    /**
+     * Get comparison date range based on current period
+     */
+    private function getComparisonDateRange($period, $today)
+    {
+        switch ($period) {
+            case 'yesterday':
+                // Compare with day before yesterday
+                return [
+                    'start' => $today->copy()->subDays(2)->startOfDay(),
+                    'end' => $today->copy()->subDays(2)->endOfDay(),
+                ];
+            case 'this_week':
+                // Compare with last week
+                return [
+                    'start' => $today->copy()->subWeek()->startOfWeek(),
+                    'end' => $today->copy()->subWeek()->endOfWeek(),
+                ];
+            case 'last_7_days':
+                // Compare with previous 7 days
+                return [
+                    'start' => $today->copy()->subDays(14),
+                    'end' => $today->copy()->subDays(7),
+                ];
+            case 'this_month':
+                // Compare with last month
+                return [
+                    'start' => $today->copy()->subMonth()->startOfMonth(),
+                    'end' => $today->copy()->subMonth()->endOfMonth(),
+                ];
+            case 'last_30_days':
+                // Compare with previous 30 days
+                return [
+                    'start' => $today->copy()->subDays(60),
+                    'end' => $today->copy()->subDays(30),
+                ];
+            case 'today':
+            default:
+                // Compare with yesterday
+                return [
+                    'start' => $today->copy()->subDay()->startOfDay(),
+                    'end' => $today->copy()->subDay()->endOfDay(),
+                ];
+        }
+    }
+
+    /**
+     * Calculate payment statistics from payment collection
+     */
+    private function calculatePaymentStats($payments)
+    {
+        $totalCollected = $payments->sum('amount');
+        $transactionsCount = $payments->count();
+        $avgAmount = $transactionsCount > 0 ? ($totalCollected / $transactionsCount) : 0;
+
+        // Calculate online payment percentage
+        $onlinePayments = $payments->whereIn('payment_method', ['online', 'card', 'upi'])->count();
+        $onlinePercentage = $transactionsCount > 0 ? ($onlinePayments / $transactionsCount * 100) : 0;
+
+        return [
+            'total_collected' => $totalCollected,
+            'transactions_count' => $transactionsCount,
+            'avg_amount' => round($avgAmount, 2),
+            'online_percentage' => round($onlinePercentage, 1),
+        ];
+    }
+
+    /**
+     * Calculate growth metrics between current and comparison periods
+     */
+    private function calculateGrowthMetrics($current, $comparison, $period)
+    {
+        $amountGrowth = 0;
+        $transactionGrowth = 0;
+        $avgAmountGrowth = 0;
+
+        if ($comparison['total_collected'] > 0) {
+            $amountGrowth = (($current['total_collected'] - $comparison['total_collected']) / $comparison['total_collected']) * 100;
+        } elseif ($current['total_collected'] > 0) {
+            $amountGrowth = 100; // 100% growth from zero
+        }
+
+        if ($comparison['transactions_count'] > 0) {
+            $transactionGrowth = (($current['transactions_count'] - $comparison['transactions_count']) / $comparison['transactions_count']) * 100;
+        } elseif ($current['transactions_count'] > 0) {
+            $transactionGrowth = 100;
+        }
+
+        if ($comparison['avg_amount'] > 0) {
+            $avgAmountGrowth = (($current['avg_amount'] - $comparison['avg_amount']) / $comparison['avg_amount']) * 100;
+        } elseif ($current['avg_amount'] > 0) {
+            $avgAmountGrowth = 100;
+        }
+
+        return [
+            'amount_growth' => round($amountGrowth, 1),
+            'transaction_growth' => round($transactionGrowth, 1),
+            'avg_amount_growth' => round($avgAmountGrowth, 1),
+            'online_percentage_change' => round($current['online_percentage'] - $comparison['online_percentage'], 1),
+            'comparison_label' => $this->getComparisonPeriodLabel($period),
+            'is_positive' => $amountGrowth >= 0,
+            'summary' => $this->getGrowthSummary($amountGrowth, $transactionGrowth),
+        ];
+    }
+
+    /**
+     * Build chart data for comparison visualization
+     */
+    private function buildComparisonChartData($current, $comparison, $period)
+    {
+        $labels = $this->getChartLabels($period);
+
+        return [
+            'labels' => $labels,
+            'amounts' => [
+                $comparison['total_collected'],
+                $current['total_collected'],
+            ],
+            'counts' => [
+                $comparison['transactions_count'],
+                $current['transactions_count'],
+            ],
+            'avg_amounts' => [
+                $comparison['avg_amount'],
+                $current['avg_amount'],
+            ],
+            'online_percentages' => [
+                $comparison['online_percentage'],
+                $current['online_percentage'],
+            ],
+        ];
+    }
+
+    /**
+     * Get comparison period label
+     */
+    private function getComparisonPeriodLabel($period)
+    {
+        switch ($period) {
+            case 'yesterday':
+                return 'vs Day Before';
+            case 'this_week':
+                return 'vs Last Week';
+            case 'last_7_days':
+                return 'vs Previous 7 Days';
+            case 'this_month':
+                return 'vs Last Month';
+            case 'last_30_days':
+                return 'vs Previous 30 Days';
+            case 'today':
+            default:
+                return 'vs Yesterday';
+        }
+    }
+
+    private function getWeeklyAttendanceChart()
+    {
+        $chart = ['labels' => [], 'present' => [], 'absent' => [], 'late' => []];
+
+        for ($i = 3; $i >= 0; $i--) {
+            $weekStart = now()->subWeeks($i)->startOfWeek();
+            $weekEnd = $weekStart->copy()->endOfWeek();
+
+            $chart['labels'][] = $weekStart->format('M d').' - '.$weekEnd->format('d');
+
+            $weeklyData = Attendance::whereBetween('attendance_date', [$weekStart, $weekEnd])
+                ->selectRaw('status, COUNT(*) as count')
+                ->groupBy('status')
+                ->pluck('count', 'status');
+
+            $chart['present'][] = $weeklyData['present'] ?? 0;
+            $chart['absent'][] = $weeklyData['absent'] ?? 0;
+            $chart['late'][] = $weeklyData['late'] ?? 0;
+        }
+
+        return $chart;
+    }
+
+    private function getMonthlyAttendanceChart()
+    {
+        $chart = ['labels' => [], 'present' => [], 'absent' => [], 'late' => []];
+
+        for ($i = 5; $i >= 0; $i--) {
+            $month = now()->subMonths($i);
+            $chart['labels'][] = $month->format('M Y');
+
+            $monthlyData = Attendance::whereYear('attendance_date', $month->year)
+                ->whereMonth('attendance_date', $month->month)
+                ->selectRaw('status, COUNT(*) as count')
+                ->groupBy('status')
+                ->pluck('count', 'status');
+
+            $chart['present'][] = $monthlyData['present'] ?? 0;
+            $chart['absent'][] = $monthlyData['absent'] ?? 0;
+            $chart['late'][] = $monthlyData['late'] ?? 0;
+        }
+
+        return $chart;
+    }
+
+    /**
+     * Get weekly attendance rate
+     */
+    private function getWeeklyAttendanceRate($week)
+    {
+        $startOfWeek = $week->copy()->startOfWeek();
+        $endOfWeek = $week->copy()->endOfWeek();
+
+        $totalClasses = Attendance::whereBetween('attendance_date', [$startOfWeek, $endOfWeek])->count();
+        if ($totalClasses === 0) {
+            return 0;
+        }
+
+        $presentClasses = Attendance::whereBetween('attendance_date', [$startOfWeek, $endOfWeek])
+            ->where('status', 'present')
+            ->count();
+
+        return round(($presentClasses / $totalClasses) * 100, 2);
+    }
+
+    /**
+     * Get growth summary text
+     */
+    private function getGrowthSummary($amountGrowth, $transactionGrowth)
+    {
+        if ($amountGrowth > 0 && $transactionGrowth > 0) {
+            return 'Both revenue and transactions increased';
+        } elseif ($amountGrowth > 0 && $transactionGrowth <= 0) {
+            return 'Revenue increased but fewer transactions';
+        } elseif ($amountGrowth <= 0 && $transactionGrowth > 0) {
+            return 'More transactions but lower revenue';
+        } else {
+            return 'Both revenue and transactions decreased';
+        }
+    }
+
+    /**
+     * Get chart labels for different periods
+     */
+    private function getChartLabels($period)
+    {
+        switch ($period) {
+            case 'yesterday':
+                return ['Day Before', 'Yesterday'];
+            case 'this_week':
+                return ['Last Week', 'This Week'];
+            case 'last_7_days':
+                return ['Previous 7 Days', 'Last 7 Days'];
+            case 'this_month':
+                return ['Last Month', 'This Month'];
+            case 'last_30_days':
+                return ['Previous 30 Days', 'Last 30 Days'];
+            case 'today':
+            default:
+                return ['Yesterday', 'Today'];
+        }
     }
 }

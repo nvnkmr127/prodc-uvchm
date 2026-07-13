@@ -808,4 +808,378 @@ class BackupService
             ];
         }
     }
+
+    /**
+     * Improved database backup using PHP PDO with better error handling
+     */
+    private function createPHPDatabaseBackup($backupPath)
+    {
+        try {
+            // Check disk space first
+            $freeSpace = disk_free_space(dirname($backupPath));
+            if ($freeSpace < 100 * 1024 * 1024) { // Less than 100MB free
+                throw new \Exception('Insufficient disk space. Only '.round($freeSpace / 1024 / 1024, 2).'MB available.');
+            }
+
+            $pdo = DB::connection()->getPdo();
+            $dbName = config('database.connections.mysql.database');
+
+            $sql = "-- Database Backup for {$dbName}\n";
+            $sql .= '-- Generated on: '.date('Y-m-d H:i:s')."\n";
+            $sql .= '-- Laravel Application: '.config('app.name')."\n\n";
+            $sql .= "SET FOREIGN_KEY_CHECKS = 0;\n";
+            $sql .= "SET SQL_MODE = 'NO_AUTO_VALUE_ON_ZERO';\n";
+            $sql .= "SET time_zone = '+00:00';\n\n";
+
+            // Get all tables
+            $stmt = $pdo->query('SHOW TABLES');
+            $tables = $stmt->fetchAll(\PDO::FETCH_COLUMN);
+
+            if (empty($tables)) {
+                throw new \Exception('No tables found in database');
+            }
+
+            Log::info("Starting backup of {$dbName} with ".count($tables).' tables');
+
+            foreach ($tables as $table) {
+                Log::debug("Backing up table: {$table}");
+
+                // Drop table if exists
+                $sql .= "DROP TABLE IF EXISTS `{$table}`;\n";
+
+                // Get CREATE TABLE statement with better error handling
+                try {
+                    $stmt = $pdo->query("SHOW CREATE TABLE `{$table}`");
+                    $createTableRow = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+                    // Check if we got the expected result
+                    if (! $createTableRow) {
+                        Log::warning("Could not get CREATE TABLE for {$table}, skipping");
+
+                        continue;
+                    }
+
+                    // Handle different possible keys returned by SHOW CREATE TABLE
+                    $createTableSQL = null;
+                    if (isset($createTableRow['Create Table'])) {
+                        $createTableSQL = $createTableRow['Create Table'];
+                    } elseif (isset($createTableRow['Create View'])) {
+                        $createTableSQL = $createTableRow['Create View'];
+                    } else {
+                        // Try to get the value from the second column (index 1)
+                        $values = array_values($createTableRow);
+                        if (isset($values[1])) {
+                            $createTableSQL = $values[1];
+                        } else {
+                            Log::warning("Unexpected SHOW CREATE TABLE result for {$table}: ".json_encode($createTableRow));
+
+                            continue;
+                        }
+                    }
+
+                    $sql .= $createTableSQL.";\n\n";
+
+                } catch (\Exception $e) {
+                    Log::warning("Failed to get CREATE TABLE for {$table}: ".$e->getMessage());
+
+                    continue;
+                }
+
+                // Get table data with limit to avoid memory issues
+                try {
+                    $countStmt = $pdo->query("SELECT COUNT(*) FROM `{$table}`");
+                    $rowCount = $countStmt->fetchColumn();
+
+                    if ($rowCount > 0) {
+                        // For large tables, use chunking
+                        $chunkSize = 1000;
+                        $offset = 0;
+
+                        while ($offset < $rowCount) {
+                            $stmt = $pdo->query("SELECT * FROM `{$table}` LIMIT {$chunkSize} OFFSET {$offset}");
+                            $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+                            if (! empty($rows)) {
+                                if ($offset === 0) {
+                                    // First chunk - add INSERT statement header
+                                    $columns = array_keys($rows[0]);
+                                    $columnList = '`'.implode('`, `', $columns).'`';
+                                    $sql .= "INSERT INTO `{$table}` ({$columnList}) VALUES\n";
+                                }
+
+                                $insertValues = [];
+                                foreach ($rows as $row) {
+                                    $values = [];
+                                    foreach ($row as $value) {
+                                        if ($value === null) {
+                                            $values[] = 'NULL';
+                                        } else {
+                                            $values[] = $pdo->quote($value);
+                                        }
+                                    }
+                                    $insertValues[] = '('.implode(', ', $values).')';
+                                }
+
+                                if ($offset + $chunkSize >= $rowCount) {
+                                    // Last chunk - end with semicolon
+                                    $sql .= implode(",\n", $insertValues).";\n\n";
+                                } else {
+                                    // More chunks coming - end with comma
+                                    $sql .= implode(",\n", $insertValues).",\n";
+                                }
+                            }
+
+                            $offset += $chunkSize;
+                        }
+                    }
+
+                } catch (\Exception $e) {
+                    Log::warning("Failed to backup data for table {$table}: ".$e->getMessage());
+
+                    // Continue with other tables
+                    continue;
+                }
+            }
+
+            $sql .= "SET FOREIGN_KEY_CHECKS = 1;\n";
+            $sql .= "-- End of backup\n";
+
+            // Write to file
+            $bytesWritten = file_put_contents($backupPath, $sql);
+
+            if ($bytesWritten === false) {
+                throw new \Exception('Failed to write backup file');
+            }
+
+            Log::info('Backup file written successfully', [
+                'bytes' => $bytesWritten,
+                'tables_count' => count($tables),
+                'size_mb' => round($bytesWritten / 1024 / 1024, 2),
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('PHP database backup failed', [
+                'error' => $e->getMessage(),
+                'backup_path' => $backupPath,
+                'trace' => $e->getTraceAsString(),
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Add directory to zip recursively with better error handling
+     *
+     * @param  ZipArchive  $zip
+     * @param  string  $dir
+     * @param  string  $zipDir
+     * @param  array  $excludeDirs
+     * @return array
+     */
+    private function addDirectoryToZipSafely($zip, $dir, $zipDir = '', $excludeDirs = [])
+    {
+        $filesAdded = 0;
+        $dirsAdded = 0;
+
+        if (! is_dir($dir)) {
+            Log::warning("Directory does not exist: {$dir}");
+
+            return ['files' => 0, 'dirs' => 0];
+        }
+
+        try {
+            $files = scandir($dir);
+            if ($files === false) {
+                Log::warning("Cannot read directory: {$dir}");
+
+                return ['files' => 0, 'dirs' => 0];
+            }
+
+            foreach ($files as $file) {
+                if ($file === '.' || $file === '..') {
+                    continue;
+                }
+
+                $filePath = $dir.DIRECTORY_SEPARATOR.$file;
+                $zipPath = $zipDir ? $zipDir.'/'.$file : $file;
+
+                // Skip excluded directories/files
+                $shouldExclude = false;
+                foreach ($excludeDirs as $excludeDir) {
+                    if (strpos($zipPath, $excludeDir) === 0 || strpos($file, '.') === 0) {
+                        $shouldExclude = true;
+                        break;
+                    }
+                }
+
+                if ($shouldExclude) {
+                    continue;
+                }
+
+                if (is_dir($filePath)) {
+                    if ($zip->addEmptyDir($zipPath)) {
+                        $dirsAdded++;
+                        $result = $this->addDirectoryToZipSafely($zip, $filePath, $zipPath, $excludeDirs);
+                        $filesAdded += $result['files'];
+                        $dirsAdded += $result['dirs'];
+                    }
+                } elseif (is_file($filePath) && is_readable($filePath)) {
+                    if ($zip->addFile($filePath, $zipPath)) {
+                        $filesAdded++;
+                    } else {
+                        Log::warning("Failed to add file to zip: {$filePath}");
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            Log::warning("Error processing directory {$dir}: ".$e->getMessage());
+        }
+
+        return ['files' => $filesAdded, 'dirs' => $dirsAdded];
+    }
+
+    /**
+     * Determine backup type from filename (if this method doesn't exist)
+     *
+     * @param  string  $filename
+     * @return string
+     */
+    private function getBackupType($filename)
+    {
+        if (strpos($filename, 'backup_daily') !== false) {
+            return 'Database';
+        } elseif (strpos($filename, 'backup_manual') !== false) {
+            return 'Database';
+        } elseif (strpos($filename, 'backup_weekly') !== false) {
+            return 'Database';
+        } elseif (strpos($filename, 'settings-backup') !== false || strpos($filename, 'settings_backup') !== false) {
+            return 'Settings';
+        } elseif (strpos($filename, 'code_backup') !== false) {
+            return 'Files';
+        } elseif (pathinfo($filename, PATHINFO_EXTENSION) === 'zip') {
+            return 'Files';
+        } elseif (pathinfo($filename, PATHINFO_EXTENSION) === 'sql') {
+            return 'Database';
+        }
+
+        return 'Database'; // Default
+    }
+
+    /**
+     * Get Google Drive folder ID - UPDATED to prevent 403 errors
+     */
+    private function getGoogleDriveFolderId()
+    {
+        // Check if we already have a folder ID
+        $folderId = Setting::get('google_drive_folder_id');
+        if ($folderId) {
+            return $folderId;
+        }
+
+        // Only try to create folder if we have proper authorization
+        $client = $this->getGoogleDriveClient();
+        if (! $client) {
+            throw new \Exception('Google Drive not authorized. Please complete OAuth authorization first.');
+        }
+
+        // Check if client has valid access token
+        if (! $client->getAccessToken()) {
+            throw new \Exception('No access token available. Please authorize Google Drive first.');
+        }
+
+        if ($client->isAccessTokenExpired()) {
+            throw new \Exception('Access token expired. Please re-authorize Google Drive.');
+        }
+
+        try {
+            $service = new GoogleDrive($client);
+            $folderName = Setting::get('gdrive_folder_name', 'College-Backups');
+
+            // Check if folder already exists
+            $response = $service->files->listFiles([
+                'q' => "name='{$folderName}' and mimeType='application/vnd.google-apps.folder'",
+                'fields' => 'files(id, name)',
+            ]);
+
+            $files = $response->getFiles();
+
+            if (count($files) > 0) {
+                $folderId = $files[0]->getId();
+                Log::info('Found existing Google Drive backup folder', [
+                    'folder_name' => $folderName,
+                    'folder_id' => $folderId,
+                ]);
+            } else {
+                // Create folder
+                $fileMetadata = new DriveFile([
+                    'name' => $folderName,
+                    'mimeType' => 'application/vnd.google-apps.folder',
+                ]);
+
+                $folder = $service->files->create($fileMetadata, [
+                    'fields' => 'id',
+                ]);
+
+                $folderId = $folder->getId();
+                Log::info('Created new Google Drive backup folder', [
+                    'folder_name' => $folderName,
+                    'folder_id' => $folderId,
+                ]);
+            }
+
+            // Store folder ID
+            Setting::set('google_drive_folder_id', $folderId, [
+                'group' => 'backup',
+                'type' => 'text',
+                'description' => 'Google Drive folder ID for backups',
+            ]);
+
+            return $folderId;
+
+        } catch (\Google\Service\Exception $googleError) {
+            $errorDetails = json_decode($googleError->getMessage(), true);
+            $errorMessage = isset($errorDetails['error']['message']) ?
+                $errorDetails['error']['message'] :
+                $googleError->getMessage();
+
+            Log::error('Google Drive API error', [
+                'error' => $errorMessage,
+                'code' => $googleError->getCode(),
+            ]);
+
+            throw new \Exception('Google Drive API error: '.$errorMessage);
+        } catch (\Exception $e) {
+            Log::error('Failed to create/get Google Drive folder', [
+                'error' => $e->getMessage(),
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Check if file already exists in Google Drive
+     */
+    private function findFileInGoogleDrive($service, $fileName, $folderId)
+    {
+        try {
+            $query = "name = '{$fileName}' and parents in '{$folderId}' and trashed = false";
+            $results = $service->files->listFiles([
+                'q' => $query,
+                'pageSize' => 1,
+                'fields' => 'files(id, name, size, createdTime)',
+            ]);
+
+            $files = $results->getFiles();
+
+            return ! empty($files) ? $files[0] : null;
+
+        } catch (\Exception $e) {
+            Log::warning('Failed to check for existing file in Google Drive', [
+                'filename' => $fileName,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
 }

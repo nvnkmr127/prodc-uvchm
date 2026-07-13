@@ -285,4 +285,151 @@ class NotificationManagementController extends Controller
 
     // Test methods with proper data handling
 
+    private function runAllTests()
+    {
+        return [
+            'financial' => $this->testFinancialNotifications(),
+            'academic' => $this->testAcademicNotifications(),
+            'system' => $this->testSystemNotifications(),
+            'attendance' => $this->testAttendanceNotifications(),
+        ];
+    }
+
+    private function testFinancialNotifications()
+    {
+        $results = [];
+
+        try {
+            // Test payment received
+            $notification = $this->notificationService->sendFinancialAlert('payment_received', [
+                'payment_id' => 9999,
+                'student_id' => 1,
+                'student_name' => 'Test Student',
+                'amount' => 15000,
+                'payment_method' => 'Test',
+            ]);
+            $results['payment_received'] = $notification ? 'SUCCESS' : 'FAILED';
+
+            // Test payment failed
+            $notification = $this->notificationService->sendFinancialAlert('payment_failed', [
+                'student_id' => 1,
+                'student_name' => 'Test Student',
+                'amount' => 12000,
+                'failure_reason' => 'Test failure',
+            ]);
+            $results['payment_failed'] = $notification ? 'SUCCESS' : 'FAILED';
+
+            // Test fee reminder
+            $notification = $this->notificationService->sendFinancialAlert('fee_reminder', [
+                'student_id' => 1,
+                'student_name' => 'Test Student',
+                'amount' => 8500,
+            ]);
+            $results['fee_reminder'] = $notification ? 'SUCCESS' : 'FAILED';
+
+        } catch (\Exception $e) {
+            Log::error('Financial notification test failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            $results['error'] = 'Financial notification test failed';
+        }
+
+        return $results;
+    }
+
+    private function testAcademicNotifications()
+    {
+        $results = [];
+
+        try {
+            // Test new admission
+            $notification = $this->notificationService->sendAcademicNotification('new_admission', [
+                'student_id' => 1,
+                'student_name' => 'Test Student',
+                'course_name' => 'Test Course',
+            ]);
+            $results['new_admission'] = $notification ? 'SUCCESS' : 'FAILED';
+
+            // Test low attendance - fixed key
+            $notification = $this->notificationService->sendAcademicNotification('low_attendance', [
+                'student_id' => 1,
+                'student_name' => 'Test Student',
+                'attendance_percentage' => 65, // This was the missing key
+                'minimum_required' => 75,
+                'enrollment_number' => 'TEST-001',
+                'batch_name' => 'Test Batch',
+            ]);
+            $results['low_attendance'] = $notification ? 'SUCCESS' : 'FAILED';
+
+        } catch (\Exception $e) {
+            Log::error('Academic notification test failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            $results['error'] = 'Academic notification test failed';
+        }
+
+        return $results;
+    }
+
+    private function testSystemNotifications()
+    {
+        $results = [];
+
+        try {
+            // Test system alert
+            $notification = $this->notificationService->sendSystemAlert(
+                'Test system alert - everything is working correctly',
+                'normal',
+                ['test' => true]
+            );
+            $results['system_alert'] = $notification ? 'SUCCESS' : 'FAILED';
+
+            // Test urgent system alert
+            $notification = $this->notificationService->sendSystemAlert(
+                'Test urgent system alert',
+                'urgent',
+                ['test' => true, 'urgent' => true]
+            );
+            $results['urgent_system_alert'] = $notification ? 'SUCCESS' : 'FAILED';
+
+        } catch (\Exception $e) {
+            Log::error('System notification test failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            $results['error'] = 'System notification test failed';
+        }
+
+        return $results;
+    }
+
+    private function testAttendanceNotifications()
+    {
+        $results = [];
+
+        try {
+            // Test attendance notification
+            $notification = $this->notificationService->send([
+                'title' => 'Test Attendance Notification',
+                'message' => 'This is a test attendance notification',
+                'type' => 'info',
+                'category' => 'attendance',
+                'priority' => 'normal',
+                'roles' => ['super-admin'],
+                'data' => ['test' => true],
+            ]);
+            $results['attendance_general'] = $notification ? 'SUCCESS' : 'FAILED';
+
+        } catch (\Exception $e) {
+            Log::error('Attendance notification test failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            $results['error'] = 'Attendance notification test failed';
+        }
+
+        return $results;
+    }
 }

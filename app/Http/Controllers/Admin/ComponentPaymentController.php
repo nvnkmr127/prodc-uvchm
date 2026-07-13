@@ -1616,4 +1616,221 @@ class ComponentPaymentController extends Controller
             ];
         }
     }
+
+    /**
+     * Calculate payment frequency (enhanced version)
+     */
+    private function calculatePaymentFrequency($studentId)
+    {
+        $payments = Payment::where('student_id', $studentId)
+            ->orderBy('payment_date')
+            ->pluck('payment_date')
+            ->toArray();
+
+        if (count($payments) < 2) {
+            return 'Insufficient data';
+        }
+
+        $intervals = [];
+        for ($i = 1; $i < count($payments); $i++) {
+            $interval = Carbon::parse($payments[$i])->diffInDays(Carbon::parse($payments[$i - 1]));
+            $intervals[] = $interval;
+        }
+
+        $averageInterval = array_sum($intervals) / count($intervals);
+
+        if ($averageInterval <= 7) {
+            return 'Weekly';
+        }
+        if ($averageInterval <= 30) {
+            return 'Monthly';
+        }
+        if ($averageInterval <= 90) {
+            return 'Quarterly';
+        }
+
+        return 'Irregular';
+    }
+
+    /**
+     * Get payment trend data for charts
+     */
+    private function getPaymentTrend($studentId)
+    {
+        return Payment::where('student_id', $studentId)
+            ->selectRaw('DATE(payment_date) as date, SUM(amount) as amount')
+            ->where('payment_date', '>=', now()->subMonths(6))
+            ->groupBy('date')
+            ->orderBy('date')
+            ->get()
+            ->map(function ($payment) {
+                return [
+                    'date' => Carbon::parse($payment->date)->format('M d'),
+                    'amount' => $payment->amount,
+                ];
+            });
+    }
+
+    /**
+     * Get category-wise payment breakdown
+     */
+    private function getCategoryBreakdown($studentId)
+    {
+        return StudentFee::where('student_id', $studentId)
+            ->with('feeCategory')
+            ->get()
+            ->groupBy('feeCategory.name')
+            ->map(function ($fees, $categoryName) {
+                $totalAmount = $fees->sum('amount');
+                $paidAmount = $fees->sum('paid_amount');
+                $concessionAmount = $fees->sum('concession_amount');
+
+                return [
+                    'category' => $categoryName,
+                    'total' => $totalAmount,
+                    'paid' => $paidAmount,
+                    'concession' => $concessionAmount,
+                    'remaining' => $totalAmount - $paidAmount - $concessionAmount,
+                    'percentage' => $totalAmount > 0 ? round(($paidAmount / $totalAmount) * 100, 1) : 0,
+                ];
+            })->values();
+    }
+
+    /**
+     * Get monthly collection data
+     */
+    private function getMonthlyCollections($studentId)
+    {
+        return Payment::where('student_id', $studentId)
+            ->selectRaw('YEAR(payment_date) as year, MONTH(payment_date) as month, SUM(amount) as total')
+            ->where('payment_date', '>=', now()->subYear())
+            ->groupBy('year', 'month')
+            ->orderBy('year')
+            ->orderBy('month')
+            ->get()
+            ->map(function ($payment) {
+                return [
+                    'month' => Carbon::createFromDate($payment->year, $payment->month, 1)->format('M Y'),
+                    'amount' => $payment->total,
+                ];
+            });
+    }
+
+    /**
+     * Update payment components with proper fee tracking
+     */
+    private function updatePaymentComponents(Payment $payment, array $components)
+    {
+        // First, reverse the original payment effects
+        foreach ($payment->componentItems as $item) {
+            $studentFee = $item->studentFee;
+            $studentFee->decrement('paid_amount', $item->amount_paid);
+
+            // Update status based on new paid amount
+            $this->updateStudentFeeStatus($studentFee);
+        }
+
+        // Delete old component items
+        $payment->componentItems()->delete();
+
+        // Create new component items
+        foreach ($components as $component) {
+            $studentFee = StudentFee::findOrFail($component['student_fee_id']);
+
+            // Create new component item
+            $payment->componentItems()->create([
+                'student_fee_id' => $studentFee->id,
+                'amount_paid' => $component['amount'],
+                'notes' => null,
+            ]);
+
+            // Update student fee paid amount
+            $studentFee->increment('paid_amount', $component['amount']);
+
+            // Update status
+            $this->updateStudentFeeStatus($studentFee);
+        }
+    }
+
+    /**
+     * Auto-generate missing fee components for a student
+     */
+    private function generateMissingFeeComponents(Student $student)
+    {
+        if (! $student->batch || ! $student->batch->feeStructure) {
+            $batchName = $student->batch ? $student->batch->name : 'Unknown';
+            throw new \Exception(
+                "Cannot generate fee components: Student's batch ({$batchName}) ".
+                'does not have a fee structure assigned.'
+            );
+        }
+
+        $batch = $student->batch;
+        $feeStructure = $batch->feeStructure;
+        $academicYear = date('Y').'-'.(date('Y') + 1);
+
+        $generatedCount = 0;
+
+        foreach ($feeStructure->feeCategories as $category) {
+            // Check if component already exists
+            $existingFee = StudentFee::where([
+                'student_id' => $student->id,
+                'fee_category_id' => $category->id,
+                'academic_year' => $academicYear,
+            ])->first();
+
+            if (! $existingFee) {
+                StudentFee::create([
+                    'student_id' => $student->id,
+                    'fee_structure_id' => $feeStructure->id,
+                    'fee_category_id' => $category->id,
+                    'academic_year' => $academicYear,
+                    'amount' => $category->pivot->amount ? $category->pivot->amount : 0,
+                    'due_date' => now()->addDays(30),
+                    'status' => 'unpaid',
+                    'installment_number' => 1,
+                    'total_installments' => 1,
+                ]);
+                $generatedCount++;
+            }
+        }
+
+        \Log::info("Auto-generated {$generatedCount} fee components for student {$student->name} (ID: {$student->id})");
+
+        return $generatedCount;
+    }
+
+    /**
+     * Enhanced concession activity logging
+     */
+    private function logConcessionActivity(Student $student, StudentFee $studentFee, $amount, $reason, $oldConcessionAmount, $oldStatus)
+    {
+        // Create Spatie Activity Log entry
+        activity()
+            ->causedBy(auth()->user())
+            ->performedOn($student)
+            ->withProperties([
+                'fee_category' => $studentFee->feeCategory->name,
+                'concession_amount' => $amount,
+                'total_concession_before' => $oldConcessionAmount,
+                'total_concession_after' => $studentFee->concession_amount,
+                'reason' => $reason,
+                'status_before' => $oldStatus,
+                'status_after' => $studentFee->status,
+                'remaining_amount' => $studentFee->amount - $studentFee->paid_amount - $studentFee->concession_amount,
+                'type' => 'concession',
+            ])
+            ->log("Concession of ₹{$amount} applied to {$studentFee->feeCategory->name}");
+
+        // Also log to Laravel logs for debugging
+        \Log::info('Concession Applied Successfully', [
+            'student_id' => $student->id,
+            'student_name' => $student->name,
+            'fee_category' => $studentFee->feeCategory->name,
+            'amount' => $amount,
+            'reason' => $reason,
+            'applied_by' => auth()->user()->name,
+            'timestamp' => now(),
+        ]);
+    }
 }

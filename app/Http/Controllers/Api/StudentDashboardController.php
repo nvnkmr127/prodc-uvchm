@@ -60,4 +60,20 @@ class StudentDashboardController extends Controller
                 ];
             });
     }
+
+    private function getMonthlyAttendance($student)
+    {
+        return $student->attendances()
+            ->selectRaw('DATE(date) as date, status')
+            ->whereMonth('date', now()->month)
+            ->orderBy('date')
+            ->get()
+            ->groupBy('date')
+            ->map(function ($dayAttendance) {
+                return [
+                    'date' => $dayAttendance->first()->date,
+                    'status' => $dayAttendance->first()->status,
+                ];
+            });
+    }
 }

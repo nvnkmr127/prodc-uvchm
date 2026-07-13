@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\User;
 use App\Models\Widget;
+use Spatie\Permission\Exceptions\PermissionDoesNotExist;
 
 class DashboardPermissionService
 {
@@ -41,5 +42,19 @@ class DashboardPermissionService
         }
 
         return true;
+    }
+
+    /**
+     * Safely check if user has permission (handles missing permissions)
+     */
+    private function safeHasPermission($user, $permission): bool
+    {
+        try {
+            return $user->hasPermissionTo($permission);
+        } catch (PermissionDoesNotExist $e) {
+            \Log::warning("Permission '{$permission}' does not exist");
+
+            return false;
+        }
     }
 }

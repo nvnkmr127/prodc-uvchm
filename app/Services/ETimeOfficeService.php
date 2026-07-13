@@ -412,4 +412,88 @@ class ETimeOfficeService
             'issues' => $issues,
         ];
     }
+
+    /**
+     * Set default configuration when database is not available
+     */
+    private function setDefaultConfiguration(): void
+    {
+        $this->apiUrl = 'https://api.etimeoffice.com/api';
+        $this->corporateId = '';
+        $this->username = '';
+        $this->password = '';
+        $this->authToken = base64_encode(':::true');
+    }
+
+    /**
+     * Ensure configuration is loaded
+     */
+    private function ensureConfigurationLoaded(): void
+    {
+        if (! isset($this->apiUrl)) {
+            $this->loadConfiguration();
+        }
+    }
+
+    /**
+     * Make API call to eTimeOffice
+     */
+    private function makeApiCall(string $endpoint, array $params): array
+    {
+        $this->ensureConfigurationLoaded();
+
+        try {
+            $url = $this->apiUrl.'/'.$endpoint;
+            $queryString = http_build_query($params);
+            $fullUrl = $url.'?'.$queryString;
+
+            Log::info('Making eTimeOffice API call', [
+                'endpoint' => $endpoint,
+                'url' => $fullUrl,
+                'params' => $params,
+            ]);
+
+            $response = Http::timeout(10)
+                ->withHeaders([
+                    'Authorization' => 'Basic '.$this->authToken,
+                    'Accept' => 'application/json',
+                    'Content-Type' => 'application/json',
+                ])
+                ->get($fullUrl);
+
+            if (! $response->successful()) {
+                throw new \Exception("API request failed with status: {$response->status()}");
+            }
+
+            $data = $response->json();
+
+            // Check if API returned an error
+            if (isset($data['Error']) && $data['Error'] === true) {
+                throw new \Exception($data['Msg'] ?? 'Unknown API error');
+            }
+
+            Log::info('eTimeOffice API call successful', [
+                'endpoint' => $endpoint,
+                'response_size' => strlen($response->body()),
+                'has_data' => isset($data['PunchData']),
+            ]);
+
+            return [
+                'success' => true,
+                'data' => $data,
+            ];
+
+        } catch (\Exception $e) {
+            Log::error('eTimeOffice API call failed', [
+                'endpoint' => $endpoint,
+                'error' => $e->getMessage(),
+                'url' => $fullUrl ?? $url,
+            ]);
+
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+            ];
+        }
+    }
 }

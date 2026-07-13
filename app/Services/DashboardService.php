@@ -105,4 +105,45 @@ class DashboardService
     {
         Cache::forget("dashboard_data_user_{$user->id}");
     }
+
+    /**
+     * Get dashboard for user's role with filtered widgets
+     */
+    public function getDashboardForUser(User $user): ?Dashboard
+    {
+        if (! class_exists('App\\Models\\DashboardWidget') || ! class_exists('App\\Models\\Widget')) {
+            return null;
+        }
+
+        $dashboard = $user->getDefaultDashboard();
+
+        if (! $dashboard) {
+            return null;
+        }
+
+        // Load the dashboard widgets relationship
+        $dashboard->load(['widgets.widget']);
+
+        // Get the widgets collection from the loaded relationship
+        $widgets = $dashboard->widgets;
+
+        return $dashboard;
+    }
+
+    /**
+     * Get user preferences for dashboard
+     */
+    protected function getUserPreferences(User $user, Dashboard $dashboard): array
+    {
+        $preference = $user->dashboardPreferences()
+            ->where('dashboard_id', $dashboard->id)
+            ->first();
+
+        return [
+            'layout_preferences' => $preference?->layout_preferences ?? [],
+            'widget_preferences' => $preference?->widget_preferences ?? [],
+            'filter_preferences' => $preference?->filter_preferences ?? [],
+            'is_customized' => $preference?->is_customized ?? false,
+        ];
+    }
 }

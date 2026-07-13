@@ -151,4 +151,28 @@ class UnifiedIdentifierService
 
         return $this->getNextSequence('fee_category', $prefix, 3);
     }
+
+    /**
+     * Core sequence generation method that safely locks and increments the next available number.
+     *
+     * @param  string  $entityType  e.g., 'receipt', 'enrollment', 'biometric_student'
+     * @param  string  $prefix  e.g., 'RCP-2026-', 'UV-ADHM-'
+     * @param  int  $padLength  The number of padded zeros (e.g., 6 -> '000001')
+     */
+    public function getNextSequence(string $entityType, string $prefix, int $padLength = 3): string
+    {
+        return DB::transaction(function () use ($entityType, $prefix, $padLength) {
+            $sequence = IdSequence::lockForUpdate()->firstOrCreate(
+                ['entity_type' => $entityType, 'prefix' => $prefix],
+                ['last_number' => 0]
+            );
+
+            $sequence->last_number += 1;
+            $sequence->save();
+
+            $numberString = str_pad($sequence->last_number, $padLength, '0', STR_PAD_LEFT);
+
+            return $prefix.$numberString;
+        });
+    }
 }

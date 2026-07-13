@@ -333,4 +333,57 @@ class AnalyticsService
 
     // Additional helper methods
 
+    private function formatChartData(Collection $trends, string $period): array
+    {
+        return $trends->map(function ($trend) {
+            return [
+                'period' => $trend->period,
+                'attendance_percentage' => $trend->attendance_percentage,
+                'total' => $trend->total,
+                'present' => $trend->present,
+                'absent' => $trend->absent,
+                'late' => $trend->late,
+            ];
+        })->toArray();
+    }
+
+    /**
+     * Apply filters to raw query builder
+     */
+    private function applyFiltersToQuery($query, array $filters, string $table = 'attendances'): void
+    {
+        if (isset($filters['date_from'])) {
+            $query->where("{$table}.attendance_date", '>=', $filters['date_from']);
+        }
+        if (isset($filters['date_to'])) {
+            $query->where("{$table}.attendance_date", '<=', $filters['date_to']);
+        }
+        if (isset($filters['batch_id'])) {
+            $query->where('students.batch_id', $filters['batch_id']);
+        }
+    }
+
+    private function getPerformanceLevel(float $percentage): string
+    {
+        if ($percentage >= 90) {
+            return 'excellent';
+        }
+        if ($percentage >= 80) {
+            return 'good';
+        }
+        if ($percentage >= 75) {
+            return 'satisfactory';
+        }
+
+        return 'needs_improvement';
+    }
+
+    private function getRecentBiometricActivity(): Collection
+    {
+        return BiometricLog::with('student')
+            ->where('scan_datetime', '>=', now()->subHours(2))
+            ->orderBy('scan_datetime', 'desc')
+            ->limit(5)
+            ->get();
+    }
 }

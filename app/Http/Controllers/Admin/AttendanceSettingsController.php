@@ -14,6 +14,7 @@ use App\Models\ETimeOfficeSyncLog;
 use App\Models\Setting;
 use App\Models\Student;
 use App\Models\User;
+use App\Services\Attendance\FacultyAttendanceService;
 use Barryvdh\DomPDF\Facade\Pdf as PDF;
 use Carbon\Carbon;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -1926,5 +1927,1402 @@ class AttendanceSettingsController extends Controller
                 'reason' => 'Checked in after present/late cutoff times',
             ];
         }
+    }
+
+    /**
+     * Updated connection test method with proper parameters
+     */
+    private function performETimeOfficeConnectionTest(string $apiUrl, string $corporateId, string $username, string $password): array
+    {
+        try {
+            \Log::info('Testing eTimeOffice connection', [
+                'api_url' => $apiUrl,
+                'corporate_id' => $corporateId,
+                'username' => $username,
+                'has_password' => ! empty($password),
+            ]);
+
+            // Create Basic Auth token
+            $authToken = base64_encode("{$corporateId}:{$username}:{$password}:true");
+
+            // Test with a simple API call to get today's data
+            $testParams = [
+                'Empcode' => 'ALL',
+                'FromDate' => now()->format('d/m/Y_H:i'),
+                'ToDate' => now()->format('d/m/Y_H:i'),
+            ];
+
+            $queryString = http_build_query($testParams);
+            $testUrl = rtrim($apiUrl, '/').'/DownloadPunchData?'.$queryString;
+
+            // Make the test API call
+            $response = \Http::timeout(30)
+                ->withHeaders([
+                    'Authorization' => 'Basic '.$authToken,
+                    'Accept' => 'application/json',
+                    'Content-Type' => 'application/json',
+                ])
+                ->get($testUrl);
+
+            if (! $response->successful()) {
+                return [
+                    'success' => false,
+                    'message' => "API request failed with status: {$response->status()}. Response: ".$response->body(),
+                ];
+            }
+
+            $responseData = $response->json();
+
+            // Check if API returned an error
+            if (isset($responseData['Error']) && $responseData['Error'] === true) {
+                return [
+                    'success' => false,
+                    'message' => 'API Error: '.($responseData['Msg'] ?? 'Unknown API error'),
+                ];
+            }
+
+            // Success
+            $punchDataCount = isset($responseData['PunchData']) ? count($responseData['PunchData']) : 0;
+
+            return [
+                'success' => true,
+                'message' => 'Connection successful! API is responding correctly.',
+                'data' => [
+                    'api_url' => $apiUrl,
+                    'corporate_id' => $corporateId,
+                    'test_timestamp' => now()->toDateTimeString(),
+                    'punch_records_found' => $punchDataCount,
+                    'api_response_size' => strlen($response->body()).' bytes',
+                ],
+            ];
+
+        } catch (\Exception $e) {
+            \Log::error('eTimeOffice connection test exception', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return [
+                'success' => false,
+                'message' => 'Connection test failed: '.$e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Perform actual eTimeOffice sync with logging
+     */
+    private function performETimeOfficeSync(array $options = []): array
+    {
+        \Log::info('🔄 Starting performETimeOfficeSync', ['options' => $options, 'user_id' => auth()->id()]);
+
+        try {
+            // Create sync log entry
+            $syncLog = ETimeOfficeSyncLog::create([
+                'sync_type' => $options['sync_type'] ?? 'manual',
+                'date_range_type' => $options['date_range_type'] ?? 'today',
+                'date_range_start' => $options['date_range_start'] ?? now()->startOfDay(),
+                'date_range_end' => $options['date_range_end'] ?? now()->endOfDay(),
+                'test_mode' => $options['test_mode'] ?? false,
+                'employee_codes' => $options['employee_codes'] ?? null,
+                'status' => 'running',
+                'started_at' => now(),
+                'user_id' => auth()->id(),
+                'ip_address' => request()->ip(),
+                'user_agent' => request()->userAgent(),
+                'notes' => 'Sync initiated from admin panel',
+            ]);
+
+            \Log::info('✅ Sync log created', ['sync_log_id' => $syncLog->id]);
+
+            // Initialize results
+            $results = [
+                'success' => true,
+                'total_records' => 0,
+                'processed_records' => 0,
+                'created_records' => 0,
+                'updated_records' => 0,
+                'skipped_records' => 0,
+                'errors' => [],
+            ];
+
+            // Check if ETimeOffice is configured
+            if (! $this->isETimeOfficeConfigured()) {
+                $results['success'] = false;
+                $results['errors'][] = 'ETimeOffice is not properly configured';
+                \Log::warning('❌ ETimeOffice not configured');
+            } else {
+                // Simulate API call for now - you can replace this with real API logic later
+                $results = $this->simulateETimeOfficeSync($options);
+                \Log::info('📊 Simulation completed', ['results' => $results]);
+            }
+
+            // Complete the sync log
+            $syncLog->update([
+                'status' => $results['success'] ? 'success' : 'failed',
+                'total_records' => $results['total_records'],
+                'processed_records' => $results['processed_records'],
+                'created_records' => $results['created_records'],
+                'updated_records' => $results['updated_records'],
+                'skipped_records' => $results['skipped_records'],
+                'errors' => $results['errors'],
+                'completed_at' => now(),
+                'duration_seconds' => now()->diffInSeconds($syncLog->started_at),
+            ]);
+
+            \Log::info('✅ Sync log updated', ['sync_log_id' => $syncLog->id, 'status' => $syncLog->status]);
+
+            // Update last sync time if successful
+            if ($results['success']) {
+                $this->updateSetting('etimeoffice_last_sync', now()->toDateTimeString());
+                \Log::info('⏰ Last sync time updated');
+            }
+
+            $message = $results['success']
+                ? "Sync completed: {$results['created_records']} created, {$results['updated_records']} updated, {$results['skipped_records']} skipped from {$results['total_records']} total records"
+                : 'Sync failed: '.implode(', ', $results['errors']);
+
+            return [
+                'success' => $results['success'],
+                'message' => $message,
+                'data' => $results,
+            ];
+
+        } catch (\Exception $e) {
+            \Log::error('💥 performETimeOfficeSync failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            // Handle any unexpected errors
+            if (isset($syncLog)) {
+                $syncLog->update([
+                    'status' => 'failed',
+                    'errors' => ['Sync failed: '.$e->getMessage()],
+                    'completed_at' => now(),
+                    'duration_seconds' => isset($syncLog) ? now()->diffInSeconds($syncLog->started_at) : 0,
+                ]);
+            }
+
+            return [
+                'success' => false,
+                'message' => 'Sync failed: '.$e->getMessage(),
+                'data' => [],
+            ];
+        }
+    }
+
+    /**
+     * Calculate date range based on type
+     */
+    private function calculateDateRange(string $type, array $params = []): array
+    {
+        switch ($type) {
+            case 'today':
+                return [
+                    'start' => now()->startOfDay(),
+                    'end' => now()->endOfDay(),
+                ];
+            case 'yesterday':
+                return [
+                    'start' => now()->subDay()->startOfDay(),
+                    'end' => now()->subDay()->endOfDay(),
+                ];
+            case 'last_3_days':
+                return [
+                    'start' => now()->subDays(3)->startOfDay(),
+                    'end' => now()->endOfDay(),
+                ];
+            case 'last_7_days':
+                return [
+                    'start' => now()->subDays(7)->startOfDay(),
+                    'end' => now()->endOfDay(),
+                ];
+            case 'custom':
+                return [
+                    'start' => Carbon::parse($params['date_from'] ?? now()->startOfDay()),
+                    'end' => Carbon::parse($params['date_to'] ?? now()->endOfDay()),
+                ];
+            default:
+                return [
+                    'start' => now()->startOfDay(),
+                    'end' => now()->endOfDay(),
+                ];
+        }
+    }
+
+    /**
+     * Get simulated records count based on date range
+     */
+    private function getSimulatedRecords($dateRange, $testMode = false)
+    {
+        $days = $dateRange['start']->diffInDays($dateRange['end']) + 1;
+
+        // Simulate realistic record counts
+        $recordsPerDay = rand(10, 50); // Random between 10-50 records per day
+        $totalRecords = $days * $recordsPerDay;
+
+        return $testMode ? $totalRecords : min($totalRecords, 200); // Cap at 200 for demo
+    }
+
+    /**
+     * Robust version with comprehensive error handling
+     */
+    private function createRealAttendanceRecords($dateRange, $validated)
+    {
+        $createdRecords = 0;
+        $updatedRecords = 0;
+        $skippedRecords = 0;
+        $errors = [];
+
+        try {
+            // Get ETimeOffice API credentials
+            $apiUrl = $this->getSetting('etimeoffice_api_url');
+            $corporateId = $this->getSetting('etimeoffice_corporate_id');
+            $username = $this->getSetting('etimeoffice_username');
+            $password = $this->getSetting('etimeoffice_password');
+
+            if (! $apiUrl || ! $corporateId || ! $username || ! $password) {
+                return [
+                    'success' => false,
+                    'message' => 'ETimeOffice API credentials are incomplete',
+                    'data' => [
+                        'total_records' => 0,
+                        'processed_records' => 0,
+                        'created_records' => 0,
+                        'updated_records' => 0,
+                        'skipped_records' => 0,
+                        'errors' => ['API credentials not configured'],
+                    ],
+                ];
+            }
+
+            // Create authentication token
+            $authToken = base64_encode("{$corporateId}:{$username}:{$password}:true");
+
+            // Format dates for ETimeOffice API
+            $fromDate = $dateRange['start']->format('d/m/Y_H:i');
+            $toDate = $dateRange['end']->format('d/m/Y_H:i');
+
+            \Log::channel('attendance-webhook')->info('Fetching data from ETimeOffice API', [
+                'from_date' => $fromDate,
+                'to_date' => $toDate,
+                'api_url' => $apiUrl,
+            ]);
+
+            // Call ETimeOffice API
+            $response = \Http::timeout(15)
+                ->withHeaders([
+                    'Authorization' => 'Basic '.$authToken,
+                    'Accept' => 'application/json',
+                    'Content-Type' => 'application/json',
+                ])
+                ->get($apiUrl.'/DownloadPunchData', [
+                    'Empcode' => 'ALL',
+                    'FromDate' => $fromDate,
+                    'ToDate' => $toDate,
+                ]);
+
+            if (! $response->successful()) {
+                \Log::channel('attendance-webhook')->error('ETimeOffice API request failed', [
+                    'status' => $response->status(),
+                    'from' => $fromDate,
+                    'to' => $toDate,
+                ]);
+
+                return [
+                    'success' => false,
+                    'message' => "ETimeOffice API request failed: HTTP {$response->status()}",
+                    'data' => [
+                        'total_records' => 0,
+                        'processed_records' => 0,
+                        'created_records' => 0,
+                        'updated_records' => 0,
+                        'skipped_records' => 0,
+                        'errors' => ["API HTTP Error: {$response->status()}"],
+                    ],
+                ];
+            }
+
+            // Get response body for debugging
+            $responseBody = $response->body();
+            \Log::channel('attendance-webhook')->info('Raw ETimeOffice API Response', [
+                'response_body' => $responseBody,
+                'content_type' => $response->header('Content-Type'),
+                'response_size' => strlen($responseBody),
+            ]);
+
+            // Try to decode JSON
+            try {
+                $apiData = $response->json();
+            } catch (\Exception $e) {
+                \Log::channel('attendance-webhook')->error('Invalid JSON response from ETimeOffice API', [
+                    'error' => $e->getMessage(),
+                    'response' => substr($responseBody, 0, 500),
+                ]);
+
+                return [
+                    'success' => false,
+                    'message' => 'Invalid JSON response from ETimeOffice API',
+                    'data' => [
+                        'total_records' => 0,
+                        'processed_records' => 0,
+                        'created_records' => 0,
+                        'updated_records' => 0,
+                        'skipped_records' => 0,
+                        'errors' => ['JSON decode error: '.$e->getMessage()],
+                    ],
+                ];
+            }
+
+            // Check for API errors
+            if (is_array($apiData) && isset($apiData['Error']) && $apiData['Error'] === true) {
+                \Log::channel('attendance-webhook')->error('ETimeOffice API Error Response', [
+                    'msg' => $apiData['Msg'] ?? 'Unknown error',
+                ]);
+
+                return [
+                    'success' => false,
+                    'message' => 'ETimeOffice API Error: '.($apiData['Msg'] ?? 'Unknown error'),
+                    'data' => [
+                        'total_records' => 0,
+                        'processed_records' => 0,
+                        'created_records' => 0,
+                        'updated_records' => 0,
+                        'skipped_records' => 0,
+                        'errors' => [$apiData['Msg'] ?? 'Unknown API error'],
+                    ],
+                ];
+            }
+
+            // Handle different possible response structures
+            $punchData = [];
+
+            if (is_array($apiData)) {
+                // Case 1: Direct array of punch records
+                if (isset($apiData[0]) && is_array($apiData[0])) {
+                    $punchData = $apiData;
+                }
+                // Case 2: Nested under 'PunchData' key
+                elseif (isset($apiData['PunchData']) && is_array($apiData['PunchData'])) {
+                    $punchData = $apiData['PunchData'];
+                }
+                // Case 3: Nested under 'data' key
+                elseif (isset($apiData['data']) && is_array($apiData['data'])) {
+                    $punchData = $apiData['data'];
+                }
+                // Case 4: Check for other common keys
+                elseif (isset($apiData['records']) && is_array($apiData['records'])) {
+                    $punchData = $apiData['records'];
+                } elseif (isset($apiData['result']) && is_array($apiData['result'])) {
+                    $punchData = $apiData['result'];
+                }
+                // Case 5: Single record response (convert to array)
+                elseif (isset($apiData['Name']) || isset($apiData['Empcode'])) {
+                    $punchData = [$apiData];
+                }
+            }
+
+            // Debug the actual structure with null safety
+            \Log::channel('attendance-webhook')->info('ETimeOffice API Response Analysis', [
+                'raw_response_type' => gettype($apiData),
+                'is_array' => is_array($apiData),
+                'api_data_keys' => is_array($apiData) ? array_keys($apiData) : 'not_array',
+                'punch_data_type' => gettype($punchData),
+                'punch_data_count' => is_array($punchData) ? count($punchData) : 0,
+                'punch_data_is_empty' => empty($punchData),
+                'first_record_exists' => is_array($punchData) && ! empty($punchData),
+                'first_record_sample' => (is_array($punchData) && ! empty($punchData)) ? $punchData[0] : null,
+                'first_record_keys' => (is_array($punchData) && ! empty($punchData) && is_array($punchData[0])) ? array_keys($punchData[0]) : 'no_keys',
+            ]);
+
+            if (empty($punchData) || ! is_array($punchData)) {
+
+                // ✅ FIX: Update last sync time even if no data found
+                $this->updateSetting('etimeoffice_last_sync', now()->toDateTimeString());
+
+                return [
+                    'success' => true,
+                    'message' => 'No attendance data found for the specified date range',
+                    'data' => [
+                        'total_records' => 0,
+                        'processed_records' => 0,
+                        'created_records' => 0,
+                        'updated_records' => 0,
+                        'skipped_records' => 0,
+                        'errors' => [],
+                        'debug_info' => [
+                            'api_response_structure' => is_array($apiData) ? array_keys($apiData) : gettype($apiData),
+                            'punch_data_type' => gettype($punchData),
+                            'response_sample' => is_array($apiData) ? array_slice($apiData, 0, 2, true) : $apiData,
+                        ],
+                        'date_range' => [
+                            'start' => $dateRange['start']->format('Y-m-d H:i:s'),
+                            'end' => $dateRange['end']->format('Y-m-d H:i:s'),
+                        ],
+                        'test_mode' => false,
+                    ],
+                ];
+            }
+
+            \Log::channel('attendance-webhook')->info('Processing ETimeOffice punch data', [
+                'total_records' => count($punchData),
+                'sample_record' => $punchData[0] ?? 'no_first_record',
+            ]);
+
+            // Get default faculty ID
+            $defaultFacultyId = $this->getDefaultFacultyId();
+
+            // Process each punch record with robust error handling
+            foreach ($punchData as $index => $punch) {
+                try {
+                    // Ensure we have a valid array record
+                    if (! is_array($punch)) {
+                        $errors[] = "Record #{$index} is not an array: ".gettype($punch);
+                        $skippedRecords++;
+
+                        continue;
+                    }
+
+                    // Extract data using the correct field names with multiple fallbacks
+                    $empCode = $punch['Empcode'] ??
+                        $punch['EmpCode'] ??
+                        $punch['EmployeeCode'] ??
+                        $punch['empcode'] ??
+                        $punch['employee_code'] ?? null;
+
+                    $employeeName = $punch['Name'] ??
+                        $punch['EmpName'] ??
+                        $punch['EmployeeName'] ??
+                        $punch['name'] ??
+                        'Unknown';
+
+                    $punchDateStr = $punch['PunchDate'] ??
+                        $punch['LogDateTime'] ??
+                        $punch['DateTime'] ??
+                        $punch['punch_date'] ??
+                        $punch['date_time'] ?? null;
+
+                    $manualFlag = $punch['M_Flag'] ??
+                        $punch['ManualFlag'] ??
+                        $punch['manual_flag'] ?? null;
+
+                    // Debug each record processing
+                    \Log::channel('attendance-webhook')->info("Processing record {$index}", [
+                        'empcode' => $empCode,
+                        'name' => $employeeName,
+                        'punch_date' => $punchDateStr,
+                        'manual_flag' => $manualFlag,
+                        'available_keys' => array_keys($punch),
+                    ]);
+
+                    if (! $empCode || ! $punchDateStr) {
+                        $errors[] = "Missing employee code or punch date for: {$employeeName} (Record #{$index})";
+                        $skippedRecords++;
+                        \Log::warning("Skipping record {$index}: missing required data", [
+                            'empcode' => $empCode,
+                            'punch_date' => $punchDateStr,
+                            'available_fields' => array_keys($punch),
+                            'record' => $punch,
+                        ]);
+
+                        continue;
+                    }
+
+                    // Parse punch date/time with multiple format attempts
+                    $punchDateTime = null;
+                    $dateFormats = [
+                        'd/m/Y H:i:s',  // Your API format: 09/09/2025 12:49:00
+                        'Y-m-d H:i:s',  // Standard SQL format
+                        'd-m-Y H:i:s',  // Alternative format
+                        'm/d/Y H:i:s',  // US format
+                        'd/m/Y H:i',    // Without seconds
+                        'Y-m-d H:i',     // Without seconds
+                    ];
+
+                    foreach ($dateFormats as $format) {
+                        try {
+                            $punchDateTime = Carbon::createFromFormat($format, $punchDateStr);
+                            if ($punchDateTime !== false) {
+                                break;
+                            }
+                        } catch (\Exception $e) {
+                            continue;
+                        }
+                    }
+
+                    // If format parsing failed, try generic parsing
+                    if (! $punchDateTime) {
+                        try {
+                            $punchDateTime = Carbon::parse($punchDateStr);
+                        } catch (\Exception $e) {
+                            $errors[] = "Could not parse punch date '{$punchDateStr}' for {$employeeName}";
+                            $skippedRecords++;
+                            \Log::error("Date parsing completely failed for record {$index}", [
+                                'punch_date_str' => $punchDateStr,
+                                'employee_name' => $employeeName,
+                                'tried_formats' => $dateFormats,
+                                'error' => $e->getMessage(),
+                            ]);
+
+                            continue;
+                        }
+                    }
+
+                    // Find student by biometric employee code with better logging
+                    $student = Student::where('biometric_employee_code', $empCode)
+                        ->orWhere('enrollment_number', $empCode)
+                        ->first();
+
+                    if (! $student) {
+                        // Check if it is faculty
+                        $faculty = User::role('staff')
+                            ->where('biometric_employee_code', $empCode)
+                            ->orWhere('employee_id', $empCode)
+                            ->first();
+
+                        if ($faculty) {
+                            try {
+                                $facultyAttendanceService = app(FacultyAttendanceService::class);
+                                $facultyAttendanceService->recordPunch($faculty, $punchDateTime, 'AUTO', 'etimeoffice-api');
+                                $createdRecords++;
+                            } catch (\Exception $e) {
+                                $errors[] = "Error processing faculty punch for {$empCode}: ".$e->getMessage();
+                                $skippedRecords++;
+                            }
+
+                            continue;
+                        }
+
+                        $errors[] = "Student not found for employee code: {$empCode} (Name: {$employeeName})";
+                        $skippedRecords++;
+                        \Log::info('No student found for employee code', [
+                            'empcode' => $empCode,
+                            'employee_name' => $employeeName,
+                            'searched_fields' => ['biometric_employee_code', 'enrollment_number'],
+                        ]);
+
+                        continue;
+                    }
+
+                    $attendanceDate = $punchDateTime->format('Y-m-d');
+
+                    // Check if attendance already exists for this student and date
+                    $existingAttendance = Attendance::where([
+                        'student_id' => $student->id,
+                        'attendance_date' => $attendanceDate,
+                    ])->first();
+
+                    // Calculate late minutes
+                    $collegeStartTime = Carbon::parse($attendanceDate.' '.$this->getSetting('attendance_student_college_start_time', '09:30:00'));
+                    $lateMinutes = $punchDateTime->gt($collegeStartTime) ? $punchDateTime->diffInMinutes($collegeStartTime) : 0;
+
+                    // Determine attendance status
+                    $status = $this->determineAttendanceStatus($punchDateTime);
+
+                    // Prepare attendance data
+                    $attendanceData = [
+                        'student_id' => $student->id,
+                        'batch_id' => $student->batch_id ?? 1,
+                        'faculty_id' => $defaultFacultyId,
+                        'attendance_date' => $attendanceDate,
+                        'check_in_time' => $punchDateTime->format('H:i:s'),
+                        'check_out_time' => null,
+                        'status' => $status,
+                        'marked_at' => $punchDateTime,
+                        'marked_by' => auth()->id() ?? $defaultFacultyId,
+                        'notes' => "ETimeOffice: {$employeeName}".($manualFlag ? ' (Manual)' : ''),
+                        'late_minutes' => $lateMinutes > 0 ? $lateMinutes : null,
+                        'location' => null,
+                        'device_id' => 'etimeoffice-api',
+                        'biometric_log_id' => null,
+                    ];
+
+                    if ($existingAttendance) {
+                        // Update logic
+                        $shouldUpdate = false;
+
+                        if (! $existingAttendance->check_in_time || $punchDateTime->lt($existingAttendance->marked_at)) {
+                            $shouldUpdate = true;
+                        } elseif ($existingAttendance->check_in_time && ! $existingAttendance->check_out_time && $punchDateTime->gt($existingAttendance->marked_at)) {
+                            $attendanceData['check_out_time'] = $punchDateTime->format('H:i:s');
+                            $attendanceData['check_in_time'] = $existingAttendance->check_in_time;
+                            $attendanceData['marked_at'] = $existingAttendance->marked_at;
+                            $shouldUpdate = true;
+                        }
+
+                        if ($shouldUpdate) {
+                            $existingAttendance->update($attendanceData);
+                            $updatedRecords++;
+
+                            \Log::channel('attendance-webhook')->info('Updated attendance record', [
+                                'student_name' => $student->name,
+                                'employee_code' => $empCode,
+                                'date' => $attendanceDate,
+                                'punch_time' => $punchDateTime->format('H:i:s'),
+                                'status' => $status,
+                            ]);
+                        } else {
+                            $skippedRecords++;
+                        }
+                    } else {
+                        // Create new attendance record
+                        Attendance::create($attendanceData);
+                        $createdRecords++;
+
+                        \Log::channel('attendance-webhook')->info('Created attendance record', [
+                            'student_name' => $student->name,
+                            'employee_code' => $empCode,
+                            'date' => $attendanceDate,
+                            'punch_time' => $punchDateTime->format('H:i:s'),
+                            'status' => $status,
+                            'late_minutes' => $lateMinutes,
+                        ]);
+                    }
+
+                } catch (\Exception $e) {
+                    $empCode = isset($punch) && is_array($punch) ? ($punch['Empcode'] ?? 'unknown') : 'unknown';
+                    $errors[] = "Error processing punch for {$empCode}: ".$e->getMessage();
+                    $skippedRecords++;
+                    \Log::channel('attendance-webhook')->error('Error processing ETimeOffice punch', [
+                        'record_index' => $index,
+                        'punch_data' => $punch ?? 'null',
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            $totalRecords = $createdRecords + $updatedRecords + $skippedRecords;
+
+            // Update last sync time
+            $this->updateSetting('etimeoffice_last_sync', now()->toDateTimeString());
+
+            return [
+                'success' => true,
+                'message' => "ETimeOffice sync completed: {$createdRecords} created, {$updatedRecords} updated, {$skippedRecords} skipped from {$totalRecords} total records",
+                'data' => [
+                    'total_records' => $totalRecords,
+                    'processed_records' => $totalRecords,
+                    'created_records' => $createdRecords,
+                    'updated_records' => $updatedRecords,
+                    'skipped_records' => $skippedRecords,
+                    'errors' => $errors,
+                    'date_range' => [
+                        'start' => $dateRange['start']->format('Y-m-d H:i:s'),
+                        'end' => $dateRange['end']->format('Y-m-d H:i:s'),
+                    ],
+                    'test_mode' => false,
+                ],
+            ];
+
+        } catch (\Exception $e) {
+            \Log::error('ETimeOffice sync failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile(),
+            ]);
+
+            return [
+                'success' => false,
+                'message' => 'ETimeOffice sync failed: '.$e->getMessage(),
+                'data' => [
+                    'total_records' => 0,
+                    'processed_records' => 0,
+                    'created_records' => $createdRecords,
+                    'updated_records' => $updatedRecords,
+                    'skipped_records' => $skippedRecords,
+                    'errors' => array_merge($errors, [$e->getMessage()]),
+                ],
+            ];
+        }
+    }
+
+    /**
+     * Map ETimeOffice punch data to standardized format
+     */
+    private function mapETimeOfficeData($punchRecord): ?array
+    {
+        try {
+            // Handle different possible field names from ETimeOffice API
+            $empCode = $punchRecord['Empcode'] ??
+                $punchRecord['EmpCode'] ??
+                $punchRecord['EmployeeCode'] ??
+                $punchRecord['empcode'] ??
+                $punchRecord['EmpcardNo'] ?? null;
+
+            $punchDateTime = $punchRecord['PunchDate'] ??
+                $punchRecord['LogDateTime'] ??
+                $punchRecord['DateTime'] ??
+                $punchRecord['PunchDateTime'] ??
+                $punchRecord['TimeStamp'] ?? null;
+
+            $employeeName = $punchRecord['Name'] ??
+                $punchRecord['EmpName'] ??
+                $punchRecord['EmployeeName'] ??
+                $punchRecord['PersonName'] ??
+                'Unknown';
+
+            $location = $punchRecord['Location'] ??
+                $punchRecord['DeviceLocation'] ??
+                $punchRecord['Terminal'] ?? null;
+
+            $logId = $punchRecord['LogId'] ??
+                $punchRecord['ID'] ??
+                $punchRecord['RecordId'] ?? null;
+
+            $direction = $punchRecord['Direction'] ??
+                $punchRecord['InOut'] ??
+                $punchRecord['PunchType'] ?? 'IN';
+
+            if (! $empCode || ! $punchDateTime) {
+                \Log::warning('ETimeOffice record missing essential data', [
+                    'record' => $punchRecord,
+                    'emp_code' => $empCode,
+                    'punch_datetime' => $punchDateTime,
+                ]);
+
+                return null;
+            }
+
+            // Try to parse the datetime with multiple formats
+            $carbonDateTime = null;
+            $dateFormats = [
+                'd/m/Y H:i:s',
+                'Y-m-d H:i:s',
+                'd-m-Y H:i:s',
+                'm/d/Y H:i:s',
+                'd/m/Y H:i',
+                'Y-m-d H:i',
+            ];
+
+            foreach ($dateFormats as $format) {
+                try {
+                    $carbonDateTime = Carbon::createFromFormat($format, $punchDateTime);
+                    if ($carbonDateTime) {
+                        break;
+                    }
+                } catch (\Exception $e) {
+                    continue;
+                }
+            }
+
+            // If still not parsed, try generic parse
+            if (! $carbonDateTime) {
+                try {
+                    $carbonDateTime = Carbon::parse($punchDateTime);
+                } catch (\Exception $e) {
+                    \Log::error('Could not parse ETimeOffice datetime', [
+                        'punch_datetime' => $punchDateTime,
+                        'formats_tried' => $dateFormats,
+                        'error' => $e->getMessage(),
+                    ]);
+
+                    return null;
+                }
+            }
+
+            return [
+                'emp_code' => $empCode,
+                'datetime' => $carbonDateTime,
+                'employee_name' => $employeeName,
+                'location' => $location,
+                'log_id' => $logId,
+                'direction' => strtoupper($direction),
+                'original_data' => $punchRecord,
+            ];
+
+        } catch (\Exception $e) {
+            \Log::error('Error mapping ETimeOffice data', [
+                'record' => $punchRecord,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
+    /**
+     * Enhanced today's statistics
+     */
+    private function getTodayStatsEnhanced($date, $batchId = null, $courseId = null)
+    {
+        // Base query for students
+        $studentsQuery = Student::where('status', 'active')
+            ->whereHas('batch', function ($q) use ($date) {
+                // Exclude internship: Keep if (Not Flagged) AND (Date is Null or Future)
+                $q->where(function ($sq) {
+                    $sq->where('is_on_internship', '!=', 1)
+                        ->orWhereNull('is_on_internship');
+                })->where(function ($sq) use ($date) {
+                    $sq->whereNull('internship_start_date')
+                        ->orWhere('internship_start_date', '>', $date);
+                });
+            });
+
+        if ($batchId) {
+            $studentsQuery->where('batch_id', $batchId);
+        }
+        if ($courseId) {
+            $studentsQuery->whereHas('batch', function ($query) use ($courseId) {
+                $query->where('course_id', $courseId);
+            });
+        }
+
+        $totalStudents = $studentsQuery->count();
+
+        // Get attendance
+        $attendanceQuery = Attendance::whereDate('attendance_date', $date);
+
+        // Apply internship exclusion
+        $attendanceQuery->whereHas('student.batch', function ($q) use ($date) {
+            $q->where(function ($sq) {
+                $sq->where('is_on_internship', '!=', 1)
+                    ->orWhereNull('is_on_internship');
+            })->where(function ($sq) use ($date) {
+                $sq->whereNull('internship_start_date')
+                    ->orWhere('internship_start_date', '>', $date);
+            });
+        });
+
+        if ($batchId) {
+            $attendanceQuery->whereHas('student', function ($query) use ($batchId) {
+                $query->where('batch_id', $batchId);
+            });
+        }
+        if ($courseId) {
+            $attendanceQuery->whereHas('student.batch', function ($query) use ($courseId) {
+                $query->where('course_id', $courseId);
+            });
+        }
+
+        $attendanceStats = $attendanceQuery->select([
+            \DB::raw('COUNT(DISTINCT student_id) as total_marked'),
+            \DB::raw('COUNT(DISTINCT CASE WHEN status IN ("present", "late") THEN student_id END) as present'),
+            \DB::raw('COUNT(DISTINCT CASE WHEN status = "excused" THEN student_id END) as excused'),
+        ])->first();
+
+        $present = ($attendanceStats->present ?? 0);
+        $excused = ($attendanceStats->excused ?? 0);
+
+        // Get count of students who have never punched (historical)
+        $neverPunchedCountQuery = clone $studentsQuery;
+        $neverPunchedCount = $neverPunchedCountQuery->whereDoesntHave('attendances', function ($query) {
+            $query->allYears()->whereIn('status', ['present', 'late']);
+        })->count();
+
+        $absent = $totalStudents - $present - $excused - $neverPunchedCount;
+        $presentPercentage = $totalStudents > 0 ? (float) number_format(($present / $totalStudents) * 100, 1) : 0;
+        $absentPercentage = $totalStudents > 0 ? (float) number_format(($absent / $totalStudents) * 100, 1) : 0;
+        $neverPunchedPercentage = $totalStudents > 0 ? (float) number_format(($neverPunchedCount / $totalStudents) * 100, 1) : 0;
+
+        // Get Internship Count
+        $internshipQuery = Student::where('status', 'active')
+            ->whereHas('batch', function ($q) use ($date) {
+                $q->where(function ($sq) use ($date) {
+                    $sq->where('is_on_internship', 1)
+                        ->orWhere(function ($dq) use ($date) {
+                            $dq->whereNotNull('internship_start_date')
+                                ->where('internship_start_date', '<=', $date);
+                        });
+                });
+            });
+
+        if ($batchId) {
+            $internshipQuery->where('batch_id', $batchId);
+        }
+        if ($courseId) {
+            $internshipQuery->whereHas('batch', function ($query) use ($courseId) {
+                $query->where('course_id', $courseId);
+            });
+        }
+
+        $internshipCount = $internshipQuery->count();
+
+        return [
+            'students' => [
+                'total' => $totalStudents,
+                'present' => $present,
+                'absent' => $absent,
+                'late' => $attendanceStats->late ?? 0,
+                'excused' => $attendanceStats->excused ?? 0,
+                'never_punched' => $neverPunchedCount,
+                'percentage' => $presentPercentage,
+                'absent_percentage' => $absentPercentage,
+                'never_punched_percentage' => $neverPunchedPercentage,
+                'internship' => $internshipCount,
+            ],
+        ];
+    }
+
+    /**
+     * Get absent students with contact information
+     */
+    private function getAbsentStudents($date, $batchId = null, $courseId = null)
+    {
+        $studentsQuery = Student::where('status', 'active')
+            ->whereHas('batch', function ($q) use ($date) {
+                $q->where(function ($sq) {
+                    $sq->where('is_on_internship', '!=', 1)
+                        ->orWhereNull('is_on_internship');
+                })->where(function ($sq) use ($date) {
+                    $sq->whereNull('internship_start_date')
+                        ->orWhere('internship_start_date', '>', $date);
+                });
+            })
+            ->whereHas('attendances', function ($query) {
+                // ✅ Filter: Only students who have punched at least once (present or late) in any year
+                $query->allYears()->whereIn('status', ['present', 'late']);
+            })
+            ->with(['batch.course']);
+
+        if ($batchId) {
+            $studentsQuery->where('batch_id', $batchId);
+        }
+        if ($courseId) {
+            $studentsQuery->whereHas('batch', function ($query) use ($courseId) {
+                $query->where('course_id', $courseId);
+            });
+        }
+
+        $allStudents = $studentsQuery->get();
+
+        // Manual Filtering
+        $allStudents = $allStudents->filter(function ($student) use ($date) {
+            $batch = $student->batch;
+            if (! $batch) {
+                return true;
+            }
+            $isOnInternship = ($batch->is_on_internship == 1);
+            $isInternshipByDate = ($batch->internship_start_date && $batch->internship_start_date <= $date);
+
+            return ! ($isOnInternship || $isInternshipByDate);
+        });
+
+        // Get marked attendance
+        $attendanceQuery = Attendance::whereDate('attendance_date', $date)
+            ->whereIn('status', ['present', 'late', 'excused']);
+
+        if ($batchId) {
+            $attendanceQuery->whereHas('student', function ($query) use ($batchId) {
+                $query->where('batch_id', $batchId);
+            });
+        }
+        if ($courseId) {
+            $attendanceQuery->whereHas('student.batch', function ($query) use ($courseId) {
+                $query->where('course_id', $courseId);
+            });
+        }
+
+        $presentStudentIds = $attendanceQuery->pluck('student_id')->toArray();
+        $absentStudents = $allStudents->whereNotIn('id', $presentStudentIds);
+
+        return $absentStudents->map(function ($student) {
+            return [
+                'id' => $student->id,
+                'name' => $student->name,
+                'enrollment_number' => $student->enrollment_number,
+                'student_mobile' => $student->student_mobile,
+                'father_mobile' => $student->father_mobile,
+                'father_name' => $student->father_name,
+                'batch_name' => $student->batch->name ?? 'N/A',
+                'course_name' => $student->batch->course->name ?? 'N/A',
+                'last_attendance' => $this->getLastAttendanceDate($student->id),
+            ];
+        });
+    }
+
+    /**
+     * Get recent attendance activity
+     */
+    private function getRecentActivity($date, $batchId = null, $courseId = null, $limit = 100)
+    {
+        $query = Attendance::with(['student.batch.course', 'faculty'])
+            ->whereDate('attendance_date', $date)
+            ->whereHas('student.batch', function ($q) use ($date) {
+                $q->where(function ($sq) {
+                    $sq->where('is_on_internship', '!=', 1)
+                        ->orWhereNull('is_on_internship');
+                })->where(function ($sq) use ($date) {
+                    $sq->whereNull('internship_start_date')
+                        ->orWhere('internship_start_date', '>', $date);
+                });
+            })
+            ->orderBy('marked_at', 'desc');
+
+        if ($batchId) {
+            $query->whereHas('student', function ($q) use ($batchId) {
+                $q->where('batch_id', $batchId);
+            });
+        }
+        if ($courseId) {
+            $query->whereHas('student.batch', function ($q) use ($courseId) {
+                $q->where('course_id', $courseId);
+            });
+        }
+
+        return $query->get()
+            ->filter(function ($attendance) use ($date) {
+                $student = $attendance->student;
+                if (! $student || ! $student->batch) {
+                    return true;
+                }
+                $batch = $student->batch;
+                $isOnInternship = ($batch->is_on_internship == 1);
+                $isInternshipByDate = ($batch->internship_start_date && $batch->internship_start_date <= $date);
+
+                return ! ($isOnInternship || $isInternshipByDate);
+            })
+            ->take($limit)
+            ->map(function ($attendance) {
+                return [
+                    'id' => $attendance->id,
+                    'student_name' => $attendance->student->name,
+                    'enrollment_number' => $attendance->student->enrollment_number,
+                    'batch_name' => $attendance->student->batch->name ?? 'N/A',
+                    'course_name' => $attendance->student->batch->course->name ?? 'N/A',
+                    'status' => $attendance->status,
+                    'check_in_time' => $attendance->check_in_time,
+                    'check_out_time' => $attendance->check_out_time,
+                    'marked_at' => $attendance->marked_at,
+                    'marked_by' => $attendance->faculty->name ?? 'System',
+                    'late_minutes' => $attendance->late_minutes,
+                    'notes' => $attendance->notes,
+                ];
+            })->values();
+    }
+
+    /**
+     * Get weekly attendance trend
+     */
+    private function getWeeklyTrend($selectedDate)
+    {
+        $endDate = $selectedDate;
+        $startDate = $selectedDate->copy()->subDays(6);
+
+        $trend = [];
+
+        for ($date = $startDate->copy(); $date <= $endDate; $date->addDay()) {
+            $dayStats = $this->getTodayStatsEnhanced($date);
+            $trend[] = [
+                'date' => $date->format('Y-m-d'),
+                'day' => $date->format('D'),
+                'percentage' => $dayStats['students']['percentage'],
+            ];
+        }
+
+        return $trend;
+    }
+
+    /**
+     * Get live attendance data
+     */
+    private function getLiveAttendanceData()
+    {
+        try {
+            return Attendance::with(['student', 'batch'])
+                ->whereDate('attendance_date', Carbon::today())
+                ->whereHas('student.batch', function ($q) {
+                    $q->where('is_on_internship', 0);
+                })
+                ->orderBy('created_at', 'desc')
+                ->limit(10)
+                ->get()
+                ->map(function ($attendance) {
+                    return [
+                        'id' => $attendance->id,
+                        'student_name' => $attendance->student->name ?? 'N/A',
+                        'batch_name' => $attendance->batch->name ?? 'N/A',
+                        'status' => $attendance->status,
+                        'time' => $attendance->created_at->format('H:i:s'),
+                        'formatted_time' => $attendance->created_at->diffForHumans(),
+                    ];
+                });
+        } catch (\Exception $e) {
+            Log::error('Error getting live attendance data: '.$e->getMessage());
+
+            return [];
+        }
+    }
+
+    /**
+     * Get system status
+     */
+    private function getSystemStatus()
+    {
+        try {
+            // Check database connection
+            $dbStatus = 'connected';
+            try {
+                DB::connection()->getPdo();
+            } catch (\Exception $e) {
+                $dbStatus = 'error';
+            }
+
+            // Check biometric integration status
+            $biometricEnabled = $this->getSetting('etimeoffice_enabled', false);
+            $biometricStatus = $biometricEnabled ? 'enabled' : 'disabled';
+
+            // Get last sync time
+            $lastSync = $this->getSetting('etimeoffice_last_sync', null);
+
+            return [
+                'database' => $dbStatus,
+                'biometric_api' => $biometricStatus,
+                'last_sync' => $lastSync,
+                'total_devices' => $this->getSetting('biometric_devices_count', 0),
+                'active_devices' => $this->getSetting('biometric_active_devices', 0),
+            ];
+
+        } catch (\Exception $e) {
+            Log::error('Error getting system status: '.$e->getMessage());
+
+            return [
+                'database' => 'error',
+                'biometric_api' => 'error',
+                'last_sync' => null,
+                'total_devices' => 0,
+                'active_devices' => 0,
+            ];
+        }
+    }
+
+    /**
+     * Get weekly stats data
+     */
+    private function getWeeklyStatsData()
+    {
+        try {
+            $weekStart = Carbon::now()->startOfWeek();
+            $weeklyData = [];
+
+            for ($i = 0; $i < 7; $i++) {
+                $date = $weekStart->copy()->addDays($i);
+                $dayData = Attendance::whereDate('attendance_date', $date)
+                    ->selectRaw('
+                    COUNT(DISTINCT CASE WHEN status IN ("present", "late") THEN student_id END) as present_count,
+                    COUNT(DISTINCT CASE WHEN status = "absent" THEN student_id END) as absent_count,
+                    COUNT(DISTINCT student_id) as total_count
+                ')
+                    ->first();
+
+                $weeklyData[] = [
+                    'date' => $date->format('Y-m-d'),
+                    'day' => $date->format('l'),
+                    'present' => $dayData->present_count ?? 0,
+                    'absent' => $dayData->absent_count ?? 0,
+                    'total' => $dayData->total_count ?? 0,
+                    'percentage' => $dayData && $dayData->total_count > 0 ?
+                        round(($dayData->present_count / $dayData->total_count) * 100, 2) : 0,
+                ];
+            }
+
+            return $weeklyData;
+
+        } catch (\Exception $e) {
+            Log::error('Error getting weekly stats: '.$e->getMessage());
+
+            return [];
+        }
+    }
+
+    /**
+     * Get attendance data formatted for export
+     */
+    private function getAttendanceDataForExport(string $startDate, string $endDate, string $statusFilter = 'all'): array
+    {
+        try {
+            $query = Attendance::with(['student', 'batch'])
+                ->whereBetween('attendance_date', [$startDate, $endDate]);
+
+            if ($statusFilter !== 'all') {
+                $query->where('status', $statusFilter);
+            }
+
+            $attendances = $query->orderBy('attendance_date', 'desc')
+                ->orderBy('marked_at', 'asc')
+                ->get();
+
+            return $attendances->map(function ($attendance) {
+                return [
+                    'date' => $attendance->attendance_date,
+                    'student_name' => $attendance->student->name ?? 'Unknown',
+                    'enrollment_number' => $attendance->student->enrollment_number ?? 'N/A',
+                    'batch_name' => $attendance->batch->name ?? 'N/A',
+                    'course_name' => $attendance->student->course ?? 'N/A',
+                    'status' => ucfirst($attendance->status),
+                    'marked_time' => $attendance->marked_at ? $attendance->marked_at->format('H:i:s') : 'N/A',
+                    'device_id' => $attendance->device_id ?? 'manual',
+                    'notes' => $attendance->notes ?? '',
+                    'biometric_code' => $attendance->student->biometric_employee_code ?? 'N/A',
+                ];
+            })->toArray();
+
+        } catch (\Exception $e) {
+            Log::error('Error getting attendance data for export', ['error' => $e->getMessage()]);
+
+            return [];
+        }
+    }
+
+    /**
+     * Export to PDF format
+     */
+    private function exportToPdf(array $data, string $filename)
+    {
+        try {
+            $attendanceData = is_array($data) && isset($data['data']) ? $data['data'] : $data;
+            $includeSummary = $data['include_summary'] ?? false;
+            $dateRange = $data['date_range'] ?? null;
+
+            // Generate summary if requested
+            $summary = null;
+            if ($includeSummary && ! empty($attendanceData)) {
+                $summary = [
+                    'total_records' => count($attendanceData),
+                    'present_count' => collect($attendanceData)->where('status', 'Present')->count(),
+                    'absent_count' => collect($attendanceData)->where('status', 'Absent')->count(),
+                    'late_count' => collect($attendanceData)->where('status', 'Late')->count(),
+                    'date_range' => $dateRange,
+                ];
+            }
+
+            $pdf = \PDF::loadView('admin.attendance.exports.pdf', [
+                'attendanceData' => $attendanceData,
+                'summary' => $summary,
+                'exportDate' => now()->format('Y-m-d H:i:s'),
+                'exportedBy' => auth()->user()->name,
+            ]);
+
+            return $pdf->download($filename);
+
+        } catch (\Exception $e) {
+            Log::error('PDF export failed', ['error' => $e->getMessage()]);
+            throw new \Exception('PDF export failed: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Check if ETimeOffice is configured
+     */
+    private function isETimeOfficeConfigured(): bool
+    {
+        return ! empty($this->getSetting('etimeoffice_corporate_id')) &&
+            ! empty($this->getSetting('etimeoffice_username')) &&
+            ! empty($this->getSetting('etimeoffice_password')) &&
+            ! empty($this->getSetting('etimeoffice_api_url'));
+    }
+
+    /**
+     * Simulate ETimeOffice sync - replace with real API calls later
+     */
+    private function simulateETimeOfficeSync(array $options): array
+    {
+        \Log::info('🎭 Running simulation mode');
+
+        // Check if this is a test mode
+        $testMode = $options['test_mode'] ?? false;
+
+        // Create more realistic simulation based on current second for variation
+        $currentSecond = now()->second;
+
+        if ($currentSecond < 20) {
+            // Simulate successful sync with data
+            return [
+                'success' => true,
+                'total_records' => rand(15, 35),
+                'processed_records' => rand(14, 32),
+                'created_records' => $testMode ? 0 : rand(3, 12),
+                'updated_records' => $testMode ? 0 : rand(5, 18),
+                'skipped_records' => rand(1, 3),
+                'errors' => [],
+            ];
+        } elseif ($currentSecond < 40) {
+            // Simulate successful sync with no data
+            return [
+                'success' => true,
+                'total_records' => 0,
+                'processed_records' => 0,
+                'created_records' => 0,
+                'updated_records' => 0,
+                'skipped_records' => 0,
+                'errors' => [],
+            ];
+        } elseif ($currentSecond < 50) {
+            // Simulate partial success
+            return [
+                'success' => true,
+                'total_records' => rand(10, 25),
+                'processed_records' => rand(8, 20),
+                'created_records' => $testMode ? 0 : rand(2, 6),
+                'updated_records' => $testMode ? 0 : rand(4, 10),
+                'skipped_records' => rand(2, 5),
+                'errors' => ['Some records had validation errors', 'Employee code not found for 2 records'],
+            ];
+        } else {
+            // Simulate failure
+            return [
+                'success' => false,
+                'total_records' => 0,
+                'processed_records' => 0,
+                'created_records' => 0,
+                'updated_records' => 0,
+                'skipped_records' => 0,
+                'errors' => ['Connection timeout to ETimeOffice API', 'Authentication failed - check credentials'],
+            ];
+        }
+    }
+
+    /**
+     * Get default faculty ID for attendance records
+     */
+    private function getDefaultFacultyId()
+    {
+        try {
+            // Option 1: Use current authenticated user
+            if (auth()->check()) {
+                return auth()->id();
+            }
+
+            // Option 2: Find first admin/faculty user
+            $faculty = User::role(['admin', 'faculty'])->first();
+            if ($faculty) {
+                return $faculty->id;
+            }
+
+            // Option 3: Use first user in database
+            $firstUser = User::first();
+            if ($firstUser) {
+                return $firstUser->id;
+            }
+
+            // Option 4: Create a system user if none exists
+            $systemUser = User::create([
+                'name' => 'System User',
+                'email' => 'system@'.config('app.url', 'example.com'),
+                'password' => bcrypt('system123'),
+                'email_verified_at' => now(),
+            ]);
+
+            return $systemUser->id;
+
+        } catch (\Exception $e) {
+            \Log::error('Could not get default faculty ID: '.$e->getMessage());
+
+            return 1; // Fallback to ID 1
+        }
+    }
+
+    /**
+     * Get last attendance date for a student
+     */
+    private function getLastAttendanceDate($studentId)
+    {
+        $lastAttendance = Attendance::where('student_id', $studentId)
+            ->whereIn('status', ['present', 'late'])
+            ->orderBy('attendance_date', 'desc')
+            ->first();
+
+        return $lastAttendance ? $lastAttendance->attendance_date : null;
     }
 }
