@@ -2,21 +2,25 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Exports\PaymentActivityExport;
 use App\Http\Controllers\Controller;
+use App\Models\AcademicYear;
 use App\Models\ComponentPaymentItem;
 use App\Models\FeeCategory;
+use App\Models\FeeStructure;
 use App\Models\Payment;
 use App\Models\PaymentEditLog;
 use App\Models\Student;
 use App\Models\StudentConcession;
 use App\Models\StudentFee;
+use App\Services\AcademicYearService;
 use App\Services\ComponentPaymentService;
+use App\Services\UnifiedIdentifierService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Maatwebsite\Excel\Facades\Excel;
+use Illuminate\Validation\ValidationException;
 use Spatie\Activitylog\Models\Activity;
 
 class ComponentPaymentController extends Controller
@@ -132,70 +136,6 @@ class ComponentPaymentController extends Controller
     }
 
     /**
-     * Get payment trend data for charts
-     */
-    private function getPaymentTrend($studentId)
-    {
-        return Payment::where('student_id', $studentId)
-            ->selectRaw('DATE(payment_date) as date, SUM(amount) as amount')
-            ->where('payment_date', '>=', now()->subMonths(6))
-            ->groupBy('date')
-            ->orderBy('date')
-            ->get()
-            ->map(function ($payment) {
-                return [
-                    'date' => Carbon::parse($payment->date)->format('M d'),
-                    'amount' => $payment->amount,
-                ];
-            });
-    }
-
-    /**
-     * Get category-wise payment breakdown
-     */
-    private function getCategoryBreakdown($studentId)
-    {
-        return StudentFee::where('student_id', $studentId)
-            ->with('feeCategory')
-            ->get()
-            ->groupBy('feeCategory.name')
-            ->map(function ($fees, $categoryName) {
-                $totalAmount = $fees->sum('amount');
-                $paidAmount = $fees->sum('paid_amount');
-                $concessionAmount = $fees->sum('concession_amount');
-
-                return [
-                    'category' => $categoryName,
-                    'total' => $totalAmount,
-                    'paid' => $paidAmount,
-                    'concession' => $concessionAmount,
-                    'remaining' => $totalAmount - $paidAmount - $concessionAmount,
-                    'percentage' => $totalAmount > 0 ? round(($paidAmount / $totalAmount) * 100, 1) : 0,
-                ];
-            })->values();
-    }
-
-    /**
-     * Get monthly collection data
-     */
-    private function getMonthlyCollections($studentId)
-    {
-        return Payment::where('student_id', $studentId)
-            ->selectRaw('YEAR(payment_date) as year, MONTH(payment_date) as month, SUM(amount) as total')
-            ->where('payment_date', '>=', now()->subYear())
-            ->groupBy('year', 'month')
-            ->orderBy('year')
-            ->orderBy('month')
-            ->get()
-            ->map(function ($payment) {
-                return [
-                    'month' => Carbon::createFromDate($payment->year, $payment->month, 1)->format('M Y'),
-                    'amount' => $payment->total,
-                ];
-            });
-    }
-
-    /**
      * Get overdue analysis
      */
     private function getOverdueAnalysis($studentId)
@@ -307,41 +247,6 @@ class ComponentPaymentController extends Controller
     }
 
     /**
-     * Calculate payment frequency (enhanced version)
-     */
-    private function calculatePaymentFrequency($studentId)
-    {
-        $payments = Payment::where('student_id', $studentId)
-            ->orderBy('payment_date')
-            ->pluck('payment_date')
-            ->toArray();
-
-        if (count($payments) < 2) {
-            return 'Insufficient data';
-        }
-
-        $intervals = [];
-        for ($i = 1; $i < count($payments); $i++) {
-            $interval = Carbon::parse($payments[$i])->diffInDays(Carbon::parse($payments[$i - 1]));
-            $intervals[] = $interval;
-        }
-
-        $averageInterval = array_sum($intervals) / count($intervals);
-
-        if ($averageInterval <= 7) {
-            return 'Weekly';
-        }
-        if ($averageInterval <= 30) {
-            return 'Monthly';
-        }
-        if ($averageInterval <= 90) {
-            return 'Quarterly';
-        }
-
-        return 'Irregular';
-    }
-
-    /**
      * Get component data for AJAX - NEW
      */
     public function getComponentData(Request $request)
@@ -367,7 +272,7 @@ class ComponentPaymentController extends Controller
      */
     private function generateReceiptNumber()
     {
-        return app(\App\Services\UnifiedIdentifierService::class)->generateReceiptNumber();
+        return app(UnifiedIdentifierService::class)->generateReceiptNumber();
     }
 
     /**
@@ -387,7 +292,7 @@ class ComponentPaymentController extends Controller
                     ->get();
             }
 
-            $feeCategories = \App\Models\FeeCategory::orderBy('name')->get();
+            $feeCategories = FeeCategory::orderBy('name')->get();
 
             return view('admin.payments.component-payment-form', compact(
                 'student', 'unpaidFees', 'feeCategories'
@@ -472,7 +377,7 @@ class ComponentPaymentController extends Controller
                     [
                         'amount' => $payment->amount,
                         'payment_method' => $payment->payment_method,
-                        'payment_date' => \Carbon\Carbon::parse($payment->payment_date)->format('Y-m-d'),
+                        'payment_date' => Carbon::parse($payment->payment_date)->format('Y-m-d'),
                         'components' => $validated['components'],
                         'student_id' => $payment->student_id,
                     ],
@@ -507,216 +412,6 @@ class ComponentPaymentController extends Controller
 
             return back()->withInput()
                 ->with('error', 'Failed to record payment: '.$e->getMessage());
-        }
-    }
-
-    /**
-     * Export payment activity log to Excel
-     */
-    public function exportActivityLog(Student $student)
-    {
-        $activities = Payment::where('student_id', $student->id)
-            ->with(['createdBy', 'componentItems.studentFee.feeCategory'])
-            ->orderBy('created_at', 'desc')
-            ->get();
-
-        return Excel::download(new PaymentActivityExport($activities),
-            "payment_activity_{$student->enrollment_number}.xlsx");
-    }
-
-    /**
-     * Get activity log data via AJAX
-     */
-    public function getActivityLogData(Student $student, Request $request)
-    {
-        $query = Payment::where('student_id', $student->id)
-            ->with(['createdBy', 'componentItems.studentFee.feeCategory']);
-
-        // Filter by date range
-        if ($request->has('start_date')) {
-            $query->whereDate('created_at', '>=', $request->start_date);
-        }
-        if ($request->has('end_date')) {
-            $query->whereDate('created_at', '<=', $request->end_date);
-        }
-
-        // Filter by type
-        if ($request->has('type') && $request->type !== 'all') {
-            // Add filters based on payment type, status, etc.
-        }
-
-        $activities = $query->orderBy('created_at', 'desc')
-            ->paginate(20);
-
-        return response()->json([
-            'success' => true,
-            'activities' => $activities,
-            'total' => $activities->total(),
-        ]);
-    }
-
-    /**
-     * Add activity log entry (for custom events)
-     */
-    public function addActivityLogEntry(Student $student, $type, $description, $details = null)
-    {
-        // You might want to create a separate ActivityLog model for non-payment activities
-        // Use Spatie Activity Log directly
-        activity()
-            ->performedOn($student)
-            ->causedBy(auth()->id())
-            ->withProperties($details ?? [])
-            ->log($description);
-    }
-
-    /**
-     * Get payment timeline for charts/graphs
-     */
-    public function getPaymentTimeline(Student $student)
-    {
-        $timeline = Payment::where('student_id', $student->id)
-            ->selectRaw('DATE(payment_date) as date, SUM(amount) as daily_total, COUNT(*) as payment_count')
-            ->groupBy('date')
-            ->orderBy('date')
-            ->get();
-
-        return response()->json([
-            'timeline' => $timeline,
-            'chart_data' => [
-                'labels' => $timeline->pluck('date'),
-                'amounts' => $timeline->pluck('daily_total'),
-                'counts' => $timeline->pluck('payment_count'),
-            ],
-        ]);
-    }
-
-    /**
-     * Store bulk payments
-     */
-    public function storeBulkPayments(Request $request)
-    {
-        $validated = $request->validate([
-            'payments' => 'required|array|min:1',
-            'payments.*.student_id' => 'required|exists:students,id',
-            'payments.*.components' => 'required|array|min:1',
-            'payments.*.components.*.student_fee_id' => 'required|exists:student_fees,id',
-            'payments.*.components.*.amount' => 'required|numeric|min:0.01',
-            'payment_method' => 'required|string',
-            'payment_date' => 'required|date',
-        ]);
-
-        try {
-            DB::beginTransaction();
-
-            $createdPayments = [];
-
-            foreach ($validated['payments'] as $paymentData) {
-                $student = Student::findOrFail($paymentData['student_id']);
-                $totalAmount = collect($paymentData['components'])->sum('amount');
-
-                $payment = Payment::create([
-                    'student_id' => $student->id,
-                    'payment_type' => 'component',
-                    'amount' => $totalAmount,
-                    'payment_method' => $validated['payment_method'],
-                    'payment_date' => $validated['payment_date'],
-                    'status' => 'completed',
-                    'academic_year' => $student->batch->academicYear->name ?? null,
-                    'academic_year_id' => $student->batch->academic_year_id ?? null,
-                    'created_by' => auth()->id(), // Explicitly set created_by
-                    'updated_by' => auth()->id(),  // Set updated_by as well
-                ]);
-
-                foreach ($paymentData['components'] as $component) {
-                    $studentFee = StudentFee::findOrFail($component['student_fee_id']);
-
-                    $payment->componentItems()->create([
-                        'student_fee_id' => $studentFee->id,
-                        'amount_paid' => $component['amount'],
-                    ]);
-
-                    $studentFee->increment('paid_amount', $component['amount']);
-
-                    $remainingAmount = $studentFee->amount - $studentFee->concession_amount - $studentFee->paid_amount;
-                    if ($remainingAmount <= 0) {
-                        $studentFee->update(['status' => 'paid']);
-                    } elseif ($studentFee->paid_amount > 0) {
-                        $studentFee->update(['status' => 'partial']);
-                    }
-                }
-
-                // Log bulk payment creation
-                if (class_exists(PaymentEditLog::class)) {
-                    PaymentEditLog::logPaymentChange(
-                        $payment,
-                        'created',
-                        [],
-                        [
-                            'amount' => $payment->amount,
-                            'payment_method' => $payment->payment_method,
-                            'payment_date' => \Carbon\Carbon::parse($payment->payment_date)->format('Y-m-d'),
-                            'components' => $paymentData['components'],
-                        ],
-                        'Bulk payment created'
-                    );
-                }
-
-                $createdPayments[] = $payment;
-            }
-
-            DB::commit();
-
-            return redirect()->route('admin.component-payments.index')
-                ->with('success', count($createdPayments).' payments recorded successfully.');
-
-        } catch (\Exception $e) {
-            DB::rollback();
-
-            Log::error('Bulk payment recording failed', [
-                'error' => $e->getMessage(),
-                'user_id' => auth()->id(),
-            ]);
-
-            return back()->withInput()
-                ->with('error', 'Failed to record bulk payments: '.$e->getMessage());
-        }
-    }
-
-    /**
-     * Quick component payment (for single category)
-     */
-    public function quickComponentPayment(Request $request, Student $student)
-    {
-        $request->validate([
-            'fee_category_id' => 'required|exists:fee_categories,id',
-            'amount' => 'required|numeric|min:0.01',
-            'payment_method' => 'required|in:cash, card, bank_transfer, cheque, Phonepe, Gpay, Paytm, UPI, online',
-            'notes' => 'nullable|string|max:500',
-        ]);
-
-        $components = [[
-            'fee_category_id' => $request->fee_category_id,
-            'amount' => $request->amount,
-        ]];
-
-        try {
-            $result = $this->paymentService->processPayment(
-                $student,
-                $components,
-                [
-                    'payment_method' => $request->payment_method,
-                    'payment_date' => now(),
-                    'notes' => $request->notes,
-                ]
-            );
-
-            return response()->json($result);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'error' => 'Payment failed: '.$e->getMessage(),
-            ], 422);
         }
     }
 
@@ -771,174 +466,6 @@ class ComponentPaymentController extends Controller
             ->get();
 
         return view('admin.component-payments.edit', compact('componentPayment', 'paymentMethods', 'editHistory'));
-    }
-
-    /**
-     * Get student components summary (robust version)
-     */
-    private function getStudentComponents(Student $student)
-    {
-        try {
-            // Check if student has any fees
-            if (! $student->studentFees || $student->studentFees->isEmpty()) {
-                return collect(); // Return empty collection
-            }
-
-            return $student->studentFees()->with('feeCategory')->get()->map(function ($fee) {
-                // Ensure all amounts are numeric
-                $amount = (float) ($fee->amount ?? 0);
-                $paidAmount = (float) ($fee->paid_amount ?? 0);
-                $concessionAmount = (float) ($fee->concession_amount ?? 0);
-
-                $balance = $amount - $concessionAmount - $paidAmount;
-                $balance = max(0, $balance); // Ensure balance is not negative
-
-                // Check if overdue (with proper null checking)
-                $isOverdue = false;
-                if ($fee->due_date && $balance > 0) {
-                    try {
-                        $isOverdue = \Carbon\Carbon::parse($fee->due_date)->isPast();
-                    } catch (\Exception $e) {
-                        $isOverdue = false; // Default to false if date parsing fails
-                    }
-                }
-
-                // Determine status
-                $status = 'unpaid';
-                if ($balance <= 0) {
-                    $status = 'paid';
-                } elseif ($paidAmount > 0) {
-                    $status = 'partial';
-                }
-
-                return [
-                    'id' => $fee->id ?? 0,
-                    'category' => optional($fee->feeCategory)->name ?? 'N/A',
-                    'total_amount' => $amount,
-                    'paid_amount' => $paidAmount,
-                    'concession_amount' => $concessionAmount,
-                    'balance' => $balance,
-                    'due_date' => $fee->due_date,
-                    'status' => $status,
-                    'is_overdue' => $isOverdue,
-                ];
-            });
-        } catch (\Exception $e) {
-            // Log error and return empty collection
-            \Log::error('Error getting student components for student '.$student->id.': '.$e->getMessage());
-
-            return collect();
-        }
-    }
-
-    /**
-     * Get payable components for student (AJAX)
-     */
-    public function getPayableComponents(Student $student)
-    {
-        $unpaidFees = $student->studentFees()
-            ->whereIn('status', ['unpaid', 'partial'])
-            ->with('feeCategory')
-            ->orderBy('due_date')
-            ->get();
-
-        return response()->json([
-            'components' => $unpaidFees->groupBy('fee_category_id')->map(function ($fees, $categoryId) {
-                $category = $fees->first()->feeCategory;
-                $totalRemaining = $fees->sum(fn ($fee) => $fee->getRemainingAmount());
-
-                return [
-                    'category_id' => $categoryId,
-                    'category_name' => $category->name,
-                    'category_type' => $category->category_type ?? 'other',
-                    'remaining_amount' => $totalRemaining,
-                    'fees_count' => $fees->count(),
-                    'min_amount' => 0.01,
-                    'max_amount' => $totalRemaining,
-                ];
-            })->values(),
-        ]);
-    }
-
-    /**
-     * Get student payment summary (AJAX)
-     */
-    public function studentPaymentSummary(Student $student)
-    {
-        $summary = $this->getFinancialSummary($student);
-        $components = $this->getStudentComponents($student);
-
-        return response()->json([
-            'summary' => $summary,
-            'components' => $components,
-        ]);
-    }
-
-    /**
-     * Component payment report
-     */
-    public function componentPaymentReport(Request $request)
-    {
-        $startDate = $request->get('start_date', now()->startOfMonth());
-        $endDate = $request->get('end_date', now()->endOfMonth());
-        $feeCategory = $request->get('fee_category_id');
-
-        // Category-wise summary
-        $categorySummary = FeeCategory::with(['studentFees' => function ($query) use ($startDate, $endDate) {
-            $query->whereHas('componentPaymentItems.payment', function ($q) use ($startDate, $endDate) {
-                $q->whereBetween('payment_date', [$startDate, $endDate]);
-            });
-        }])
-            ->get()
-            ->map(function ($category) {
-                $fees = $category->studentFees;
-                $totalAmount = $fees->sum('amount');
-                $concessionAmount = $fees->sum('concession_amount');
-                $paidAmount = $fees->sum('paid_amount');
-                $netAmount = $totalAmount - $concessionAmount;
-
-                return [
-                    'category_id' => $category->id,
-                    'category_name' => $category->name,
-                    'total_amount' => $totalAmount,
-                    'concession_amount' => $concessionAmount,
-                    'net_amount' => $netAmount,
-                    'paid_amount' => $paidAmount,
-                    'remaining_amount' => $netAmount - $paidAmount,
-                    'payment_percentage' => $netAmount > 0 ? round(($paidAmount / $netAmount) * 100, 2) : 100,
-                    'students_count' => $fees->unique('student_id')->count(),
-                ];
-            });
-
-        // Recent payments
-        $recentPayments = Payment::where('payment_type', 'component')
-            ->whereBetween('payment_date', [$startDate, $endDate])
-            ->with(['student', 'componentItems.studentFee.feeCategory'])
-            ->orderBy('payment_date', 'desc')
-            ->limit(50)
-            ->get();
-
-        // Outstanding amounts
-        $outstandingAmounts = StudentFee::with(['student', 'feeCategory'])
-            ->whereRaw('amount - concession_amount - paid_amount > 0')
-            ->orderBy('due_date')
-            ->limit(50)
-            ->get()
-            ->map(function ($fee) {
-                return [
-                    'student' => $fee->student->name,
-                    'enrollment_number' => $fee->student->enrollment_number,
-                    'category' => $fee->feeCategory->name,
-                    'outstanding_amount' => $fee->getRemainingAmount(),
-                    'due_date' => $fee->due_date?->format('Y-m-d'),
-                    'is_overdue' => $fee->isOverdue(),
-                ];
-            });
-
-        return view('admin.reports.component-payments', compact(
-            'categorySummary', 'recentPayments', 'outstandingAmounts',
-            'startDate', 'endDate', 'feeCategory'
-        ));
     }
 
     /**
@@ -1202,7 +729,7 @@ class ComponentPaymentController extends Controller
                 throw $e;
             }
 
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             \Log::warning('Validation failed', ['errors' => $e->errors()]);
 
             return back()->withErrors($e->errors())->withInput();
@@ -1245,7 +772,7 @@ class ComponentPaymentController extends Controller
         // Method 2: Try to get from AcademicYear model if it exists
         if (class_exists('\App\Models\AcademicYear')) {
             try {
-                $currentAcademicYear = app(\App\Services\AcademicYearService::class)->getCurrentAcademicYear();
+                $currentAcademicYear = app(AcademicYearService::class)->getCurrentAcademicYear();
                 if ($currentAcademicYear) {
                     \Log::info('Academic year from AcademicYear model', ['academic_year' => $currentAcademicYear->name]);
 
@@ -1259,7 +786,7 @@ class ComponentPaymentController extends Controller
         // Method 3: Try to get from session (if academic year switching is implemented)
         if (session('selected_academic_year_id')) {
             try {
-                $selectedYear = \App\Models\AcademicYear::find(session('selected_academic_year_id'));
+                $selectedYear = AcademicYear::find(session('selected_academic_year_id'));
                 if ($selectedYear) {
                     \Log::info('Academic year from session', ['academic_year' => $selectedYear->name]);
 
@@ -1301,36 +828,6 @@ class ComponentPaymentController extends Controller
         ]);
 
         return $academicYear;
-    }
-
-    /**
-     * Alternative method if you want to get academic year from course duration
-     */
-    private function getAcademicYearFromCourse($student): string
-    {
-        if (! $student->batch || ! $student->batch->course) {
-            return $this->getCurrentAcademicYear();
-        }
-
-        $course = $student->batch->course;
-        $admissionDate = $student->admission_date ?? $student->created_at;
-
-        // If course has duration, calculate based on admission date
-        if (isset($course->duration_in_years)) {
-            $admissionYear = date('Y', strtotime($admissionDate));
-            $currentYear = date('Y');
-
-            // Calculate which year of study the student is in
-            $yearOfStudy = $currentYear - $admissionYear + 1;
-
-            // Generate academic year based on year of study
-            if ($yearOfStudy <= $course->duration_in_years) {
-                return $currentYear.'-'.($currentYear + 1);
-            }
-        }
-
-        // Fallback to standard calculation
-        return $this->getCurrentAcademicYear();
     }
 
     /**
@@ -1545,42 +1042,6 @@ class ComponentPaymentController extends Controller
     }
 
     /**
-     * Update payment components with proper fee tracking
-     */
-    private function updatePaymentComponents(Payment $payment, array $components)
-    {
-        // First, reverse the original payment effects
-        foreach ($payment->componentItems as $item) {
-            $studentFee = $item->studentFee;
-            $studentFee->decrement('paid_amount', $item->amount_paid);
-
-            // Update status based on new paid amount
-            $this->updateStudentFeeStatus($studentFee);
-        }
-
-        // Delete old component items
-        $payment->componentItems()->delete();
-
-        // Create new component items
-        foreach ($components as $component) {
-            $studentFee = StudentFee::findOrFail($component['student_fee_id']);
-
-            // Create new component item
-            $payment->componentItems()->create([
-                'student_fee_id' => $studentFee->id,
-                'amount_paid' => $component['amount'],
-                'notes' => null,
-            ]);
-
-            // Update student fee paid amount
-            $studentFee->increment('paid_amount', $component['amount']);
-
-            // Update status
-            $this->updateStudentFeeStatus($studentFee);
-        }
-    }
-
-    /**
      * Update student fee status based on paid amount
      */
     private function updateStudentFeeStatus(StudentFee $studentFee)
@@ -1594,75 +1055,6 @@ class ComponentPaymentController extends Controller
             $studentFee->update(['status' => 'partial']);
         } else {
             $studentFee->update(['status' => 'unpaid']);
-        }
-    }
-
-    /**
-     * Show edit history for a payment
-     */
-    public function editHistory(Payment $componentPayment)
-    {
-        $editHistory = PaymentEditLog::forPayment($componentPayment->id)
-            ->with(['user', 'payment.student'])
-            ->latest()
-            ->paginate(20);
-
-        return view('admin.component-payments.edit-history', compact('componentPayment', 'editHistory'));
-    }
-
-    /**
-     * Bulk create fees for students
-     */
-    public function bulkCreateFees(Request $request)
-    {
-        $request->validate([
-            'batch_id' => 'required|exists:batches,id',
-            'fee_structure_id' => 'required|exists:fee_structures,id',
-            'academic_year' => 'required|string',
-        ]);
-
-        DB::beginTransaction();
-        try {
-            $batch = \App\Models\Batch::with(['students', 'feeStructure.feeCategories'])->find($request->batch_id);
-            $feeStructure = \App\Models\FeeStructure::with('feeCategories')->find($request->fee_structure_id);
-
-            $createdCount = 0;
-
-            foreach ($batch->students as $student) {
-                foreach ($feeStructure->feeCategories as $category) {
-                    // Check if fee already exists
-                    $existingFee = StudentFee::where([
-                        'student_id' => $student->id,
-                        'fee_category_id' => $category->id,
-                        'academic_year' => $request->academic_year,
-                    ])->first();
-
-                    if (! $existingFee) {
-                        StudentFee::create([
-                            'student_id' => $student->id,
-                            'fee_structure_id' => $feeStructure->id,
-                            'fee_category_id' => $category->id,
-                            'academic_year' => $request->academic_year,
-                            'amount' => $category->pivot->amount,
-                            'due_date' => now()->addDays(30),
-                            'status' => 'unpaid',
-                            'installment_number' => 1,
-                            'total_installments' => 1,
-                        ]);
-                        $createdCount++;
-                    }
-                }
-            }
-
-            DB::commit();
-
-            return redirect()->back()->with('success',
-                "Created {$createdCount} fee components for {$batch->students->count()} students");
-
-        } catch (\Exception $e) {
-            DB::rollback();
-
-            return redirect()->back()->with('error', 'Bulk creation failed: '.$e->getMessage());
         }
     }
 
@@ -1772,88 +1164,6 @@ class ComponentPaymentController extends Controller
 
             return redirect()->back()->with('error', $e->getMessage());
         }
-    }
-
-    /**
-     * Auto-generate missing fee components for a student
-     */
-    private function generateMissingFeeComponents(Student $student)
-    {
-        if (! $student->batch || ! $student->batch->feeStructure) {
-            $batchName = $student->batch ? $student->batch->name : 'Unknown';
-            throw new \Exception(
-                "Cannot generate fee components: Student's batch ({$batchName}) ".
-                'does not have a fee structure assigned.'
-            );
-        }
-
-        $batch = $student->batch;
-        $feeStructure = $batch->feeStructure;
-        $academicYear = date('Y').'-'.(date('Y') + 1);
-
-        $generatedCount = 0;
-
-        foreach ($feeStructure->feeCategories as $category) {
-            // Check if component already exists
-            $existingFee = StudentFee::where([
-                'student_id' => $student->id,
-                'fee_category_id' => $category->id,
-                'academic_year' => $academicYear,
-            ])->first();
-
-            if (! $existingFee) {
-                StudentFee::create([
-                    'student_id' => $student->id,
-                    'fee_structure_id' => $feeStructure->id,
-                    'fee_category_id' => $category->id,
-                    'academic_year' => $academicYear,
-                    'amount' => $category->pivot->amount ? $category->pivot->amount : 0,
-                    'due_date' => now()->addDays(30),
-                    'status' => 'unpaid',
-                    'installment_number' => 1,
-                    'total_installments' => 1,
-                ]);
-                $generatedCount++;
-            }
-        }
-
-        \Log::info("Auto-generated {$generatedCount} fee components for student {$student->name} (ID: {$student->id})");
-
-        return $generatedCount;
-    }
-
-    /**
-     * Enhanced concession activity logging
-     */
-    private function logConcessionActivity(Student $student, StudentFee $studentFee, $amount, $reason, $oldConcessionAmount, $oldStatus)
-    {
-        // Create Spatie Activity Log entry
-        activity()
-            ->causedBy(auth()->user())
-            ->performedOn($student)
-            ->withProperties([
-                'fee_category' => $studentFee->feeCategory->name,
-                'concession_amount' => $amount,
-                'total_concession_before' => $oldConcessionAmount,
-                'total_concession_after' => $studentFee->concession_amount,
-                'reason' => $reason,
-                'status_before' => $oldStatus,
-                'status_after' => $studentFee->status,
-                'remaining_amount' => $studentFee->amount - $studentFee->paid_amount - $studentFee->concession_amount,
-                'type' => 'concession',
-            ])
-            ->log("Concession of ₹{$amount} applied to {$studentFee->feeCategory->name}");
-
-        // Also log to Laravel logs for debugging
-        \Log::info('Concession Applied Successfully', [
-            'student_id' => $student->id,
-            'student_name' => $student->name,
-            'fee_category' => $studentFee->feeCategory->name,
-            'amount' => $amount,
-            'reason' => $reason,
-            'applied_by' => auth()->user()->name,
-            'timestamp' => now(),
-        ]);
     }
 
     public function applyGenderBasedConcession(Student $student)
@@ -2000,7 +1310,7 @@ class ComponentPaymentController extends Controller
 
         // Create PDF using DomPDF (if you have it installed)
         if (class_exists('\Barryvdh\DomPDF\Facade\Pdf')) {
-            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($html);
+            $pdf = Pdf::loadHTML($html);
             $pdf->setPaper('A5', 'portrait');
 
             $filename = 'receipt-'.$payment->receipt_number.'.pdf';
@@ -2109,7 +1419,7 @@ class ComponentPaymentController extends Controller
 
             // Try to create PDF using DomPDF
             if (class_exists('\Barryvdh\DomPDF\Facade\Pdf')) {
-                $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($html);
+                $pdf = Pdf::loadHTML($html);
                 $pdf->setPaper('A5', 'portrait');
 
                 $filename = 'receipt-'.$payment->receipt_number.'.pdf';
@@ -2129,51 +1439,6 @@ class ComponentPaymentController extends Controller
     }
 
     /**
-     * Alternative method using TCPDF (if you prefer TCPDF over DomPDF)
-     */
-    public function downloadReceiptTCPDF(Student $student, Payment $payment)
-    {
-        // Verify payment belongs to student
-        if ((int) $payment->student_id !== (int) $student->id) {
-            abort(404, 'Payment not found for this student');
-        }
-
-        // Load payment with all necessary relationships
-        $payment->load([
-            'student.batch.course',
-            'createdBy',
-            'componentItems.studentFee.feeCategory',
-        ]);
-
-        if (class_exists('\Elibyy\TCPDF\Facades\TCPDF')) {
-            $pdf = new \TCPDF;
-
-            // Set document information
-            $pdf->SetCreator('College Management System');
-            $pdf->SetAuthor(setting('college_name', 'Institution'));
-            $pdf->SetTitle('Payment Receipt - '.$payment->receipt_number);
-
-            // Set margins and page format
-            $pdf->SetMargins(10, 10, 10);
-            $pdf->SetAutoPageBreak(true, 10);
-            $pdf->AddPage('P', 'A5'); // A5 Portrait
-
-            // Get HTML content
-            $html = view('admin.payments.receipt-pdf', compact('payment', 'student'))->render();
-
-            // Write HTML to PDF
-            $pdf->writeHTML($html, true, false, true, false, '');
-
-            $filename = 'receipt-'.$payment->receipt_number.'.pdf';
-
-            return $pdf->Output($filename, 'D'); // D = Download
-        }
-
-        // Fallback to DomPDF method
-        return $this->downloadReceipt($student, $payment);
-    }
-
-    /**
      * Create fee components for a single student
      */
     public function createFeeComponentsForStudent(Student $student, $academicYear = null, $feeStructureId = null)
@@ -2184,7 +1449,7 @@ class ComponentPaymentController extends Controller
 
             // Get fee structure from batch or use provided one
             $feeStructure = $feeStructureId ?
-                \App\Models\FeeStructure::with('feeCategories')->find($feeStructureId) :
+                FeeStructure::with('feeCategories')->find($feeStructureId) :
                 $student->batch->feeStructure;
 
             if (! $feeStructure) {
@@ -2195,14 +1460,14 @@ class ComponentPaymentController extends Controller
 
             foreach ($feeStructure->feeCategories as $category) {
                 // Check if component already exists
-                $existingFee = \App\Models\StudentFee::where([
+                $existingFee = StudentFee::where([
                     'student_id' => $student->id,
                     'fee_category_id' => $category->id,
                     'academic_year' => $academicYear,
                 ])->first();
 
                 if (! $existingFee) {
-                    \App\Models\StudentFee::create([
+                    StudentFee::create([
                         'student_id' => $student->id,
                         'fee_structure_id' => $feeStructure->id,
                         'fee_category_id' => $category->id,
@@ -2274,7 +1539,7 @@ class ComponentPaymentController extends Controller
         $payments = $query->orderBy('created_at', 'desc')->paginate(15)->withQueryString();
 
         // [NEW] Get Fee Categories for the dropdown
-        $feeCategories = \App\Models\FeeCategory::orderBy('name')->get();
+        $feeCategories = FeeCategory::orderBy('name')->get();
 
         return view('admin.payments.index', compact('payments', 'feeCategories'));
     }

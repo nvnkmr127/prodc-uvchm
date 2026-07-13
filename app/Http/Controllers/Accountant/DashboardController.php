@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Accountant;
 use App\Http\Controllers\Controller;
 use App\Models\Batch;
 use App\Models\ComponentPaymentItem;
-use App\Models\FeeCategory;
 use App\Models\Payment;
 use App\Models\Student;
 use App\Services\ComponentPaymentService;
@@ -53,45 +52,9 @@ class DashboardController extends Controller
         return view('accountant.dashboard.index', $data);
     }
 
-    public function financialOverview()
-    {
-        $data = [
-            'revenue_analytics' => $this->getRevenueAnalytics(), // UPDATED: Component-based
-            'fee_structure_analysis' => $this->getFeeStructureAnalysis(), // UPDATED: Component-based
-            'collection_efficiency' => $this->getCollectionEfficiency(), // NEW: Component efficiency
-            'forecasting' => $this->getFinancialForecasting(), // UPDATED: Component trends
-            'payment_behavior' => $this->getPaymentBehaviorAnalysis(), // NEW: Component behavior
-            'outstanding_analysis' => $this->getOutstandingAnalysis(), // NEW: Component outstanding
-        ];
-
-        return view('accountant.dashboard.financial-overview', $data);
-    }
-
     // ===================================
     // UPDATED METHODS (Component-Based)
     // ===================================
-
-    /**
-     * Get financial overview using ComponentPaymentService
-     */
-    protected function getFinancialOverview(): array
-    {
-        $financialData = $this->componentPaymentService->getDashboardFinancialData();
-        $collectionSummary = $this->componentPaymentService->getCollectionSummary();
-        $trends = $this->componentPaymentService->getMonthlyCollectionTrends(3);
-
-        return [
-            'total_revenue' => $financialData['total_revenue'],
-            'pending_amount' => $financialData['pending_amount'],
-            'overdue_amount' => $financialData['overdue_amount'],
-            'monthly_revenue' => $financialData['monthly_collection'],
-            'total_concessions' => $financialData['total_concessions'],
-            'collection_rate' => $collectionSummary['collection_percentage'],
-            'growth_rate' => $this->calculateGrowthRate($trends),
-            'net_revenue' => $financialData['total_revenue'] - $financialData['total_concessions'],
-            'revenue_vs_target' => $this->calculateRevenueVsTarget($financialData),
-        ];
-    }
 
     /**
      * Get collection summary using component system
@@ -285,89 +248,6 @@ class DashboardController extends Controller
         ];
     }
 
-    /**
-     * UPDATED: Get revenue analytics using component system
-     */
-    protected function getRevenueAnalytics(): array
-    {
-        $financialData = $this->componentPaymentService->getDashboardFinancialData();
-        $trends = $this->componentPaymentService->getMonthlyCollectionTrends(12);
-        $statistics = $this->componentPaymentService->getPaymentStatistics([
-            'start_date' => now()->subYear(),
-            'end_date' => now(),
-        ]);
-
-        return [
-            'total_revenue' => $financialData['total_revenue'],
-            'revenue_growth' => $this->calculateRevenueGrowth($trends),
-            'revenue_by_category' => $this->getRevenueByCategoryAnalysis(),
-            'revenue_by_method' => $statistics['by_method'],
-            'revenue_forecasting' => $this->generateRevenueForecast($trends),
-            'profitability_metrics' => $this->calculateProfitabilityMetrics($financialData),
-        ];
-    }
-
-    /**
-     * UPDATED: Get fee structure analysis using component system
-     */
-    protected function getFeeStructureAnalysis(): array
-    {
-        $outstanding = $this->componentPaymentService->getOutstandingFeesSummary();
-
-        return [
-            'category_performance' => $outstanding['by_category'],
-            'structure_efficiency' => $this->analyzeFeeStructureEfficiency(),
-            'pricing_optimization' => $this->getPricingOptimizationSuggestions(),
-            'component_utilization' => $this->getComponentUtilizationStats(),
-        ];
-    }
-
-    /**
-     * UPDATED: Get financial forecasting using component trends
-     */
-    protected function getFinancialForecasting(): array
-    {
-        $trends = $this->componentPaymentService->getMonthlyCollectionTrends(12);
-
-        return [
-            'short_term_forecast' => $this->generateShortTermForecast($trends),
-            'long_term_forecast' => $this->generateLongTermForecast($trends),
-            'scenario_analysis' => $this->getScenarioAnalysis($trends),
-            'risk_assessment' => $this->performRiskAssessment(),
-        ];
-    }
-
-    /**
-     * NEW: Get payment behavior analysis
-     */
-    protected function getPaymentBehaviorAnalysis(): array
-    {
-        $behavior = $this->componentPaymentService->getPaymentBehaviorAnalytics();
-
-        return [
-            'payment_patterns' => $behavior,
-            'student_segmentation' => $this->getStudentPaymentSegmentation(),
-            'payment_timing_analysis' => $this->getPaymentTimingAnalysis(),
-            'behavioral_insights' => $this->generateBehavioralInsights($behavior),
-        ];
-    }
-
-    /**
-     * NEW: Get outstanding fees analysis
-     */
-    protected function getOutstandingAnalysis(): array
-    {
-        $outstanding = $this->componentPaymentService->getOutstandingFeesSummary();
-
-        return [
-            'aging_analysis' => $outstanding['by_aging'],
-            'category_analysis' => $outstanding['by_category'],
-            'trend_analysis' => $this->getOutstandingTrends(),
-            'recovery_probability' => $this->calculateRecoveryProbability($outstanding),
-            'action_recommendations' => $this->generateActionRecommendations($outstanding),
-        ];
-    }
-
     // ===================================
     // HELPER METHODS
     // ===================================
@@ -382,23 +262,6 @@ class DashboardController extends Controller
         $previous = prev($trends)['amount'];
 
         return $previous > 0 ? round((($latest - $previous) / $previous) * 100, 1) : 0;
-    }
-
-    private function calculateGrowthTrends(array $trends): array
-    {
-        $growthRates = [];
-        for ($i = 1; $i < count($trends); $i++) {
-            $current = $trends[$i]['amount'];
-            $previous = $trends[$i - 1]['amount'];
-            $growthRates[] = $previous > 0 ? (($current - $previous) / $previous) * 100 : 0;
-        }
-
-        return [
-            'average_growth' => count($growthRates) > 0 ? round(array_sum($growthRates) / count($growthRates), 1) : 0,
-            'trend_direction' => $this->determineTrendDirection($growthRates),
-            'volatility' => $this->calculateVolatility($growthRates),
-            'growth_consistency' => $this->calculateGrowthConsistency($growthRates),
-        ];
     }
 
     private function calculateEfficiencyScore(array $efficiency): float
@@ -430,36 +293,6 @@ class DashboardController extends Controller
         return 0;
     }
 
-    private function getTargetVsActual(array $summary): array
-    {
-        // These would typically come from settings or annual targets
-        $annualTarget = 10000000; // 1 crore sample target
-        $monthlyTarget = $annualTarget / 12;
-
-        return [
-            'annual_target' => $annualTarget,
-            'annual_actual' => $summary['total_collected'],
-            'annual_achievement' => round(($summary['total_collected'] / $annualTarget) * 100, 1),
-            'monthly_target' => $monthlyTarget,
-            'monthly_achievement' => $this->getMonthlyAchievement($monthlyTarget),
-        ];
-    }
-
-    private function getDailyTransactionTotals(array $payments): array
-    {
-        $dailyTotals = [];
-        foreach ($payments as $payment) {
-            $date = $payment['payment_date'];
-            if (! isset($dailyTotals[$date])) {
-                $dailyTotals[$date] = ['count' => 0, 'amount' => 0];
-            }
-            $dailyTotals[$date]['count']++;
-            $dailyTotals[$date]['amount'] += $payment['amount'];
-        }
-
-        return $dailyTotals;
-    }
-
     private function getPaymentMethodBreakdown(array $payments): array
     {
         $breakdown = [];
@@ -475,35 +308,6 @@ class DashboardController extends Controller
         return $breakdown;
     }
 
-    private function calculateBatchRating(array $stats): string
-    {
-        $collectionRate = $stats['collection_percentage'];
-        $overdueRate = ($stats['overdue_count'] / max(1, $stats['total_components'])) * 100;
-
-        $score = $collectionRate - ($overdueRate * 0.5);
-
-        if ($score >= 90) {
-            return 'Excellent';
-        }
-        if ($score >= 80) {
-            return 'Good';
-        }
-        if ($score >= 70) {
-            return 'Average';
-        }
-        if ($score >= 60) {
-            return 'Below Average';
-        }
-
-        return 'Poor';
-    }
-
-    private function getCategoryCollectionRate($categoryId): float
-    {
-        // Implementation would calculate collection rate for specific category
-        return 85.5; // Sample rate
-    }
-
     private function identifySeasonalPatterns(array $trends): array
     {
         // Analyze seasonal patterns in payment trends
@@ -513,52 +317,6 @@ class DashboardController extends Controller
             'pattern_strength' => 'Strong',
             'seasonal_variance' => 25.5,
         ];
-    }
-
-    private function generateForecast(array $trends): array
-    {
-        $recentTrend = $this->calculateGrowthRate($trends);
-        $lastAmount = end($trends)['amount'];
-
-        return [
-            'next_month' => $lastAmount * (1 + ($recentTrend / 100)),
-            'next_quarter' => $lastAmount * 3 * (1 + ($recentTrend / 100)),
-            'confidence_level' => 75,
-            'forecast_accuracy' => 'Medium',
-        ];
-    }
-
-    /**
-     * Get revenue breakdown by category
-     */
-    private function getRevenueByCategoryAnalysis(): array
-    {
-        $outstanding = $this->componentPaymentService->getOutstandingFeesSummary();
-        $categories = $outstanding['by_category'] ?? [];
-
-        $analysis = [];
-        $totalRevenue = 0;
-
-        foreach ($categories as $category) {
-            $categoryRevenue = ($category['total_amount'] ?? 0) - ($category['outstanding_amount'] ?? 0);
-            $totalRevenue += $categoryRevenue;
-
-            $analysis[] = [
-                'category_name' => $category['category_name'] ?? 'Unknown',
-                'revenue' => $categoryRevenue,
-                'outstanding' => $category['outstanding_amount'] ?? 0,
-                'collection_rate' => $category['total_amount'] > 0 ?
-                    round((($categoryRevenue / $category['total_amount']) * 100), 1) : 0,
-            ];
-        }
-
-        // Add percentage breakdown
-        foreach ($analysis as &$category) {
-            $category['percentage'] = $totalRevenue > 0 ?
-                round(($category['revenue'] / $totalRevenue) * 100, 1) : 0;
-        }
-
-        return $analysis;
     }
 
     /**
@@ -663,7 +421,7 @@ class DashboardController extends Controller
     {
         // You can get this from settings table or configuration
         // For now, return a reasonable default based on student count
-        $studentCount = \App\Models\Student::active()->count();
+        $studentCount = Student::active()->count();
         $avgFeePerStudent = 50000; // Adjust based on your fee structure
 
         return $studentCount * $avgFeePerStudent;
@@ -692,53 +450,6 @@ class DashboardController extends Controller
     }
 
     /**
-     * Calculate financial targets data
-     */
-    private function getFinancialTargets(array $financialData): array
-    {
-        $annualTarget = $this->getAnnualRevenueTarget();
-        $currentRevenue = $financialData['total_revenue'] ?? 0;
-        $monthlyTarget = $annualTarget / 12;
-        $monthlyActual = $financialData['monthly_collection'] ?? 0;
-
-        return [
-            'annual' => [
-                'target' => $annualTarget,
-                'actual' => $currentRevenue,
-                'achievement' => $annualTarget > 0 ? round(($currentRevenue / $annualTarget) * 100, 1) : 0,
-            ],
-            'monthly' => [
-                'target' => $monthlyTarget,
-                'actual' => $monthlyActual,
-                'achievement' => $monthlyTarget > 0 ? round(($monthlyActual / $monthlyTarget) * 100, 1) : 0,
-            ],
-            'collection' => [
-                'target' => 90, // 90% collection rate target
-                'actual' => $financialData['collection_rate'] ?? 0,
-                'achievement' => round(($financialData['collection_rate'] ?? 0) / 90 * 100, 1),
-            ],
-        ];
-    }
-
-    /**
-     * Calculate monthly target progress
-     */
-    private function getMonthlyTargetProgress(array $financialData): array
-    {
-        $monthlyTarget = $this->getAnnualRevenueTarget() / 12;
-        $monthlyActual = $financialData['monthly_collection'] ?? 0;
-        $achievement = $monthlyTarget > 0 ? ($monthlyActual / $monthlyTarget) * 100 : 0;
-
-        return [
-            'target' => $monthlyTarget,
-            'actual' => $monthlyActual,
-            'percentage' => round($achievement, 1),
-            'status' => $achievement >= 100 ? 'achieved' : ($achievement >= 80 ? 'on_track' : 'behind'),
-            'remaining' => max(0, $monthlyTarget - $monthlyActual),
-        ];
-    }
-
-    /**
      * Get system alerts related to finance
      */
     private function getSystemAlerts(): array
@@ -746,7 +457,7 @@ class DashboardController extends Controller
         $alerts = [];
 
         // Check for overdue payments
-        $overdueCount = \App\Models\Student::withOverdueFees()->count();
+        $overdueCount = Student::withOverdueFees()->count();
         if ($overdueCount > 0) {
             $alerts[] = [
                 'type' => 'warning',
@@ -770,37 +481,6 @@ class DashboardController extends Controller
     }
 
     // Additional helper methods would be implemented based on specific requirements
-    private function getMonthlyCollectionPerformance(): array
-    {
-        $months = [];
-        for ($i = 11; $i >= 0; $i--) {
-            $date = now()->subMonths($i);
-            $monthStart = $date->copy()->startOfMonth();
-            $monthEnd = $date->copy()->endOfMonth();
-
-            $collections = Payment::where('payment_type', 'component')
-                ->whereBetween('payment_date', [$monthStart, $monthEnd])
-                ->sum('amount');
-
-            $target = $this->getMonthlyTarget($date);
-            $achievement = $target > 0 ? ($collections / $target) * 100 : 0;
-
-            $months[] = [
-                'month' => $date->format('M Y'),
-                'collections' => $collections,
-                'target' => $target,
-                'achievement_percentage' => round($achievement, 2),
-                'variance' => $collections - $target,
-            ];
-        }
-
-        return [
-            'monthly_data' => $months,
-            'average_achievement' => collect($months)->avg('achievement_percentage'),
-            'best_month' => collect($months)->sortByDesc('achievement_percentage')->first(),
-            'worst_month' => collect($months)->sortBy('achievement_percentage')->first(),
-        ];
-    }
 
     private function getDefaulterTrends(): array
     {
@@ -842,213 +522,14 @@ class DashboardController extends Controller
         ];
     }
 
-    private function getTopPerformingCategories(): array
-    {
-        $categories = FeeCategory::select(
-            'fee_categories.id',
-            'fee_categories.name',
-            DB::raw('COUNT(component_payment_items.id) as total_items'),
-            DB::raw('SUM(component_payment_items.amount) as total_billed'),
-            DB::raw('SUM(component_payment_items.paid_amount) as total_collected'),
-            DB::raw('ROUND((SUM(component_payment_items.paid_amount) / SUM(component_payment_items.amount)) * 100, 2) as collection_rate')
-        )
-            ->leftJoin('component_payment_items', 'fee_categories.id', '=', 'component_payment_items.fee_category_id')
-            ->groupBy('fee_categories.id', 'fee_categories.name')
-            ->having('total_billed', '>', 0)
-            ->orderBy('collection_rate', 'desc')
-            ->limit(5)
-            ->get();
-
-        return $categories->map(function ($category) {
-            return [
-                'category_name' => $category->name,
-                'collection_rate' => $category->collection_rate,
-                'total_billed' => $category->total_billed,
-                'total_collected' => $category->total_collected,
-                'outstanding' => $category->total_billed - $category->total_collected,
-                'performance_grade' => $this->getPerformanceGrade($category->collection_rate),
-            ];
-        })->toArray();
-    }
-
-    private function getUnderperformingCategories(): array
-    {
-        $categories = FeeCategory::select(
-            'fee_categories.id',
-            'fee_categories.name',
-            DB::raw('COUNT(component_payment_items.id) as total_items'),
-            DB::raw('SUM(component_payment_items.amount) as total_billed'),
-            DB::raw('SUM(component_payment_items.paid_amount) as total_collected'),
-            DB::raw('ROUND((SUM(component_payment_items.paid_amount) / SUM(component_payment_items.amount)) * 100, 2) as collection_rate')
-        )
-            ->leftJoin('component_payment_items', 'fee_categories.id', '=', 'component_payment_items.fee_category_id')
-            ->groupBy('fee_categories.id', 'fee_categories.name')
-            ->having('total_billed', '>', 0)
-            ->having('collection_rate', '<', 70) // Categories with less than 70% collection rate
-            ->orderBy('collection_rate', 'asc')
-            ->limit(5)
-            ->get();
-
-        return $categories->map(function ($category) {
-            $improvementPotential = ($category->total_billed - $category->total_collected) * 0.3; // 30% improvement target
-
-            return [
-                'category_name' => $category->name,
-                'collection_rate' => $category->collection_rate,
-                'total_billed' => $category->total_billed,
-                'total_collected' => $category->total_collected,
-                'outstanding' => $category->total_billed - $category->total_collected,
-                'improvement_potential' => $improvementPotential,
-                'priority_level' => $this->getPriorityLevel($category->collection_rate, $category->total_billed),
-                'recommended_actions' => $this->getRecommendedActions($category->collection_rate),
-            ];
-        })->toArray();
-    }
-
-    private function getCategoryTrends(): array
-    {
-        return [];
-    }
-
-    private function identifyImprovementAreas(array $efficiency): array
-    {
-        return [];
-    }
-
-    private function getBenchmarkComparison(array $efficiency): array
-    {
-        return [];
-    }
-
-    private function calculateRevenueVsTarget(array $financialData): array
-    {
-        return [];
-    }
-
-    private function getYearOverYearComparison(): array
-    {
-        return [];
-    }
-
     private function calculateRevenueGrowth(array $trends): array
     {
         return [];
     }
 
-    private function getRevenueByCategoryAnalysis(): array
-    {
-        return [];
-    }
-
-    private function generateRevenueForecast(array $trends): array
-    {
-        return [];
-    }
-
-    private function calculateProfitabilityMetrics(array $financialData): array
-    {
-        return [];
-    }
-
-    private function analyzeFeeStructureEfficiency(): array
-    {
-        return [];
-    }
-
-    private function getPricingOptimizationSuggestions(): array
-    {
-        return [];
-    }
-
-    private function getComponentUtilizationStats(): array
-    {
-        return [];
-    }
-
-    private function generateShortTermForecast(array $trends): array
-    {
-        return [];
-    }
-
-    private function generateLongTermForecast(array $trends): array
-    {
-        return [];
-    }
-
-    private function getScenarioAnalysis(array $trends): array
-    {
-        return [];
-    }
-
-    private function performRiskAssessment(): array
-    {
-        return [];
-    }
-
-    private function getStudentPaymentSegmentation(): array
-    {
-        return [];
-    }
-
-    private function getPaymentTimingAnalysis(): array
-    {
-        return [];
-    }
-
-    private function generateBehavioralInsights(array $behavior): array
-    {
-        return [];
-    }
-
-    private function getOutstandingTrends(): array
-    {
-        return [];
-    }
-
-    private function calculateRecoveryProbability(array $outstanding): array
-    {
-        return [];
-    }
-
-    private function generateActionRecommendations(array $outstanding): array
-    {
-        return [];
-    }
-
-    private function determineTrendDirection(array $growthRates): string
-    {
-        return 'stable';
-    }
-
-    private function calculateVolatility(array $growthRates): float
-    {
-        return 0;
-    }
-
     private function calculateGrowthConsistency(array $growthRates): float
     {
         return 0;
-    }
-
-    private function getMonthlyAchievement(float $monthlyTarget): float
-    {
-        return 0;
-    }
-
-    /**
-     * Helper methods for the implemented functions
-     */
-    private function getMonthlyTarget($date): float
-    {
-        // Calculate monthly target based on historical data or set targets
-        // This could be configurable or based on business rules
-        $baseTarget = 500000; // Base monthly target
-
-        // Adjust for seasonal variations (e.g., higher in admission months)
-        $month = $date->month;
-        $seasonalMultiplier = in_array($month, [4, 5, 6, 7]) ? 1.3 : 1.0; // Higher in admission season
-
-        return $baseTarget * $seasonalMultiplier;
     }
 
     private function calculateTrendDirection(array $trends, string $field): string
@@ -1096,40 +577,5 @@ class DashboardController extends Controller
         }
 
         return 'Poor';
-    }
-
-    private function getPriorityLevel(float $collectionRate, float $totalBilled): string
-    {
-        if ($collectionRate < 50 && $totalBilled > 100000) {
-            return 'Critical';
-        }
-        if ($collectionRate < 60 && $totalBilled > 50000) {
-            return 'High';
-        }
-        if ($collectionRate < 70) {
-            return 'Medium';
-        }
-
-        return 'Low';
-    }
-
-    private function getRecommendedActions(float $collectionRate): array
-    {
-        $actions = [];
-
-        if ($collectionRate < 50) {
-            $actions[] = 'Immediate intervention required';
-            $actions[] = 'Review fee structure and payment terms';
-            $actions[] = 'Implement aggressive collection strategy';
-        } elseif ($collectionRate < 70) {
-            $actions[] = 'Increase follow-up frequency';
-            $actions[] = 'Offer payment plan options';
-            $actions[] = 'Review and update collection processes';
-        } else {
-            $actions[] = 'Monitor regularly';
-            $actions[] = 'Maintain current collection practices';
-        }
-
-        return $actions;
     }
 }

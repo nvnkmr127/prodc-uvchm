@@ -9,6 +9,7 @@ use App\Models\Asset;
 use App\Models\AssetCategory;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\View\View;
 use Maatwebsite\Excel\Facades\Excel;
 
 class AssetController extends Controller
@@ -27,7 +28,7 @@ class AssetController extends Controller
     /**
      * Show the form for creating a new resource.
      *
-     * @return \Illuminate\View\View
+     * @return View
      */
     public function create()
     {
@@ -85,7 +86,7 @@ class AssetController extends Controller
     /**
      * Display the specified resource.
      *
-     * @return \Illuminate\View\View
+     * @return View
      */
     public function show(Asset $asset)
     {
@@ -95,7 +96,7 @@ class AssetController extends Controller
     /**
      * Show the form for editing the specified resource.
      *
-     * @return \Illuminate\View\View
+     * @return View
      */
     public function edit(Asset $asset)
     {
@@ -158,7 +159,7 @@ class AssetController extends Controller
                 ]);
             }
 
-            $deletedCount = \App\Models\Asset::whereIn('id', $assetIds)->delete();
+            $deletedCount = Asset::whereIn('id', $assetIds)->delete();
 
             return response()->json([
                 'success' => true,
@@ -169,36 +170,6 @@ class AssetController extends Controller
                 'success' => false,
                 'message' => 'Failed to delete assets: '.$e->getMessage(),
             ]);
-        }
-    }
-
-    /**
-     * Handle the bulk import of assets from an Excel/CSV file.
-     */
-    public function importAssets(Request $request)
-    {
-        $request->validate([
-            'file' => 'required|mimes:xlsx,xls,csv',
-        ]);
-
-        try {
-            Excel::import(new AssetsImport, $request->file('file'));
-
-            return redirect()->route('admin.assets.index')
-                ->with('success', 'Assets imported successfully.');
-
-        } catch (\Maatwebsite\Excel\Validators\ValidationException $e) {
-            $failures = $e->failures();
-            $errorMessages = [];
-            foreach ($failures as $failure) {
-                $errorMessages[] = 'Row '.$failure->row().': '.implode(', ', $failure->errors());
-            }
-
-            return redirect()->route('admin.assets.index')
-                ->with('error', 'Import failed. Please correct the following errors: '.implode(' | ', $errorMessages));
-        } catch (\Exception $e) {
-            return redirect()->route('admin.assets.index')
-                ->with('error', 'An unexpected error occurred during import: '.$e->getMessage());
         }
     }
 

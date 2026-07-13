@@ -48,26 +48,4 @@ class TestController extends Controller
             ],
         ]);
     }
-
-    /**
-     * Test endpoint with different abilities
-     */
-    public function restrictedTest(Request $request)
-    {
-        $token = $request->user()->currentAccessToken();
-
-        // Check if token has specific abilities
-        if (! $token->can('read')) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Insufficient token permissions',
-            ], 403);
-        }
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Access granted to restricted endpoint',
-            'token_abilities' => $token->abilities,
-        ]);
-    }
 }

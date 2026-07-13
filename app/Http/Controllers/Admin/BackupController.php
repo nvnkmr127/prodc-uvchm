@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
 use App\Services\BackupService;
-use Carbon\Carbon;
 use Google\Client as GoogleClient;
 use Google\Service\Drive as GoogleDrive;
 use Illuminate\Http\Request;
@@ -18,22 +17,6 @@ class BackupController extends Controller
     public function __construct(BackupService $backupService)
     {
         $this->backupService = $backupService;
-    }
-
-    /**
-     * Calculate disk usage percentage
-     */
-    private function calculateDiskUsage()
-    {
-        try {
-            $totalSpace = disk_total_space(storage_path());
-            $freeSpace = disk_free_space(storage_path());
-            $usedSpace = $totalSpace - $freeSpace;
-
-            return round(($usedSpace / $totalSpace) * 100, 1);
-        } catch (\Exception $e) {
-            return 0;
-        }
     }
 
     /**
@@ -799,44 +782,6 @@ class BackupController extends Controller
     }
 
     /**
-     * Create settings backup using your Setting model's export functionality
-     */
-    private function createSettingsBackup()
-    {
-        try {
-            $timestamp = Carbon::now()->format('Y-m-d_H-i-s');
-            $filename = "settings_backup_{$timestamp}.json";
-            $backupPath = storage_path("app/backups/{$filename}");
-
-            // Ensure backup directory exists
-            if (! file_exists(dirname($backupPath))) {
-                mkdir(dirname($backupPath), 0755, true);
-            }
-
-            // Use your Setting model's export functionality
-            $settings = Setting::export(null, false); // Don't include encrypted settings in backup
-
-            // Save to file
-            file_put_contents($backupPath, json_encode($settings, JSON_PRETTY_PRINT));
-
-            Log::info('Settings backup created', [
-                'filename' => $filename,
-                'path' => $backupPath,
-                'settings_count' => count($settings),
-            ]);
-
-            return $backupPath;
-
-        } catch (\Exception $e) {
-            Log::error('Settings backup failed', [
-                'error' => $e->getMessage(),
-            ]);
-
-            return false;
-        }
-    }
-
-    /**
      * Upload specific backup to Google Drive
      */
     public function uploadToGoogleDrive(Request $request)
@@ -879,34 +824,5 @@ class BackupController extends Controller
     public function getGoogleDriveClient()
     {
         return $this->backupService->getGoogleDriveClient();
-    }
-
-    /**
-     * Reset Google Drive authorization
-     */
-    public function resetGoogleDriveAuth()
-    {
-        try {
-            // Remove stored tokens
-            Setting::remove('gdrive_access_token');
-            Setting::remove('gdrive_refresh_token');
-
-            Log::info('Google Drive authorization reset');
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Google Drive authorization has been reset. Please re-authorize to continue using Google Drive backups.',
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Failed to reset Google Drive authorization', [
-                'error' => $e->getMessage(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to reset authorization: '.$e->getMessage(),
-            ]);
-        }
     }
 }

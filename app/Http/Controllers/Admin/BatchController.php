@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AcademicYear;
-use App\Models\Attendance;
 use App\Models\Batch;
 use App\Models\Course;
 use App\Models\Student;
@@ -87,11 +86,11 @@ class BatchController extends Controller
         if ($batch->students()->count() > 0) {
             return redirect()->route('admin.batches.index')->with('error', 'Cannot delete a batch that has students assigned to it.');
         }
-        
+
         if ($batch->timetableEntries()->exists()) {
             return redirect()->route('admin.batches.index')->with('error', 'Cannot delete a batch that has timetables assigned to it.');
         }
-        
+
         if ($batch->feeStructure()->exists()) {
             return redirect()->route('admin.batches.index')->with('error', 'Cannot delete a batch that has a fee structure defined.');
         }
@@ -141,7 +140,7 @@ class BatchController extends Controller
 
         // Capacity Enforcement
         if (count($assignedStudentIds) > $batch->course->max_batch_size) {
-            return redirect()->back()->with('error', 'Cannot assign more students than the maximum batch size of ' . $batch->course->max_batch_size . '.');
+            return redirect()->back()->with('error', 'Cannot assign more students than the maximum batch size of '.$batch->course->max_batch_size.'.');
         }
 
         // Course Integrity
@@ -154,12 +153,12 @@ class BatchController extends Controller
             $originalIds = Student::withoutGlobalScope('academic_year')
                 ->where('batch_id', $batch->id)
                 ->pluck('id')->toArray();
-            
+
             $added = array_diff($assignedStudentIds, $originalIds);
             $removed = array_diff($originalIds, $assignedStudentIds);
-            
+
             if (count($added) > 0 || count($removed) > 0) {
-                \Log::info("Batch {$batch->id} ({$batch->name}) students synced. Added: " . implode(',', $added) . ". Removed: " . implode(',', $removed));
+                \Log::info("Batch {$batch->id} ({$batch->name}) students synced. Added: ".implode(',', $added).'. Removed: '.implode(',', $removed));
             }
 
             // Use withoutGlobalScope to ensure updates happen correctly regardless of session state
@@ -175,20 +174,6 @@ class BatchController extends Controller
 
         return redirect()->route('admin.batches.manageStudents', $batch)
             ->with('success', 'Student list for the batch has been updated successfully.');
-    }
-
-    public function getPracticalGroups(Batch $batch)
-    {
-        try {
-            $practicalGroups = $batch->practicalGroups()
-                ->select('id', 'name')
-                ->orderBy('name')
-                ->get();
-
-            return response()->json($practicalGroups);
-        } catch (\Exception $e) {
-            return response()->json(['error' => 'Failed to load practical groups'], 500);
-        }
     }
 
     public function graduate(Batch $batch)
@@ -228,44 +213,5 @@ class BatchController extends Controller
         }
 
         return redirect()->route('admin.batches.index')->with('success', $message);
-    }
-
-    public function getStudentsWithAttendance(Request $request, Batch $batch)
-    {
-        try {
-            $date = $request->input('date', now()->format('Y-m-d'));
-
-            $students = Student::withoutGlobalScope('academic_year')
-                ->where('batch_id', $batch->id)
-                ->where('status', 'active')
-                ->select('id', 'name', 'email', 'enrollment_number')
-                ->orderBy('name')
-                ->get();
-
-            $existingAttendance = [];
-            if ($date) {
-                $attendanceRecords = Attendance::where('batch_id', $batch->id)
-                    ->where('attendance_date', $date)
-                    ->get();
-
-                foreach ($attendanceRecords as $attendance) {
-                    $existingAttendance[$attendance->student_id] = $attendance->status;
-                }
-            }
-
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'students' => $students,
-                    'existing_attendance' => $existingAttendance,
-                ],
-            ]);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to load students: '.$e->getMessage(),
-            ], 500);
-        }
     }
 }

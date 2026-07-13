@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\PaymentReminder;
 use App\Models\Setting;
+use App\Services\ComponentPaymentReminderService;
 use Illuminate\Http\Request;
 
 class PaymentReminderSettingsController extends Controller
@@ -15,7 +16,7 @@ class PaymentReminderSettingsController extends Controller
     {
         // ✅ FIXED: Use ComponentPaymentReminderService instead of PaymentReminderService
         if (class_exists('\App\Services\ComponentPaymentReminderService')) {
-            $this->reminderService = app(\App\Services\ComponentPaymentReminderService::class);
+            $this->reminderService = app(ComponentPaymentReminderService::class);
         } else {
             $this->reminderService = null;
         }
@@ -138,53 +139,6 @@ class PaymentReminderSettingsController extends Controller
     }
 
     /**
-     * Test reminder functionality
-     */
-    public function testReminder(Request $request)
-    {
-        $validated = $request->validate([
-            'channel' => 'required|in:email,sms,whatsapp',
-            'recipient' => 'required|string',
-            'test_message' => 'required|string',
-        ]);
-
-        try {
-            if ($this->reminderService) {
-                $result = $this->reminderService->sendTestReminder(
-                    $validated['channel'],
-                    $validated['recipient'],
-                    $validated['test_message']
-                );
-
-                if ($result['success']) {
-                    return response()->json([
-                        'success' => true,
-                        'message' => 'Test reminder sent successfully!',
-                    ]);
-                } else {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Failed to send test reminder: '.$result['error'],
-                    ], 422);
-                }
-            }
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Reminder service not available',
-            ], 503);
-
-        } catch (\Exception $e) {
-            \Log::error('Test reminder failed: '.$e->getMessage());
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Test failed: '.$e->getMessage(),
-            ], 500);
-        }
-    }
-
-    /**
      * Validate reminder configuration
      */
     public function validateConfiguration(Request $request)
@@ -225,47 +179,6 @@ class PaymentReminderSettingsController extends Controller
                 'success' => false,
                 'message' => 'Validation failed: '.$e->getMessage(),
             ], 500);
-        }
-    }
-
-    /**
-     * Reset reminder settings to defaults
-     */
-    public function resetToDefaults(Request $request)
-    {
-        try {
-            $defaultSettings = [
-                'reminder_days_before_due' => '3',
-                'overdue_reminder_frequency' => '7',
-                'max_reminder_attempts' => '5',
-                'auto_send_reminders' => '1',
-                'default_reminder_channel' => 'email',
-                'sender_email' => config('mail.from.address', 'noreply@college.edu'),
-                'reminder_email_template' => 'Dear [STUDENT_NAME], Your fee payment of ₹[AMOUNT] is due on [DUE_DATE]. Please make the payment at your earliest convenience.',
-                'reminder_sms_template' => 'Dear [STUDENT_NAME], Fee payment of ₹[AMOUNT] due on [DUE_DATE]. Pay now to avoid late fees.',
-                'defaulter_grace_period' => '15',
-                'escalation_threshold' => '5000',
-                'auto_block_defaulters' => '0',
-            ];
-
-            foreach ($defaultSettings as $key => $value) {
-                Setting::updateOrCreate(
-                    ['key' => $key],
-                    ['value' => $value]
-                );
-            }
-
-            // Clear config cache
-            if (function_exists('artisan')) {
-                \Artisan::call('config:clear');
-            }
-
-            return redirect()->back()->with('success', 'Settings reset to defaults successfully!');
-
-        } catch (\Exception $e) {
-            \Log::error('Failed to reset settings: '.$e->getMessage());
-
-            return redirect()->back()->with('error', 'Failed to reset settings. Please try again.');
         }
     }
 }

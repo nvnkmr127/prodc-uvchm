@@ -86,30 +86,6 @@ class PermissionController extends Controller
     }
 
     /**
-     * Show the permission management dashboard
-     */
-    public function management()
-    {
-        $stats = [
-            'total_permissions' => Permission::count(),
-            'total_roles' => Role::count(),
-            'unassigned_permissions' => Permission::whereDoesntHave('roles')->count(),
-            'system_permissions' => Permission::where('name', 'like', 'manage %')->count(),
-        ];
-
-        $groupedPermissions = Permission::all()->groupBy(function ($permission) {
-            // Extract module from permission name (e.g., 'manage students' -> 'students')
-            $parts = explode(' ', $permission->name);
-
-            return $parts[1] ?? 'general';
-        });
-
-        $roles = Role::withCount('permissions')->get();
-
-        return view('admin.permissions.permission-management', compact('stats', 'groupedPermissions', 'roles'));
-    }
-
-    /**
      * Bulk create permissions for a module
      */
     public function bulkCreate(Request $request)
@@ -226,72 +202,6 @@ class PermissionController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to apply template: '.$e->getMessage(),
-            ], 500);
-        }
-    }
-
-    /**
-     * Copy permissions from one role to another
-     */
-    public function copyRolePermissions(Request $request)
-    {
-        $request->validate([
-            'source_role_id' => 'required|exists:roles,id',
-            'target_role_id' => 'required|exists:roles,id|different:source_role_id',
-            'merge' => 'boolean',
-        ]);
-
-        try {
-            $sourceRole = Role::findOrFail($request->source_role_id);
-            $targetRole = Role::findOrFail($request->target_role_id);
-
-            $sourcePermissions = $sourceRole->permissions->pluck('name');
-
-            if ($request->merge) {
-                // Merge with existing permissions
-                $existingPermissions = $targetRole->permissions->pluck('name');
-                $allPermissions = $sourcePermissions->merge($existingPermissions)->unique();
-                $targetRole->syncPermissions($allPermissions);
-            } else {
-                // Replace all permissions
-                $targetRole->syncPermissions($sourcePermissions);
-            }
-
-            $action = $request->merge ? 'merged with' : 'replaced';
-
-            return response()->json([
-                'success' => true,
-                'message' => "Successfully {$action} permissions from {$sourceRole->name} to {$targetRole->name}.",
-            ]);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to copy permissions: '.$e->getMessage(),
-            ], 500);
-        }
-    }
-
-    /**
-     * Get orphaned permissions
-     */
-    public function getOrphaned()
-    {
-        try {
-            $orphanedPermissions = Permission::whereDoesntHave('roles')
-                ->pluck('name')
-                ->toArray();
-
-            return response()->json([
-                'success' => true,
-                'orphaned_count' => count($orphanedPermissions),
-                'orphaned_permissions' => $orphanedPermissions,
-            ]);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to fetch orphaned permissions: '.$e->getMessage(),
             ], 500);
         }
     }

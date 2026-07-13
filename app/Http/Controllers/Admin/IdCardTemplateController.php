@@ -100,17 +100,4 @@ class IdCardTemplateController extends Controller
         return redirect()->route('admin.id-card-templates.index')
             ->with('success', 'ID Card Template deleted successfully.');
     }
-
-    /**
-     * Toggle template active status
-     */
-    public function toggleStatus(IdCardTemplate $idCardTemplate)
-    {
-        $idCardTemplate->update(['is_active' => ! $idCardTemplate->is_active]);
-
-        $status = $idCardTemplate->is_active ? 'activated' : 'deactivated';
-
-        return redirect()->route('admin.id-card-templates.index')
-            ->with('success', "Template {$status} successfully.");
-    }
 }

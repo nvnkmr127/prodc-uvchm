@@ -154,32 +154,6 @@ class GlobalSearchController extends Controller
     }
 
     /**
-     * Enhanced search for session-based searches (alternative method)
-     */
-    public function sessionSearch(Request $request)
-    {
-        $query = $request->input('q');
-
-        if (empty($query) || strlen($query) < 2) {
-            return response()->json([
-                'students' => [],
-                'courses' => [],
-                'batches' => [],
-                'faculty' => [],
-            ]);
-        }
-
-        $results = [
-            'students' => $this->searchStudents($query),
-            'courses' => $this->searchCourses($query),
-            'batches' => $this->searchBatches($query),
-            'faculty' => $this->searchFaculty($query),
-        ];
-
-        return response()->json($results);
-    }
-
-    /**
      * Search students with detailed info
      */
     private function searchStudents($query)
@@ -201,81 +175,6 @@ class GlobalSearchController extends Controller
                     'mobile' => $student->student_mobile ?? 'N/A',
                     'url' => route('admin.students.show', $student),
                     'type' => 'student',
-                ];
-            });
-    }
-
-    /**
-     * Search courses
-     */
-    private function searchCourses($query)
-    {
-        if (! auth()->user()->can('view courses')) {
-            return collect([]);
-        }
-
-        return Course::where('name', 'LIKE', "%{$query}%")
-            ->orWhere('code', 'LIKE', "%{$query}%")
-            ->limit(4)
-            ->get()
-            ->map(function ($course) {
-                return [
-                    'id' => $course->id,
-                    'name' => $course->name,
-                    'code' => $course->code ?? 'N/A',
-                    'duration' => $course->duration_months.' months',
-                    'url' => route('admin.courses.show', $course),
-                    'type' => 'course',
-                ];
-            });
-    }
-
-    /**
-     * Search batches
-     */
-    private function searchBatches($query)
-    {
-        if (! auth()->user()->can('view batches')) {
-            return collect([]);
-        }
-
-        return Batch::where('name', 'LIKE', "%{$query}%")
-            ->with('course')
-            ->limit(4)
-            ->get()
-            ->map(function ($batch) {
-                return [
-                    'id' => $batch->id,
-                    'name' => $batch->name,
-                    'course' => $batch->course->name ?? 'N/A',
-                    'students_count' => $batch->students()->count(),
-                    'url' => route('admin.batches.show', $batch),
-                    'type' => 'batch',
-                ];
-            });
-    }
-
-    /**
-     * Search faculty
-     */
-    private function searchFaculty($query)
-    {
-        if (! auth()->user()->can('view faculty')) {
-            return collect([]);
-        }
-
-        return User::role('staff')
-            ->where('name', 'LIKE', "%{$query}%")
-            ->orWhere('email', 'LIKE', "%{$query}%")
-            ->limit(3)
-            ->get()
-            ->map(function ($member) {
-                return [
-                    'id' => $member->id,
-                    'name' => $member->name,
-                    'email' => $member->email,
-                    'url' => route('admin.faculty.show', $member),
-                    'type' => 'faculty',
                 ];
             });
     }

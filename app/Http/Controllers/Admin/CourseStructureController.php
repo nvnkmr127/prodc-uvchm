@@ -42,12 +42,4 @@ class CourseStructureController extends Controller
 
         return redirect()->back()->with('success', 'Term removed from course structure.');
     }
-
-    public function getTermsForDropdown(Course $course)
-    {
-        // Return only the 'Academic' type terms as a JSON response
-        $terms = $course->terms()->where('type', 'Academic')->get();
-
-        return response()->json($terms);
-    }
 }

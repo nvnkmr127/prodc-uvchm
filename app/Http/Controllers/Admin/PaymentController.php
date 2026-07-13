@@ -2,14 +2,17 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Events\EloquentWebhookEvent;
 use App\Http\Controllers\Controller;
-use App\Models\Payment;
 // ✅ CORRECT IMPORTS - Add these at the top of your controller
 // ✅ CORRECT: Model namespace
+use App\Models\Payment;               // ✅ CORRECT: Model namespace
 use App\Models\Student;               // ✅ CORRECT: Model namespace
-use App\Services\ComponentPaymentService;               // ✅ CORRECT: Model namespace
 // ✅ CORRECT: Model namespace
-use Illuminate\Http\Request; // ✅ CORRECT: Service namespace
+use App\Services\ComponentPaymentService;
+use Illuminate\Http\Request;
+
+ // ✅ CORRECT: Service namespace
 
 // ❌ REMOVE any incorrect imports like:
 // use App\Http\Controllers\Admin\ComponentPaymentItem; // ❌ WRONG NAMESPACE
@@ -104,21 +107,6 @@ class PaymentController extends Controller
         return view('admin.payments.show', compact('payment'));
     }
 
-    public function receipt($paymentId)
-    {
-        $payment = Payment::with([
-            'student.batch.course',
-            'componentItems.studentFee.feeCategory',
-        ])->findOrFail($paymentId);
-
-        if (! $payment->isComponentPayment()) {
-            abort(404, 'Receipt not available for this payment type.');
-        }
-
-        // ✅ Use component-compatible view
-        return view('admin.receipts.component-show', compact('payment'));
-    }
-
     /**
      * Manually trigger the payment webhook
      */
@@ -153,7 +141,7 @@ class PaymentController extends Controller
             } else {
                 // Fallback: fire the event manually if the trait isn't used but the event exists
                 if (class_exists('\App\Events\EloquentWebhookEvent')) {
-                    event(new \App\Events\EloquentWebhookEvent($payment, 'created', 'Payment'));
+                    event(new EloquentWebhookEvent($payment, 'created', 'Payment'));
                 }
             }
 

@@ -80,23 +80,4 @@ class DropoutController extends Controller
 
         return view('admin.dropouts.show', compact('student'));
     }
-
-    /**
-     * Reactivate a dropout student
-     */
-    public function reactivate(Request $request, Student $student)
-    {
-        $request->validate([
-            'reason' => 'required|string|max:500',
-        ]);
-
-        $result = $this->dropoutService->reactivateStudent($student, $request->reason);
-
-        if ($result['success']) {
-            return redirect()->route('admin.students.show', $student)
-                ->with('success', $result['message']);
-        } else {
-            return back()->with('error', $result['message']);
-        }
-    }
 }

@@ -9,7 +9,6 @@ use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class WebhookController extends Controller
@@ -101,34 +100,6 @@ class WebhookController extends Controller
 
             return view('admin.webhooks.index', compact('webhooks', 'eventTypes', 'categories', 'stats'))
                 ->with('error', 'There was an issue loading webhooks. Please check the logs.');
-        }
-    }
-
-    protected function getWebhookStats($date = null): array
-    {
-        try {
-            $date = $date ?? now()->format('Y-m-d');
-
-            $callsQuery = WebhookCall::whereDate('created_at', $date);
-            $totalCalls = (clone $callsQuery)->count();
-            $successfulCalls = (clone $callsQuery)->where('success', true)->count();
-            $successRate = $totalCalls > 0 ? round(($successfulCalls / $totalCalls) * 100, 1) : 100;
-
-            return [
-                'total' => Webhook::count(),
-                'active' => Webhook::where('is_active', true)->count(),
-                'failing' => Webhook::where('consecutive_failures', '>=', 3)->count(),
-                'calls_count' => $totalCalls,
-                'success_rate' => $successRate,
-            ];
-        } catch (\Exception $e) {
-            return [
-                'total' => 0,
-                'active' => 0,
-                'failing' => 0,
-                'calls_count' => 0,
-                'success_rate' => 0,
-            ];
         }
     }
 
@@ -877,172 +848,8 @@ class WebhookController extends Controller
     }
 
     /**
-     * Regenerate webhook secret key
-     */
-    public function regenerateSecret(Webhook $webhook)
-    {
-        try {
-            $newSecret = 'whsec_'.bin2hex(random_bytes(32));
-            $webhook->update(['secret_key' => $newSecret]);
-
-            if (request()->wantsJson()) {
-                return response()->json([
-                    'success' => true,
-                    'secret' => $newSecret,
-                    'message' => 'Secret regenerated successfully',
-                ]);
-            }
-
-            return redirect()->route('admin.webhooks.index')
-                ->with('success', 'Webhook secret regenerated successfully!');
-
-        } catch (\Exception $e) {
-            if (request()->wantsJson()) {
-                return response()->json([
-                    'success' => false,
-                    'error' => 'Failed to regenerate secret',
-                ], 500);
-            }
-
-            return redirect()->route('admin.webhooks.index')
-                ->with('error', 'Failed to regenerate webhook secret.');
-        }
-    }
-
-    /**
      * Health check for all webhooks
      */
-    /**
-     * Generate a realistic test payload based on the event name
-     */
-    private function generateTestPayload(Webhook $webhook): array
-    {
-        $eventName = $webhook->event_name;
-        $basePayload = [
-            'event' => $eventName,
-            'event_id' => 'evt_'.Str::random(12),
-            'webhook_id' => $webhook->id,
-            'created_at' => now()->toISOString(),
-            'app_name' => config('app.name'),
-        ];
-
-        $data = [];
-
-        // Determine specific data based on event type
-        if (Str::startsWith($eventName, 'payment.')) {
-            $data = [
-                'payment' => [
-                    'id' => rand(1000, 9999),
-                    'amount' => 5000.00,
-                    'formatted_amount' => '₹5,000.00',
-                    'payment_method' => 'online',
-                    'payment_date' => now()->toDateString(),
-                    'receipt_number' => 'RCP-2025-'.rand(100, 999),
-                    'status' => 'completed',
-                ],
-                'student' => [
-                    'id' => rand(1, 100),
-                    'name' => 'John Doe',
-                    'enrollment_number' => 'STD-2024-001',
-                ],
-            ];
-        } elseif (Str::startsWith($eventName, 'student.')) {
-            if ($eventName === 'student.birthday') {
-                $data = [
-                    'student' => [
-                        'id' => rand(1, 100),
-                        'name' => 'Jane Smith',
-                        'birthday' => now()->toDateString(),
-                        'student_mobile' => '8688771397',
-                        'age' => 15,
-                        'enrollment_number' => 'STD-2024-045',
-                    ],
-                ];
-            } else {
-                $data = [
-                    'student' => [
-                        'id' => rand(1, 100),
-                        'name' => 'John Doe',
-                        'email' => 'john.doe@example.com',
-                        'student_mobile' => '9887766554',
-                        'enrollment_number' => 'STD-2024-001',
-                        'status' => 'active',
-                    ],
-                ];
-            }
-        } elseif (Str::startsWith($eventName, 'enquiry.')) {
-            $data = [
-                'enquiry' => [
-                    'id' => rand(100, 999),
-                    'name' => 'Prospective Student',
-                    'email' => 'prospect@example.com',
-                    'phone' => '9123456780',
-                    'course' => 'Full Stack Development',
-                    'message' => 'I am interested in learning more about your web development program.',
-                ],
-            ];
-        } elseif ($eventName === 'daily.summary') {
-            return array_merge($basePayload, [
-                'date' => now()->format('Y-m-d'),
-                'report_day' => now()->format('l'),
-                'report_generated_at' => now()->toISOString(),
-                'summary' => [
-                    'payments' => [
-                        'total_amount' => 125000.75,
-                        'payment_count' => 12,
-                        'method_distribution' => [
-                            'Cash' => 45000.00,
-                            'Online' => 80000.75,
-                        ],
-                    ],
-                    'attendance' => [
-                        'present' => 142,
-                        'absent' => 8,
-                        'total_students' => 150,
-                        'percentage' => 94.6,
-                    ],
-                    'enquiries' => [
-                        'new_count' => 5,
-                        'follow_ups' => 12,
-                    ],
-                ],
-            ]);
-        } elseif ($eventName === 'attendance.daily_absent') {
-            return array_merge($basePayload, [
-                'date' => now()->toDateString(),
-                'absent_count' => 2,
-                'students' => [
-                    [
-                        'id' => 101,
-                        'name' => 'Alice Brown',
-                        'batch' => 'Evening Batch A',
-                        'parent_phone' => '9887766554',
-                    ],
-                    [
-                        'id' => 108,
-                        'name' => 'Bob White',
-                        'batch' => 'Evening Batch A',
-                        'parent_phone' => '9776655443',
-                    ],
-                ],
-            ]);
-        } else {
-            // Generic sample data for other eloquent events (created/updated/deleted)
-            $modelName = ucfirst(explode('.', $eventName)[0] ?? 'Resource');
-            $data = [
-                'model' => $modelName,
-                'id' => rand(1, 1000),
-                'action' => explode('.', $eventName)[1] ?? 'updated',
-                'attributes' => [
-                    'status' => 'active',
-                    'updated_at' => now()->toISOString(),
-                ],
-            ];
-        }
-
-        return array_merge($basePayload, ['data' => $data]);
-    }
-
     public function healthCheck()
     {
         $webhooks = Webhook::where('is_active', true)->get();

@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
 use App\Models\Payment;
-use App\Models\Student;
 use App\Services\ComponentPaymentService;
-use Illuminate\Http\Request; // ✅ IMPORTED: The new service for component-based finances.
+
+// ✅ IMPORTED: The new service for component-based finances.
 
 class PaymentController extends Controller
 {
@@ -67,60 +67,5 @@ class PaymentController extends Controller
         ];
 
         return view('student.fee_payment', $paymentData);
-    }
-
-    /**
-     * ✅ UPDATED: initiate()
-     * This method is redesigned to handle payments for multiple fee components at once.
-     * The request should now send an array of components to be paid.
-     */
-    public function initiate(Request $request)
-    {
-        // The front-end should send an array of `components` to pay.
-        // E.g., components[0][student_fee_id] = 123, components[0][amount] = 5000
-        $request->validate([
-            'components' => 'required|array|min:1',
-            'components.*.student_fee_id' => 'required|exists:student_fees,id',
-            'components.*.amount' => 'required|numeric|min:1',
-        ]);
-
-        $user = auth()->user();
-        $student = $user->student;
-
-        if (! $student) {
-            return response()->json(['error' => 'Student profile not found'], 404);
-        }
-
-        try {
-            // The ComponentPaymentService will handle the complex validation logic.
-            // For this controller, we do a basic check.
-            $totalPaymentAmount = 0;
-            foreach ($request->components as $component) {
-                $studentFee = $student->studentFees()->findOrFail($component['student_fee_id']);
-
-                if ($component['amount'] > $studentFee->getRemainingAmount()) {
-                    return response()->json([
-                        'error' => 'Amount for '.$studentFee->feeCategory->name.' exceeds the due amount.',
-                    ], 400);
-                }
-                $totalPaymentAmount += $component['amount'];
-            }
-
-            // Here you would integrate with a payment gateway.
-            // The gateway would be initiated with the `totalPaymentAmount`.
-            // After successful payment, the `processPayment` method of the
-            // ComponentPaymentService would be called in the webhook/callback.
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Payment initiation successful. Redirecting to payment gateway...',
-                'payment_url' => '#', // The actual payment gateway URL would go here.
-                'total_amount' => $totalPaymentAmount,
-                'components' => $request->components,
-            ]);
-
-        } catch (\Exception $e) {
-            return response()->json(['error' => 'An error occurred: '.$e->getMessage()], 500);
-        }
     }
 }

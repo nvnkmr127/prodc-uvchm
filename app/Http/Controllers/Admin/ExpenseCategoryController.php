@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ExpenseCategory;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -47,11 +46,6 @@ class ExpenseCategoryController extends Controller
         $expenseCategory->update($validated); // ✅ SECURE
 
         return redirect()->route('admin.expense-categories.index')->with('success', 'Expense category updated.');
-    }
-
-    public function expenses(): HasMany
-    {
-        return $this->hasMany(Expense::class);
     }
 
     public function destroy(ExpenseCategory $expenseCategory)

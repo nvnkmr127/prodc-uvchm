@@ -2,23 +2,27 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Exceptions\MissingAcademicYearException;
 use App\Exports\StudentsExport;
 use App\Exports\StudentsSampleExport;
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
 use App\Models\Batch;
 use App\Models\Course;
-use App\Models\Holiday;
 use App\Models\Payment;
-use App\Models\Setting;
 use App\Models\Student;
+use App\Models\StudentConcession;
 use App\Models\StudentFee;
+use App\Services\AcademicYearService;
+use App\Services\Attendance\AttendanceService;
 use App\Services\BiometricMappingService;
 use App\Services\ComponentPaymentService;
+use App\Services\DropoutManagementService;
+use App\Services\EnrollmentService;
 use App\Services\SecureFileValidator;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -38,32 +42,6 @@ class StudentController extends Controller
         $this->biometricMappingService = $biometricMappingService;
     }
 
-    private function generateFeeComponentsForStudentUsingService(Student $student, Batch $batch): void
-    {
-        try {
-            if (! $batch->feeStructure) {
-                Log::warning("No fee structure found for batch: {$batch->name}");
-
-                return;
-            }
-
-            // Use the existing service method
-            $result = $this->componentPaymentService->createFeeComponentsForBatch(
-                $batch->id,
-                $batch->feeStructure->id,
-                $this->getCurrentAcademicYear()
-            );
-
-            if ($result['success']) {
-                Log::info("Fee components created via service for student: {$student->name}");
-            } else {
-                Log::error("Failed to create fee components for student: {$student->name}");
-            }
-        } catch (\Exception $e) {
-            Log::error('Service error creating fee components: '.$e->getMessage());
-        }
-    }
-
     public function index(Request $request)
     {
         // Start with a query builder - Respect global scopes as requested
@@ -74,8 +52,8 @@ class StudentController extends Controller
         if ($request->filled('academic_year_id') || ! $request->has('show_all')) {
             if (\Schema::hasTable('academic_years') && \Schema::hasColumn('batches', 'academic_year_id')) {
                 try {
-                    $selectedYearId = app(\App\Services\AcademicYearService::class)->getActiveAcademicYearId();
-                } catch (\App\Exceptions\MissingAcademicYearException $e) {
+                    $selectedYearId = app(AcademicYearService::class)->getActiveAcademicYearId();
+                } catch (MissingAcademicYearException $e) {
                     $selectedYearId = null;
                 }
                 $selectedAcademicYearId = $request->get(
@@ -144,11 +122,11 @@ class StudentController extends Controller
             if ($request->quick_filter === 'recent') {
                 $query->where('students.created_at', '>=', now()->subDays(30));
             } elseif ($request->quick_filter === 'no-contact') {
-                $query->where(function($q) {
+                $query->where(function ($q) {
                     $q->whereNull('students.student_mobile')
-                      ->orWhere('students.student_mobile', '')
-                      ->orWhereNull('students.email')
-                      ->orWhere('students.email', '');
+                        ->orWhere('students.student_mobile', '')
+                        ->orWhereNull('students.email')
+                        ->orWhere('students.email', '');
                 });
             }
         }
@@ -170,16 +148,17 @@ class StudentController extends Controller
         }
 
         // Data for filter dropdowns
-        $courses = \Illuminate\Support\Facades\Cache::remember('filter_dropdown_courses', now()->addDay(), function () {
+        $courses = Cache::remember('filter_dropdown_courses', now()->addDay(), function () {
             return Course::select('id', 'name')->orderBy('name')->get();
         });
-        
-        $cacheKey = 'filter_dropdown_batches_' . ($selectedAcademicYearId ?? 'all');
-        $batches = \Illuminate\Support\Facades\Cache::remember($cacheKey, now()->addDay(), function () use ($selectedAcademicYearId) {
+
+        $cacheKey = 'filter_dropdown_batches_'.($selectedAcademicYearId ?? 'all');
+        $batches = Cache::remember($cacheKey, now()->addDay(), function () use ($selectedAcademicYearId) {
             $query = Batch::with('course:id,name')->orderBy('name');
             if ($selectedAcademicYearId && \Schema::hasColumn('batches', 'academic_year_id')) {
                 $query->where('academic_year_id', $selectedAcademicYearId);
             }
+
             return $query->get();
         });
 
@@ -219,7 +198,7 @@ class StudentController extends Controller
         DB::beginTransaction();
         try {
             foreach ($students as $student) {
-                /** @var \App\Models\Student $student */
+                /** @var Student $student */
                 try {
                     switch ($request->action) {
                         case 'delete':
@@ -286,11 +265,12 @@ class StudentController extends Controller
     private function getCurrentAcademicYear(): string
     {
         try {
-            $yearStr = app(\App\Services\AcademicYearService::class)->getCurrentAcademicYear()->name;
-        } catch (\App\Exceptions\MissingAcademicYearException $e) {
+            $yearStr = app(AcademicYearService::class)->getCurrentAcademicYear()->name;
+        } catch (MissingAcademicYearException $e) {
             $yearStr = null;
         }
-        return $yearStr ?? \Carbon\Carbon::now()->format('Y') . '-' . \Carbon\Carbon::now()->addYear()->format('y');
+
+        return $yearStr ?? Carbon::now()->format('Y').'-'.Carbon::now()->addYear()->format('y');
     }
 
     /**
@@ -401,7 +381,6 @@ class StudentController extends Controller
         }
     }
 
-
     public function show(Student $student)
     {
         // Re-enabled global scope as requested by user, but bypass for specific record lookup
@@ -479,191 +458,6 @@ class StudentController extends Controller
         ));
     }
 
-    /**
-     * ✨ NEW: Get comprehensive activity logs for a student
-     */
-    private function getStudentActivityLogs(Student $student, $limit = 20)
-    {
-        // Get Spatie Activity Log entries for this student - FIXED query grouping
-        $spatieActivities = Activity::where(function ($query) use ($student) {
-            $query->where(function ($q) use ($student) {
-                $q->where('subject_type', 'App\\Models\\Student')
-                    ->where('subject_id', $student->id);
-            })->orWhere(function ($q) use ($student) {
-                $q->where('causer_type', 'App\\Models\\Student')
-                    ->where('causer_id', $student->id);
-            });
-        })
-            ->with('causer')
-            ->orderBy('created_at', 'desc')
-            ->take($limit)
-            ->get()
-            // Removed toBase() to allow relationship access
-            ->map(function ($activity) {
-                return [
-                    'type' => 'system',
-                    'icon' => $this->getActivityIcon($activity->description),
-                    'title' => $activity->description,
-                    'description' => $activity->description,
-                    'user' => $activity->causer ? $activity->causer->name : 'System',
-                    'timestamp' => $activity->created_at,
-                    'properties' => $activity->properties->toArray(),
-                    'color' => 'primary',
-                ];
-            });
-
-        // Get payment activities - FIXED with global scope bypass
-        $paymentActivities = Payment::withoutGlobalScope('academic_year')
-            ->where('student_id', $student->id)
-            ->with(['createdBy', 'componentItems.studentFee.feeCategory'])
-            ->orderBy('created_at', 'desc')
-            ->take($limit)
-            ->get()
-            // Removed toBase() to ensure relationships work
-            ->map(function ($payment) {
-                $amount = $payment->amount ?? 0;
-                $method = $payment->payment_method ?? 'Unknown';
-
-                return [
-                    'type' => 'payment',
-                    'icon' => 'fa-money-bill-wave',
-                    'title' => 'Payment Received',
-                    'description' => 'Payment of ₹'.number_format($amount, 2).' received via '.ucfirst($method),
-                    'user' => optional($payment->createdBy)->name ?? 'System',
-                    'timestamp' => $payment->created_at,
-                    'properties' => [
-                        'amount' => $amount,
-                        'method' => $method,
-                        'receipt' => $payment->receipt_number ?? 'N/A',
-                        'components' => $payment->componentItems ? $payment->componentItems->count() : 0,
-                    ],
-                    'color' => 'success',
-                ];
-            });
-
-        // Get concession activities from student_concessions table
-        $concessionActivities = collect();
-        if (class_exists('App\\Models\\StudentConcession')) {
-            // Load with only relationships whose FK columns actually exist in the table
-            $concessionActivities = \App\Models\StudentConcession::where('student_id', $student->id)
-                ->with(['appliedBy', 'feeCategory'])
-                ->orderBy('created_at', 'desc')
-                ->take($limit)
-                ->get()
-                ->map(function ($concession) {
-                    // Resolve category name via feeCategory relationship (uses fee_category_id, which exists)
-                    $categoryName = optional($concession->feeCategory)->name ?? 'Unknown';
-
-                    return [
-                        'type' => 'concession',
-                        'icon' => 'fa-tag',
-                        'title' => 'Discount / Concession Applied',
-                        'description' => 'Concession of ₹'.number_format($concession->concession_amount ?? 0, 2).' applied to '.$categoryName,
-                        'user' => optional($concession->appliedBy)->name ?? 'System',
-                        'timestamp' => $concession->applied_at ?? $concession->created_at,
-                        'properties' => [
-                            'amount' => $concession->concession_amount ?? 0,
-                            'reason' => $concession->notes ?? 'N/A',
-                            'status' => 'applied',
-                        ],
-                        'color' => 'warning',
-                    ];
-                });
-        }
-
-        // Get attendance activities
-        $attendanceActivities = Attendance::withoutGlobalScope('academic_year')
-            ->where('student_id', $student->id)
-            ->with(['markedBy', 'batch'])
-            ->orderBy('created_at', 'desc')
-            ->take($limit)
-            ->get()
-            ->map(function ($attendance) {
-                return [
-                    'type' => 'attendance',
-                    'icon' => 'fa-user-check',
-                    'title' => 'Attendance Marked',
-                    'description' => 'Marked as '.ucfirst($attendance->status).($attendance->batch ? ' for '.$attendance->batch->name : ''),
-                    'user' => optional($attendance->markedBy)->name ?? 'System',
-                    'timestamp' => $attendance->created_at,
-                    'properties' => [
-                        'status' => $attendance->status,
-                        'date' => $attendance->attendance_date?->format('Y-m-d'),
-                        'notes' => $attendance->notes ?? 'N/A',
-                    ],
-                    'color' => $attendance->status === 'present' ? 'success' : ($attendance->status === 'absent' ? 'danger' : 'warning'),
-                ];
-            });
-
-        // Get fee generation activities from student fees - FIXED with global scope bypass
-        $feeActivities = collect();
-        $recentFees = StudentFee::withoutGlobalScope('academic_year')
-            ->where('student_id', $student->id)
-            ->orderBy('created_at', 'desc')
-            ->take(5)
-            ->get();
-
-        foreach ($recentFees as $fee) {
-            $feeActivities->push([
-                'type' => 'fee_generation',
-                'icon' => 'fa-file-invoice-dollar',
-                'title' => 'Fee Component Generated',
-                'description' => 'Fee component created: '.optional($fee->feeCategory)->name ?? 'Unknown',
-                'user' => 'System',
-                'timestamp' => $fee->created_at,
-                'properties' => [
-                    'amount' => $fee->amount ?? 0,
-                    'due_date' => $fee->due_date ?? 'N/A',
-                ],
-                'color' => 'info',
-            ]);
-        }
-
-        // Merge and sort all activities
-        $allActivities = $spatieActivities->toBase()
-            ->merge($paymentActivities)
-            ->merge($attendanceActivities)
-            ->merge($concessionActivities)
-            ->merge($feeActivities)
-            ->sortByDesc('timestamp')
-            ->values() // Reset keys to avoid any getKey issues
-            ->take($limit);
-
-        return $allActivities;
-    }
-
-    /**
-     * Get icon for activity type
-     */
-    private function getActivityIcon($description)
-    {
-        $description = strtolower($description);
-
-        if (strpos($description, 'payment') !== false) {
-            return 'fa-money-bill-wave';
-        }
-        if (strpos($description, 'concession') !== false) {
-            return 'fa-percent';
-        }
-        if (strpos($description, 'created') !== false) {
-            return 'fa-plus-circle';
-        }
-        if (strpos($description, 'updated') !== false) {
-            return 'fa-edit';
-        }
-        if (strpos($description, 'deleted') !== false) {
-            return 'fa-trash';
-        }
-        if (strpos($description, 'login') !== false) {
-            return 'fa-sign-in-alt';
-        }
-        if (strpos($description, 'fee') !== false) {
-            return 'fa-file-invoice-dollar';
-        }
-
-        return 'fa-info-circle';
-    }
-
     public function confirmDropout(Student $student)
     {
         if ($student->status === 'dropout') {
@@ -684,7 +478,7 @@ class StudentController extends Controller
             'confirm_preservation' => 'required|accepted',
         ]);
 
-        $dropoutService = app(\App\Services\DropoutManagementService::class);
+        $dropoutService = app(DropoutManagementService::class);
         $result = $dropoutService->processDropout($student, $request->only('dropout_date', 'reason'));
 
         if ($result['success']) {
@@ -702,39 +496,10 @@ class StudentController extends Controller
             'reason' => 'nullable|string|max:500',
         ]);
 
-        $dropoutService = app(\App\Services\DropoutManagementService::class);
+        $dropoutService = app(DropoutManagementService::class);
         $result = $dropoutService->reactivateStudent($student, $request->reason ?? '');
 
         return response()->json($result);
-    }
-
-    /**
-     * Get color for activity type
-     */
-    private function getActivityColor($description)
-    {
-        $description = strtolower($description);
-
-        if (strpos($description, 'payment') !== false) {
-            return 'success';
-        }
-        if (strpos($description, 'concession') !== false) {
-            return 'warning';
-        }
-        if (strpos($description, 'created') !== false) {
-            return 'primary';
-        }
-        if (strpos($description, 'updated') !== false) {
-            return 'info';
-        }
-        if (strpos($description, 'deleted') !== false) {
-            return 'danger';
-        }
-        if (strpos($description, 'error') !== false) {
-            return 'danger';
-        }
-
-        return 'secondary';
     }
 
     /**
@@ -756,7 +521,7 @@ class StudentController extends Controller
             // Count concession activities if the model exists
             $concessionCount = 0;
             if (class_exists('App\\Models\\StudentConcession')) {
-                $concessionCount = \App\Models\StudentConcession::where('student_id', $student->id)->count();
+                $concessionCount = StudentConcession::where('student_id', $student->id)->count();
             }
 
             // Count fee generation activities from student fees
@@ -787,32 +552,9 @@ class StudentController extends Controller
     }
 
     /**
-     * Format activity description
-     */
-    private function formatActivityDescription($activity)
-    {
-        $properties = $activity->properties->toArray();
-
-        if (isset($properties['attributes']) && isset($properties['old'])) {
-            $changes = [];
-            foreach ($properties['attributes'] as $key => $newValue) {
-                if (isset($properties['old'][$key]) && $properties['old'][$key] !== $newValue) {
-                    $changes[] = ucfirst(str_replace('_', ' ', $key))." changed from '{$properties['old'][$key]}' to '{$newValue}'";
-                }
-            }
-
-            if (! empty($changes)) {
-                return implode(', ', $changes);
-            }
-        }
-
-        return $activity->description;
-    }
-
-    /**
      * Get attendance data for a specific student and month (AJAX)
      */
-    public function getAttendanceData(Request $request, \App\Models\Student $student)
+    public function getAttendanceData(Request $request, Student $student)
     {
         try {
             $month = $request->input('month', now()->format('Y-m'));
@@ -835,517 +577,13 @@ class StudentController extends Controller
     }
 
     /**
-     * Helper to fetch comprehensive attendance data for a student and month
-     * valid for both Controller and AJAX use
-     */
-    private function fetchMonthlyAttendanceData(\App\Models\Student $student, $monthInput)
-    {
-        $startDate = \Carbon\Carbon::parse($monthInput)->startOfMonth();
-        $endDate = \Carbon\Carbon::parse($monthInput)->endOfMonth();
-
-        $stats = $this->calculateAttendanceStatsForPeriod($student, $startDate, $endDate);
-
-        $biometricSummary = [
-            'valid_working_days' => $stats['present'] + $stats['late'],
-            'average_working_hours' => ($stats['present'] + $stats['late']) > 0 ? round($stats['total_work_hours'] / ($stats['present'] + $stats['late']), 1) : 0,
-            'late_arrivals' => $stats['late_arrivals'],
-            'early_departures' => $stats['early_departures'],
-            'average_check_in' => '-',
-            'average_check_out' => '-',
-        ];
-
-        return [
-            'calendar' => $stats['calendar'],
-            'biometric_summary' => $biometricSummary,
-            'monthly' => [
-                'records' => $stats['attendances']->values(),
-                'present_days' => $stats['present'],
-                'absent_days' => $stats['absent'],
-                'late_days' => $stats['late'],
-                'excused_days' => $stats['excused'],
-                'internship_days' => $stats['internship'],
-                'month_name' => $startDate->format('F Y'),
-            ],
-            'summary' => [
-                'overall_percentage' => $stats['percentage'],
-                'status' => $stats['percentage'] >= 75 ? 'good' : 'needs_improvement',
-            ],
-            'overall_percentage' => $stats['percentage'], // for AJAX consistency
-        ];
-    }
-
-    /**
-     * Core logic to calculate attendance stats for a specific date range.
-     * This logic accounts for weekends, holidays, internships, and joining dates.
-     */
-    private function calculateAttendanceStatsForPeriod(\App\Models\Student $student, \Carbon\Carbon $startDate, \Carbon\Carbon $endDate)
-    {
-        $todayStr = now()->format('Y-m-d');
-
-        // 1. Fetch Attendance Records
-        $attendances = \App\Models\Attendance\Attendance::where('student_id', $student->id)
-            ->whereBetween('attendance_date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
-            ->get()
-            ->mapWithKeys(function ($item) {
-                $d = is_string($item->attendance_date)
-                    ? substr($item->attendance_date, 0, 10)
-                    : $item->attendance_date->format('Y-m-d');
-
-                return [$d => $item];
-            });
-
-        // 2. Fetch Holidays
-        $holidays = \App\Models\Holiday::whereBetween('date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
-            ->pluck('name', 'date')->toArray();
-
-        // 3. Daily Punch Counts (for Low Attendance check)
-        $dailyCounts = \App\Models\Attendance\Attendance::whereBetween('attendance_date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
-            ->selectRaw('DATE(attendance_date) as date, count(distinct student_id) as count')
-            ->groupBy('date')
-            ->pluck('count', 'date')
-            ->toArray();
-
-        // 4. effective start dates
-        $profileStartDate = $student->admission_date ? \Carbon\Carbon::parse($student->admission_date)->startOfDay() : $student->created_at->startOfDay();
-        $firstBiometricUse = \App\Models\Attendance\Attendance::where('student_id', $student->id)
-            ->whereIn('status', ['present', 'late'])
-            ->orderBy('attendance_date', 'asc')
-            ->value('attendance_date');
-
-        // 5. Settings
-        $isOnInternship = $student->batch && $student->batch->is_on_internship;
-        $internshipStartDate = $isOnInternship ? $student->batch->internship_start_date : null;
-
-        // 6. Counters
-        $present = 0;
-        $absent = 0;
-        $late = 0;
-        $excused = 0;
-        $internship = 0;
-        $totalWorkHours = 0;
-        $lateArrivals = 0;
-        $earlyDepartures = 0;
-        $calendar = [];
-
-        // 7. Iterate
-        $current = $startDate->copy();
-        while ($current <= $endDate) {
-            $dateStr = $current->format('Y-m-d');
-            $isFuture = ($dateStr > $todayStr);
-            $isPast = ($dateStr < $todayStr);
-            $isWeekend = $current->isSunday();
-            $isExplicitHoliday = isset($holidays[$dateStr]);
-
-            $isLowAttendanceHoliday = false;
-            if (! $isFuture && ! $isWeekend && ! $isExplicitHoliday) {
-                $dayPunchCount = $dailyCounts[$dateStr] ?? 0;
-                if ($dayPunchCount < 10) {
-                    $isLowAttendanceHoliday = true;
-                }
-            }
-            $isEffectiveHoliday = $isExplicitHoliday || $isLowAttendanceHoliday;
-
-            $isBeforeProfile = $current->lt($profileStartDate);
-            $shouldIgnoreForAbsent = $isBeforeProfile || is_null($firstBiometricUse);
-
-            $status = 'none';
-            $checkIn = '-';
-            $checkOut = '-';
-            $remarks = '';
-            $workHours = 0;
-
-            if (isset($attendances[$dateStr])) {
-                $att = $attendances[$dateStr];
-                $status = strtolower(trim($att->status));
-                if (! $isFuture && $status != 'none') {
-                    if ($status == 'present') {
-                        $present++;
-                    } elseif ($status == 'late') {
-                        $late++;
-                        $lateArrivals++;
-                    } elseif ($status == 'absent') {
-                        $absent++;
-                    } elseif ($status == 'excused') {
-                        $excused++;
-                    }
-                }
-                $checkIn = $att->check_in_time ? \Carbon\Carbon::parse($att->check_in_time)->format('h:i A') : '-';
-                $checkOut = $att->check_out_time ? \Carbon\Carbon::parse($att->check_out_time)->format('h:i A') : '-';
-                $remarks = $att->remarks;
-                if ($isLowAttendanceHoliday) {
-                    $remarks = $remarks ? $remarks.' (Holiday Declared)' : 'Holiday Declared';
-                }
-                if ($att->check_in_time && $att->check_out_time) {
-                    $diff = \Carbon\Carbon::parse($att->check_in_time)->diffInHours(\Carbon\Carbon::parse($att->check_out_time));
-                    $workHours = number_format($diff, 1);
-                    $totalWorkHours += $diff;
-                }
-            } else {
-                if ($shouldIgnoreForAbsent || $isFuture) {
-                    $status = 'none';
-                } elseif ($isWeekend) {
-                    $status = 'weekend';
-                } elseif ($isEffectiveHoliday) {
-                    $status = 'holiday';
-                    $remarks = $isExplicitHoliday ? $holidays[$dateStr] : 'Holiday';
-                } else {
-                    if ($isPast) {
-                        $isInternshipDay = $isOnInternship && (! $internshipStartDate || $current->gte(\Carbon\Carbon::parse($internshipStartDate)));
-                        if ($isInternshipDay) {
-                            $internship++;
-                            $status = 'internship';
-                            $checkIn = 'OJT';
-                            $remarks = 'On Internship';
-                        } else {
-                            $absent++;
-                            $status = 'absent';
-                            $remarks = 'Absent';
-                        }
-                    } else {
-                        $status = 'none';
-                    }
-                }
-            }
-
-            $calendar[$dateStr] = [
-                'status' => $status,
-                'check_in_time' => $checkIn,
-                'check_out_time' => $checkOut,
-                'working_hours' => $workHours,
-                'remarks' => $remarks,
-                'is_late_arrival' => ($status == 'late'),
-                'is_early_departure' => false,
-            ];
-            $current->addDay();
-        }
-
-        $totalCalculatedDays = $present + $late + $absent + $excused + $internship;
-        $percentage = $totalCalculatedDays > 0 ? round((($present + $late + $internship) / $totalCalculatedDays) * 100, 1) : 0;
-
-        return [
-            'present' => $present,
-            'absent' => $absent,
-            'late' => $late,
-            'excused' => $excused,
-            'internship' => $internship,
-            'total_working_days' => $totalCalculatedDays,
-            'percentage' => $percentage,
-            'calendar' => $calendar,
-            'total_work_hours' => $totalWorkHours,
-            'late_arrivals' => $lateArrivals,
-            'early_departures' => $earlyDepartures,
-            'attendances' => $attendances,
-        ];
-    }
-
-    /**
-     * Get attendance patterns
-     */
-    private function getAttendancePatterns($attendanceRecords)
-    {
-        // This is a placeholder - you can implement pattern analysis
-        // like most frequent late days, attendance trends, etc.
-        return [
-            'most_late_day' => 'Monday', // Example
-            'best_attendance_day' => 'Wednesday', // Example
-            'trend' => 'improving', // Example
-        ];
-    }
-
-    /**
-     * Calculate monthly summary
-     */
-    private function calculateMonthlySummary($attendanceRecords, $monthDate)
-    {
-        $presentDays = $attendanceRecords->whereIn('status', ['present', 'late'])->count();
-        $absentDays = $attendanceRecords->where('status', 'absent')->count();
-        $lateDays = $attendanceRecords->where('status', 'late')->count();
-        $totalRecords = $attendanceRecords->count();
-
-        $workingDays = max($totalRecords, $this->getWorkingDaysInMonth($monthDate));
-
-        return [
-            'month_name' => $monthDate->format('F Y'),
-            'present_days' => $presentDays,
-            'absent_days' => $absentDays,
-            'late_days' => $lateDays,
-            'total_working_days' => $workingDays,
-            'attendance_percentage' => $workingDays > 0 ? round(($presentDays / $workingDays) * 100, 1) : 0,
-            'records' => $attendanceRecords->sortByDesc('attendance_date')->values()->take(10)->map(function ($record) {
-                return [
-                    'id' => $record->id,
-                    'attendance_date' => is_string($record->attendance_date) ? $record->attendance_date : $record->attendance_date->format('Y-m-d'),
-                    'status' => $record->status,
-                    'check_in_time' => $record->check_in_time ? (is_string($record->check_in_time) ? $record->check_in_time : $record->check_in_time->format('H:i:s')) : null,
-                    'check_out_time' => $record->check_out_time ? (is_string($record->check_out_time) ? $record->check_out_time : $record->check_out_time->format('H:i:s')) : null,
-                    'late_minutes' => $record->late_minutes ?? 0,
-                    'subject' => $record->subject ?? null,
-                    'remarks' => $record->notes ?? null,
-                ];
-            }),
-        ];
-    }
-
-    /**
-     * Get working days in a month (excluding weekends)
-     */
-    private function getWorkingDaysInMonth($monthDate)
-    {
-        $start = $monthDate->copy()->startOfMonth();
-        $end = $monthDate->copy()->endOfMonth();
-
-        $workingDays = 0;
-
-        while ($start <= $end) {
-            // Skip weekends (Saturday = 6, Sunday = 0)
-            if ($start->dayOfWeek !== 0 && $start->dayOfWeek !== 6) {
-                $workingDays++;
-            }
-            $start->addDay();
-        }
-
-        return $workingDays;
-    }
-
-    /**
-     * Calculate overall summary across all months
-     */
-    /**
-     * Calculate overall summary across all months
-     */
-    private function calculateOverallSummary($student)
-    {
-        // 1. Determine Start Date (Join Date)
-        $startDate = $student->admission_date ? \Carbon\Carbon::parse($student->admission_date)->startOfDay() : $student->created_at->startOfDay();
-
-        // 2. Determine End Date (Today)
-        $endDate = now();
-
-        // 3. Use the same core analysis logic as monthly
-        $stats = $this->calculateAttendanceStatsForPeriod($student, $startDate, $endDate);
-
-        $overallPercentage = $stats['percentage'];
-
-        // Determine status based on percentage
-        $status = 'needs_improvement';
-        if ($overallPercentage >= 90) {
-            $status = 'excellent';
-        } elseif ($overallPercentage >= 75) {
-            $status = 'good';
-        } elseif ($overallPercentage >= 60) {
-            $status = 'satisfactory';
-        }
-
-        return [
-            'overall_percentage' => $overallPercentage,
-            'total_days' => $stats['total_working_days'],
-            'present_days' => $stats['present'] + $stats['late'] + $stats['internship'],
-            'absent_days' => $stats['absent'],
-            'status' => $status,
-        ];
-    }
-
-    /**
-     * Generate biometric summary
-     */
-    private function generateBiometricSummary($attendanceRecords, $monthDate)
-    {
-        $workingRecords = $attendanceRecords->where('check_in_time', '!=', null);
-
-        $totalWorkingHours = 0;
-        $validDays = 0;
-        $lateArrivals = 0;
-        $earlyDepartures = 0;
-        $checkInTimes = [];
-        $checkOutTimes = [];
-
-        foreach ($workingRecords as $record) {
-            if ($record->check_in_time) {
-                $checkInTimes[] = $record->check_in_time;
-
-                if (($record->late_minutes ?? 0) > 0) {
-                    $lateArrivals++;
-                }
-            }
-
-            if ($record->check_out_time) {
-                $checkOutTimes[] = $record->check_out_time;
-            }
-
-            $workingHours = $this->calculateWorkingHours($record->check_in_time, $record->check_out_time);
-            if ($workingHours) {
-                $totalWorkingHours += $workingHours;
-                $validDays++;
-            }
-        }
-
-        return [
-            'valid_working_days' => $validDays,
-            'average_working_hours' => $validDays > 0 ? round($totalWorkingHours / $validDays, 1) : 0,
-            'late_arrivals' => $lateArrivals,
-            'early_departures' => $earlyDepartures, // You can implement logic for this
-            'average_check_in' => $this->calculateAverageTime($checkInTimes),
-            'average_check_out' => $this->calculateAverageTime($checkOutTimes),
-        ];
-    }
-
-    private function generateCalendarData($attendanceRecords, $monthDate)
-    {
-        $calendarData = [];
-
-        foreach ($attendanceRecords as $record) {
-            // Handle both Carbon and string dates safely
-            try {
-                if (is_string($record->attendance_date)) {
-                    $dateStr = $record->attendance_date;
-                } else {
-                    $dateStr = $record->attendance_date->format('Y-m-d');
-                }
-
-                // Handle time formatting safely
-                $checkInTime = null;
-                if ($record->check_in_time) {
-                    $checkInTime = is_string($record->check_in_time)
-                        ? $record->check_in_time
-                        : $record->check_in_time->format('H:i:s');
-                }
-
-                $checkOutTime = null;
-                if ($record->check_out_time) {
-                    $checkOutTime = is_string($record->check_out_time)
-                        ? $record->check_out_time
-                        : $record->check_out_time->format('H:i:s');
-                }
-
-                $calendarData[$dateStr] = [
-                    'status' => $record->status ?? 'absent',
-                    'check_in_time' => $checkInTime,
-                    'check_out_time' => $checkOutTime,
-                    'working_hours' => $this->calculateWorkingHours($checkInTime, $checkOutTime),
-                    'is_late_arrival' => ($record->late_minutes ?? 0) > 0,
-                    'is_early_departure' => false,
-                    'subject' => $record->subject ?? null,
-                    'remarks' => $record->notes ?? null,
-                    'device_id' => $record->device_id ?? null,
-                ];
-            } catch (\Exception $e) {
-                \Log::error('Error formatting attendance record', [
-                    'record_id' => $record->id ?? 'unknown',
-                    'error' => $e->getMessage(),
-                ]);
-
-                continue;
-            }
-        }
-
-        \Log::info('Calendar data generated', [
-            'total_records' => count($calendarData),
-            'dates' => array_keys($calendarData),
-        ]);
-
-        return $calendarData;
-    }
-
-    /**
-     * Get attendance calendar for the month with enhanced biometric data
-     */
-    private function getAttendanceCalendar(Student $student, string $month)
-    {
-        $currentDate = Carbon::parse($month);
-        $startOfMonth = $currentDate->copy()->startOfMonth();
-        $endOfMonth = $currentDate->copy()->endOfMonth();
-
-        $records = \App\Models\Attendance::where('student_id', $student->id)
-            ->with(['subject']) // Eager load relationships if they exist
-            ->whereBetween('attendance_date', [$startOfMonth, $endOfMonth])
-            ->get()
-            ->keyBy(function ($record) {
-                return $record->attendance_date->format('Y-m-d');
-            });
-
-        // Enhance each record with calculated data
-        $enhancedRecords = $records->map(function ($record) {
-            $workingHours = $this->calculateWorkingHours($record->check_in_time, $record->check_out_time);
-            $isLateArrival = $this->isLateArrival($record->check_in_time);
-            $isEarlyDeparture = $this->isEarlyDeparture($record->check_out_time);
-
-            return [
-                'id' => $record->id,
-                'date' => $record->attendance_date->format('Y-m-d'),
-                'status' => $record->status,
-                'check_in_time' => $record->check_in_time ? $record->check_in_time->format('H:i:s') : null,
-                'check_out_time' => $record->check_out_time ? $record->check_out_time->format('H:i:s') : null,
-                'working_hours' => $workingHours,
-                'is_late_arrival' => $isLateArrival,
-                'is_early_departure' => $isEarlyDeparture,
-                'subject' => $record->subject ? $record->subject->name : null,
-                'remarks' => $record->remarks,
-                'source' => $record->source,
-            ];
-        });
-
-        return $enhancedRecords;
-    }
-
-    /**
-     * Calculate date range based on filter type
-     */
-    private function calculateAttendanceDateRange($dateRange, $monthDate, $request)
-    {
-        switch ($dateRange) {
-            case 'current_month':
-                return [
-                    'start' => $monthDate->copy()->startOfMonth(),
-                    'end' => $monthDate->copy()->endOfMonth(),
-                ];
-
-            case 'last_month':
-                $lastMonth = $monthDate->copy()->subMonth();
-
-                return [
-                    'start' => $lastMonth->copy()->startOfMonth(),
-                    'end' => $lastMonth->copy()->endOfMonth(),
-                ];
-
-            case 'last_3_months':
-                return [
-                    'start' => $monthDate->copy()->subMonths(2)->startOfMonth(),
-                    'end' => $monthDate->copy()->endOfMonth(),
-                ];
-
-            case 'current_semester':
-                // Assuming academic year starts in July
-                $semesterStart = now()->month >= 7 ?
-                    now()->startOfYear()->addMonths(6) : // July if current year
-                    now()->subYear()->startOfYear()->addMonths(6); // July of previous year
-
-                return [
-                    'start' => $semesterStart,
-                    'end' => now()->endOfMonth(),
-                ];
-
-            case 'custom':
-                return [
-                    'start' => \Carbon\Carbon::parse($request->get('start_date', $monthDate->startOfMonth())),
-                    'end' => \Carbon\Carbon::parse($request->get('end_date', $monthDate->endOfMonth())),
-                ];
-
-            default:
-                return [
-                    'start' => $monthDate->copy()->startOfMonth(),
-                    'end' => $monthDate->copy()->endOfMonth(),
-                ];
-        }
-    }
-
-    /**
      * Get overall attendance summary for student
      */
     private function getAttendanceSummary(Student $student)
     {
-        $totalRecords = \App\Models\Attendance::where('student_id', $student->id)->count();
+        $totalRecords = Attendance::where('student_id', $student->id)->count();
 
-        $presentRecords = \App\Models\Attendance::where('student_id', $student->id)
+        $presentRecords = Attendance::where('student_id', $student->id)
             ->whereIn('status', ['present', 'late'])
             ->count();
 
@@ -1377,211 +615,9 @@ class StudentController extends Controller
     }
 
     /**
-     * Calculate biometric summary for attendance records
-     */
-    private function calculateBiometricSummary($attendanceRecords)
-    {
-        $totalWorkingHours = 0;
-        $validWorkingDays = 0;
-        $lateArrivals = 0;
-        $earlyDepartures = 0;
-        $averageCheckInTime = [];
-        $averageCheckOutTime = [];
-
-        foreach ($attendanceRecords as $record) {
-            if ($record->check_in_time && $record->check_out_time) {
-                $workingHours = $this->calculateWorkingHours($record->check_in_time, $record->check_out_time);
-                if ($workingHours > 0) {
-                    $totalWorkingHours += $workingHours;
-                    $validWorkingDays++;
-                }
-
-                $averageCheckInTime[] = $record->check_in_time->format('H:i');
-                $averageCheckOutTime[] = $record->check_out_time->format('H:i');
-            }
-
-            if ($this->isLateArrival($record->check_in_time)) {
-                $lateArrivals++;
-            }
-
-            if ($this->isEarlyDeparture($record->check_out_time)) {
-                $earlyDepartures++;
-            }
-        }
-
-        $averageWorkingHours = $validWorkingDays > 0 ? round($totalWorkingHours / $validWorkingDays, 2) : 0;
-
-        return [
-            'total_working_hours' => round($totalWorkingHours, 2),
-            'average_working_hours' => $averageWorkingHours,
-            'valid_working_days' => $validWorkingDays,
-            'late_arrivals' => $lateArrivals,
-            'early_departures' => $earlyDepartures,
-            'average_check_in' => $this->calculateAverageTime($averageCheckInTime),
-            'average_check_out' => $this->calculateAverageTime($averageCheckOutTime),
-        ];
-    }
-
-    /**
-     * Calculate attendance patterns
-     */
-    private function calculateAttendancePatterns($attendanceRecords)
-    {
-        $weeklyPattern = [];
-        $monthlyTrend = [];
-
-        foreach ($attendanceRecords as $record) {
-            $dayOfWeek = $record->attendance_date->format('l');
-            $week = $record->attendance_date->format('W');
-
-            if (! isset($weeklyPattern[$dayOfWeek])) {
-                $weeklyPattern[$dayOfWeek] = ['total' => 0, 'present' => 0];
-            }
-
-            $weeklyPattern[$dayOfWeek]['total']++;
-            if (in_array($record->status, ['present', 'late'])) {
-                $weeklyPattern[$dayOfWeek]['present']++;
-            }
-
-            if (! isset($monthlyTrend[$week])) {
-                $monthlyTrend[$week] = ['total' => 0, 'present' => 0];
-            }
-
-            $monthlyTrend[$week]['total']++;
-            if (in_array($record->status, ['present', 'late'])) {
-                $monthlyTrend[$week]['present']++;
-            }
-        }
-
-        // Calculate percentages
-        foreach ($weeklyPattern as $day => &$data) {
-            $data['percentage'] = $data['total'] > 0 ? round(($data['present'] / $data['total']) * 100, 1) : 0;
-        }
-
-        foreach ($monthlyTrend as $week => &$data) {
-            $data['percentage'] = $data['total'] > 0 ? round(($data['present'] / $data['total']) * 100, 1) : 0;
-        }
-
-        return [
-            'weekly_pattern' => $weeklyPattern,
-            'monthly_trend' => $monthlyTrend,
-        ];
-    }
-
-    /**
-     * Calculate working hours between check-in and check-out
-     */
-    private function calculateWorkingHours($checkInTime, $checkOutTime)
-    {
-        if (! $checkInTime || ! $checkOutTime) {
-            return null;
-        }
-
-        try {
-            // Handle both string and Carbon inputs
-            if (is_string($checkInTime)) {
-                $checkIn = \Carbon\Carbon::createFromFormat('H:i:s', $checkInTime);
-            } else {
-                $checkIn = \Carbon\Carbon::parse($checkInTime);
-            }
-
-            if (is_string($checkOutTime)) {
-                $checkOut = \Carbon\Carbon::createFromFormat('H:i:s', $checkOutTime);
-            } else {
-                $checkOut = \Carbon\Carbon::parse($checkOutTime);
-            }
-
-            // Handle case where check-out is next day
-            if ($checkOut->lt($checkIn)) {
-                $checkOut->addDay();
-            }
-
-            $diffInHours = $checkOut->diffInMinutes($checkIn) / 60;
-
-            return round($diffInHours, 1);
-
-        } catch (\Exception $e) {
-            return null;
-        }
-    }
-
-    /**
-     * Check if arrival is late (after 9:30 AM)
-     */
-    private function isLateArrival($checkInTime)
-    {
-        if (! $checkInTime) {
-            return false;
-        }
-
-        $checkIn = Carbon::parse($checkInTime);
-        $lateThreshold = Carbon::parse($checkInTime)->setTime(9, 30, 0);
-
-        return $checkIn->gt($lateThreshold);
-    }
-
-    /**
-     * Check if departure is early (before 5:00 PM)
-     */
-    private function isEarlyDeparture($checkOutTime)
-    {
-        if (! $checkOutTime) {
-            return false;
-        }
-
-        $checkOut = Carbon::parse($checkOutTime);
-        $earlyThreshold = Carbon::parse($checkOutTime)->setTime(17, 0, 0);
-
-        return $checkOut->lt($earlyThreshold);
-    }
-
-    /**
-     * Calculate average time from array of time strings
-     */
-    private function calculateAverageTime($times)
-    {
-        if (empty($times)) {
-            return 'N/A';
-        }
-
-        $totalMinutes = 0;
-        $count = 0;
-
-        foreach ($times as $time) {
-            try {
-                $carbon = \Carbon\Carbon::createFromFormat('H:i:s', $time);
-                $totalMinutes += ($carbon->hour * 60) + $carbon->minute;
-                $count++;
-            } catch (\Exception $e) {
-                continue;
-            }
-        }
-
-        if ($count === 0) {
-            return 'N/A';
-        }
-
-        $averageMinutes = round($totalMinutes / $count);
-        $hours = floor($averageMinutes / 60);
-        $minutes = $averageMinutes % 60;
-
-        return sprintf('%02d:%02d', $hours, $minutes);
-    }
-
-    /**
      * AJAX endpoint for attendance data
      */
     // [DEAD CODE DELETED] getStudentAttendanceData was buggy and unused.
-    /**
-     * Get holidays for the month
-     */
-    private function getHolidays(string $month)
-    {
-        // Add your holiday logic here
-        // This is a placeholder - implement based on your holiday system
-
-        return collect(); // Return empty collection for now
-    }
 
     public function edit(Student $student)
     {
@@ -1689,46 +725,6 @@ class StudentController extends Controller
         return redirect()->route('admin.students.index')->with('success', 'Student details updated successfully.');
     }
 
-    /**
-     * Helper method to create installments for multiple students in a batch
-     */
-    public function createInstallmentsForBatch($batchId, array $options = [])
-    {
-        DB::beginTransaction();
-        try {
-            $batch = Batch::with('students')->find($batchId);
-
-            if (! $batch) {
-                throw new \Exception('Batch not found');
-            }
-
-            $currentAcademicYear = $this->getCurrentAcademicYear();
-
-            // Check if fee structure exists
-            if (! $batch->feeStructure) {
-                throw new \Exception('No fee structure assigned to this batch');
-            }
-
-            $results = $this->componentPaymentService->createFeeComponentsForBatch(
-                $batch->id,
-                $batch->feeStructure->id,
-                $currentAcademicYear
-            );
-
-            DB::commit();
-
-            return $results;
-
-        } catch (\Exception $e) {
-            DB::rollback();
-
-            return [
-                'success' => false,
-                'error' => $e->getMessage(),
-            ];
-        }
-    }
-
     public function destroy(Student $student)
     {
         if ($student->photo) {
@@ -1745,7 +741,7 @@ class StudentController extends Controller
      */
     private function generateEnrollmentNumber(Batch $batch): string
     {
-        return app(\App\Services\EnrollmentService::class)->generateForBatch($batch);
+        return app(EnrollmentService::class)->generateForBatch($batch);
     }
 
     /**
@@ -1775,8 +771,8 @@ class StudentController extends Controller
 
         if (\Schema::hasTable('academic_years') && \Schema::hasColumn('batches', 'academic_year_id')) {
             try {
-                $selectedYearId = app(\App\Services\AcademicYearService::class)->getActiveAcademicYearId();
-            } catch (\App\Exceptions\MissingAcademicYearException $e) {
+                $selectedYearId = app(AcademicYearService::class)->getActiveAcademicYearId();
+            } catch (MissingAcademicYearException $e) {
                 $selectedYearId = null;
             }
             $selectedAcademicYearId = session('selected_academic_year_id', $selectedYearId);
@@ -1853,60 +849,6 @@ class StudentController extends Controller
         return view('admin.students.biometric-mapping', compact('stats', 'students', 'studentsFetch'));
     }
 
-
-    /**
-     * Bulk update biometric codes via AJAX
-     */
-    public function bulkUpdateBiometric(Request $request)
-    {
-        // Enhanced logging for debugging
-        Log::info('Bulk biometric update started', [
-            'request_data' => $request->all(),
-            'mappings_count' => count($request->input('mappings', [])),
-            'user_id' => auth()->id(),
-            'ip' => $request->ip(),
-        ]);
-
-        $request->validate([
-            'mappings' => 'required|array',
-            'mappings.*.student_id' => 'required|integer|exists:students,id',
-            'mappings.*.biometric_code' => 'nullable|string|max:50|regex:/^[a-zA-Z0-9\-]*$/',
-        ]);
-
-        try {
-            Log::info('Validation passed, calling biometric mapping service', [
-                'mappings' => $request->mappings,
-            ]);
-
-            $results = $this->biometricMappingService->bulkUpdateCodes($request->mappings);
-
-            Log::info('Bulk biometric update completed', [
-                'results' => $results,
-                'success_count' => $results['success_count'],
-                'error_count' => $results['error_count'],
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'message' => "Updated {$results['success_count']} students successfully".
-                    ($results['error_count'] > 0 ? " with {$results['error_count']} errors" : ''),
-                'results' => $results,
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Bulk biometric update failed', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'request_data' => $request->all(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to update biometric codes: '.$e->getMessage(),
-            ], 500);
-        }
-    }
-
     /**
      * Import biometric mappings from Excel/CSV
      */
@@ -1958,14 +900,6 @@ class StudentController extends Controller
 
             return back()->with('error', 'Export failed: '.$e->getMessage());
         }
-    }
-
-    /**
-     * Download sample biometric mapping file
-     */
-    public function downloadBiometricSample()
-    {
-        return $this->biometricMappingService->exportUnmappedStudents();
     }
 
     /**
@@ -2051,29 +985,6 @@ class StudentController extends Controller
     }
 
     /**
-     * Get all students with their profile photos (including dummy ones)
-     */
-    public function getStudentsWithPhotos(Request $request)
-    {
-        $students = Student::with('batch.course')->get();
-
-        $studentsWithPhotos = $students->map(function (Student $student) {
-            return [
-                'id' => $student->id,
-                'name' => $student->name,
-                'enrollment_number' => $student->enrollment_number,
-                'email' => $student->email,
-                'photo_url' => self::getStudentPhotoUrl($student),
-                'course' => $student->batch->course->name ?? 'N/A',
-                'batch' => $student->batch->name ?? 'N/A',
-                'status' => $student->status,
-            ];
-        });
-
-        return response()->json($studentsWithPhotos);
-    }
-
-    /**
      * Get unpaid fees for a student (API endpoint)
      */
     public function getUnpaidFees(Student $student)
@@ -2091,7 +1002,7 @@ class StudentController extends Controller
                     'concession_amount' => $fee->concession_amount ?? 0,
                     'remaining_amount' => $fee->amount - ($fee->paid_amount ?? 0) - ($fee->concession_amount ?? 0),
                     'due_date' => $fee->due_date,
-                    'due_date_formatted' => $fee->due_date ? \Carbon\Carbon::parse($fee->due_date)->format('M d, Y') : null,
+                    'due_date_formatted' => $fee->due_date ? Carbon::parse($fee->due_date)->format('M d, Y') : null,
                     'status' => $fee->status,
                     'fee_category' => [
                         'id' => $fee->feeCategory->id,
@@ -2310,25 +1221,9 @@ class StudentController extends Controller
     }
 
     /**
-     * Export to PDF
-     */
-    private function exportAttendanceToPDF($student, $data)
-    {
-        $pdf = Pdf::loadView('admin.students.attendance-export-pdf', [
-            'student' => $student,
-            'data' => $data,
-            'generated_at' => now(),
-        ]);
-
-        $filename = "attendance_{$student->enrollment_number}_".now()->format('Y-m-d').'.pdf';
-
-        return $pdf->download($filename);
-    }
-
-    /**
      * Bulk update biometric codes
      */
-    public function bulkUpdateBiometricMapping(\Illuminate\Http\Request $request, \App\Services\Attendance\AttendanceService $attendanceService)
+    public function bulkUpdateBiometricMapping(Request $request, AttendanceService $attendanceService)
     {
         $request->validate([
             'mappings' => 'required|array',
@@ -2359,7 +1254,7 @@ class StudentController extends Controller
     /**
      * Auto-generate biometric codes for students without them
      */
-    public function autoGenerateBiometricMapping(\Illuminate\Http\Request $request, \App\Services\Attendance\AttendanceService $attendanceService)
+    public function autoGenerateBiometricMapping(Request $request, AttendanceService $attendanceService)
     {
         try {
             // Delegate to service
@@ -2377,19 +1272,6 @@ class StudentController extends Controller
                 'message' => 'Auto-generation failed: '.$e->getMessage(),
             ], 500);
         }
-    }
-
-    /**
-     * Export to Excel
-     */
-    private function exportAttendanceToExcel($student, $data)
-    {
-        // You can use Maatwebsite\Excel for this
-        // This is a placeholder implementation
-        $filename = "attendance_{$student->enrollment_number}_".now()->format('Y-m-d').'.xlsx';
-
-        // Wrap data because AttendanceExport expects array with 'data' key
-        return Excel::download(new \App\Exports\AttendanceExport(['data' => $data]), $filename);
     }
 
     /**
@@ -2441,51 +1323,5 @@ class StudentController extends Controller
         }
 
         return response()->json($suggestions);
-    }
-
-    /**
-     * Process, resize and compress student photo.
-     */
-    private function processPhoto($file, $folder)
-    {
-        if (!str_starts_with($file->getMimeType(), 'image/')) {
-            return $file->store($folder, 'public');
-        }
-        
-        $image = imagecreatefromstring(file_get_contents($file->getRealPath()));
-        $width = imagesx($image);
-        $height = imagesy($image);
-        
-        $newHeight = 300;
-        if ($height > $newHeight) {
-            $newWidth = (int) ($width * ($newHeight / $height));
-        } else {
-            $newWidth = $width;
-            $newHeight = $height;
-        }
-        
-        $resized = imagecreatetruecolor($newWidth, $newHeight);
-        imagealphablending($resized, false);
-        imagesavealpha($resized, true);
-        $transparent = imagecolorallocatealpha($resized, 255, 255, 255, 127);
-        imagefilledrectangle($resized, 0, 0, $newWidth, $newHeight, $transparent);
-        
-        imagecopyresampled($resized, $image, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
-        
-        $filename = time() . '_' . \Illuminate\Support\Str::random(10) . '.jpg';
-        $path = $folder . '/' . $filename;
-        $fullPath = storage_path('app/public/' . $path);
-        
-        if (!file_exists(dirname($fullPath))) {
-            mkdir(dirname($fullPath), 0755, true);
-        }
-        
-        // Save as heavily compressed JPEG for student photos
-        imagejpeg($resized, $fullPath, 75);
-        
-        imagedestroy($image);
-        imagedestroy($resized);
-        
-        return $path;
     }
 }

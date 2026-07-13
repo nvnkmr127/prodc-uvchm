@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use OpenApi\Generator;
 
 /**
  * @OA\Info(
@@ -63,7 +64,7 @@ class ApiDocumentationController extends Controller
 {
     public function json()
     {
-        $openapi = \OpenApi\Generator::scan([
+        $openapi = Generator::scan([
             app_path('Http/Controllers/Api'),
             app_path('Models'),
         ]);
@@ -239,103 +240,6 @@ class ApiDocumentationController extends Controller
     public function getMyActivities() {}
 
     /**
-     * @OA\Get(
-     *     path="/api/attendance/config",
-     *     operationId="getAttendanceConfig",
-     *     tags={"Attendance"},
-     *     summary="Get attendance rules and configuration",
-     *     security={{"bearerAuth":{}}},
-     *     @OA\Response(response=200, description="Configuration retrieved")
-     * )
-     */
-    public function getAttendanceConfig() {}
-
-    /**
-     * @OA\Post(
-     *     path="/api/attendance/config",
-     *     operationId="updateAttendanceConfig",
-     *     tags={"Attendance"},
-     *     summary="Update attendance rules",
-     *     security={{"bearerAuth":{}}},
-     *     @OA\RequestBody(
-     *         required=true,
-     *         @OA\JsonContent(type="object")
-     *     ),
-     *     @OA\Response(response=200, description="Configuration updated")
-     * )
-     */
-    public function updateAttendanceConfig() {}
-
-    /**
-     * @OA\Get(
-     *     path="/api/attendance/realtime",
-     *     operationId="getRealTimeAttendance",
-     *     tags={"Attendance"},
-     *     summary="Get real-time attendance feed",
-     *     description="Provides a live stream of recent attendance actions, suitable for dashboard monitors.",
-     *     security={{"bearerAuth":{}}},
-     *     @OA\Response(response=200, description="Real-time data retrieved")
-     * )
-     */
-    public function getRealTimeAttendance() {}
-
-    /**
-     * @OA\Get(
-     *     path="/api/attendance/student/{student}",
-     *     operationId="getStudentAttendanceDetails",
-     *     tags={"Attendance"},
-     *     summary="Get attendance history for a specific student",
-     *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(
-     *         name="student",
-     *         in="path",
-     *         required=true,
-     *         description="Student ID",
-     *         @OA\Schema(type="integer")
-     *     ),
-     *     @OA\Parameter(
-     *         name="date_from",
-     *         in="query",
-     *         description="Start date (YYYY-MM-DD)",
-     *         @OA\Schema(type="string", format="date")
-     *     ),
-     *     @OA\Parameter(
-     *         name="date_to",
-     *         in="query",
-     *         description="End date (YYYY-MM-DD)",
-     *         @OA\Schema(type="string", format="date")
-     *     ),
-     *     @OA\Response(response=200, description="Student attendance history retrieved")
-     * )
-     */
-    public function getStudentAttendanceDetails() {}
-
-    /**
-     * @OA\Get(
-     *     path="/api/attendance/batch/{batch}",
-     *     operationId="getBatchAttendanceDetails",
-     *     tags={"Attendance"},
-     *     summary="Get attendance for an entire batch on a specific date",
-     *     security={{"bearerAuth":{}}},
-     *     @OA\Parameter(
-     *         name="batch",
-     *         in="path",
-     *         required=true,
-     *         description="Batch ID",
-     *         @OA\Schema(type="integer")
-     *     ),
-     *     @OA\Parameter(
-     *         name="date",
-     *         in="query",
-     *         description="Target date (YYYY-MM-DD)",
-     *         @OA\Schema(type="string", format="date")
-     *     ),
-     *     @OA\Response(response=200, description="Batch attendance report retrieved")
-     * )
-     */
-    public function getBatchAttendanceDetails() {}
-
-    /**
      * @OA\Post(
      *     path="/api/attendance",
      *     operationId="submitAttendance",
@@ -374,50 +278,6 @@ class ApiDocumentationController extends Controller
 
     /**
      * @OA\Get(
-     *     path="/api/students/{student}",
-     *     operationId="getStudent",
-     *     tags={"Students"},
-     *     summary="Get student details",
-     *     security={{"bearerAuth":{}}},
-     *
-     *     @OA\Parameter(
-     *         name="student",
-     *         in="path",
-     *         required=true,
-     *         description="Student ID",
-     *
-     *         @OA\Schema(type="integer")
-     *     ),
-     *
-     *     @OA\Response(response=200, description="Student details retrieved")
-     * )
-     */
-    public function getStudent() {}
-
-    /**
-     * @OA\Get(
-     *     path="/api/search",
-     *     operationId="globalSearch",
-     *     tags={"Search"},
-     *     summary="Global search",
-     *     security={{"bearerAuth":{}}},
-     *
-     *     @OA\Parameter(
-     *         name="q",
-     *         in="query",
-     *         required=true,
-     *         description="Search term",
-     *
-     *         @OA\Schema(type="string")
-     *     ),
-     *
-     *     @OA\Response(response=200, description="Search results")
-     * )
-     */
-    public function globalSearch() {}
-
-    /**
-     * @OA\Get(
      *     path="/api/notifications",
      *     operationId="getNotifications",
      *     tags={"Notifications"},
@@ -428,73 +288,6 @@ class ApiDocumentationController extends Controller
      * )
      */
     public function getNotifications() {}
-
-    /**
-     * @OA\Get(
-     *     path="/api/notifications/unread-count",
-     *     operationId="getUnreadNotificationCount",
-     *     tags={"Notifications"},
-     *     summary="Get unread notification count",
-     *     security={{"bearerAuth":{}}},
-     *
-     *     @OA\Response(response=200, description="Unread count retrieved")
-     * )
-     */
-    public function getUnreadNotificationCount() {}
-
-    /**
-     * @OA\Post(
-     *     path="/api/notifications/{notification}/read",
-     *     operationId="markNotificationRead",
-     *     tags={"Notifications"},
-     *     summary="Mark notification as read",
-     *     security={{"bearerAuth":{}}},
-     *
-     *     @OA\Parameter(
-     *         name="notification",
-     *         in="path",
-     *         required=true,
-     *         description="Notification ID",
-     *
-     *         @OA\Schema(type="string")
-     *     ),
-     *
-     *     @OA\Response(response=200, description="Notification marked as read")
-     * )
-     */
-    public function markNotificationRead() {}
-
-    /**
-     * @OA\Post(
-     *     path="/api/notifications/mark-all-read",
-     *     operationId="markAllNotificationsRead",
-     *     tags={"Notifications"},
-     *     summary="Mark all notifications as read",
-     *     security={{"bearerAuth":{}}},
-     *
-     *     @OA\Response(response=200, description="All notifications marked as read")
-     * )
-     */
-    public function markAllNotificationsRead() {}
-
-    /**
-     * @OA\Post(
-     *     path="/api/etimeoffice/webhook",
-     *     operationId="etimeofficeWebhook",
-     *     tags={"Webhooks"},
-     *     summary="ETimeOffice Webhook",
-     *     description="Handle biometric data from ETimeOffice (Attendance/Punch-data)",
-     *
-     *     @OA\RequestBody(
-     *         required=true,
-     *
-     *         @OA\JsonContent(type="object")
-     *     ),
-     *
-     *     @OA\Response(response=200, description="Webhook processed")
-     * )
-     */
-    public function etimeofficeWebhook() {}
 
     /**
      * @OA\Get(
@@ -521,17 +314,4 @@ class ApiDocumentationController extends Controller
      * )
      */
     public function getTodayStats() {}
-
-    /**
-     * @OA\Get(
-     *     path="/api/ping",
-     *     operationId="ping",
-     *     tags={"Health"},
-     *     summary="System Ping",
-     *     description="Simple ping-pong check for service availability",
-     *
-     *     @OA\Response(response=200, description="System is online")
-     * )
-     */
-    public function ping() {}
 }

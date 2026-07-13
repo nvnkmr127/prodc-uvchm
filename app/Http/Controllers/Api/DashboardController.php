@@ -3,14 +3,19 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Attendance;
 use App\Models\Dashboard;
 use App\Models\DashboardWidget;
+use App\Models\Payment;
+use App\Models\StudentFee;
+use App\Models\Timetable;
 use App\Models\Widget;
 use App\Services\DashboardDataService;
 use App\Services\DashboardPermissionService;
 use App\Services\DashboardService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DashboardController extends Controller
 {
@@ -36,35 +41,6 @@ class DashboardController extends Controller
     public function stats(Request $request)
     {
         return $this->getQuickStats($request);
-    }
-
-    public function getWidgetDataForWidget(Request $request, $widgetId)
-    {
-        $user = auth()->user();
-
-        if (! class_exists('App\\Models\\Widget')) {
-            return response()->json([
-                'error' => 'Widget system not available',
-            ], 501);
-        }
-
-        $widgetClass = 'App\\Models\\Widget';
-        $widget = $widgetClass::findOrFail($widgetId);
-
-        if (! $this->permissionService->canViewWidget($user, $widget)) {
-            return response()->json(['error' => 'Insufficient permissions'], 403);
-        }
-
-        $config = [];
-        $data = $this->dataService->getWidgetData($user, $widget, $config);
-
-        return response()->json([
-            'widget_id' => $widget->id,
-            'widget_name' => $widget->name,
-            'data' => $data,
-            'last_updated' => now()->toISOString(),
-            'cache_duration' => $widget->cache_duration,
-        ]);
     }
 
     public function storeMetrics(Request $request)
@@ -170,42 +146,6 @@ class DashboardController extends Controller
     }
 
     /**
-     * Update dashboard layout
-     */
-    public function updateLayout(Request $request)
-    {
-        $request->validate([
-            'dashboard_id' => 'required|exists:dashboards,id',
-            'widgets' => 'required|array',
-            'widgets.*.instance_id' => 'required|string',
-            'widgets.*.x' => 'required|integer|min:0',
-            'widgets.*.y' => 'required|integer|min:0',
-            'widgets.*.w' => 'required|integer|min:1',
-            'widgets.*.h' => 'required|integer|min:1',
-            'widgets.*.order' => 'nullable|integer',
-        ]);
-
-        $user = auth()->user();
-        $dashboard = Dashboard::findOrFail($request->dashboard_id);
-
-        if (! $this->permissionService->canEditDashboard($user, $dashboard)) {
-            return response()->json(['error' => 'Cannot edit this dashboard'], 403);
-        }
-
-        $success = $this->dashboardService->updateUserDashboardLayout(
-            $user,
-            $dashboard,
-            $request->widgets
-        );
-
-        return response()->json([
-            'status' => $success ? 'success' : 'error',
-            'message' => $success ? 'Layout updated successfully' : 'Failed to update layout',
-            'updated_at' => now()->toISOString(),
-        ]);
-    }
-
-    /**
      * Get dashboard notifications
      */
     public function getNotifications(Request $request)
@@ -240,136 +180,9 @@ class DashboardController extends Controller
         ]);
     }
 
-    /**
-     * Get quick stats for dashboard
-     */
-    public function getQuickStats(Request $request)
-    {
-        $user = auth()->user();
-        $roleName = $user->getRoleNames()->first();
-
-        $stats = $this->getStatsForRole($roleName);
-
-        return response()->json([
-            'role' => $roleName,
-            'stats' => $stats,
-            'generated_at' => now()->toISOString(),
-        ]);
-    }
-
-    /**
-     * Export widget data
-     */
-    public function exportWidgetData(Request $request)
-    {
-        $request->validate([
-            'widget_id' => 'required|exists:widgets,id',
-            'format' => 'required|in:json,csv,xlsx',
-        ]);
-
-        $user = auth()->user();
-        $widget = Widget::findOrFail($request->widget_id);
-
-        if (! $this->permissionService->canViewWidget($user, $widget)) {
-            return response()->json(['error' => 'Insufficient permissions'], 403);
-        }
-
-        $data = $this->dataService->getWidgetData($user, $widget);
-
-        switch ($request->format) {
-            case 'json':
-                return response()->json($data);
-
-            case 'csv':
-                return $this->exportToCsv($data, $widget->name);
-
-            case 'xlsx':
-                return $this->exportToExcel($data, $widget->name);
-
-            default:
-                return response()->json(['error' => 'Invalid format'], 400);
-        }
-    }
-
     // Helper Methods
-    protected function getStatsForRole($roleName): array
-    {
-        switch ($roleName) {
-            case 'super-admin':
-                return [
-                    'total_users' => \App\Models\User::count(),
-                    'total_students' => \App\Models\Student::count(),
-                    'monthly_revenue' => \App\Models\Payment::where('status', 'completed')
-                        ->whereMonth('payment_date', now()->month)
-                        ->sum('amount'),
-                    'system_health' => 'good',
-                ];
 
-            case 'college-admin':
-                return [
-                    'total_students' => \App\Models\Student::count(),
-                    'active_courses' => \App\Models\Course::where('is_active', true)->count(),
-                    'today_classes' => \App\Models\Timetable::whereDate('schedule_date', today())->count(),
-                    'pending_enquiries' => \App\Models\Enquiry::where('status', 'pending')->count(),
-                ];
-
-            case 'accountant':
-                $pendingAmount = (float) \App\Models\StudentFee::whereIn('status', ['unpaid', 'partial'])
-                    ->selectRaw('COALESCE(SUM(GREATEST(0, amount - COALESCE(concession_amount, 0) - COALESCE(paid_amount, 0))), 0) as due')
-                    ->value('due');
-
-                $overdueAmount = (float) \App\Models\StudentFee::whereIn('status', ['unpaid', 'partial'])
-                    ->whereNotNull('due_date')
-                    ->where('due_date', '<', now())
-                    ->selectRaw('COALESCE(SUM(GREATEST(0, amount - COALESCE(concession_amount, 0) - COALESCE(paid_amount, 0))), 0) as due')
-                    ->value('due');
-
-                return [
-                    'monthly_revenue' => \App\Models\Payment::where('status', 'completed')
-                        ->whereMonth('payment_date', now()->month)
-                        ->sum('amount'),
-                    'pending_amount' => $pendingAmount,
-                    'overdue_amount' => $overdueAmount,
-                    'collection_rate' => $this->calculateCollectionRate(),
-                ];
-
-            case 'staff':
-                $user = auth()->user();
-
-                return [
-                    'today_classes' => \App\Models\Timetable::where('user_id', $user->id)
-                        ->whereDate('schedule_date', today())->count(),
-                    'pending_attendance' => \App\Models\Timetable::where('user_id', $user->id)
-                        ->whereDate('schedule_date', today())
-                        ->whereDoesntHave('attendances')->count(),
-                    'my_students' => $this->getMyStudentsCount($user),
-                    'attendance_rate' => $this->getMyAttendanceRate($user),
-                ];
-
-            case 'student':
-                $student = auth()->user()->student;
-                if (! $student) {
-                    return [];
-                }
-
-                $pendingFees = (float) \App\Models\StudentFee::where('student_id', $student->id)
-                    ->whereIn('status', ['unpaid', 'partial'])
-                    ->selectRaw('COALESCE(SUM(GREATEST(0, amount - COALESCE(concession_amount, 0) - COALESCE(paid_amount, 0))), 0) as due')
-                    ->value('due');
-
-                return [
-                    'attendance_percentage' => $this->getStudentAttendancePercentage($student),
-                    'pending_fees' => $pendingFees,
-                    'today_classes' => $this->getStudentTodayClassesCount($student),
-                    'upcoming_exams' => 2, // Sample count
-                ];
-
-            default:
-                return [];
-        }
-    }
-
-    protected function exportToCsv($data, $filename): \Symfony\Component\HttpFoundation\StreamedResponse
+    protected function exportToCsv($data, $filename): StreamedResponse
     {
         $headers = [
             'Content-Type' => 'text/csv',
@@ -407,8 +220,8 @@ class DashboardController extends Controller
 
     private function calculateCollectionRate(): float
     {
-        $collected = (float) \App\Models\Payment::where('status', 'completed')->sum('amount');
-        $due = (float) \App\Models\StudentFee::whereIn('status', ['unpaid', 'partial'])
+        $collected = (float) Payment::where('status', 'completed')->sum('amount');
+        $due = (float) StudentFee::whereIn('status', ['unpaid', 'partial'])
             ->selectRaw('COALESCE(SUM(GREATEST(0, amount - COALESCE(concession_amount, 0) - COALESCE(paid_amount, 0))), 0) as due')
             ->value('due');
 
@@ -419,7 +232,7 @@ class DashboardController extends Controller
 
     private function getMyStudentsCount($user): int
     {
-        return \App\Models\Timetable::where('user_id', $user->id)
+        return Timetable::where('user_id', $user->id)
             ->with('batch.students')
             ->get()
             ->pluck('batch.students')
@@ -428,33 +241,12 @@ class DashboardController extends Controller
             ->count();
     }
 
-    private function getMyAttendanceRate($user): float
-    {
-        $totalClasses = \App\Models\Timetable::where('user_id', $user->id)->count();
-        $attendanceTaken = \App\Models\Timetable::where('user_id', $user->id)
-            ->whereHas('attendances')->count();
-
-        return $totalClasses > 0 ? round(($attendanceTaken / $totalClasses) * 100, 1) : 0;
-    }
-
     private function getStudentAttendancePercentage($student): float
     {
-        $attendances = \App\Models\Attendance::where('student_id', $student->id)->get();
+        $attendances = Attendance::where('student_id', $student->id)->get();
         $total = $attendances->count();
         $present = $attendances->where('status', 'present')->count();
 
         return $total > 0 ? round(($present / $total) * 100, 1) : 0;
-    }
-
-    private function getStudentTodayClassesCount($student): int
-    {
-        $batch = $student->batch;
-        if (! $batch) {
-            return 0;
-        }
-
-        return \App\Models\Timetable::where('batch_id', $batch->id)
-            ->whereDate('schedule_date', today())
-            ->count();
     }
 }

@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Helpers\ErrorHandler;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -349,31 +348,6 @@ class PermissionManagementController extends Controller
     }
 
     /**
-     * Get role permissions for comparison
-     */
-    public function getRolePermissions(Role $role)
-    {
-        try {
-            $permissions = $role->permissions()->get();
-
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'role' => $role->name,
-                    'permissions' => $permissions->pluck('name'),
-                    'permissions_count' => $permissions->count(),
-                ],
-            ]);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to get role permissions: '.$e->getMessage(),
-            ], 500);
-        }
-    }
-
-    /**
      * Copy permissions from one role to another
      */
     public function copyPermissions(Request $request)
@@ -452,32 +426,6 @@ class PermissionManagementController extends Controller
                 'success' => false,
                 'message' => 'Failed to get analytics: '.$e->getMessage(),
             ], 500);
-        }
-    }
-
-    /**
-     * Find orphaned permissions
-     */
-    public function findOrphanedPermissions()
-    {
-        try {
-            $orphanedPermissions = Permission::whereDoesntHave('roles')
-                ->whereDoesntHave('users')
-                ->get();
-
-            return response()->json([
-                'success' => true,
-                'data' => $orphanedPermissions,
-                'count' => $orphanedPermissions->count(),
-            ]);
-
-        } catch (\Exception $e) {
-            return ErrorHandler::handleApiException(
-                $e,
-                'Failed to find orphaned permissions',
-                'Failed to find orphaned permissions',
-                500
-            );
         }
     }
 

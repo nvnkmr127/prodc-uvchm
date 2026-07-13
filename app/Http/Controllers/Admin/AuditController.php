@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Asset;
 use App\Models\AssetCategory;
 use App\Models\Audit;
-use App\Models\AuditItem;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -55,46 +54,6 @@ class AuditController extends Controller
     }
 
     // This method saves the status for a single asset in the audit
-    public function saveItemStatus(Request $request, Audit $audit)
-    {
-        $request->validate([
-            'asset_id' => 'required|exists:assets,id',
-            'status' => 'required|in:Found,Missing,Damaged',
-        ]);
-
-        // Don't allow changes if audit is already complete
-        if ($audit->status == 'Completed') {
-            return redirect()->back()->with('error', 'This audit is already completed and cannot be modified.');
-        }
-
-        AuditItem::updateOrCreate(
-            ['audit_id' => $audit->id, 'asset_id' => $request->asset_id],
-            ['status' => $request->status]
-        );
-
-        return redirect()->back()->with('success', 'Asset status updated.');
-    }
 
     // This method finalizes the audit
-    public function complete(Audit $audit)
-    {
-        if ($audit->status == 'Completed') {
-            return redirect()->back()->with('error', 'This audit is already completed.');
-        }
-
-        // Optional: Update the main asset condition based on audit results
-        $auditItems = $audit->items()->whereIn('status', ['Missing', 'Damaged'])->get();
-        foreach ($auditItems as $item) {
-            $asset = Asset::find($item->asset_id);
-            if ($asset) {
-                $asset->condition = $item->status; // Update condition to 'Missing' or 'Damaged'
-                $asset->save();
-            }
-        }
-
-        $audit->status = 'Completed';
-        $audit->save();
-
-        return redirect()->route('admin.audits.index')->with('success', 'Audit #'.$audit->id.' has been completed.');
-    }
 }
