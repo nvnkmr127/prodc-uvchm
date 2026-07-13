@@ -2,6 +2,8 @@
 
 namespace App\Helpers;
 
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -38,7 +40,7 @@ class ErrorHandler
     /**
      * Handle exceptions for API responses
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public static function handleApiException(Throwable $exception, string $context = '', string $userMessage = 'Internal server error', int $statusCode = 500)
     {
@@ -50,7 +52,7 @@ class ErrorHandler
     /**
      * Handle exceptions for web responses
      *
-     * @return \Illuminate\Http\RedirectResponse
+     * @return RedirectResponse
      */
     public static function handleWebException(Throwable $exception, string $context = '', string $userMessage = 'An error occurred', ?string $redirectRoute = null)
     {

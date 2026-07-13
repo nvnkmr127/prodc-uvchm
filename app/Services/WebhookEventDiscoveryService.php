@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Providers\EventServiceProvider;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use ReflectionClass;
@@ -63,9 +64,6 @@ class WebhookEventDiscoveryService
 
         // Discover from registered event listeners
         $events = array_merge($events, $this->discoverFromEventListeners());
-
-        // Discover from custom event annotations
-        $events = array_merge($events, $this->discoverFromAnnotations());
 
         // Add Manual Events (System / Command based)
         $events[] = [
@@ -196,7 +194,7 @@ class WebhookEventDiscoveryService
         $events = [];
 
         try {
-            $eventServiceProvider = app(\App\Providers\EventServiceProvider::class);
+            $eventServiceProvider = app(EventServiceProvider::class);
             $reflection = new ReflectionClass($eventServiceProvider);
             $listenProperty = $reflection->getProperty('listen');
             $listenProperty->setAccessible(true);
@@ -214,29 +212,6 @@ class WebhookEventDiscoveryService
             }
         } catch (\Exception $e) {
             // Silently fail if we can't access the EventServiceProvider
-        }
-
-        return $events;
-    }
-
-    /**
-     * Discover events from annotations/docblocks
-     */
-    protected function discoverFromAnnotations(): array
-    {
-        $events = [];
-
-        // Search for @webhook or @event annotations in controllers and services
-        $searchPaths = [
-            app_path('Http/Controllers'),
-            app_path('Services'),
-            app_path('Jobs'),
-        ];
-
-        foreach ($searchPaths as $path) {
-            if (File::exists($path)) {
-                $events = array_merge($events, $this->scanForAnnotations($path));
-            }
         }
 
         return $events;
@@ -310,59 +285,6 @@ class WebhookEventDiscoveryService
 
         // Default category
         return ['name' => 'Other Events', 'icon' => 'fas fa-bell', 'emoji' => '📋'];
-    }
-
-    /**
-     * Scan directory for webhook/event annotations
-     */
-    protected function scanForAnnotations(string $path): array
-    {
-        $events = [];
-        $files = File::allFiles($path);
-
-        foreach ($files as $file) {
-            $content = File::get($file->getPathname());
-
-            // Look for @webhook or @event annotations
-            if (preg_match_all('/@(webhook|event)\s+([^\n\r]+)/i', $content, $matches)) {
-                foreach ($matches[2] as $index => $eventDefinition) {
-                    $eventInfo = $this->parseAnnotationDefinition($eventDefinition, $file->getPathname());
-                    if ($eventInfo) {
-                        $events[] = $eventInfo;
-                    }
-                }
-            }
-        }
-
-        return $events;
-    }
-
-    /**
-     * Parse annotation definition
-     */
-    protected function parseAnnotationDefinition(string $definition, string $filePath): ?array
-    {
-        // Simple parsing for annotations like:
-        // @webhook payment.created "Payment was created" category="financial"
-        $parts = str_getcsv($definition, ' ');
-
-        if (count($parts) < 2) {
-            return null;
-        }
-
-        $eventKey = $parts[0];
-        $description = isset($parts[1]) ? trim($parts[1], '"') : '';
-
-        return [
-            'event_key' => $eventKey,
-            'name' => $this->formatEventName($eventKey),
-            'description' => $description,
-            'class' => "annotation:{$filePath}",
-            'category' => $this->categorizeEvent($eventKey),
-            'auto_discovered' => true,
-            'source' => 'annotation',
-            'file_path' => $filePath,
-        ];
     }
 
     /**

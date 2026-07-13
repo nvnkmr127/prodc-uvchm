@@ -86,9 +86,6 @@
                 "barryvdh/laravel-dompdf",
                 "maatwebsite/excel",
                 "spatie/laravel-backup"
-            ],
-            "providers": [
-                "App\\Providers\\ViewServiceProvider"
             ]
         }
     },
