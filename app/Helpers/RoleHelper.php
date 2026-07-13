@@ -32,32 +32,6 @@ class RoleHelper
         return $icons[$module] ?? 'cog';
     }
 
-    public static function getActionIcon($action)
-    {
-        $icons = [
-            'view' => 'eye',
-            'create' => 'plus',
-            'edit' => 'edit',
-            'delete' => 'trash',
-            'manage' => 'cogs',
-        ];
-
-        return $icons[$action] ?? 'circle';
-    }
-
-    public static function getActionBadgeColor($action)
-    {
-        $colors = [
-            'view' => 'info',
-            'create' => 'success',
-            'edit' => 'warning',
-            'delete' => 'danger',
-            'manage' => 'primary',
-        ];
-
-        return $colors[$action] ?? 'secondary';
-    }
-
     public static function getPermissionBadgeColor($permission)
     {
         if (strpos($permission, 'view') !== false) {

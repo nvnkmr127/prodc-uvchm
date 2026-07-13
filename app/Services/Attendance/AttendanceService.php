@@ -3,16 +3,15 @@
 namespace App\Services\Attendance;
 
 use App\Models\Attendance\Attendance;
-use App\Models\Attendance\AttendanceCache;
 use App\Models\Batch;
 use App\Models\Student;
+use App\Services\BiometricMappingService;
 use App\Traits\Attendance\CalculatesMetrics;
 use App\Traits\Attendance\HandlesNotifications;
 use App\Traits\Attendance\ManagesAttendance;
 use App\Traits\Attendance\ValidatesData;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class AttendanceService
@@ -123,7 +122,7 @@ class AttendanceService
     /**
      * Get absent students for a specific date
      */
-    public function getAbsentStudentsForDate(\Carbon\Carbon $date): \Illuminate\Support\Collection
+    public function getAbsentStudentsForDate(Carbon $date): Collection
     {
         // 1. Get IDs of students who marked attendance (Present, Late, or Excused)
         $presentStudentIds = \App\Models\Attendance::whereDate('attendance_date', $date)
@@ -135,7 +134,7 @@ class AttendanceService
         // 3. Get Active Students who are:
         //    - NOT Present
         //    - NOT in an Internship Batch (Whole batch exclusion)
-        return \App\Models\Student::where('status', 'active')
+        return Student::where('status', 'active')
             ->has('attendances') // [NEW] Ensure at least one punch exists
             ->whereNotIn('id', $presentStudentIds)
             ->whereHas('batch', function ($q) use ($date) {
@@ -165,249 +164,6 @@ class AttendanceService
                 ];
             });
     }
-
-    /**
-     * Get today's attendance summary for faculty dashboard
-     */
-    public function getTodaysAttendanceSummary(?int $facultyId = null): array
-    {
-        $today = Carbon::today();
-        $query = Attendance::where('attendance_date', $today);
-
-        if ($facultyId) {
-            $query->where('faculty_id', $facultyId);
-        }
-
-        $todaysAttendance = $query->get();
-
-        return [
-            'date' => $today->format('Y-m-d'),
-            'total_records' => $todaysAttendance->count(),
-            'present_count' => $todaysAttendance->where('status', 'present')->count(),
-            'absent_count' => $todaysAttendance->where('status', 'absent')->count(),
-            'late_count' => $todaysAttendance->where('status', 'late')->count(),
-            'excused_count' => $todaysAttendance->where('status', 'excused')->count(),
-            'attendance_percentage' => $this->calculateAttendancePercentage($todaysAttendance),
-        ];
-    }
-
-    /**
-     * ✅ UPDATED: Process biometric attendance data with optimized lookup
-     */
-    public function processBiometricAttendance(array $biometricData): array
-    {
-        try {
-            $startTime = microtime(true);
-
-            // ✅ OPTIMIZED: Use biometric employee code for lookup
-            $employeeCode = $biometricData['employee_code'];
-
-            // Try biometric code first, then fallback to enrollment number
-            $student = Student::where('biometric_employee_code', $employeeCode)->first();
-
-            if (! $student) {
-                // Fallback to enrollment number lookup with multiple patterns
-                $student = $this->findStudentByEnrollmentPatterns($employeeCode);
-
-                // If found via enrollment, auto-populate biometric code
-                if ($student && empty($student->biometric_employee_code)) {
-                    try {
-                        $student->update(['biometric_employee_code' => $employeeCode]);
-                        Log::info('Auto-populated biometric code during attendance processing', [
-                            'student_id' => $student->id,
-                            'enrollment_number' => $student->enrollment_number,
-                            'biometric_code' => $employeeCode,
-                        ]);
-                    } catch (\Exception $e) {
-                        Log::warning('Failed to auto-populate biometric code', [
-                            'student_id' => $student->id,
-                            'error' => $e->getMessage(),
-                        ]);
-                    }
-                }
-            }
-
-            if (! $student) {
-                $processingTime = round((microtime(true) - $startTime) * 1000, 2);
-
-                Log::warning('Student not found in biometric attendance processing', [
-                    'employee_code' => $employeeCode,
-                    'processing_time_ms' => $processingTime,
-                ]);
-
-                return [
-                    'success' => false,
-                    'error' => 'Student not found',
-                    'employee_code' => $employeeCode,
-                    'processing_time_ms' => $processingTime,
-                ];
-            }
-
-            // Prepare attendance data
-            $attendanceData = [
-                'student_id' => $student->id,
-                'batch_id' => $student->batch_id,
-                'attendance_date' => Carbon::parse($biometricData['scan_datetime'])->format('Y-m-d'),
-                'status' => 'present',
-                'biometric_log_id' => $biometricData['log_id'] ?? null,
-                'device_id' => $biometricData['device_id'] ?? null,
-                'marked_at' => Carbon::parse($biometricData['scan_datetime']),
-            ];
-
-            // Mark attendance using trait method
-            $attendance = $this->markAttendance($attendanceData);
-
-            // Send notifications using trait method
-            $this->sendAttendanceNotification($attendance, [
-                'notify_parents' => config('attendance.biometric.notify_parents', false),
-            ]);
-
-            $processingTime = round((microtime(true) - $startTime) * 1000, 2);
-
-            Log::info('Biometric attendance processed successfully', [
-                'attendance_id' => $attendance->id,
-                'student_name' => $student->name,
-                'biometric_code' => $student->biometric_employee_code,
-                'enrollment_number' => $student->enrollment_number,
-                'processing_time_ms' => $processingTime,
-            ]);
-
-            return [
-                'success' => true,
-                'attendance_id' => $attendance->id,
-                'student_name' => $student->name,
-                'student_id' => $student->id,
-                'biometric_code' => $student->biometric_employee_code,
-                'enrollment_number' => $student->enrollment_number,
-                'status' => $attendance->status,
-                'processing_time_ms' => $processingTime,
-            ];
-
-        } catch (\Exception $e) {
-            $processingTime = round((microtime(true) - $startTime) * 1000, 2);
-
-            Log::error('Biometric attendance processing failed', [
-                'biometric_data' => $biometricData,
-                'error' => $e->getMessage(),
-                'processing_time_ms' => $processingTime,
-            ]);
-
-            return [
-                'success' => false,
-                'error' => $e->getMessage(),
-                'processing_time_ms' => $processingTime,
-            ];
-        }
-    }
-
-    /**
-     * ✅ NEW: Find student by enrollment number patterns (fallback method)
-     */
-    private function findStudentByEnrollmentPatterns(string $employeeCode): ?Student
-    {
-        // Try different enrollment number patterns
-        $patterns = [
-            $employeeCode,                    // Exact match
-            'UV-'.$employeeCode,           // UV prefix
-            'UVCHM-'.$employeeCode,        // UVCHM prefix
-            'STD-'.$employeeCode,          // STD prefix
-            'ENR-'.$employeeCode,           // ENR prefix
-        ];
-
-        foreach ($patterns as $pattern) {
-            $student = Student::where('enrollment_number', $pattern)->first();
-            if ($student) {
-                Log::debug('Student found via enrollment pattern', [
-                    'employee_code' => $employeeCode,
-                    'pattern_used' => $pattern,
-                    'enrollment_number' => $student->enrollment_number,
-                ]);
-
-                return $student;
-            }
-        }
-
-        // Try partial match as last resort
-        $student = Student::where('enrollment_number', 'LIKE', '%'.$employeeCode)->first();
-        if ($student) {
-            Log::debug('Student found via partial match', [
-                'employee_code' => $employeeCode,
-                'enrollment_number' => $student->enrollment_number,
-            ]);
-        }
-
-        return $student;
-    }
-
-    /**
-     * ✅ NEW: Get biometric integration statistics
-     */
-    public function getBiometricIntegrationStats(): array
-    {
-        $totalStudents = Student::count();
-        $studentsWithBiometric = Student::whereNotNull('biometric_employee_code')->count();
-        $studentsWithoutBiometric = $totalStudents - $studentsWithBiometric;
-
-        $recentBiometricAttendance = Attendance::whereNotNull('device_id')
-            ->where('created_at', '>=', Carbon::now()->subDays(7))
-            ->count();
-
-        return [
-            'total_students' => $totalStudents,
-            'students_with_biometric' => $studentsWithBiometric,
-            'students_without_biometric' => $studentsWithoutBiometric,
-            'mapping_percentage' => $totalStudents > 0 ? round(($studentsWithBiometric / $totalStudents) * 100, 2) : 0,
-            'recent_biometric_attendance_count' => $recentBiometricAttendance,
-            'integration_health' => $this->calculateIntegrationHealth($studentsWithBiometric, $totalStudents, $recentBiometricAttendance),
-        ];
-    }
-
-    /**
-     * ✅ NEW: Calculate integration health score
-     */
-    private function calculateIntegrationHealth(int $mappedStudents, int $totalStudents, int $recentActivity): string
-    {
-        if ($totalStudents === 0) {
-            return 'no_data';
-        }
-
-        $mappingPercentage = ($mappedStudents / $totalStudents) * 100;
-
-        if ($mappingPercentage >= 80 && $recentActivity > 0) {
-            return 'excellent';
-        } elseif ($mappingPercentage >= 60 && $recentActivity > 0) {
-            return 'good';
-        } elseif ($mappingPercentage >= 40) {
-            return 'fair';
-        } else {
-            return 'poor';
-        }
-    }
-
-    /**
-     * ✅ NEW: Get students without biometric codes for admin action
-     */
-    public function getStudentsWithoutBiometricCodes(): Collection
-    {
-        $biometricService = app(\App\Services\BiometricMappingService::class);
-        return Student::whereNull('biometric_employee_code')
-            ->with(['batch.course'])
-            ->where('status', 'active')
-            ->orderBy('enrollment_number')
-            ->get()
-            ->map(function ($student) use ($biometricService) {
-                return [
-                    'id' => $student->id,
-                    'name' => $student->name,
-                    'enrollment_number' => $student->enrollment_number,
-                    'batch_name' => $student->batch->name ?? 'No Batch',
-                    'course_name' => $student->batch->course->name ?? 'No Course',
-                    'suggested_biometric_code' => $biometricService->generateBiometricCode($student),
-                ];
-            });
-    }
-
-
 
     /**
      * ✅ NEW: Bulk update biometric codes
@@ -474,7 +230,8 @@ class AttendanceService
      */
     public function autoGenerateBiometricCodes(): array
     {
-        $biometricService = app(\App\Services\BiometricMappingService::class);
+        $biometricService = app(BiometricMappingService::class);
+
         return $biometricService->autoGenerateAllCodes();
     }
 
@@ -507,222 +264,6 @@ class AttendanceService
         }
 
         return $lowAttendanceStudents->sortBy('attendance_percentage');
-    }
-
-    /**
-     * Send bulk low attendance warnings
-     */
-    public function sendLowAttendanceWarnings(array $filters = []): array
-    {
-        $threshold = config('attendance.minimum_percentage', 75);
-        $lowAttendanceStudents = $this->getLowAttendanceStudents($threshold, $filters);
-
-        $results = [
-            'total_students_checked' => $lowAttendanceStudents->count(),
-            'warnings_sent' => 0,
-            'failed_notifications' => 0,
-            'details' => [],
-        ];
-
-        foreach ($lowAttendanceStudents as $studentData) {
-            $student = $studentData['student'];
-            $stats = $studentData['stats'];
-
-            try {
-                // Send warning using trait method
-                $warningResult = $this->sendLowAttendanceWarning($student, $stats);
-
-                if ($warningResult['success']) {
-                    $results['warnings_sent']++;
-                } else {
-                    $results['failed_notifications']++;
-                }
-
-                $results['details'][] = [
-                    'student_id' => $student->id,
-                    'student_name' => $student->name,
-                    'attendance_percentage' => $stats['attendance_percentage'],
-                    'notification_result' => $warningResult,
-                ];
-
-            } catch (\Exception $e) {
-                $results['failed_notifications']++;
-                $results['details'][] = [
-                    'student_id' => $student->id,
-                    'student_name' => $student->name,
-                    'error' => $e->getMessage(),
-                ];
-            }
-        }
-
-        Log::info('Low attendance warnings processed', [
-            'total_checked' => $results['total_students_checked'],
-            'warnings_sent' => $results['warnings_sent'],
-            'failed' => $results['failed_notifications'],
-        ]);
-
-        return $results;
-    }
-
-    /**
-     * Update attendance cache for student
-     */
-    public function updateStudentCache(int $studentId, array $options = []): void
-    {
-        try {
-            $stats = $this->calculateStudentStats($studentId, $options);
-
-            AttendanceCache::updateOrCreate([
-                'student_id' => $studentId,
-                'cache_type' => $options['cache_type'] ?? 'overall',
-                'period_type' => $options['period_type'] ?? 'academic_year',
-                'period_value' => $options['period_value'] ?? date('Y'),
-                'is_current' => true,
-            ], [
-                'calculation_date' => now()->toDateString(),
-                'total_classes' => $stats['total_classes'],
-                'present_classes' => $stats['present_count'],
-                'absent_classes' => $stats['absent_count'],
-                'late_classes' => $stats['late_count'],
-                'excused_classes' => $stats['excused_count'],
-                'attendance_percentage' => $stats['attendance_percentage'],
-                'punctuality_percentage' => $stats['punctuality_percentage'],
-                'trend_direction' => $this->determineTrendDirection($stats),
-                'consecutive_absents' => $stats['consecutive_absents'],
-                'analytics_data' => [
-                    'monthly_trends' => $stats['monthly_trends'],
-                    'weekly_patterns' => $stats['weekly_patterns'],
-                    'performance_level' => $stats['performance_level'],
-                    'risk_level' => $stats['risk_level'],
-                ],
-                'expires_at' => now()->addHours(6),
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Failed to update attendance cache', [
-                'student_id' => $studentId,
-                'error' => $e->getMessage(),
-            ]);
-        }
-    }
-
-    /**
-     * Get attendance summary for multiple students
-     */
-    public function getBulkStudentSummary(array $studentIds, array $filters = []): array
-    {
-        $summaries = [];
-
-        foreach ($studentIds as $studentId) {
-            try {
-                $student = Student::find($studentId);
-                if (! $student) {
-                    continue;
-                }
-
-                $stats = $this->calculateStudentStats($studentId, $filters);
-
-                $summaries[] = [
-                    'student_id' => $studentId,
-                    'student_name' => $student->name,
-                    'enrollment_number' => $student->enrollment_number,
-                    'biometric_code' => $student->biometric_employee_code,
-                    'batch_name' => $student->batch->name ?? 'Unknown',
-                    'statistics' => $stats,
-                ];
-
-            } catch (\Exception $e) {
-                Log::error('Failed to get student summary', [
-                    'student_id' => $studentId,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-        }
-
-        return $summaries;
-    }
-
-    /**
-     * Process attendance correction/update
-     */
-    public function processAttendanceCorrection(int $attendanceId, array $correctionData): array
-    {
-        try {
-            DB::beginTransaction();
-
-            $attendance = Attendance::findOrFail($attendanceId);
-            $originalData = $attendance->toArray();
-
-            // Validate correction permissions using trait
-            if (! $this->validateAttendancePermissions($correctionData)) {
-                throw new \Exception('Insufficient permissions for attendance correction');
-            }
-
-            // Validate status transition using trait
-            $transitionErrors = $this->validateStatusTransition(
-                $attendance->status,
-                $correctionData['status'],
-                ['attendance_record' => $attendance, 'admin_override' => $correctionData['admin_override'] ?? false]
-            );
-
-            if (! empty($transitionErrors)) {
-                throw new \Exception('Invalid status transition: '.implode(', ', $transitionErrors));
-            }
-
-            // Update attendance using trait method
-            $updatedAttendance = $this->updateAttendance($attendanceId, $correctionData);
-
-            // Update cache
-            $this->updateStudentCache($attendance->student_id);
-
-            // Send notification if status changed significantly
-            if ($originalData['status'] !== $updatedAttendance->status) {
-                $this->sendAttendanceNotification($updatedAttendance, [
-                    'notify_parents' => $correctionData['notify_parents'] ?? false,
-                    'notify_faculty' => true,
-                ]);
-            }
-
-            DB::commit();
-
-            return [
-                'success' => true,
-                'attendance' => $updatedAttendance,
-                'changes' => $updatedAttendance->getChanges(),
-                'original_status' => $originalData['status'],
-            ];
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-
-            return [
-                'success' => false,
-                'error' => $e->getMessage(),
-            ];
-        }
-    }
-
-    /**
-     * Private helper methods
-     */
-    private function getEmptyStats(): array
-    {
-        return [
-            'total_classes' => 0,
-            'present_count' => 0,
-            'absent_count' => 0,
-            'late_count' => 0,
-            'excused_count' => 0,
-            'attendance_percentage' => 0,
-            'punctuality_percentage' => 0,
-            'consecutive_absents' => 0,
-            'attendance_streak' => 0,
-            'monthly_trends' => [],
-            'weekly_patterns' => [],
-            'late_patterns' => [],
-            'performance_level' => 'no_data',
-            'risk_level' => 'low',
-        ];
     }
 
     private function determineTrendDirection(array $stats): string

@@ -5,8 +5,9 @@ namespace App\Services;
 use App\Models\Attendance;
 use App\Models\Setting;
 use App\Models\Student;
+use App\Models\User;
+use App\Services\Attendance\FacultyAttendanceService;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
@@ -34,7 +35,7 @@ class ETimeOfficeService
     {
         try {
             // Check if settings table exists before querying
-            if (! \Illuminate\Support\Facades\Schema::hasTable('settings')) {
+            if (! Schema::hasTable('settings')) {
                 $this->setDefaultConfiguration();
 
                 return;
@@ -50,28 +51,6 @@ class ETimeOfficeService
         } catch (\Exception $e) {
             // Fallback to default configuration if database is not available
             $this->setDefaultConfiguration();
-        }
-    }
-
-    /**
-     * Set default configuration when database is not available
-     */
-    private function setDefaultConfiguration(): void
-    {
-        $this->apiUrl = 'https://api.etimeoffice.com/api';
-        $this->corporateId = '';
-        $this->username = '';
-        $this->password = '';
-        $this->authToken = base64_encode(':::true');
-    }
-
-    /**
-     * Ensure configuration is loaded
-     */
-    private function ensureConfigurationLoaded(): void
-    {
-        if (! isset($this->apiUrl)) {
-            $this->loadConfiguration();
         }
     }
 
@@ -157,54 +136,6 @@ class ETimeOfficeService
                 'error' => $e->getMessage(),
                 'from_date' => $fromDate->format('Y-m-d H:i'),
                 'to_date' => $toDate->format('Y-m-d H:i'),
-            ]);
-
-            return [
-                'success' => false,
-                'error' => $e->getMessage(),
-                'data' => [],
-            ];
-        }
-    }
-
-    /**
-     * Fetch IN/OUT punch data with work time calculation
-     */
-    public function fetchInOutPunchData(Carbon $fromDate, Carbon $toDate, ?string $empcode = 'ALL'): array
-    {
-        $this->ensureConfigurationLoaded();
-
-        try {
-            $response = $this->makeApiCall('DownloadInOutPunchData', [
-                'Empcode' => $empcode,
-                'FromDate' => $fromDate->format('d/m/Y'),
-                'ToDate' => $toDate->format('d/m/Y'),
-            ]);
-
-            if (! $response['success']) {
-                return [
-                    'success' => false,
-                    'error' => $response['error'],
-                    'data' => [],
-                ];
-            }
-
-            $inOutData = $response['data']['PunchData'] ?? [];
-
-            Log::info('eTimeOffice IN/OUT data fetched', [
-                'records_count' => count($inOutData),
-                'date_range' => $fromDate->format('Y-m-d').' to '.$toDate->format('Y-m-d'),
-            ]);
-
-            return [
-                'success' => true,
-                'data' => $inOutData,
-                'count' => count($inOutData),
-            ];
-
-        } catch (\Exception $e) {
-            Log::error('eTimeOffice IN/OUT fetch error', [
-                'error' => $e->getMessage(),
             ]);
 
             return [
@@ -314,7 +245,7 @@ class ETimeOfficeService
 
                 if (! $student) {
                     // Check if it is faculty
-                    $faculty = \App\Models\User::role('staff')
+                    $faculty = User::role('staff')
                         ->where('biometric_employee_code', $empcode)
                         ->orWhere('employee_id', $empcode)
                         ->first();
@@ -340,16 +271,17 @@ class ETimeOfficeService
                                     continue;
                                 }
                             }
-                            if (!$carbonDate) {
+                            if (! $carbonDate) {
                                 $carbonDate = Carbon::parse($punchDate);
                             }
 
-                            $facultyAttendanceService = app(\App\Services\Attendance\FacultyAttendanceService::class);
+                            $facultyAttendanceService = app(FacultyAttendanceService::class);
                             $facultyAttendanceService->recordPunch($faculty, $carbonDate, 'AUTO', 'etimeoffice-api');
                             $results['created']++;
                         } catch (\Exception $e) {
                             $results['errors'][] = "Error processing faculty punch for {$empcode}: ".$e->getMessage();
                         }
+
                         continue;
                     }
 
@@ -412,68 +344,6 @@ class ETimeOfficeService
     }
 
     /**
-     * Make API call to eTimeOffice
-     */
-    private function makeApiCall(string $endpoint, array $params): array
-    {
-        $this->ensureConfigurationLoaded();
-
-        try {
-            $url = $this->apiUrl.'/'.$endpoint;
-            $queryString = http_build_query($params);
-            $fullUrl = $url.'?'.$queryString;
-
-            Log::info('Making eTimeOffice API call', [
-                'endpoint' => $endpoint,
-                'url' => $fullUrl,
-                'params' => $params,
-            ]);
-
-            $response = Http::timeout(10)
-                ->withHeaders([
-                    'Authorization' => 'Basic '.$this->authToken,
-                    'Accept' => 'application/json',
-                    'Content-Type' => 'application/json',
-                ])
-                ->get($fullUrl);
-
-            if (! $response->successful()) {
-                throw new \Exception("API request failed with status: {$response->status()}");
-            }
-
-            $data = $response->json();
-
-            // Check if API returned an error
-            if (isset($data['Error']) && $data['Error'] === true) {
-                throw new \Exception($data['Msg'] ?? 'Unknown API error');
-            }
-
-            Log::info('eTimeOffice API call successful', [
-                'endpoint' => $endpoint,
-                'response_size' => strlen($response->body()),
-                'has_data' => isset($data['PunchData']),
-            ]);
-
-            return [
-                'success' => true,
-                'data' => $data,
-            ];
-
-        } catch (\Exception $e) {
-            Log::error('eTimeOffice API call failed', [
-                'endpoint' => $endpoint,
-                'error' => $e->getMessage(),
-                'url' => $fullUrl ?? $url,
-            ]);
-
-            return [
-                'success' => false,
-                'error' => $e->getMessage(),
-            ];
-        }
-    }
-
-    /**
      * Find student using biometric code with fallback
      */
     private function findStudentByBiometricCode(string $biometricCode): ?Student
@@ -505,137 +375,6 @@ class ETimeOfficeService
         }
 
         return null;
-    }
-
-    /**
-     * Get sync statistics
-     */
-    public function getSyncStats(): array
-    {
-        $lastSyncRecord = Setting::where('key', 'etimeoffice_last_sync_record')->value('value');
-        $lastSyncTime = Setting::where('key', 'etimeoffice_last_sync_time')->value('value');
-
-        return [
-            'last_sync_record' => $lastSyncRecord,
-            'last_sync_time' => $lastSyncTime ? Carbon::parse($lastSyncTime)->format('Y-m-d H:i:s') : 'Never',
-            'api_configured' => ! empty($this->corporateId) && ! empty($this->username) && ! empty($this->password),
-            'api_url' => $this->apiUrl,
-        ];
-    }
-
-    /**
-     * Fetch data for specific date ranges with better error handling
-     */
-    public function fetchDataForDateRange(string $rangeType, ?Carbon $customStart = null, ?Carbon $customEnd = null): array
-    {
-        $this->ensureConfigurationLoaded();
-
-        try {
-            $dateRange = $this->calculateDateRangeFromType($rangeType, $customStart, $customEnd);
-
-            Log::info('Fetching ETimeOffice data for range', [
-                'range_type' => $rangeType,
-                'start' => $dateRange['start']->format('Y-m-d H:i'),
-                'end' => $dateRange['end']->format('Y-m-d H:i'),
-            ]);
-
-            return $this->fetchPunchData($dateRange['start'], $dateRange['end']);
-
-        } catch (\Exception $e) {
-            Log::error('Error fetching data for date range', [
-                'range_type' => $rangeType,
-                'error' => $e->getMessage(),
-            ]);
-
-            return [
-                'success' => false,
-                'error' => $e->getMessage(),
-                'data' => [],
-            ];
-        }
-    }
-
-    /**
-     * Calculate date range from type
-     */
-    private function calculateDateRangeFromType(string $rangeType, ?Carbon $customStart = null, ?Carbon $customEnd = null): array
-    {
-        $now = now();
-
-        switch ($rangeType) {
-            case 'today':
-                return [
-                    'start' => $now->copy()->startOfDay(),
-                    'end' => $now->copy()->endOfDay(),
-                ];
-
-            case 'yesterday':
-                $yesterday = $now->copy()->subDay();
-
-                return [
-                    'start' => $yesterday->copy()->startOfDay(),
-                    'end' => $yesterday->copy()->endOfDay(),
-                ];
-
-            case 'last_3_days':
-                return [
-                    'start' => $now->copy()->subDays(2)->startOfDay(),
-                    'end' => $now->copy()->endOfDay(),
-                ];
-
-            case 'last_7_days':
-                return [
-                    'start' => $now->copy()->subDays(6)->startOfDay(),
-                    'end' => $now->copy()->endOfDay(),
-                ];
-
-            case 'last_30_days':
-                return [
-                    'start' => $now->copy()->subDays(29)->startOfDay(),
-                    'end' => $now->copy()->endOfDay(),
-                ];
-
-            case 'this_week':
-                return [
-                    'start' => $now->copy()->startOfWeek(),
-                    'end' => $now->copy()->endOfWeek(),
-                ];
-
-            case 'last_week':
-                $lastWeek = $now->copy()->subWeek();
-
-                return [
-                    'start' => $lastWeek->copy()->startOfWeek(),
-                    'end' => $lastWeek->copy()->endOfWeek(),
-                ];
-
-            case 'this_month':
-                return [
-                    'start' => $now->copy()->startOfMonth(),
-                    'end' => $now->copy()->endOfMonth(),
-                ];
-
-            case 'last_month':
-                $lastMonth = $now->copy()->subMonth();
-
-                return [
-                    'start' => $lastMonth->copy()->startOfMonth(),
-                    'end' => $lastMonth->copy()->endOfMonth(),
-                ];
-
-            case 'custom':
-                if (! $customStart || ! $customEnd) {
-                    throw new \InvalidArgumentException('Custom date range requires both start and end dates');
-                }
-
-                return [
-                    'start' => $customStart->copy()->startOfDay(),
-                    'end' => $customEnd->copy()->endOfDay(),
-                ];
-
-            default:
-                throw new \InvalidArgumentException("Invalid date range type: {$rangeType}");
-        }
     }
 
     /**
@@ -671,165 +410,6 @@ class ETimeOfficeService
         return [
             'valid' => empty($issues),
             'issues' => $issues,
-        ];
-    }
-
-    /**
-     * Get comprehensive sync statistics
-     */
-    public function getComprehensiveStats(): array
-    {
-        try {
-            $validation = $this->validateConfiguration();
-
-            return [
-                'configuration' => [
-                    'valid' => $validation['valid'],
-                    'issues' => $validation['issues'],
-                    'api_url' => $this->apiUrl ?? 'Not configured',
-                    'corporate_id' => ! empty($this->corporateId) ? substr($this->corporateId, 0, 3).'***' : 'Not configured',
-                    'username' => ! empty($this->username) ? substr($this->username, 0, 3).'***' : 'Not configured',
-                    'password_set' => ! empty($this->password),
-                ],
-                'sync_stats' => $this->getSyncStats(),
-                'last_24h_records' => $this->getRecordCount(now()->subDay(), now()),
-                'today_records' => $this->getRecordCount(now()->startOfDay(), now()),
-                'this_week_records' => $this->getRecordCount(now()->startOfWeek(), now()),
-            ];
-        } catch (\Exception $e) {
-            Log::error('Error getting comprehensive stats', ['error' => $e->getMessage()]);
-
-            return [
-                'configuration' => ['valid' => false, 'issues' => ['Unable to load configuration']],
-                'sync_stats' => ['error' => $e->getMessage()],
-                'last_24h_records' => 0,
-                'today_records' => 0,
-                'this_week_records' => 0,
-            ];
-        }
-    }
-
-    /**
-     * Get attendance record count for date range
-     */
-    private function getRecordCount(Carbon $start, Carbon $end): int
-    {
-        try {
-            if (! Schema::hasTable('attendances')) {
-                return 0;
-            }
-
-            return \App\Models\Attendance::whereBetween('attendance_date', [
-                $start->format('Y-m-d'),
-                $end->format('Y-m-d'),
-            ])
-                ->where('device_id', 'etimeoffice-api')
-                ->count();
-        } catch (\Exception $e) {
-            Log::error('Error getting record count', ['error' => $e->getMessage()]);
-
-            return 0;
-        }
-    }
-
-    /**
-     * Enhanced error handling for API calls
-     */
-    private function handleApiError(\Exception $e, string $context): array
-    {
-        $errorMessage = $e->getMessage();
-        $errorCode = $e->getCode();
-
-        // Categorize errors for better user feedback
-        if (strpos($errorMessage, 'timeout') !== false) {
-            $userMessage = 'Connection timed out. Please check your network connection and try again.';
-            $category = 'timeout';
-        } elseif (strpos($errorMessage, 'Unauthorized') !== false || $errorCode === 401) {
-            $userMessage = 'Authentication failed. Please check your Corporate ID, Username, and Password.';
-            $category = 'auth';
-        } elseif (strpos($errorMessage, 'Not Found') !== false || $errorCode === 404) {
-            $userMessage = 'API endpoint not found. Please check your API URL configuration.';
-            $category = 'config';
-        } elseif (strpos($errorMessage, 'Server Error') !== false || $errorCode >= 500) {
-            $userMessage = 'ETimeOffice server error. Please try again later or contact support.';
-            $category = 'server';
-        } else {
-            $userMessage = 'Connection failed: '.$errorMessage;
-            $category = 'unknown';
-        }
-
-        Log::error("ETimeOffice API Error - {$context}", [
-            'error' => $errorMessage,
-            'code' => $errorCode,
-            'category' => $category,
-            'context' => $context,
-        ]);
-
-        return [
-            'success' => false,
-            'error' => $userMessage,
-            'error_category' => $category,
-            'technical_error' => $errorMessage,
-        ];
-    }
-
-    /**
-     * Retry mechanism for API calls
-     */
-    private function makeApiCallWithRetry(string $endpoint, array $params, int $maxRetries = 1): array
-    {
-        $lastError = null;
-
-        for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
-            try {
-                $result = $this->makeApiCall($endpoint, $params);
-
-                if ($result['success']) {
-                    if ($attempt > 1) {
-                        Log::info("API call succeeded on attempt {$attempt}", [
-                            'endpoint' => $endpoint,
-                        ]);
-                    }
-
-                    return $result;
-                }
-
-                $lastError = $result['error'];
-
-                // Don't retry on authentication errors
-                if (strpos($lastError, 'Authentication') !== false || strpos($lastError, 'Unauthorized') !== false) {
-                    break;
-                }
-
-                // Wait before retry (exponential backoff)
-                if ($attempt < $maxRetries) {
-                    $waitTime = pow(2, $attempt - 1); // 1s, 2s, 4s
-                    sleep($waitTime);
-
-                    Log::info("Retrying API call in {$waitTime}s (attempt {$attempt}/{$maxRetries})", [
-                        'endpoint' => $endpoint,
-                        'error' => $lastError,
-                    ]);
-                }
-
-            } catch (\Exception $e) {
-                $lastError = $e->getMessage();
-
-                // Don't retry on configuration errors
-                if (strpos($lastError, 'configuration') !== false) {
-                    break;
-                }
-
-                if ($attempt < $maxRetries) {
-                    $waitTime = pow(2, $attempt - 1);
-                    sleep($waitTime);
-                }
-            }
-        }
-
-        return [
-            'success' => false,
-            'error' => $lastError ?? 'Unknown error after '.$maxRetries.' attempts',
         ];
     }
 }

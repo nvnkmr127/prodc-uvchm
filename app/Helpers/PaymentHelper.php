@@ -363,22 +363,6 @@ class PaymentHelper
     }
 
     /**
-     * Categorize defaulter based on amount and days
-     */
-    public static function categorizeDefaulter(float $amount, int $days, int $feeCount): string
-    {
-        if ($days >= 90 || $amount >= 50000) {
-            return 'chronic';
-        } elseif ($days >= 60 || $amount >= 25000) {
-            return 'severe';
-        } elseif ($days >= 30 || $amount >= 10000) {
-            return 'moderate';
-        } else {
-            return 'mild';
-        }
-    }
-
-    /**
      * ✅ FIXED: Get payment behavior insights with error handling
      */
     public static function getPaymentBehaviorInsights(Student $student): array
@@ -484,21 +468,6 @@ class PaymentHelper
         };
     }
 
-    /**
-     * ✅ FIXED: Helper methods with error handling
-     */
-    private static function getNewDefaultersCount(Carbon $date): int
-    {
-        try {
-            return StudentFee::where('due_date', $date->format('Y-m-d'))
-                ->whereIn('status', ['unpaid', 'partial'])
-                ->distinct('student_id')
-                ->count();
-        } catch (\Exception $e) {
-            return 0;
-        }
-    }
-
     private static function getTotalDefaultersCount(): int
     {
         try {
@@ -508,30 +477,6 @@ class PaymentHelper
                 ->count();
         } catch (\Exception $e) {
             return 0;
-        }
-    }
-
-    private static function getCriticalCasesCount(): int
-    {
-        try {
-            return StudentFee::where('due_date', '<', now()->subDays(60))
-                ->whereIn('status', ['unpaid', 'partial'])
-                ->distinct('student_id')
-                ->count();
-        } catch (\Exception $e) {
-            return 0;
-        }
-    }
-
-    private static function getOverallCollectionRate(): float
-    {
-        try {
-            $netCollectable = StudentFee::sum(DB::raw('amount - concession_amount'));
-            $totalCollected = StudentFee::sum('paid_amount');
-
-            return $netCollectable > 0 ? ($totalCollected / $netCollectable) * 100 : 0;
-        } catch (\Exception $e) {
-            return 0.0;
         }
     }
 

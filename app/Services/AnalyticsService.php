@@ -5,9 +5,7 @@ namespace App\Services;
 use App\Models\Attendance;
 use App\Models\Payment;
 use App\Models\Student;
-use App\Models\User;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\DB;
 
 class AnalyticsService
 {
@@ -21,66 +19,6 @@ class AnalyticsService
             'student_stats' => $this->getStudentStats(),
             'payment_stats' => $this->getPaymentStats(),
             'attendance_stats' => $this->getAttendanceStats(),
-        ];
-    }
-
-    /**
-     * Get user statistics
-     */
-    public function getUserStats(): array
-    {
-        return [
-            'total_users' => User::count(),
-            'active_users' => User::where('is_active', true)->count(),
-            'new_users_this_month' => User::whereMonth('created_at', now()->month)->count(),
-            'users_by_role' => User::join('model_has_roles', 'users.id', '=', 'model_has_roles.model_id')
-                ->join('roles', 'model_has_roles.role_id', '=', 'roles.id')
-                ->groupBy('roles.name')
-                ->select('roles.name', DB::raw('count(*) as count'))
-                ->pluck('count', 'name')
-                ->toArray(),
-        ];
-    }
-
-    /**
-     * Get student statistics
-     */
-    public function getStudentStats(): array
-    {
-        return [
-            'total_students' => Student::count(),
-            'active_students' => Student::where('status', 'active')->count(),
-            'new_admissions_this_month' => Student::whereMonth('created_at', now()->month)->count(),
-            'students_by_course' => Student::join('batches', 'students.batch_id', '=', 'batches.id')
-                ->join('courses', 'batches.course_id', '=', 'courses.id')
-                ->groupBy('courses.name')
-                ->select('courses.name', DB::raw('count(*) as count'))
-                ->pluck('count', 'name')
-                ->toArray(),
-        ];
-    }
-
-    /**
-     * Get payment statistics
-     */
-    public function getPaymentStats(): array
-    {
-        $currentMonth = now()->month;
-        $currentYear = now()->year;
-
-        return [
-            'total_revenue' => Payment::sum('amount'),
-            'monthly_revenue' => Payment::whereMonth('created_at', $currentMonth)
-                ->whereYear('created_at', $currentYear)
-                ->sum('amount'),
-            'pending_payments' => Payment::where('status', 'pending')->sum('amount'),
-            'successful_payments' => Payment::where('status', 'completed')->count(),
-            'failed_payments' => Payment::where('status', 'failed')->count(),
-            'payment_methods' => Payment::where('status', 'completed')
-                ->groupBy('payment_method')
-                ->select('payment_method', DB::raw('count(*) as count'))
-                ->pluck('count', 'payment_method')
-                ->toArray(),
         ];
     }
 
@@ -139,23 +77,6 @@ class AnalyticsService
     }
 
     /**
-     * Get revenue trends
-     */
-    public function getRevenueTrends(int $days = 30): array
-    {
-        $trends = [];
-
-        for ($i = $days - 1; $i >= 0; $i--) {
-            $date = Carbon::now()->subDays($i)->format('Y-m-d');
-            $trends[$date] = Payment::whereDate('created_at', $date)
-                ->where('status', 'completed')
-                ->sum('amount');
-        }
-
-        return $trends;
-    }
-
-    /**
      * Get performance metrics
      */
     public function getPerformanceMetrics(): array
@@ -180,17 +101,6 @@ class AnalyticsService
         }
 
         return (($currentMonth - $previousMonth) / $previousMonth) * 100;
-    }
-
-    /**
-     * Calculate student retention rate
-     */
-    private function calculateRetentionRate(): float
-    {
-        $totalStudents = Student::count();
-        $activeStudents = Student::where('status', 'active')->count();
-
-        return $totalStudents > 0 ? ($activeStudents / $totalStudents) * 100 : 0;
     }
 
     /**

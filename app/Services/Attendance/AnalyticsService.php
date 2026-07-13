@@ -7,10 +7,7 @@ use App\Models\Attendance\AttendanceCache;
 use App\Models\Attendance\BiometricLog;
 use App\Models\Attendance\NotificationLog;
 use App\Models\Batch;
-use App\Models\Student;
-use Carbon\Carbon;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class AnalyticsService
@@ -63,44 +60,6 @@ class AnalyticsService
                 ],
             ];
         }
-    }
-
-    /**
-     * Get attendance overview statistics
-     */
-    public function getOverviewStats(array $filters = []): array
-    {
-        $query = Attendance::query();
-        $this->applyFilters($query, $filters);
-
-        $totalRecords = $query->count();
-        $presentCount = $query->clone()->where('status', 'present')->count();
-        $absentCount = $query->clone()->where('status', 'absent')->count();
-        $lateCount = $query->clone()->where('status', 'late')->count();
-        $excusedCount = $query->clone()->where('status', 'excused')->count();
-
-        // Calculate percentages
-        $attendancePercentage = $totalRecords > 0 ? round(($presentCount + $lateCount + $excusedCount) / $totalRecords * 100, 2) : 0;
-        $punctualityPercentage = $totalRecords > 0 ? round($presentCount / $totalRecords * 100, 2) : 0;
-
-        // Get unique students and dates for context
-        $uniqueStudents = $query->clone()->distinct('student_id')->count('student_id');
-        $dateRange = $this->getDateRange($filters);
-        $schoolDays = $this->calculateSchoolDays($dateRange['start'], $dateRange['end']);
-
-        return [
-            'total_records' => $totalRecords,
-            'present_count' => $presentCount,
-            'absent_count' => $absentCount,
-            'late_count' => $lateCount,
-            'excused_count' => $excusedCount,
-            'attendance_percentage' => $attendancePercentage,
-            'punctuality_percentage' => $punctualityPercentage,
-            'unique_students' => $uniqueStudents,
-            'date_range' => $dateRange,
-            'school_days' => $schoolDays,
-            'average_daily_attendance' => $schoolDays > 0 ? round($totalRecords / $schoolDays, 2) : 0,
-        ];
     }
 
     /**
@@ -218,38 +177,6 @@ class AnalyticsService
     }
 
     /**
-     * Get daily attendance patterns
-     */
-    public function getDailyPatterns(array $filters = []): array
-    {
-        $patterns = Attendance::selectRaw("
-                DAYOFWEEK(attendance_date) as day_of_week,
-                DAYNAME(attendance_date) as day_name,
-                COUNT(*) as total,
-                SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) as present,
-                SUM(CASE WHEN status = 'late' THEN 1 ELSE 0 END) as late,
-                ROUND(AVG(CASE WHEN status IN ('present', 'late') THEN 1 ELSE 0 END) * 100, 2) as avg_attendance
-            ");
-
-        $this->applyFilters($patterns, $filters);
-
-        $dailyStats = $patterns->groupBy(DB::raw('DAYOFWEEK(attendance_date)'), DB::raw('DAYNAME(attendance_date)'))
-            ->orderBy(DB::raw('DAYOFWEEK(attendance_date)'))
-            ->get();
-
-        // Find peak and low days
-        $peakDay = $dailyStats->sortByDesc('avg_attendance')->first();
-        $lowDay = $dailyStats->sortBy('avg_attendance')->first();
-
-        return [
-            'daily_stats' => $dailyStats,
-            'peak_day' => $peakDay,
-            'low_day' => $lowDay,
-            'weekday_vs_weekend' => $this->getWeekdayWeekendComparison($dailyStats),
-        ];
-    }
-
-    /**
      * Get biometric system statistics
      */
     public function getBiometricStats(array $filters = []): array
@@ -281,20 +208,6 @@ class AnalyticsService
             'device_stats' => $deviceStats,
             'recent_activity' => $this->getRecentBiometricActivity(),
         ];
-    }
-
-    /**
-     * Get notification system statistics
-     */
-    public function getNotificationStats(array $filters = []): array
-    {
-        $dateFrom = $filters['date_from'] ?? now()->subDays(7);
-        $dateTo = $filters['date_to'] ?? now();
-
-        return NotificationLog::getDeliveryStats([
-            'date_from' => $dateFrom,
-            'date_to' => $dateTo,
-        ]);
     }
 
     /**
@@ -331,84 +244,6 @@ class AnalyticsService
     }
 
     /**
-     * Calculate and update attendance cache for a student
-     */
-    public function updateStudentAttendanceCache(int $studentId, array $options = []): AttendanceCache
-    {
-        $cacheType = $options['cache_type'] ?? 'overall';
-        $periodType = $options['period_type'] ?? 'academic_year';
-        $periodValue = $options['period_value'] ?? now()->format('Y');
-
-        // Get attendance data for the student
-        $attendanceData = $this->calculateStudentAttendanceData($studentId, $options);
-
-        // Get or create cache entry
-        $cache = AttendanceCache::getOrCreateForStudent($studentId, $cacheType, $periodType, $periodValue);
-
-        // Update with fresh data
-        $cache->updateWithAttendanceData($attendanceData);
-
-        return $cache;
-    }
-
-    /**
-     * Calculate student attendance data
-     */
-    public function calculateStudentAttendanceData(int $studentId, array $filters = []): array
-    {
-        $query = Attendance::where('student_id', $studentId);
-        $this->applyFilters($query, $filters);
-
-        $attendances = $query->get();
-        $totalClasses = $attendances->count();
-
-        $stats = [
-            'total_classes' => $totalClasses,
-            'present_classes' => $attendances->where('status', 'present')->count(),
-            'absent_classes' => $attendances->where('status', 'absent')->count(),
-            'late_classes' => $attendances->where('status', 'late')->count(),
-            'excused_classes' => $attendances->where('status', 'excused')->count(),
-        ];
-
-        // Calculate consecutive absences
-        $consecutiveAbsents = $this->calculateConsecutiveAbsences($attendances);
-
-        // Get last attendance date
-        $lastAttendance = $attendances->where('status', '!=', 'absent')
-            ->sortByDesc('attendance_date')
-            ->first();
-
-        return array_merge($stats, [
-            'consecutive_absents' => $consecutiveAbsents,
-            'last_attendance_date' => $lastAttendance?->attendance_date,
-            'analytics_data' => [
-                'monthly_breakdown' => $this->getMonthlyBreakdown($attendances),
-                'status_distribution' => $this->getStatusDistribution($attendances),
-                'recent_pattern' => $this->getRecentPattern($attendances),
-            ],
-        ]);
-    }
-
-    /**
-     * Generate comprehensive attendance report
-     */
-    public function generateAttendanceReport(array $filters = []): array
-    {
-        $reportData = [
-            'summary' => $this->getOverviewStats($filters),
-            'detailed_stats' => $this->getDetailedStatistics($filters),
-            'student_performance' => $this->getStudentPerformanceReport($filters),
-            'batch_comparison' => $this->getBatchPerformance($filters),
-            'trends' => $this->getTrendAnalysis($filters),
-            'recommendations' => $this->generateRecommendations($filters),
-            'generated_at' => now()->toISOString(),
-            'filters_applied' => $filters,
-        ];
-
-        return $reportData;
-    }
-
-    /**
      * Apply common filters to attendance queries
      */
     private function applyFilters($query, array $filters): void
@@ -427,39 +262,6 @@ class AnalyticsService
         if (isset($filters['student_id'])) {
             $query->where('student_id', $filters['student_id']);
         }
-    }
-
-    /**
-     * Apply filters to raw query builder
-     */
-    private function applyFiltersToQuery($query, array $filters, string $table = 'attendances'): void
-    {
-        if (isset($filters['date_from'])) {
-            $query->where("{$table}.attendance_date", '>=', $filters['date_from']);
-        }
-        if (isset($filters['date_to'])) {
-            $query->where("{$table}.attendance_date", '<=', $filters['date_to']);
-        }
-        if (isset($filters['batch_id'])) {
-            $query->where('students.batch_id', $filters['batch_id']);
-        }
-    }
-
-    /**
-     * Helper methods for calculations and formatting
-     */
-    private function getDateRange(array $filters): array
-    {
-        return [
-            'start' => $filters['date_from'] ?? now()->startOfYear(),
-            'end' => $filters['date_to'] ?? now(),
-        ];
-    }
-
-    private function calculateSchoolDays(Carbon $start, Carbon $end): int
-    {
-        // Simple calculation - can be enhanced with holiday calendar
-        return $start->diffInWeekdays($end) + 1;
     }
 
     private function calculateTrendDirection(Collection $percentages): string
@@ -481,35 +283,6 @@ class AnalyticsService
         }
 
         return 'stable';
-    }
-
-    private function formatChartData(Collection $trends, string $period): array
-    {
-        return $trends->map(function ($trend) {
-            return [
-                'period' => $trend->period,
-                'attendance_percentage' => $trend->attendance_percentage,
-                'total' => $trend->total,
-                'present' => $trend->present,
-                'absent' => $trend->absent,
-                'late' => $trend->late,
-            ];
-        })->toArray();
-    }
-
-    private function getPerformanceLevel(float $percentage): string
-    {
-        if ($percentage >= 90) {
-            return 'excellent';
-        }
-        if ($percentage >= 80) {
-            return 'good';
-        }
-        if ($percentage >= 75) {
-            return 'satisfactory';
-        }
-
-        return 'needs_improvement';
     }
 
     private function calculateRiskLevel(AttendanceCache $cache): string
@@ -558,71 +331,6 @@ class AnalyticsService
         return $consecutive;
     }
 
-    private function getMonthlyBreakdown(Collection $attendances): array
-    {
-        return $attendances->groupBy(function ($attendance) {
-            return Carbon::parse($attendance->attendance_date)->format('Y-m');
-        })->map(function ($monthAttendances) {
-            $total = $monthAttendances->count();
-            $present = $monthAttendances->where('status', 'present')->count();
-
-            return [
-                'total' => $total,
-                'present' => $present,
-                'percentage' => $total > 0 ? round(($present / $total) * 100, 2) : 0,
-            ];
-        })->toArray();
-    }
-
     // Additional helper methods
-    private function getStatusDistribution(Collection $attendances): array
-    {
-        return $attendances->countBy('status')->toArray();
-    }
 
-    private function getRecentPattern(Collection $attendances): array
-    {
-        return $attendances->sortByDesc('attendance_date')
-            ->take(10)
-            ->pluck('status', 'attendance_date')
-            ->toArray();
-    }
-
-    private function getWeekdayWeekendComparison(Collection $dailyStats): array
-    {
-        $weekdays = $dailyStats->whereIn('day_of_week', [2, 3, 4, 5, 6]); // Mon-Fri
-        $weekends = $dailyStats->whereIn('day_of_week', [1, 7]); // Sun, Sat
-
-        return [
-            'weekday_avg' => $weekdays->avg('avg_attendance') ?? 0,
-            'weekend_avg' => $weekends->avg('avg_attendance') ?? 0,
-        ];
-    }
-
-    private function getRecentBiometricActivity(): Collection
-    {
-        return BiometricLog::with('student')
-            ->where('scan_datetime', '>=', now()->subHours(2))
-            ->orderBy('scan_datetime', 'desc')
-            ->limit(5)
-            ->get();
-    }
-
-    private function getDetailedStatistics(array $filters): array
-    {
-        // Implementation for detailed statistics
-        return [];
-    }
-
-    private function getStudentPerformanceReport(array $filters): array
-    {
-        // Implementation for student performance report
-        return [];
-    }
-
-    private function generateRecommendations(array $filters): array
-    {
-        // Implementation for generating recommendations
-        return [];
-    }
 }

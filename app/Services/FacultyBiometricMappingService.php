@@ -31,33 +31,13 @@ class FacultyBiometricMappingService
     }
 
     /**
-     * Get unmapped faculty with suggestions
-     */
-    public function getUnmappedFaculty()
-    {
-        return User::role('staff')
-            ->where('status', 'active')
-            ->whereNull('biometric_employee_code')
-            ->get()
-            ->map(function ($faculty) {
-                return [
-                    'id' => $faculty->id,
-                    'name' => $faculty->name,
-                    'employee_id' => $faculty->employee_id,
-                    'department' => $faculty->department ?? 'No Department',
-                    'phone' => $faculty->phone ?? 'No Phone',
-                    'suggested_code' => $this->generateBiometricCodeFromEmployeeId($faculty->employee_id ?? ''),
-                ];
-            });
-    }
-
-    /**
      * Generate and assign a biometric code for a single faculty member.
      */
     public function assignBiometricCode(User $faculty): void
     {
         if (empty($faculty->employee_id)) {
             Log::warning("Cannot assign biometric code to faculty {$faculty->name} because employee_id is empty.");
+
             return;
         }
 
@@ -102,6 +82,7 @@ class FacultyBiometricMappingService
                 if (empty($faculty->employee_id)) {
                     $results['error_count']++;
                     $results['errors'][] = "Error generating code for {$faculty->name}: Employee ID is empty.";
+
                     continue;
                 }
 
@@ -158,6 +139,7 @@ class FacultyBiometricMappingService
                 if (! isset($mapping['faculty_id']) || ! isset($mapping['biometric_code'])) {
                     $results['error_count']++;
                     $results['errors'][] = 'Missing faculty_id or biometric_code in mapping';
+
                     continue;
                 }
 
@@ -166,6 +148,7 @@ class FacultyBiometricMappingService
                 if (! $faculty) {
                     $results['error_count']++;
                     $results['errors'][] = "Faculty not found: ID {$mapping['faculty_id']}";
+
                     continue;
                 }
 
@@ -174,6 +157,7 @@ class FacultyBiometricMappingService
                     // If empty code, clear the existing one
                     $faculty->update(['biometric_employee_code' => null]);
                     $results['success_count']++;
+
                     continue;
                 }
 
@@ -181,6 +165,7 @@ class FacultyBiometricMappingService
                 if (! preg_match('/^[a-zA-Z0-9\-]+$/', $mapping['biometric_code'])) {
                     $results['error_count']++;
                     $results['errors'][] = "Invalid biometric code format for {$faculty->name}: {$mapping['biometric_code']}";
+
                     continue;
                 }
 
@@ -192,6 +177,7 @@ class FacultyBiometricMappingService
                 if ($existingUser) {
                     $results['error_count']++;
                     $results['errors'][] = "Biometric code '{$mapping['biometric_code']}' already used by {$existingUser->name}";
+
                     continue;
                 }
 
@@ -230,10 +216,10 @@ class FacultyBiometricMappingService
         // For backwards compatibility with the method signature, we need a dummy User
         // because the new service method expects a Faculty (User) object.
         // However, in our service, the logic doesn't strictly depend on the object.
-        $dummyFaculty = new User();
+        $dummyFaculty = new User;
         $dummyFaculty->employee_id = $employeeId;
-        
-        return app(\App\Services\UnifiedIdentifierService::class)->generateFacultyBiometricId($dummyFaculty);
+
+        return app(UnifiedIdentifierService::class)->generateFacultyBiometricId($dummyFaculty);
     }
 
     /**

@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Exports\UnmappedStudentsExport;
 use App\Imports\BiometricMappingImport;
 use App\Models\Student;
-use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
@@ -32,34 +31,13 @@ class BiometricMappingService
     }
 
     /**
-     * Get unmapped students with suggestions
-     */
-    public function getUnmappedStudents()
-    {
-        return Student::where('status', 'active')
-            ->whereNull('biometric_employee_code')
-            ->with(['batch.course'])
-            ->get()
-            ->map(function ($student) {
-                return [
-                    'id' => $student->id,
-                    'name' => $student->name,
-                    'enrollment_number' => $student->enrollment_number,
-                    'batch_name' => $student->batch->name ?? 'No Batch',
-                    'course_name' => $student->batch->course->name ?? 'No Course',
-                    'suggested_code' => $this->generateBiometricCode($student),
-                ];
-            });
-    }
-
-    /**
      * Generate and assign a biometric code for a single student.
      * Call this immediately after creating a student.
      */
     public function assignBiometricCode(Student $student): void
     {
         $generatedCode = $this->generateBiometricCode($student);
-        
+
         $student->update(['biometric_employee_code' => $generatedCode]);
 
         Log::info("Automatically assigned biometric code {$generatedCode} to student {$student->name}");
@@ -213,7 +191,7 @@ class BiometricMappingService
      */
     public function generateBiometricCode(Student $student): string
     {
-        return app(\App\Services\UnifiedIdentifierService::class)->generateStudentBiometricId($student);
+        return app(UnifiedIdentifierService::class)->generateStudentBiometricId($student);
     }
 
     /**

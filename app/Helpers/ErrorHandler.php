@@ -62,12 +62,4 @@ class ErrorHandler
 
         return $redirect->with('error', $userMessage);
     }
-
-    /**
-     * Get safe error message based on environment
-     */
-    public static function getSafeErrorMessage(Throwable $exception, string $fallbackMessage = 'An error occurred'): string
-    {
-        return config('app.debug') ? $exception->getMessage() : $fallbackMessage;
-    }
 }
