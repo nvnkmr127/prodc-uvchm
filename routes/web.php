@@ -1542,6 +1542,7 @@ Route::post('placement-logout', [\App\Http\Controllers\Admin\PlacementAuthContro
 Route::middleware(['auth'])->prefix('placement-portal')->name('placement-portal.')->group(function () {
     Route::get('/', [\App\Http\Controllers\Admin\PlacementController::class, 'index'])->name('index');
     Route::put('update/{student}', [\App\Http\Controllers\Admin\PlacementController::class, 'update'])->name('update');
+    Route::post('bulk-update', [\App\Http\Controllers\Admin\PlacementController::class, 'bulkUpdate'])->name('bulk-update');
     Route::get('export', [\App\Http\Controllers\Admin\PlacementController::class, 'export'])->name('export');
 });
 

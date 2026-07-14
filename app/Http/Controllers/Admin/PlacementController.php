@@ -31,12 +31,6 @@ class PlacementController extends Controller
             }])
             ->where('status', '!=', 'dropout');
 
-        if ($request->filled('course_id')) {
-            $query->whereHas('batch', function($q) use ($request) {
-                $q->withoutGlobalScope('academic_year')->where('course_id', $request->course_id);
-            });
-        }
-
         if ($request->filled('batch_id')) {
             $query->where('batch_id', $request->batch_id);
         }
@@ -63,10 +57,14 @@ class PlacementController extends Controller
         }
 
         $students = $query->orderBy('name')->paginate(15)->withQueryString();
-        $courses = Course::withoutGlobalScope('academic_year')->orderBy('name')->get();
-        $batches = Batch::withoutGlobalScope('academic_year')->orderBy('name')->get();
+        $courses = Course::withoutGlobalScope('academic_year')
+            ->with(['batches' => function($q) {
+                $q->withoutGlobalScope('academic_year')->orderBy('name');
+            }])
+            ->orderBy('name')
+            ->get();
 
-        return view('admin.placements.index', compact('students', 'courses', 'batches'));
+        return view('admin.placements.index', compact('students', 'courses'));
     }
 
     public function update(Request $request, Student $student)
@@ -86,6 +84,27 @@ class PlacementController extends Controller
         return redirect()->back()->with('success', 'Placement details updated successfully.');
     }
 
+    public function bulkUpdate(Request $request)
+    {
+        $validated = $request->validate([
+            'student_ids' => 'required|array',
+            'student_ids.*' => 'exists:students,id',
+            'placement_status' => 'required|string',
+            'placed_at' => 'nullable|string|max:255',
+            'placement_designation' => 'nullable|string|max:255',
+        ]);
+
+        Student::withoutGlobalScope('academic_year')
+            ->whereIn('id', $validated['student_ids'])
+            ->update([
+                'placement_status' => $validated['placement_status'],
+                'placed_at' => $validated['placed_at'] ?? null,
+                'placement_designation' => $validated['placement_designation'] ?? null,
+            ]);
+
+        return redirect()->back()->with('success', count($validated['student_ids']) . ' students updated successfully.');
+    }
+
     public function export(Request $request)
     {
         $query = Student::withoutGlobalScope('academic_year')
@@ -95,12 +114,6 @@ class PlacementController extends Controller
                 }]);
             }])
             ->where('status', '!=', 'dropout');
-
-        if ($request->filled('course_id')) {
-            $query->whereHas('batch', function($q) use ($request) {
-                $q->withoutGlobalScope('academic_year')->where('course_id', $request->course_id);
-            });
-        }
 
         if ($request->filled('batch_id')) {
             $query->where('batch_id', $request->batch_id);
