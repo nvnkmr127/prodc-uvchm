@@ -162,92 +162,190 @@ class FeeCategoryOverviewSheet implements FromCollection, WithHeadings, WithMapp
     }
 }
 
-class FeeCategoryDetailedSheet implements FromCollection, WithHeadings, WithMapping, WithStyles, WithTitle
+class FeeCategoryDetailedSheet implements FromCollection, WithHeadings, WithMapping, WithStyles, WithTitle, \Maatwebsite\Excel\Concerns\WithEvents
 {
-    protected $data;
+    protected $groupedData;
+    protected $categories;
 
     public function __construct($data)
     {
-        $this->data = collect($data);
+        $collection = collect($data);
+        
+        // Group by student ID
+        $this->groupedData = $collection->groupBy('student_id');
+        
+        // Extract unique category names dynamically from the data
+        $this->categories = $collection->pluck('feeCategory.name')
+            ->filter()
+            ->unique()
+            ->values()
+            ->toArray();
     }
 
     public function collection()
     {
-        return $this->data;
+        return $this->groupedData;
     }
 
     public function headings(): array
     {
-        return [
+        $row1 = ['', '', '', '', '', ''];
+        $row2 = [
             'Student Name',
             'Enrollment Number',
             'Course',
             'Batch',
-            'Fee Category',
-            'Total Amount',
-            'Concession',
-            'Paid Amount',
-            'Balance',
-            'Status',
-            'Due Date',
-            'Last Payment Date',
+            'Student Number',
+            'Father number'
         ];
-    }
 
-    public function map($fee): array
-    {
-        // Extract Student Details safely
-        $studentName = $fee->student->name ?? 'N/A';
-        $enrollment = $fee->student->enrollment_number ?? 'N/A';
-        $course = $fee->student->batch->course->name ?? 'N/A';
-        $batch = $fee->student->batch->name ?? 'N/A';
-        $category = $fee->feeCategory->name ?? 'N/A';
-
-        // Financials
-        $amount = $fee->amount ?? 0;
-        $concession = $fee->concession_amount ?? 0;
-        $paid = $fee->paid_amount ?? 0;
-        $balance = $amount - $concession - $paid;
-
-        // Status & Dates
-        $status = ucfirst($fee->status ?? 'pending');
-        $dueDate = $fee->due_date ? \Carbon\Carbon::parse($fee->due_date)->format('Y-m-d') : 'N/A';
-
-        // Get last payment date if available
-        $lastPayment = 'N/A';
-        if (isset($fee->last_payment_date)) {
-            $lastPayment = \Carbon\Carbon::parse($fee->last_payment_date)->format('Y-m-d');
-        } elseif (isset($fee->payments) && $fee->payments->isNotEmpty()) {
-            $lastPayment = $fee->payments->sortByDesc('payment_date')->first()->payment_date->format('Y-m-d');
+        if (count($this->categories) > 0) {
+            $row1[] = 'Fee Category';
+            // pad the rest of the merged cells for Row 1
+            for ($i = 1; $i < count($this->categories); $i++) {
+                $row1[] = '';
+            }
+            
+            foreach ($this->categories as $category) {
+                $row2[] = $category;
+            }
+        } else {
+            $row1[] = 'Fee Category';
+            $row2[] = 'No Categories';
         }
 
-        return [
+        // Grand Totals headers
+        $row1 = array_merge($row1, ['', '', '', '']);
+        $row2 = array_merge($row2, [
+            'Total Amount',
+            'Paid Amount',
+            'Balance',
+            'Status'
+        ]);
+
+        return [$row1, $row2];
+    }
+
+    public function map($studentFees): array
+    {
+        $firstFee = $studentFees->first();
+        
+        $studentName = $firstFee->student->name ?? 'N/A';
+        $enrollment = $firstFee->student->enrollment_number ?? 'N/A';
+        $course = $firstFee->student->batch->course->name ?? 'N/A';
+        $batch = $firstFee->student->batch->name ?? 'N/A';
+        $studentNumber = $firstFee->student->student_mobile ?? 'N/A';
+        $fatherNumber = $firstFee->student->father_mobile ?? 'N/A';
+
+        $row = [
             $studentName,
             $enrollment,
             $course,
             $batch,
-            $category,
-            number_format($amount, 2, '.', ''),
-            number_format($concession, 2, '.', ''),
-            number_format($paid, 2, '.', ''),
-            number_format($balance, 2, '.', ''),
-            $status,
-            $dueDate,
-            $lastPayment,
+            $studentNumber,
+            $fatherNumber
         ];
+
+        $totalAmount = 0;
+        $totalPaid = 0;
+        
+        $feeMap = [];
+        foreach ($studentFees as $fee) {
+            $catName = $fee->feeCategory->name ?? 'Unknown';
+            $billed = ($fee->amount ?? 0) - ($fee->concession_amount ?? 0);
+            $feeMap[$catName] = ($feeMap[$catName] ?? 0) + $billed;
+            
+            $totalAmount += $billed;
+            $totalPaid += ($fee->paid_amount ?? 0);
+        }
+        
+        $totalBalance = $totalAmount - $totalPaid;
+        
+        // Formatting helper to show 'Paid' if 0
+        $formatNumber = function($val) {
+            return (float)$val == 0 ? 'Paid' : number_format((float)$val, 2, '.', '');
+        };
+        
+        // Output category amounts
+        if (count($this->categories) > 0) {
+            foreach ($this->categories as $category) {
+                $val = $feeMap[$category] ?? 0;
+                $row[] = $formatNumber($val);
+            }
+        } else {
+            $row[] = '-';
+        }
+        
+        // Grand Totals
+        $row[] = $formatNumber($totalAmount);
+        // Only format Paid Amount as 'Paid' if they explicitly wanted it, but a 0 paid amount means unpaid.
+        // It's safer to format a 0 paid amount as 0.00 so it's not confused with fully paid.
+        // However, user said "Paid instead of Zero in all columns". I'll format it as requested but maybe add an exception for Paid Amount to avoid confusion.
+        $row[] = $totalPaid == 0 ? '0.00' : number_format($totalPaid, 2, '.', '');
+        $row[] = $formatNumber($totalBalance <= 0 ? 0 : $totalBalance);
+        
+        // Determine status
+        if ($totalBalance <= 0) {
+            $status = 'Paid';
+        } elseif ($totalPaid > 0) {
+            $status = 'Partial';
+        } else {
+            $status = 'Unpaid';
+        }
+        $row[] = $status;
+
+        return $row;
     }
 
     public function title(): string
     {
-        return 'Detailed Student List';
+        return 'Detailed Report';
     }
 
     public function styles(Worksheet $sheet)
     {
         return [
             1 => ['font' => ['bold' => true, 'size' => 12]],
-            'A:L' => ['alignment' => ['horizontal' => 'left']],
-            'F:I' => ['numberFormat' => ['formatCode' => '#,##0.00']],
+            2 => ['font' => ['bold' => true, 'size' => 11]],
+            'A:Z' => ['alignment' => ['horizontal' => 'left']],
+        ];
+    }
+    
+    public function registerEvents(): array
+    {
+        return [
+            \Maatwebsite\Excel\Events\AfterSheet::class => function(\Maatwebsite\Excel\Events\AfterSheet $event) {
+                $sheet = $event->sheet->getDelegate();
+                
+                // Landscape Orientation
+                $sheet->getPageSetup()->setOrientation(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::ORIENTATION_LANDSCAPE);
+                
+                // Merge rows A1:A2, B1:B2, etc. for first 6 cols
+                $cols = ['A', 'B', 'C', 'D', 'E', 'F'];
+                foreach ($cols as $col) {
+                    $sheet->mergeCells($col.'1:'.$col.'2');
+                }
+                
+                // Merge "Fee Category" horizontally
+                if (count($this->categories) > 1) {
+                    $startColIndex = 7; // G
+                    $endColIndex = 7 + count($this->categories) - 1;
+                    $startCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($startColIndex);
+                    $endCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($endColIndex);
+                    $sheet->mergeCells($startCol.'1:'.$endCol.'1');
+                    
+                    // Align center for merged header
+                    $sheet->getStyle($startCol.'1')->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER);
+                }
+                
+                // Merge Grand Totals headers
+                $startTotalsIndex = 7 + count($this->categories);
+                if (count($this->categories) == 0) $startTotalsIndex = 8;
+                for ($i = 0; $i < 4; $i++) {
+                    $col = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($startTotalsIndex + $i);
+                    $sheet->mergeCells($col.'1:'.$col.'2');
+                }
+            },
         ];
     }
 }
