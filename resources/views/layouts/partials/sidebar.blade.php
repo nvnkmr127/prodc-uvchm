@@ -245,7 +245,7 @@
             <!-- Placements -->
             @if(auth()->user()?->hasRole('super-admin') || auth()->user()?->can('view students'))
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ route('placements.index') }}">
+                    <a class="nav-link" href="{{ route('placement-portal.index') }}">
                         <i class="fas fa-fw fa-briefcase"></i>
                         <span>Placements</span>
                     </a>

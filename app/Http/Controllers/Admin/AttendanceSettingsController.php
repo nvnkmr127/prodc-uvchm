@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Admin;
 
+use Illuminate\Support\Facades\DB;
+
 use App\Exports\AttendanceExport;
 use App\Exports\SyncLogsExport;
 use App\Exports\TodayAttendanceExport;
