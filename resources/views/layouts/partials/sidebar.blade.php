@@ -242,6 +242,16 @@
                 </li>
             @endif
 
+            <!-- Placements -->
+            @if(auth()->user()?->hasRole('super-admin') || auth()->user()?->can('view students'))
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ route('placements.index') }}">
+                        <i class="fas fa-fw fa-briefcase"></i>
+                        <span>Placements</span>
+                    </a>
+                </li>
+            @endif
+
             <!-- Financials -->
             @if(auth()->user()?->hasRole('super-admin') || auth()->user()?->canAny(['view financials', 'view invoices']))
                 <li class="nav-item">

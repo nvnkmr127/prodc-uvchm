@@ -189,8 +189,7 @@ class FeeCategoryDetailedSheet implements FromCollection, WithHeadings, WithMapp
 
     public function headings(): array
     {
-        $row1 = ['', '', '', '', '', ''];
-        $row2 = [
+        $row1 = [
             'Student Name',
             'Enrollment Number',
             'Course',
@@ -198,6 +197,7 @@ class FeeCategoryDetailedSheet implements FromCollection, WithHeadings, WithMapp
             'Student Number',
             'Father number'
         ];
+        $row2 = ['', '', '', '', '', ''];
 
         if (count($this->categories) > 0) {
             $row1[] = 'Fee Category';
@@ -215,13 +215,13 @@ class FeeCategoryDetailedSheet implements FromCollection, WithHeadings, WithMapp
         }
 
         // Grand Totals headers
-        $row1 = array_merge($row1, ['', '', '', '']);
-        $row2 = array_merge($row2, [
+        $row1 = array_merge($row1, [
             'Total Amount',
             'Paid Amount',
             'Balance',
             'Status'
         ]);
+        $row2 = array_merge($row2, ['', '', '', '']);
 
         return [$row1, $row2];
     }
@@ -253,36 +253,43 @@ class FeeCategoryDetailedSheet implements FromCollection, WithHeadings, WithMapp
         foreach ($studentFees as $fee) {
             $catName = $fee->feeCategory->name ?? 'Unknown';
             $billed = ($fee->amount ?? 0) - ($fee->concession_amount ?? 0);
-            $feeMap[$catName] = ($feeMap[$catName] ?? 0) + $billed;
+            $paid = $fee->paid_amount ?? 0;
+            $balance = $billed - $paid;
+            
+            if (!isset($feeMap[$catName])) {
+                $feeMap[$catName] = 0;
+            }
+            $feeMap[$catName] += $balance;
             
             $totalAmount += $billed;
-            $totalPaid += ($fee->paid_amount ?? 0);
+            $totalPaid += $paid;
         }
         
         $totalBalance = $totalAmount - $totalPaid;
         
-        // Formatting helper to show 'Paid' if 0
+        // Formatting helper
         $formatNumber = function($val) {
-            return (float)$val == 0 ? 'Paid' : number_format((float)$val, 2, '.', '');
+            return (float)$val <= 0 ? 'Paid' : number_format((float)$val, 2, '.', '');
         };
         
-        // Output category amounts
+        // Output category amounts (Show balance, 'Paid', or '-')
         if (count($this->categories) > 0) {
             foreach ($this->categories as $category) {
-                $val = $feeMap[$category] ?? 0;
-                $row[] = $formatNumber($val);
+                if (isset($feeMap[$category])) {
+                    $val = $feeMap[$category];
+                    $row[] = $formatNumber($val);
+                } else {
+                    $row[] = '-';
+                }
             }
         } else {
             $row[] = '-';
         }
         
         // Grand Totals
-        $row[] = $formatNumber($totalAmount);
-        // Only format Paid Amount as 'Paid' if they explicitly wanted it, but a 0 paid amount means unpaid.
-        // It's safer to format a 0 paid amount as 0.00 so it's not confused with fully paid.
-        // However, user said "Paid instead of Zero in all columns". I'll format it as requested but maybe add an exception for Paid Amount to avoid confusion.
+        $row[] = number_format($totalAmount, 2, '.', ''); // Total Amount should not say Paid
         $row[] = $totalPaid == 0 ? '0.00' : number_format($totalPaid, 2, '.', '');
-        $row[] = $formatNumber($totalBalance <= 0 ? 0 : $totalBalance);
+        $row[] = $formatNumber($totalBalance);
         
         // Determine status
         if ($totalBalance <= 0) {

@@ -87,8 +87,12 @@ class StudentReportController extends Controller
             $file = fopen('php://output', 'w');
             fputcsv($file, [
                 '#', 
-                'Enrollment No', 
+                'Enrollment No',
+                'Biometric Code',
                 'Name', 
+                'Gender',
+                'DOB',
+                'Age',
                 'Father Name', 
                 'Student Mobile', 
                 'Father Mobile', 
@@ -100,6 +104,7 @@ class StudentReportController extends Controller
                 'Paid Fee', 
                 'Outstanding Fee',
                 'Admission Date',
+                'Certificate Received',
                 'Status'
             ]);
 
@@ -109,7 +114,11 @@ class StudentReportController extends Controller
                 fputcsv($file, [
                     $index + 1,
                     $student->enrollment_number,
+                    $student->biometric_employee_code ?? 'N/A',
                     $student->name,
+                    ucfirst($student->gender ?? 'N/A'),
+                    $student->dob ? $student->dob->format('Y-m-d') : 'N/A',
+                    $student->age ?? 'N/A',
                     $student->father_name,
                     $student->student_mobile,
                     $student->father_mobile,
@@ -121,6 +130,7 @@ class StudentReportController extends Controller
                     $financials['total_paid'],
                     $financials['total_outstanding'],
                     $student->admission_date ? $student->admission_date->format('Y-m-d') : 'N/A',
+                    $student->is_certificate_received ? 'Yes' : 'No',
                     ucfirst($student->status)
                 ]);
             }

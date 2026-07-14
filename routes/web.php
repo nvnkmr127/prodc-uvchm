@@ -756,6 +756,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
         Route::get('reports/address/export', [AddressReportController::class, 'export'])->name('reports.address.export');
         Route::get('reports/students', [\App\Http\Controllers\Admin\StudentReportController::class, 'index'])->name('reports.students.index');
         Route::get('reports/students/export', [\App\Http\Controllers\Admin\StudentReportController::class, 'export'])->name('reports.students.export');
+
         Route::post('reports/referrals/{student}/mark-commission-paid', [ReferralReportController::class, 'markCommissionPaid'])
             ->name('reports.referrals.mark-commission-paid')
             ->where('student', '[0-9]+');
@@ -1527,6 +1528,21 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
 Route::prefix('admin/faculty-attendance')->name('admin.faculty-attendance.')->middleware(['auth', 'role:super-admin|college-admin|staff'])->group(function () {
     Route::get('/', [App\Http\Controllers\Admin\FacultyAttendanceController::class, 'index'])->name('index');
     Route::get('/export/{format}', [App\Http\Controllers\Admin\FacultyAttendanceController::class, 'export'])->name('export');
+});
+
+/*
+|--------------------------------------------------------------------------
+|                            PLACEMENT PORTAL
+|--------------------------------------------------------------------------
+*/
+Route::get('placement-login', [\App\Http\Controllers\Admin\PlacementAuthController::class, 'showLoginForm'])->name('placement-officer.login');
+Route::post('placement-login', [\App\Http\Controllers\Admin\PlacementAuthController::class, 'login'])->name('placement-officer.login.submit');
+Route::post('placement-logout', [\App\Http\Controllers\Admin\PlacementAuthController::class, 'logout'])->name('placement-officer.logout');
+
+Route::middleware(['auth'])->prefix('placement-portal')->name('placement-portal.')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Admin\PlacementController::class, 'index'])->name('index');
+    Route::put('update/{student}', [\App\Http\Controllers\Admin\PlacementController::class, 'update'])->name('update');
+    Route::get('export', [\App\Http\Controllers\Admin\PlacementController::class, 'export'])->name('export');
 });
 
 /*
