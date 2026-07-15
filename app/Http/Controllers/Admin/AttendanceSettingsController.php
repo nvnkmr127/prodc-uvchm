@@ -2752,13 +2752,16 @@ class AttendanceSettingsController extends Controller
         // Base query for students
         $studentsQuery = Student::where('status', 'active')
             ->whereHas('batch', function ($q) use ($date) {
-                // Exclude internship: Keep if (Not Flagged) AND (Date is Null or Future)
-                $q->where(function ($sq) {
-                    $sq->where('is_on_internship', '!=', 1)
-                        ->orWhereNull('is_on_internship');
-                })->where(function ($sq) use ($date) {
-                    $sq->whereNull('internship_start_date')
-                        ->orWhere('internship_start_date', '>', $date);
+                // Exclude internship: Keep if not on internship OR (on internship but starts in future)
+                $q->where(function ($sq) use ($date) {
+                    $sq->where(function ($q1) {
+                        $q1->where('is_on_internship', '!=', 1)
+                           ->orWhereNull('is_on_internship');
+                    })->orWhere(function ($q2) use ($date) {
+                        $q2->where('is_on_internship', 1)
+                           ->whereNotNull('internship_start_date')
+                           ->where('internship_start_date', '>', $date);
+                    });
                 });
             });
 
@@ -2778,13 +2781,16 @@ class AttendanceSettingsController extends Controller
 
         // Apply internship exclusion
         $attendanceQuery->whereHas('student.batch', function ($q) use ($date) {
-            $q->where(function ($sq) {
-                $sq->where('is_on_internship', '!=', 1)
-                    ->orWhereNull('is_on_internship');
-            })->where(function ($sq) use ($date) {
-                $sq->whereNull('internship_start_date')
-                    ->orWhere('internship_start_date', '>', $date);
-            });
+                $q->where(function ($sq) use ($date) {
+                    $sq->where(function ($q1) {
+                        $q1->where('is_on_internship', '!=', 1)
+                           ->orWhereNull('is_on_internship');
+                    })->orWhere(function ($q2) use ($date) {
+                        $q2->where('is_on_internship', 1)
+                           ->whereNotNull('internship_start_date')
+                           ->where('internship_start_date', '>', $date);
+                    });
+                });
         });
 
         if ($batchId) {
@@ -2802,6 +2808,7 @@ class AttendanceSettingsController extends Controller
             \DB::raw('COUNT(DISTINCT student_id) as total_marked'),
             \DB::raw('COUNT(DISTINCT CASE WHEN status IN ("present", "late") THEN student_id END) as present'),
             \DB::raw('COUNT(DISTINCT CASE WHEN status = "excused" THEN student_id END) as excused'),
+            \DB::raw('COUNT(DISTINCT CASE WHEN status = "late" THEN student_id END) as late'),
         ])->first();
 
         $present = ($attendanceStats->present ?? 0);
@@ -2821,13 +2828,11 @@ class AttendanceSettingsController extends Controller
         // Get Internship Count
         $internshipQuery = Student::where('status', 'active')
             ->whereHas('batch', function ($q) use ($date) {
-                $q->where(function ($sq) use ($date) {
-                    $sq->where('is_on_internship', 1)
-                        ->orWhere(function ($dq) use ($date) {
-                            $dq->whereNotNull('internship_start_date')
-                                ->where('internship_start_date', '<=', $date);
-                        });
-                });
+                $q->where('is_on_internship', 1)
+                  ->where(function ($sq) use ($date) {
+                      $sq->whereNull('internship_start_date')
+                         ->orWhere('internship_start_date', '<=', $date);
+                  });
             });
 
         if ($batchId) {
@@ -2864,12 +2869,15 @@ class AttendanceSettingsController extends Controller
     {
         $studentsQuery = Student::where('status', 'active')
             ->whereHas('batch', function ($q) use ($date) {
-                $q->where(function ($sq) {
-                    $sq->where('is_on_internship', '!=', 1)
-                        ->orWhereNull('is_on_internship');
-                })->where(function ($sq) use ($date) {
-                    $sq->whereNull('internship_start_date')
-                        ->orWhere('internship_start_date', '>', $date);
+                $q->where(function ($sq) use ($date) {
+                    $sq->where(function ($q1) {
+                        $q1->where('is_on_internship', '!=', 1)
+                           ->orWhereNull('is_on_internship');
+                    })->orWhere(function ($q2) use ($date) {
+                        $q2->where('is_on_internship', 1)
+                           ->whereNotNull('internship_start_date')
+                           ->where('internship_start_date', '>', $date);
+                    });
                 });
             })
             ->whereHas('attendances', function ($query) {
@@ -2896,9 +2904,9 @@ class AttendanceSettingsController extends Controller
                 return true;
             }
             $isOnInternship = ($batch->is_on_internship == 1);
-            $isInternshipByDate = ($batch->internship_start_date && $batch->internship_start_date <= $date);
+            $hasStarted = (!$batch->internship_start_date || $batch->internship_start_date <= $date);
 
-            return ! ($isOnInternship || $isInternshipByDate);
+            return ! ($isOnInternship && $hasStarted);
         });
 
         // Get marked attendance
@@ -2942,12 +2950,15 @@ class AttendanceSettingsController extends Controller
         $query = Attendance::with(['student.batch.course', 'faculty'])
             ->whereDate('attendance_date', $date)
             ->whereHas('student.batch', function ($q) use ($date) {
-                $q->where(function ($sq) {
-                    $sq->where('is_on_internship', '!=', 1)
-                        ->orWhereNull('is_on_internship');
-                })->where(function ($sq) use ($date) {
-                    $sq->whereNull('internship_start_date')
-                        ->orWhere('internship_start_date', '>', $date);
+                $q->where(function ($sq) use ($date) {
+                    $sq->where(function ($q1) {
+                        $q1->where('is_on_internship', '!=', 1)
+                           ->orWhereNull('is_on_internship');
+                    })->orWhere(function ($q2) use ($date) {
+                        $q2->where('is_on_internship', 1)
+                           ->whereNotNull('internship_start_date')
+                           ->where('internship_start_date', '>', $date);
+                    });
                 });
             })
             ->orderBy('marked_at', 'desc');
@@ -2971,9 +2982,9 @@ class AttendanceSettingsController extends Controller
                 }
                 $batch = $student->batch;
                 $isOnInternship = ($batch->is_on_internship == 1);
-                $isInternshipByDate = ($batch->internship_start_date && $batch->internship_start_date <= $date);
+                $hasStarted = (!$batch->internship_start_date || $batch->internship_start_date <= $date);
 
-                return ! ($isOnInternship || $isInternshipByDate);
+                return ! ($isOnInternship && $hasStarted);
             })
             ->take($limit)
             ->map(function ($attendance) {

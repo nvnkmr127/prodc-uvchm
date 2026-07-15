@@ -6,13 +6,14 @@ use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithDrawings;
-use Maatwebsite\Excel\Concerns\WithCustomRowHeight;
+use Maatwebsite\Excel\Concerns\WithEvents;
+use Maatwebsite\Excel\Events\AfterSheet;
 use Maatwebsite\Excel\Concerns\WithColumnWidths;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class StudentPlacementExport implements FromCollection, WithHeadings, WithMapping, WithDrawings, WithCustomRowHeight, WithColumnWidths, WithStyles
+class StudentPlacementExport implements FromCollection, WithHeadings, WithMapping, WithDrawings, WithEvents, WithColumnWidths, WithStyles
 {
     protected $students;
 
@@ -98,16 +99,19 @@ class StudentPlacementExport implements FromCollection, WithHeadings, WithMappin
         return $drawings;
     }
 
-    public function rowHeight(): array
+    public function registerEvents(): array
     {
-        $heights = [1 => 25]; // Header row height
-        
-        // Data rows height (to fit images)
-        for ($i = 0; $i < count($this->students); $i++) {
-            $heights[$i + 2] = 85; 
-        }
-
-        return $heights;
+        return [
+            AfterSheet::class => function(AfterSheet $event) {
+                // Header row height
+                $event->sheet->getDelegate()->getRowDimension(1)->setRowHeight(25);
+                
+                // Data rows height
+                for ($i = 0; $i < count($this->students); $i++) {
+                    $event->sheet->getDelegate()->getRowDimension($i + 2)->setRowHeight(85);
+                }
+            },
+        ];
     }
 
     public function columnWidths(): array
