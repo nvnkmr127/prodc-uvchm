@@ -130,6 +130,79 @@ class StudentAttendanceSummaryExport implements FromCollection, ShouldAutoSize, 
             ->pluck('first_date', 'student_id')
             ->toArray();
 
+        // 3d. Calculate Batch-level daily counts and dynamic internship streaks
+        $batchDailyCounts = [];
+        $batchStudentsMap = $students->groupBy('batch_id')->map->pluck('id')->toArray();
+        
+        foreach ($batchStudentsMap as $batchId => $studentIds) {
+            $daily = [];
+            foreach ($studentIds as $sId) {
+                if ($attendanceRecords->has($sId)) {
+                    foreach ($attendanceRecords[$sId] as $att) {
+                        if (in_array(strtolower(trim($att->status)), ['present', 'late'])) {
+                            $d = is_string($att->attendance_date) ? substr($att->attendance_date, 0, 10) : $att->attendance_date->format('Y-m-d');
+                            if (!isset($daily[$d])) {
+                                $daily[$d] = 0;
+                            }
+                            $daily[$d]++;
+                        }
+                    }
+                }
+            }
+            $batchDailyCounts[$batchId] = $daily;
+        }
+
+        $dynamicInternshipDays = [];
+        foreach ($batchStudentsMap as $batchId => $studentIds) {
+            $batchInternshipDays = [];
+            $current = $this->startDate->copy();
+            $end = $this->endDate->copy();
+            $todayStr = Carbon::now()->format('Y-m-d');
+            $currentStreakDays = [];
+
+            while ($current->lte($end)) {
+                $dateStr = $current->format('Y-m-d');
+                if ($dateStr > $todayStr) {
+                    $current->addDay();
+                    continue;
+                }
+
+                $isSunday = $current->isSunday();
+                $isExplicitHoliday = in_array($dateStr, $holidays);
+                $isLowAttendanceHoliday = false;
+                if (! $isSunday && ! $isExplicitHoliday) {
+                    $dayPunchCount = $dailyCounts[$dateStr] ?? 0;
+                    if ($dayPunchCount < 10) {
+                        $isLowAttendanceHoliday = true;
+                    }
+                }
+                $isHoliday = $isSunday || $isExplicitHoliday || $isLowAttendanceHoliday;
+
+                if ($isHoliday) {
+                    $current->addDay();
+                    continue; // Skip holidays for streak counting
+                }
+
+                // Working day check
+                $batchPresentCount = $batchDailyCounts[$batchId][$dateStr] ?? 0;
+                
+                if ($batchPresentCount == 0) {
+                    $currentStreakDays[] = $dateStr;
+                } else {
+                    if (count($currentStreakDays) >= 10) {
+                        $batchInternshipDays = array_merge($batchInternshipDays, $currentStreakDays);
+                    }
+                    $currentStreakDays = [];
+                }
+                $current->addDay();
+            }
+
+            if (count($currentStreakDays) >= 10) {
+                $batchInternshipDays = array_merge($batchInternshipDays, $currentStreakDays);
+            }
+            $dynamicInternshipDays[$batchId] = $batchInternshipDays;
+        }
+
         $output = collect();
 
         foreach ($students as $student) {
@@ -171,7 +244,7 @@ class StudentAttendanceSummaryExport implements FromCollection, ShouldAutoSize, 
                     continue;
                 }
 
-                $stats = $this->calculateStats($monthStart, $monthEnd, $holidays, $studentRecordsMap, $student, $dailyCounts, $firstPunches);
+                $stats = $this->calculateStats($monthStart, $monthEnd, $holidays, $studentRecordsMap, $student, $dailyCounts, $firstPunches, $dynamicInternshipDays[$student->batch_id] ?? []);
 
                 $row[] = $stats['working_days'];
                 $row[] = $stats['present'] + $stats['late']; // Match profile view (Present = Total Credit)
@@ -182,7 +255,7 @@ class StudentAttendanceSummaryExport implements FromCollection, ShouldAutoSize, 
             }
 
             // Overall Stats
-            $overallStats = $this->calculateStats($this->startDate, $this->endDate, $holidays, $studentRecordsMap, $student, $dailyCounts, $firstPunches);
+            $overallStats = $this->calculateStats($this->startDate, $this->endDate, $holidays, $studentRecordsMap, $student, $dailyCounts, $firstPunches, $dynamicInternshipDays[$student->batch_id] ?? []);
             $row[] = $overallStats['working_days'];
             $row[] = $overallStats['present'] + $overallStats['late'];
             $row[] = $overallStats['internship'];
@@ -195,7 +268,7 @@ class StudentAttendanceSummaryExport implements FromCollection, ShouldAutoSize, 
         return $output;
     }
 
-    private function calculateStats($start, $end, $allHolidays, $recordMap, $student, $dailyCounts = [], $firstPunches = [])
+    private function calculateStats($start, $end, $allHolidays, $recordMap, $student, $dailyCounts = [], $firstPunches = [], $dynamicInternshipDays = [])
     {
         $profileStartDate = $student->admission_date ? Carbon::parse($student->admission_date)->startOfDay() : $student->created_at->startOfDay();
         $firstBiometricUse = $firstPunches[$student->id] ?? null;
@@ -226,9 +299,11 @@ class StudentAttendanceSummaryExport implements FromCollection, ShouldAutoSize, 
                 }
             }
 
-            $isHoliday = $isSunday || $isExplicitHoliday || $isLowAttendanceHoliday;
+            $isEffectiveHoliday = $isExplicitHoliday || $isLowAttendanceHoliday;
 
-            if ($isHoliday) {
+            if ($isSunday) {
+                // Ignore weekend
+            } elseif ($isEffectiveHoliday) {
                 $holidaysCount++;
             } else {
                 $shouldIgnore = $current->lt($profileStartDate) || is_null($firstBiometricUse);
@@ -251,7 +326,7 @@ class StudentAttendanceSummaryExport implements FromCollection, ShouldAutoSize, 
                         }
                     } else {
                         $isInternshipDay = $isOnInternship && (! $internshipStartDate || $current->gte(Carbon::parse($internshipStartDate)));
-                        if ($isInternshipDay) {
+                        if ($isInternshipDay || in_array($dateStr, $dynamicInternshipDays)) {
                             $internshipCount++;
                         } else {
                             $absentCount++;
@@ -262,8 +337,8 @@ class StudentAttendanceSummaryExport implements FromCollection, ShouldAutoSize, 
             $current->addDay();
         }
 
-        $totalCalculatedDays = $presentCount + $lateCount + $absentCount + $excusedCount + $internshipCount;
-        $percentage = $totalCalculatedDays > 0 ? round((($presentCount + $lateCount + $internshipCount) / $totalCalculatedDays) * 100, 1) : 0;
+        $totalCalculatedDays = $presentCount + $lateCount + $absentCount + $excusedCount;
+        $percentage = $totalCalculatedDays > 0 ? round((($presentCount + $lateCount) / $totalCalculatedDays) * 100, 1) : 0;
 
         return [
             'working_days' => $totalCalculatedDays,

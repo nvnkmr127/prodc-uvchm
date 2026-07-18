@@ -60,12 +60,16 @@
                             $mStats = $student->monthly_stats[$mKey] ?? null;
                         @endphp
                         @if($mStats)
-                            <td class="text-center border-left small">{{ $mStats['working_days'] }}</td>
-                            <td class="text-center text-success small">{{ ($mStats['present'] ?? 0) + ($mStats['late'] ?? 0) }}</td>
-                            <td class="text-center text-info small">{{ $mStats['internship'] }}</td>
-                            <td class="text-center text-danger small">{{ $mStats['absent'] }}</td>
-                            <td class="text-center text-muted small">{{ $mStats['excused'] }}</td>
-                            <td class="text-center small font-weight-bold border-right">{{ intval($mStats['percentage']) }}%</td>
+                            @if($mStats['working_days'] == 0 && $mStats['internship'] > 0)
+                                <td colspan="6" class="text-center border-left text-info small font-weight-bold">OJT (Internship)</td>
+                            @else
+                                <td class="text-center border-left small">{{ $mStats['working_days'] }}</td>
+                                <td class="text-center text-success small">{{ ($mStats['present'] ?? 0) + ($mStats['late'] ?? 0) }}</td>
+                                <td class="text-center text-info small">{{ $mStats['internship'] }}</td>
+                                <td class="text-center text-danger small">{{ $mStats['absent'] }}</td>
+                                <td class="text-center text-muted small">{{ $mStats['excused'] }}</td>
+                                <td class="text-center small font-weight-bold border-right">{{ intval($mStats['percentage']) }}%</td>
+                            @endif
                         @else
                             <td colspan="6" class="text-center border-left text-muted small">N/A</td>
                         @endif

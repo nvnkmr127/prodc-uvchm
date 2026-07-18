@@ -149,6 +149,79 @@ class AttendanceReportController extends Controller
             })
             ->toArray();
 
+        // 3c. Calculate Batch-level daily counts and dynamic internship streaks
+        $batchDailyCounts = [];
+        $batchStudentsMap = $allStudents->groupBy('batch_id')->map->pluck('id')->toArray();
+        
+        foreach ($batchStudentsMap as $batchId => $studentIds) {
+            $daily = [];
+            foreach ($studentIds as $sId) {
+                if ($attendanceRecords->has($sId)) {
+                    foreach ($attendanceRecords[$sId] as $att) {
+                        if (in_array(strtolower(trim($att->status)), ['present', 'late'])) {
+                            $d = Carbon::parse($att->attendance_date)->format('Y-m-d');
+                            if (!isset($daily[$d])) {
+                                $daily[$d] = 0;
+                            }
+                            $daily[$d]++;
+                        }
+                    }
+                }
+            }
+            $batchDailyCounts[$batchId] = $daily;
+        }
+
+        $dynamicInternshipDays = [];
+        foreach ($batchStudentsMap as $batchId => $studentIds) {
+            $batchInternshipDays = [];
+            $current = Carbon::parse($startDate);
+            $end = Carbon::parse($endDate);
+            $todayStr = Carbon::now()->format('Y-m-d');
+            $currentStreakDays = [];
+
+            while ($current->lte($end)) {
+                $dateStr = $current->format('Y-m-d');
+                if ($dateStr > $todayStr) {
+                    $current->addDay();
+                    continue;
+                }
+
+                $isSunday = $current->isSunday();
+                $isExplicitHoliday = in_array($dateStr, $holidays);
+                $isLowAttendanceHoliday = false;
+                if (! $isSunday && ! $isExplicitHoliday) {
+                    $dayPunchCount = $dailyCounts[$dateStr] ?? 0;
+                    if ($dayPunchCount < 10) {
+                        $isLowAttendanceHoliday = true;
+                    }
+                }
+                $isHoliday = $isSunday || $isExplicitHoliday || $isLowAttendanceHoliday;
+
+                if ($isHoliday) {
+                    $current->addDay();
+                    continue; // Skip holidays for streak counting
+                }
+
+                // Working day check
+                $batchPresentCount = $batchDailyCounts[$batchId][$dateStr] ?? 0;
+                
+                if ($batchPresentCount == 0) {
+                    $currentStreakDays[] = $dateStr;
+                } else {
+                    if (count($currentStreakDays) >= 10) {
+                        $batchInternshipDays = array_merge($batchInternshipDays, $currentStreakDays);
+                    }
+                    $currentStreakDays = [];
+                }
+                $current->addDay();
+            }
+
+            if (count($currentStreakDays) >= 10) {
+                $batchInternshipDays = array_merge($batchInternshipDays, $currentStreakDays);
+            }
+            $dynamicInternshipDays[$batchId] = $batchInternshipDays;
+        }
+
         // 3c. Generate Months List for Monthly Breakdown
         $period = CarbonPeriod::create($startDate, '1 month', $endDate);
         $months = [];
@@ -180,11 +253,11 @@ class AttendanceReportController extends Controller
                     $monthEnd = Carbon::parse($endDate);
                 }
 
-                $monthlyStats[$monthDt->format('M_Y')] = $this->calculateStudentStats($student, $monthStart, $monthEnd, $holidays, $dailyCounts, $studentRecords, $firstPunches);
+                $monthlyStats[$monthDt->format('M_Y')] = $this->calculateStudentStats($student, $monthStart, $monthEnd, $holidays, $dailyCounts, $studentRecords, $firstPunches, $dynamicInternshipDays[$student->batch_id] ?? []);
             }
 
             // Calculate Overall Stats
-            $overall = $this->calculateStudentStats($student, Carbon::parse($startDate), Carbon::parse($endDate), $holidays, $dailyCounts, $studentRecords, $firstPunches);
+            $overall = $this->calculateStudentStats($student, Carbon::parse($startDate), Carbon::parse($endDate), $holidays, $dailyCounts, $studentRecords, $firstPunches, $dynamicInternshipDays[$student->batch_id] ?? []);
 
             return (object) [
                 'id' => $student->id,
@@ -209,7 +282,7 @@ class AttendanceReportController extends Controller
         // 5. Aggregate Stats for Dashboard
         $totalStudents = $processedStudents->count();
         $avgAttendance = $totalStudents > 0 ? $processedStudents->avg('attendance_percentage') : 0;
-        $avgPresent = $totalStudents > 0 ? $processedStudents->avg(fn($s) => $s->present_days + $s->late_days + $s->internship_days) : 0;
+        $avgPresent = $totalStudents > 0 ? $processedStudents->avg(fn($s) => $s->present_days + $s->late_days) : 0;
         $avgAbsent = $totalStudents > 0 ? $processedStudents->avg('absent_days') : 0;
 
         // Distribution Buckets (Aligned with PRD)
@@ -221,7 +294,7 @@ class AttendanceReportController extends Controller
         ];
 
         // Overall Present vs Absent Breakdown for Pie Chart
-        $overallPresent = $processedStudents->sum(fn($s) => $s->present_days + $s->late_days + $s->internship_days);
+        $overallPresent = $processedStudents->sum(fn($s) => $s->present_days + $s->late_days);
         $overallAbsent = $processedStudents->sum('absent_days');
 
         foreach ($processedStudents as $s) {
@@ -307,7 +380,7 @@ class AttendanceReportController extends Controller
     /**
      * Helper to calculate stats for a specific range and student
      */
-    private function calculateStudentStats($student, $start, $end, $holidays, $dailyCounts, $studentRecords, $firstPunches = [])
+    private function calculateStudentStats($student, $start, $end, $holidays, $dailyCounts, $studentRecords, $firstPunches = [], $dynamicInternshipDays = [])
     {
         $profileStartDate = $student->admission_date ? Carbon::parse($student->admission_date)->startOfDay() : $student->created_at->startOfDay();
         $firstBiometricUse = $firstPunches[$student->id] ?? null;
@@ -338,7 +411,7 @@ class AttendanceReportController extends Controller
                 }
             }
 
-            $isHoliday = $isSunday || $isExplicitHoliday || $isLowAttendanceHoliday;
+            $isEffectiveHoliday = $isExplicitHoliday || $isLowAttendanceHoliday;
 
             $status = 'none';
             if (isset($studentRecords[$dateStr])) {
@@ -366,13 +439,15 @@ class AttendanceReportController extends Controller
 
                 if ($isFuture || $shouldIgnore) {
                     $status = 'none';
-                } elseif ($isHoliday) {
+                } elseif ($isSunday) {
+                    $status = 'weekend';
+                } elseif ($isEffectiveHoliday) {
                     $holidaysCount++;
                     $status = 'holiday';
                 } else {
                     // Working Day - Check for Internship
                     $isInternshipDay = $isOnInternship && (! $internshipStartDate || $current->gte(Carbon::parse($internshipStartDate)));
-                    if ($isInternshipDay) {
+                    if ($isInternshipDay || in_array($dateStr, $dynamicInternshipDays)) {
                         $internshipCount++;
                         $status = 'internship';
                     } else {
@@ -384,9 +459,9 @@ class AttendanceReportController extends Controller
             $current->addDay();
         }
 
-        // Logic from Student Profile
-        $totalCalculatedDays = $presentCount + $lateCount + $absentCount + $excusedCount + $internshipCount;
-        $percentage = $totalCalculatedDays > 0 ? round((($presentCount + $lateCount + $internshipCount) / $totalCalculatedDays) * 100, 1) : 0;
+        // Logic from Student Profile (College Days Only)
+        $totalCalculatedDays = $presentCount + $lateCount + $absentCount + $excusedCount;
+        $percentage = $totalCalculatedDays > 0 ? round((($presentCount + $lateCount) / $totalCalculatedDays) * 100, 1) : 0;
 
         return [
             'working_days' => $totalCalculatedDays,
