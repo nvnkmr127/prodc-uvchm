@@ -230,7 +230,7 @@ class AttendanceReportController extends Controller
         }
 
         // 4. Process Data & Calculate Percentages Per Student
-        $processedStudents = $allStudents->map(function ($student) use ($attendanceRecords, $startDate, $endDate, $holidays, $dailyCounts, $months, $firstPunches) {
+        $processedStudents = $allStudents->map(function ($student) use ($attendanceRecords, $startDate, $endDate, $holidays, $dailyCounts, $months, $firstPunches, $dynamicInternshipDays) {
 
             // Get Student Records indexed by date
             $studentRecords = $attendanceRecords->get($student->id, collect())->mapWithKeys(function ($item) {
