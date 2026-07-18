@@ -28,12 +28,15 @@ class StudentAttendanceSummaryExport implements FromCollection, ShouldAutoSize, 
 
     protected $months;
 
-    public function __construct($courseId, $batchId, $startDate, $endDate)
+    protected $search;
+
+    public function __construct($courseId, $batchId, $startDate, $endDate, $search = null)
     {
         $this->courseId = $courseId;
         $this->batchId = $batchId;
         $this->startDate = $startDate ? Carbon::parse($startDate) : Carbon::now()->startOfMonth();
         $this->endDate = $endDate ? Carbon::parse($endDate) : Carbon::now();
+        $this->search = $search;
 
         // Calculate months in range robustly
         $this->months = [];
@@ -53,6 +56,13 @@ class StudentAttendanceSummaryExport implements FromCollection, ShouldAutoSize, 
 
         // 1a. Exclude Dropouts
         $studentsQuery->where('status', '!=', 'dropout');
+
+        if ($this->search) {
+            $studentsQuery->where(function ($q) {
+                $q->where('name', 'like', "%{$this->search}%")
+                  ->orWhere('enrollment_number', 'like', "%{$this->search}%");
+            });
+        }
 
         if ($this->courseId) {
             $studentsQuery->whereHas('batch', function ($q) {

@@ -171,7 +171,7 @@
                     <input type="hidden" name="sort_by" id="sort_by" value="{{ $sortBy ?? 'attendance_percentage' }}">
                     <input type="hidden" name="sort_order" id="sort_order" value="{{ $sortOrder ?? 'desc' }}">
 
-                    <div class="col-md-3 mb-3">
+                    <div class="col-md-2 mb-3">
                         <label class="small font-weight-bold text-gray-600">Course</label>
                         <select name="course_id" class="form-control bg-light border-0 shadow-none select2"
                             id="course_filter">
@@ -183,7 +183,7 @@
                             @endforeach
                         </select>
                     </div>
-                    <div class="col-md-3 mb-3">
+                    <div class="col-md-2 mb-3">
                         <label class="small font-weight-bold text-gray-600">Batch</label>
                         <select name="batch_id" class="form-control bg-light border-0 shadow-none select2"
                             id="batch_filter">
@@ -194,6 +194,11 @@
                                 </option>
                             @endforeach
                         </select>
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label class="small font-weight-bold text-gray-600">Search</label>
+                        <input type="text" name="search" class="form-control bg-light border-0 shadow-none"
+                            placeholder="Name/ID" value="{{ $search ?? '' }}">
                     </div>
                     <div class="col-md-2 mb-3">
                         <label class="small font-weight-bold text-gray-600">Start Date</label>

@@ -22,6 +22,7 @@ class AttendanceReportController extends Controller
     {
         $courseId = $request->input('course_id');
         $batchId = $request->input('batch_id');
+        $search = $request->input('search');
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
         $sortBy = $request->input('sort_by', 'attendance_percentage');
@@ -51,7 +52,7 @@ class AttendanceReportController extends Controller
             $startDate = $todayStr;
             $endDate = $todayStr;
 
-            return view('admin.reports.attendance.index', compact('courses', 'batches', 'startDate', 'endDate'));
+            return view('admin.reports.attendance.index', compact('courses', 'batches', 'startDate', 'endDate', 'search'));
         }
 
         // Default dates if somehow triggered without them
@@ -67,6 +68,13 @@ class AttendanceReportController extends Controller
 
         // 1a. Exclude Dropouts (Global Rule for this report)
         $studentsQuery->where('status', '!=', 'dropout');
+
+        if ($search) {
+            $studentsQuery->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('enrollment_number', 'like', "%{$search}%");
+            });
+        }
 
         if ($courseId) {
             $studentsQuery->whereHas('batch', function ($q) use ($courseId) {
@@ -286,7 +294,8 @@ class AttendanceReportController extends Controller
             'startDate',
             'endDate',
             'sortBy',
-            'sortOrder'
+            'sortOrder',
+            'search'
         ))->with([
             'students' => $paginatedStudents,
             'pagination' => $paginatedStudents,
@@ -395,11 +404,12 @@ class AttendanceReportController extends Controller
     {
         $courseId = $request->input('course_id');
         $batchId = $request->input('batch_id');
+        $search = $request->input('search');
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
 
         return Excel::download(
-            new StudentAttendanceSummaryExport($courseId, $batchId, $startDate, $endDate),
+            new StudentAttendanceSummaryExport($courseId, $batchId, $startDate, $endDate, $search),
             'attendance_summary_'.now()->format('Y_m_d_H_i').'.xlsx'
         );
     }
