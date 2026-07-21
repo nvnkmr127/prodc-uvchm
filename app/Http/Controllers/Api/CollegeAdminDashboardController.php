@@ -94,10 +94,11 @@ class CollegeAdminDashboardController extends Controller
         $user = auth()->user();
         $activities = collect();
 
-        // Recent payments by this user
+        // Recent payments collected by this user
         $recentPayments = Payment::withoutGlobalScope('academic_year')
             ->with('student')
             ->where('payment_type', 'component')
+            ->where('created_by', $user->id)
             ->latest()
             ->limit(15)
             ->get();
@@ -121,12 +122,18 @@ class CollegeAdminDashboardController extends Controller
      */
     private function getAttendanceStats()
     {
-        // Get all students' attendance percentages
-        $students = Student::where('status', 'active')->get();
+        // One grouped query: per-student present/total across active students.
+        // Only students with tracked attendance are banded (no-record students
+        // are excluded rather than counted as 0% "poor", which would skew the mix).
+        $perStudent = Attendance::selectRaw('student_id, COUNT(*) as total, SUM(status = ?) as present', ['present'])
+            ->whereIn('student_id', Student::where('status', 'active')->select('id'))
+            ->groupBy('student_id')
+            ->get();
+
         $stats = ['excellent' => 0, 'good' => 0, 'average' => 0, 'poor' => 0];
 
-        foreach ($students as $student) {
-            $attendanceRate = $this->getStudentAttendanceRate($student->id);
+        foreach ($perStudent as $row) {
+            $attendanceRate = $row->total > 0 ? ($row->present / $row->total) * 100 : 0;
 
             if ($attendanceRate >= 90) {
                 $stats['excellent']++;
@@ -462,6 +469,7 @@ class CollegeAdminDashboardController extends Controller
 
         $todayPayments = Payment::withoutGlobalScope('academic_year')
             ->where('payment_type', 'component')
+            ->where('created_by', $user->id)
             ->whereDate('payment_date', $today)
             ->get();
 
@@ -491,11 +499,13 @@ class CollegeAdminDashboardController extends Controller
 
         $todayAmount = Payment::withoutGlobalScope('academic_year')
             ->where('payment_type', 'component')
+            ->where('created_by', $user->id)
             ->whereDate('payment_date', $today)
             ->sum('amount');
 
         $yesterdayAmount = Payment::withoutGlobalScope('academic_year')
             ->where('payment_type', 'component')
+            ->where('created_by', $user->id)
             ->whereDate('payment_date', $today->copy()->subDay())
             ->sum('amount');
 
@@ -547,6 +557,7 @@ class CollegeAdminDashboardController extends Controller
 
         return Payment::withoutGlobalScope('academic_year')
             ->where('payment_type', 'component')
+            ->where('created_by', $user->id)
             ->whereDate('payment_date', today())
             ->count();
     }
@@ -560,6 +571,7 @@ class CollegeAdminDashboardController extends Controller
 
         $lastPayment = Payment::withoutGlobalScope('academic_year')
             ->where('payment_type', 'component')
+            ->where('created_by', $user->id)
             ->latest()
             ->first();
 
@@ -600,63 +612,26 @@ class CollegeAdminDashboardController extends Controller
      */
     private function getPaymentModesData()
     {
-        // Your existing getPaymentModes() code here
-        $user = auth()->user();
-        $today = now();
-
-        // Get actual payment data
         $paymentModes = Payment::withoutGlobalScope('academic_year')
             ->where('payment_type', 'component')
-            ->whereDate('payment_date', $today)
+            ->whereDate('payment_date', now())
             ->selectRaw('payment_method, SUM(amount) as total')
             ->groupBy('payment_method')
             ->pluck('total', 'payment_method')
             ->toArray();
 
-        // Debug log
-        // Debug: Check if user has any payments at all
-        $totalPayments = Payment::where('created_by', $user->id)->count();
-        \Log::info("User {$user->id} has {$totalPayments} total payments");
+        // Ensure all payment methods are present (real values only, no demo fallback)
+        $paymentModes = array_merge(['cash' => 0, 'online' => 0, 'card' => 0, 'upi' => 0], $paymentModes);
 
-        if ($totalPayments == 0) {
-            \Log::info('No payments found, returning zero data');
-
-            return [
-                'labels' => ['Cash', 'Online', 'Card', 'UPI'],
-                'values' => [0, 0, 0, 0],
-            ];
-        }
-
-        // If no payments today, get last 7 days data for demo
-        if (empty($paymentModes) || array_sum($paymentModes) == 0) {
-            $paymentModes = Payment::withoutGlobalScope('academic_year')
-                ->where('payment_type', 'component')
-                ->whereBetween('payment_date', [now()->subDays(7), now()])
-                ->selectRaw('payment_method, SUM(amount) as total')
-                ->groupBy('payment_method')
-                ->pluck('total', 'payment_method')
-                ->toArray();
-
-            \Log::info('Payment modes last 7 days:', $paymentModes);
-        }
-
-        // Ensure we have all payment methods
-        $defaultModes = ['cash' => 0, 'online' => 0, 'card' => 0, 'upi' => 0];
-        $paymentModes = array_merge($defaultModes, $paymentModes);
-
-        $result = [
+        return [
             'labels' => ['Cash', 'Online', 'Card', 'UPI'],
             'values' => [
-                (float) ($paymentModes['cash'] ?? 0),
-                (float) ($paymentModes['online'] ?? 0),
-                (float) ($paymentModes['card'] ?? 0),
-                (float) ($paymentModes['upi'] ?? 0),
+                (float) $paymentModes['cash'],
+                (float) $paymentModes['online'],
+                (float) $paymentModes['card'],
+                (float) $paymentModes['upi'],
             ],
         ];
-
-        \Log::info('Final payment modes result:', $result);
-
-        return $result;
     }
 
     /**
@@ -696,23 +671,6 @@ class CollegeAdminDashboardController extends Controller
             'admitted_count' => (int) ($stats->admitted_count ?? 0),
             'total_count' => (int) ($stats->total_count ?? 0),
         ];
-    }
-
-    /**
-     * Get student attendance rate
-     */
-    private function getStudentAttendanceRate($studentId)
-    {
-        $totalClasses = Attendance::where('student_id', $studentId)->count();
-        if ($totalClasses === 0) {
-            return 0;
-        }
-
-        $presentClasses = Attendance::where('student_id', $studentId)
-            ->where('status', 'present')
-            ->count();
-
-        return round(($presentClasses / $totalClasses) * 100, 2);
     }
 
     private function getMonthlyEnrollments()
