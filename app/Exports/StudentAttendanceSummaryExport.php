@@ -152,9 +152,33 @@ class StudentAttendanceSummaryExport implements FromCollection, ShouldAutoSize, 
             $batchDailyCounts[$batchId] = $daily;
         }
 
+        $batchFirstPunchDates = [];
+        foreach ($batchStudentsMap as $batchId => $studentIds) {
+            $minDate = null;
+            foreach ($studentIds as $sId) {
+                if (isset($firstPunches[$sId])) {
+                    $d = Carbon::parse($firstPunches[$sId]);
+                    if ($minDate === null || $d->lt($minDate)) {
+                        $minDate = $d;
+                    }
+                }
+            }
+            $batchFirstPunchDates[$batchId] = $minDate ? $minDate->format('Y-m-d') : null;
+        }
+
         $dynamicInternshipDays = [];
         foreach ($batchStudentsMap as $batchId => $studentIds) {
             $batchInternshipDays = [];
+            $batchFirstPunchDateStr = $batchFirstPunchDates[$batchId] ?? null;
+            
+            $batchSize = count($studentIds);
+            $threshold = 0;
+            if ($batchSize > 10) {
+                $threshold = 2;
+            } elseif ($batchSize > 5) {
+                $threshold = 1;
+            }
+
             $current = $this->startDate->copy();
             $end = $this->endDate->copy();
             $todayStr = Carbon::now()->format('Y-m-d');
@@ -163,6 +187,11 @@ class StudentAttendanceSummaryExport implements FromCollection, ShouldAutoSize, 
             while ($current->lte($end)) {
                 $dateStr = $current->format('Y-m-d');
                 if ($dateStr > $todayStr) {
+                    $current->addDay();
+                    continue;
+                }
+
+                if ($batchFirstPunchDateStr && $dateStr < $batchFirstPunchDateStr) {
                     $current->addDay();
                     continue;
                 }
@@ -186,7 +215,7 @@ class StudentAttendanceSummaryExport implements FromCollection, ShouldAutoSize, 
                 // Working day check
                 $batchPresentCount = $batchDailyCounts[$batchId][$dateStr] ?? 0;
                 
-                if ($batchPresentCount == 0) {
+                if ($batchPresentCount <= $threshold) {
                     $currentStreakDays[] = $dateStr;
                 } else {
                     if (count($currentStreakDays) >= 10) {
