@@ -143,15 +143,13 @@
                         <select name="batch_id" id="batchFilter" class="form-control" style="max-width: 220px;">
                             <option value="">All Batches</option>
                             @foreach($courses as $course)
-                                @if(!request('course_id') || request('course_id') == $course->id)
-                                    <optgroup label="{{ $course->name }}">
-                                        @foreach($course->batches as $batch)
-                                            <option value="{{ $batch->id }}" {{ request('batch_id') == $batch->id ? 'selected' : '' }}>
-                                                {{ $batch->name }}
-                                            </option>
-                                        @endforeach
-                                    </optgroup>
-                                @endif
+                                <optgroup label="{{ $course->name }}" data-course-id="{{ $course->id }}">
+                                    @foreach($course->batches as $batch)
+                                        <option value="{{ $batch->id }}" {{ request('batch_id') == $batch->id ? 'selected' : '' }}>
+                                            {{ $batch->name }}
+                                        </option>
+                                    @endforeach
+                                </optgroup>
                             @endforeach
                         </select>
                     </div>
@@ -445,6 +443,17 @@
                     if (clearSelectionBtn) clearSelectionBtn.classList.add('d-none');
                 }
             }
+
+            const exportBtn = document.getElementById('exportReportBtn');
+            if (exportBtn) {
+                const currentUrl = new URL(window.location.href);
+                if (count > 0) {
+                    currentUrl.searchParams.set('student_ids', Array.from(selectedStudentIds).join(','));
+                } else {
+                    currentUrl.searchParams.delete('student_ids');
+                }
+                exportBtn.href = "{{ route('placement-portal.export') }}" + currentUrl.search;
+            }
         }
 
         function syncCheckboxesWithStore() {
@@ -546,6 +555,10 @@
                     exportBtn.href = "{{ route('placement-portal.export') }}" + urlObj.search;
                 }
 
+                // Dynamic Batch Filter Options Sync
+                const activeCourseId = document.getElementById('courseFilter')?.value || '';
+                filterBatchOptions(activeCourseId);
+
                 window.history.pushState({}, '', url);
             })
             .catch(err => {
@@ -553,6 +566,28 @@
                 window.location.href = url;
             });
         }
+
+        function filterBatchOptions(courseId) {
+            const batchSelect = document.getElementById('batchFilter');
+            if (!batchSelect) return;
+            const optgroups = batchSelect.querySelectorAll('optgroup');
+            optgroups.forEach(group => {
+                if (!courseId || group.getAttribute('data-course-id') === String(courseId)) {
+                    group.style.display = '';
+                    Array.from(group.options).forEach(opt => opt.disabled = false);
+                } else {
+                    group.style.display = 'none';
+                    Array.from(group.options).forEach(opt => opt.disabled = true);
+                }
+            });
+            const selectedOption = batchSelect.options[batchSelect.selectedIndex];
+            if (selectedOption && selectedOption.disabled) {
+                batchSelect.value = '';
+            }
+        }
+
+        // Initialize batch filter options on page load
+        filterBatchOptions(document.getElementById('courseFilter')?.value || '');
 
         // Filter Form AJAX Handlers
         let searchDebounceTimer;
@@ -571,6 +606,10 @@
         });
 
         document.addEventListener('change', function (e) {
+            if (e.target && e.target.id === 'courseFilter') {
+                filterBatchOptions(e.target.value);
+            }
+
             if (e.target && e.target.form && e.target.form.id === 'filterForm' && e.target.name !== 'search') {
                 const form = e.target.form;
                 const formData = new FormData(form);
@@ -585,6 +624,27 @@
                 const formData = new FormData(e.target);
                 const params = new URLSearchParams(formData);
                 loadPlacementsAjax(e.target.action + '?' + params.toString());
+            }
+        });
+
+        // Intercept Clear Filters Button Click for AJAX Full Clear
+        document.addEventListener('click', function (e) {
+            const clearBtn = e.target.closest('#clearFiltersBtn');
+            if (clearBtn) {
+                e.preventDefault();
+                const form = document.getElementById('filterForm');
+                if (form) {
+                    const searchInput = document.getElementById('searchInput');
+                    if (searchInput) searchInput.value = '';
+                    const courseFilter = document.getElementById('courseFilter');
+                    if (courseFilter) courseFilter.value = '';
+                    const batchFilter = document.getElementById('batchFilter');
+                    if (batchFilter) batchFilter.value = '';
+                    const statusFilter = document.getElementById('statusFilter');
+                    if (statusFilter) statusFilter.value = '';
+                    filterBatchOptions('');
+                }
+                loadPlacementsAjax(clearBtn.href);
             }
         });
 

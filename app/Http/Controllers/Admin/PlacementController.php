@@ -14,7 +14,7 @@ class PlacementController extends Controller
     {
         $this->middleware(function ($request, $next) {
             $user = auth()->user();
-            if (!$user->hasRole('super-admin') && !$user->hasRole('Placement Officer') && !$user->can('view students')) {
+            if (!$user || (!$user->hasRole('super-admin') && !$user->hasRole('admin') && !$user->hasRole('college-admin') && !$user->hasRole('Placement Officer') && !$user->can('view students'))) {
                 abort(403, 'Unauthorized access. Only Placement Officers and Admins can view this portal.');
             }
             return $next($request);
@@ -206,6 +206,11 @@ class PlacementController extends Controller
                   ->orWhere('placed_at', 'like', "%{$search}%")
                   ->orWhere('placement_designation', 'like', "%{$search}%");
             });
+        }
+
+        if ($request->filled('student_ids')) {
+            $studentIds = is_array($request->student_ids) ? $request->student_ids : explode(',', $request->student_ids);
+            $query->whereIn('students.id', array_filter($studentIds));
         }
 
         $students = $query->orderBy('name')->get();

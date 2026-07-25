@@ -44,7 +44,7 @@ class PlacementAuthController extends Controller
             Role::create(['name' => 'Placement Officer']);
         }
 
-        if (!$user->hasRole('Placement Officer') && !$user->hasRole('super-admin')) {
+        if (!$user->hasRole('Placement Officer') && !$user->hasRole('super-admin') && !$user->hasRole('college-admin') && !$user->hasRole('admin')) {
             if ($user->hasRole('staff') || $user->can('view students')) {
                 $user->assignRole('Placement Officer');
             } else {

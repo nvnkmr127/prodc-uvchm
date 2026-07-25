@@ -45,7 +45,7 @@ class StudentPlacementExport implements FromCollection, WithHeadings, WithMappin
     public function map($student): array
     {
         $passingYear = $student->batch && $student->batch->end_date 
-            ? $student->batch->end_date->format('Y') 
+            ? \Carbon\Carbon::parse($student->batch->end_date)->format('Y') 
             : 'N/A';
 
         return [
