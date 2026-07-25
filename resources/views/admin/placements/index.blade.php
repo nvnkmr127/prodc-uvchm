@@ -406,12 +406,13 @@
             if (!batchSelect) return;
             const optgroups = batchSelect.querySelectorAll('optgroup');
             optgroups.forEach(group => {
+                const options = group.querySelectorAll('option');
                 if (!courseId || group.getAttribute('data-course-id') === String(courseId)) {
                     group.style.display = '';
-                    Array.from(group.options).forEach(opt => opt.disabled = false);
+                    options.forEach(opt => opt.disabled = false);
                 } else {
                     group.style.display = 'none';
-                    Array.from(group.options).forEach(opt => opt.disabled = true);
+                    options.forEach(opt => opt.disabled = true);
                 }
             });
             const selectedOption = batchSelect.options[batchSelect.selectedIndex];
