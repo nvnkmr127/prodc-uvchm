@@ -23,9 +23,11 @@ class PlacementController extends Controller
 
     public function index(Request $request)
     {
+        $droppedStatuses = ['dropout', 'dropped', 'discontinued', 'inactive', 'left', 'cancelled'];
+
         // 1. Build base query for filtered student scope (Course, Batch, Search)
         $baseQuery = Student::withoutGlobalScope('academic_year')
-            ->where('status', '!=', 'dropout');
+            ->whereNotIn('students.status', $droppedStatuses);
 
         if ($request->filled('course_id')) {
             $baseQuery->whereHas('batch', function($q) use ($request) {
@@ -103,12 +105,12 @@ class PlacementController extends Controller
         }
 
         $courseStats = $courseQuery
-            ->withCount(['students as total_students' => function($q) {
-                $q->withoutGlobalScope('academic_year')->where('students.status', '!=', 'dropout');
+            ->withCount(['students as total_students' => function($q) use ($droppedStatuses) {
+                $q->withoutGlobalScope('academic_year')->whereNotIn('students.status', $droppedStatuses);
             }])
-            ->withCount(['students as placed_students' => function($q) {
+            ->withCount(['students as placed_students' => function($q) use ($droppedStatuses) {
                 $q->withoutGlobalScope('academic_year')
-                  ->where('students.status', '!=', 'dropout')
+                  ->whereNotIn('students.status', $droppedStatuses)
                   ->whereIn('students.placement_status', ['Job', 'Internship']);
             }])
             ->orderBy('name')
@@ -163,13 +165,15 @@ class PlacementController extends Controller
 
     public function export(Request $request)
     {
+        $droppedStatuses = ['dropout', 'dropped', 'discontinued', 'inactive', 'left', 'cancelled'];
+
         $query = Student::withoutGlobalScope('academic_year')
             ->with(['batch' => function($q) {
                 $q->withoutGlobalScope('academic_year')->with(['course' => function($cq) {
                     $cq->withoutGlobalScope('academic_year');
                 }]);
             }])
-            ->where('status', '!=', 'dropout');
+            ->whereNotIn('students.status', $droppedStatuses);
 
         if ($request->filled('course_id')) {
             $query->whereHas('batch', function($q) use ($request) {

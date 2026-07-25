@@ -10,12 +10,6 @@
             <p class="text-muted mb-0">Manage and export student placement records.</p>
         </div>
         <div>
-            <button type="button" class="btn btn-outline-danger mr-2 d-none" id="clearSelectionBtn">
-                <i class="fas fa-times-circle mr-1"></i> Clear Selected (<span id="selectedCountBadge">0</span>)
-            </button>
-            <button type="button" class="btn btn-primary mr-2" data-toggle="modal" data-target="#bulkUpdateModal" id="bulkUpdateButton" disabled>
-                <i class="fas fa-edit mr-1"></i> Bulk Update (<span id="selectedCount">0</span>)
-            </button>
             <a href="{{ route('placement-portal.export', request()->all()) }}" class="btn btn-success" id="exportReportBtn">
                 <i class="fas fa-file-excel mr-1"></i> Export Report
             </a>
@@ -130,8 +124,8 @@
         @endif
 
         <div class="card shadow mb-4" style="border-radius: 16px;">
-            <div class="card-header py-3 bg-white" style="border-top-left-radius: 16px; border-top-right-radius: 16px;">
-                <form id="filterForm" action="{{ route('placement-portal.index') }}" method="GET" class="form-inline flex-wrap">
+            <div class="card-header py-3 bg-white d-flex flex-wrap align-items-center justify-content-between" style="border-top-left-radius: 16px; border-top-right-radius: 16px;">
+                <form id="filterForm" action="{{ route('placement-portal.index') }}" method="GET" class="form-inline flex-wrap mr-3">
                     <div class="form-group mr-2 mb-2">
                         <input type="text" name="search" id="searchInput" class="form-control" placeholder="Search student or company..." value="{{ request('search') }}">
                     </div>
@@ -173,6 +167,15 @@
                     <button type="submit" class="btn btn-primary mb-2"><i class="fas fa-search mr-1"></i> Filter</button>
                     <a href="{{ route('placement-portal.index') }}" class="btn btn-secondary ml-2 mb-2" id="clearFiltersBtn">Clear</a>
                 </form>
+
+                <div class="d-flex align-items-center mb-2">
+                    <button type="button" class="btn btn-outline-danger mr-2 d-none" id="clearSelectionBtn">
+                        <i class="fas fa-times-circle mr-1"></i> Clear Selected (<span id="selectedCountBadge">0</span>)
+                    </button>
+                    <button type="button" class="btn btn-primary shadow-sm" data-toggle="modal" data-target="#bulkUpdateModal" id="bulkUpdateButton" disabled>
+                        <i class="fas fa-edit mr-1"></i> Bulk Update (<span id="selectedCount">0</span>)
+                    </button>
+                </div>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
