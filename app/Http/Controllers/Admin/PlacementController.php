@@ -122,6 +122,14 @@ class PlacementController extends Controller
                 return $course;
             });
 
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'table_html' => view('admin.placements.partials.table', compact('students'))->render(),
+                'stats_html' => view('admin.placements.partials.stats', compact('stats'))->render(),
+                'course_stats_html' => view('admin.placements.partials.course_stats', compact('courseStats'))->render(),
+            ]);
+        }
+
         return view('admin.placements.index', compact('students', 'courses', 'stats', 'courseStats'));
     }
 

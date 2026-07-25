@@ -27,103 +27,10 @@
 
     <div id="placementPortalMainContent">
         <!-- Analytics & Statistics Cards -->
-        <div class="row mb-4" id="analyticsStatsContainer">
-            <div class="col-xl-3 col-md-6 mb-3">
-                <div class="card border-left-primary shadow h-100 py-2" style="border-radius: 14px;">
-                    <div class="card-body">
-                        <div class="row no-gutters align-items-center">
-                            <div class="col mr-2">
-                                <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Students</div>
-                                <div class="h5 mb-0 font-weight-bold text-gray-800">{{ number_format($stats['total']) }}</div>
-                            </div>
-                            <div class="col-auto">
-                                <i class="fas fa-users fa-2x text-primary opacity-50"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-xl-3 col-md-6 mb-3">
-                <div class="card border-left-success shadow h-100 py-2" style="border-radius: 14px;">
-                    <div class="card-body">
-                        <div class="row no-gutters align-items-center">
-                            <div class="col mr-2">
-                                <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Placed (Jobs)</div>
-                                <div class="h5 mb-0 font-weight-bold text-gray-800">{{ number_format($stats['job']) }}</div>
-                            </div>
-                            <div class="col-auto">
-                                <i class="fas fa-briefcase fa-2x text-success opacity-50"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-xl-3 col-md-6 mb-3">
-                <div class="card border-left-info shadow h-100 py-2" style="border-radius: 14px;">
-                    <div class="card-body">
-                        <div class="row no-gutters align-items-center">
-                            <div class="col mr-2">
-                                <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Internships</div>
-                                <div class="h5 mb-0 font-weight-bold text-gray-800">{{ number_format($stats['internship']) }}</div>
-                            </div>
-                            <div class="col-auto">
-                                <i class="fas fa-user-graduate fa-2x text-info opacity-50"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-xl-3 col-md-6 mb-3">
-                <div class="card border-left-warning shadow h-100 py-2" style="border-radius: 14px;">
-                    <div class="card-body">
-                        <div class="row no-gutters align-items-center">
-                            <div class="col mr-2">
-                                <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Placement Rate</div>
-                                <div class="h5 mb-0 font-weight-bold text-gray-800">{{ $stats['placement_rate'] }}%</div>
-                            </div>
-                            <div class="col-auto">
-                                <i class="fas fa-chart-line fa-2x text-warning opacity-50"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        @include('admin.placements.partials.stats')
 
         <!-- Course Performance Breakdown -->
-        <div id="courseStatsContainer">
-            @if(count($courseStats) > 0)
-            <div class="card shadow mb-4" style="border-radius: 16px;">
-                <div class="card-header py-3 bg-white d-flex justify-content-between align-items-center" style="border-top-left-radius: 16px; border-top-right-radius: 16px;">
-                    <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-chart-bar mr-1"></i> Course-Wise Placement Statistics</h6>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        @foreach($courseStats as $cStat)
-                            <div class="col-lg-4 col-md-6 mb-3">
-                                <div class="p-3 border rounded bg-light shadow-sm" style="border-radius: 12px !important;">
-                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                        <span class="font-weight-bold text-dark text-truncate" style="max-width: 70%;" title="{{ $cStat->name }}">{{ $cStat->name }}</span>
-                                        <span class="badge badge-primary px-2 py-1">{{ $cStat->placement_rate }}%</span>
-                                    </div>
-                                    <div class="progress mb-2" style="height: 6px; border-radius: 4px;">
-                                        <div class="progress-bar bg-success" role="progressbar" style="width: {{ $cStat->placement_rate }}%" aria-valuenow="{{ $cStat->placement_rate }}" aria-valuemin="0" aria-valuemax="100"></div>
-                                    </div>
-                                    <div class="d-flex justify-content-between text-muted small">
-                                        <span>Placed: <strong class="text-dark">{{ $cStat->placed_students }}</strong></span>
-                                        <span>Total: <strong class="text-dark">{{ $cStat->total_students }}</strong></span>
-                                    </div>
-                                </div>
-                            </div>
-                        @endforeach
-                    </div>
-                </div>
-            </div>
-            @endif
-        </div>
+        @include('admin.placements.partials.course_stats')
 
         <div class="card shadow mb-4" style="border-radius: 16px;">
             <div class="card-header py-3 bg-white d-flex flex-wrap align-items-center justify-content-between" style="border-top-left-radius: 16px; border-top-right-radius: 16px;">
@@ -178,97 +85,11 @@
                 </div>
             </div>
             <div class="card-body" id="tableCardBody">
-                <div class="table-responsive">
-                    <table class="table table-bordered table-hover">
-                        <thead class="thead-light">
-                            <tr>
-                                <th style="width: 40px;">
-                                    <div class="custom-control custom-checkbox">
-                                        <input type="checkbox" class="custom-control-input" id="selectAll">
-                                        <label class="custom-control-label" for="selectAll"></label>
-                                    </div>
-                                </th>
-                                <th>Student</th>
-                                <th>Contact</th>
-                                <th>Batch</th>
-                                <th>Placement Status</th>
-                                <th>Company / Placed At</th>
-                                <th>Designation</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @forelse($students as $student)
-                                <tr>
-                                    <td>
-                                        <div class="custom-control custom-checkbox">
-                                            <input type="checkbox" class="custom-control-input student-checkbox" id="student{{ $student->id }}" value="{{ $student->id }}">
-                                            <label class="custom-control-label" for="student{{ $student->id }}"></label>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="d-flex align-items-center">
-                                            <img src="{{ $student->photo_url }}" class="rounded-circle mr-2" width="40" height="40" style="object-fit: cover;" onerror="this.src='https://ui-avatars.com/api/?name={{ urlencode($student->name) }}&size=40&background=4e73df&color=fff&rounded=true&bold=true'">
-                                            <div>
-                                                <div class="font-weight-bold">{{ $student->name }}</div>
-                                                <small class="text-muted">{{ $student->enrollment_number }}</small>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div><i class="fas fa-phone fa-sm mr-1"></i> {{ $student->student_mobile }}</div>
-                                        @if($student->email)
-                                        <div><i class="fas fa-envelope fa-sm mr-1"></i> {{ $student->email }}</div>
-                                        @endif
-                                    </td>
-                                    <td>
-                                        {{ $student->batch->name ?? 'N/A' }}<br>
-                                        <small class="text-muted">{{ $student->batch->course->name ?? '' }}</small>
-                                    </td>
-                                    <td>
-                                        @if($student->placement_status == 'Job')
-                                            <span class="badge badge-success">Job</span>
-                                        @elseif($student->placement_status == 'Internship')
-                                            <span class="badge badge-info">Internship</span>
-                                        @elseif($student->placement_status == 'Training')
-                                            <span class="badge badge-warning">Training</span>
-                                        @else
-                                            <span class="badge badge-secondary">Not Placed</span>
-                                        @endif
-                                    </td>
-                                    <td>{{ $student->placed_at ?? '-' }}</td>
-                                    <td>{{ $student->placement_designation ?? '-' }}</td>
-                                    <td>
-                                        <button type="button" class="btn btn-sm btn-primary shadow-sm rounded-pill px-3 btn-update-placement" 
-                                            data-toggle="modal" 
-                                            data-target="#placementUpdateModal"
-                                            data-id="{{ $student->id }}"
-                                            data-name="{{ e($student->name) }}"
-                                            data-enrollment="{{ $student->enrollment_number }}"
-                                            data-photo="{{ $student->photo_url }}"
-                                            data-batch="{{ $student->batch->name ?? 'N/A' }}"
-                                            data-course="{{ $student->batch->course->name ?? '' }}"
-                                            data-status="{{ $student->placement_status ?? 'Not Placed' }}"
-                                            data-placed-at="{{ $student->placed_at ?? '' }}"
-                                            data-designation="{{ $student->placement_designation ?? '' }}"
-                                            data-update-url="{{ route('placement-portal.update', $student) }}">
-                                            <i class="fas fa-edit mr-1"></i> Update
-                                        </button>
-                                    </td>
-                                </tr>
-                            @empty
-                                <tr>
-                                    <td colspan="8" class="text-center py-4">No student records found.</td>
-                                </tr>
-                            @endforelse
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="mt-4" id="paginationContainer">
-                    {{ $students->links() }}
-                </div>
+                @include('admin.placements.partials.table')
             </div>
+        </div>
+    </div>
+</div>
         </div>
     </div>
 </div>
@@ -534,38 +355,32 @@
 
             fetch(url, {
                 headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
                 }
             })
-            .then(response => response.text())
-            .then(html => {
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(html, 'text/html');
-
-                // 1. Update Table & Pagination
-                const newTableBody = doc.getElementById('tableCardBody');
-                if (newTableBody && tableCardBody) {
-                    tableCardBody.innerHTML = newTableBody.innerHTML;
+            .then(response => {
+                if (!response.ok) throw new Error('Network error');
+                return response.json();
+            })
+            .then(data => {
+                if (data.table_html && tableCardBody) {
+                    tableCardBody.innerHTML = data.table_html;
                     tableCardBody.style.opacity = '1';
                 }
 
-                // 2. Update Analytics Cards
                 const analyticsContainer = document.getElementById('analyticsStatsContainer');
-                const newAnalytics = doc.getElementById('analyticsStatsContainer');
-                if (analyticsContainer && newAnalytics) {
-                    analyticsContainer.innerHTML = newAnalytics.innerHTML;
+                if (analyticsContainer && data.stats_html) {
+                    analyticsContainer.outerHTML = data.stats_html;
                 }
 
-                // 3. Update Course Stats Cards
                 const courseStatsContainer = document.getElementById('courseStatsContainer');
-                const newCourseStats = doc.getElementById('courseStatsContainer');
-                if (courseStatsContainer && newCourseStats) {
-                    courseStatsContainer.innerHTML = newCourseStats.innerHTML;
+                if (courseStatsContainer && data.course_stats_html) {
+                    courseStatsContainer.outerHTML = data.course_stats_html;
                 }
 
                 syncCheckboxesWithStore();
 
-                // Update Export Link URL to match active query
                 const exportBtn = document.getElementById('exportReportBtn');
                 if (exportBtn) {
                     const urlObj = new URL(url, window.location.origin);
@@ -575,15 +390,14 @@
                     exportBtn.href = "{{ route('placement-portal.export') }}" + urlObj.search;
                 }
 
-                // Dynamic Batch Filter Options Sync
                 const activeCourseId = document.getElementById('courseFilter')?.value || '';
                 filterBatchOptions(activeCourseId);
 
                 window.history.pushState({}, '', url);
             })
             .catch(err => {
+                console.error('AJAX Load Failed:', err);
                 if (tableCardBody) tableCardBody.style.opacity = '1';
-                window.location.href = url;
             });
         }
 
