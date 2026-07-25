@@ -120,7 +120,7 @@
                                 <td>{{ $student->placed_at ?? '-' }}</td>
                                 <td>{{ $student->placement_designation ?? '-' }}</td>
                                 <td>
-                                    <button type="button" class="btn btn-sm btn-primary shadow-sm rounded-pill px-3" 
+                                    <button type="button" class="btn btn-sm btn-primary shadow-sm rounded-pill px-3 btn-update-placement" 
                                         data-toggle="modal" 
                                         data-target="#placementUpdateModal"
                                         data-id="{{ $student->id }}"
@@ -291,7 +291,7 @@
 </div>
 @endsection
 
-@section('scripts')
+@push('scripts')
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const selectAll = document.getElementById('selectAll');
@@ -354,7 +354,8 @@
 
             const pillButtons = container.querySelectorAll('.status-pill-btn');
             pillButtons.forEach(btn => {
-                btn.addEventListener('click', function () {
+                btn.addEventListener('click', function (e) {
+                    e.preventDefault();
                     pillButtons.forEach(b => b.classList.remove('active'));
                     this.classList.add('active');
                     hiddenInput.value = this.getAttribute('data-status');
@@ -383,25 +384,33 @@
         setupStatusPills('bulkStatusPills', 'bulk_placement_status');
         setupStatusPills('singleStatusPills', 'single_placement_status');
 
-        // Dynamic Single Student Modal Trigger
-        $('#placementUpdateModal').on('show.bs.modal', function (event) {
-            const button = $(event.relatedTarget);
-            if (!button.length) return;
-
-            const modal = $(this);
+        function populateModalFromBtn(btn) {
+            if (!btn || !btn.length) return;
+            const modal = $('#placementUpdateModal');
             const form = modal.find('#singlePlacementForm');
 
-            form.attr('action', button.data('update-url'));
-            modal.find('#modalStudentName').text(button.data('name'));
-            modal.find('#modalStudentEnrollment').text(button.data('enrollment') || 'No Reg #');
-            modal.find('#modalStudentBatch').text((button.data('batch') || '') + (button.data('course') ? ' - ' + button.data('course') : ''));
-            modal.find('#modalStudentPhoto').attr('src', button.data('photo'));
-            modal.find('#modalPlacedAt').val(button.data('placed-at') || '');
-            modal.find('#modalDesignation').val(button.data('designation') || '');
+            form.attr('action', btn.data('update-url'));
+            modal.find('#modalStudentName').text(btn.data('name'));
+            modal.find('#modalStudentEnrollment').text(btn.data('enrollment') || 'No Reg #');
+            modal.find('#modalStudentBatch').text((btn.data('batch') || '') + (btn.data('course') ? ' - ' + btn.data('course') : ''));
+            modal.find('#modalStudentPhoto').attr('src', btn.data('photo'));
+            modal.find('#modalPlacedAt').val(btn.data('placed-at') || '');
+            modal.find('#modalDesignation').val(btn.data('designation') || '');
 
-            setStatusPillValue('singleStatusPills', 'single_placement_status', button.data('status'));
+            setStatusPillValue('singleStatusPills', 'single_placement_status', btn.data('status'));
+        }
+
+        $(document).on('click', '.btn-update-placement', function() {
+            populateModalFromBtn($(this));
+        });
+
+        $('#placementUpdateModal').on('show.bs.modal', function (event) {
+            const button = $(event.relatedTarget);
+            if (button && button.length) {
+                populateModalFromBtn(button);
+            }
         });
     });
 </script>
-@endsection
+@endpush
 

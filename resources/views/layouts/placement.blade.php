@@ -116,6 +116,7 @@
     @include('layouts.partials.scripts')
 
     @stack('scripts')
+    @yield('scripts')
 </body>
 
 </html>
