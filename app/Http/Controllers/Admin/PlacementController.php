@@ -96,12 +96,12 @@ class PlacementController extends Controller
         // Course Breakdown Statistics
         $courseStats = Course::withoutGlobalScope('academic_year')
             ->withCount(['students as total_students' => function($q) {
-                $q->withoutGlobalScope('academic_year')->where('status', '!=', 'dropout');
+                $q->withoutGlobalScope('academic_year')->where('students.status', '!=', 'dropout');
             }])
             ->withCount(['students as placed_students' => function($q) {
                 $q->withoutGlobalScope('academic_year')
-                  ->where('status', '!=', 'dropout')
-                  ->whereIn('placement_status', ['Job', 'Internship']);
+                  ->where('students.status', '!=', 'dropout')
+                  ->whereIn('students.placement_status', ['Job', 'Internship']);
             }])
             ->get()
             ->map(function($course) {
