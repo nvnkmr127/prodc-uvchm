@@ -5,65 +5,53 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title>Placement Officer Login</title>
-    <!-- Custom fonts and styles for this template-->
+    <!-- Custom fonts and styles -->
     <link href="{{ asset('admin_theme/vendor/fontawesome-free/css/all.min.css') }}" rel="stylesheet" type="text/css">
     <link href="{{ asset('admin_theme/css/sb-admin-2.min.css') }}" rel="stylesheet">
-    <style>
-        .bg-login-image {
-            background: url('https://images.unsplash.com/photo-1522071820081-009f0129c71c?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80')
-            background-position: center;
-            background-size: cover;
-        }
-    </style>
+    <link href="{{ asset('css/modern-theme.css') }}?v={{ time() }}" rel="stylesheet">
 </head>
 
-<body class="bg-gradient-primary">
+<body class="d-flex align-items-center min-vh-100 py-5" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);">
     <div class="container">
-        <!-- Outer Row -->
-        <div class="row justify-content-center mt-5">
-            <div class="col-xl-10 col-lg-12 col-md-9 mt-5">
-                <div class="card o-hidden border-0 shadow-lg my-5">
-                    <div class="card-body p-0">
-                        <!-- Nested Row within Card Body -->
-                        <div class="row">
-                            <div class="col-lg-6 d-none d-lg-block bg-login-image" style="background-color: #4e73df; background-image: url('https://images.unsplash.com/photo-1522071820081-009f0129c71c?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80'); background-size: cover; background-position: center;"></div>
-                            <div class="col-lg-6">
-                                <div class="p-5">
-                                    <div class="text-center">
-                                        <h1 class="h4 text-gray-900 mb-4">Placement Officer Portal</h1>
-                                        <p class="mb-4 text-muted">Enter your registered phone number and PIN to access the placement dashboard.</p>
-                                    </div>
-
-                                    @if ($errors->any())
-                                        <div class="alert alert-danger">
-                                            <ul class="mb-0">
-                                                @foreach ($errors->all() as $error)
-                                                    <li>{{ $error }}</li>
-                                                @endforeach
-                                            </ul>
-                                        </div>
-                                    @endif
-
-                                    <form class="user" method="POST" action="{{ route('placement-officer.login.submit') }}">
-                                        @csrf
-                                        <div class="form-group">
-                                            <input type="text" class="form-control form-control-user"
-                                                name="phone" placeholder="Enter Phone Number..." required autofocus value="{{ old('phone') }}">
-                                        </div>
-                                        <div class="form-group">
-                                            <input type="password" class="form-control form-control-user"
-                                                name="pin" placeholder="Enter 4-Digit PIN..." required maxlength="4">
-                                        </div>
-                                        <button type="submit" class="btn btn-primary btn-user btn-block">
-                                            Login
-                                        </button>
-                                    </form>
-                                    <hr>
-                                    <div class="text-center">
-                                        <a class="small" href="{{ route('login') }}">Main Admin Login</a>
-                                    </div>
-                                </div>
+        <div class="row justify-content-center">
+            <div class="col-xl-5 col-lg-6 col-md-8">
+                <div class="card border-0 shadow-lg" style="border-radius: 20px; overflow: hidden; background: #ffffff;">
+                    <div class="card-body p-4 p-md-5">
+                        <div class="text-center mb-4">
+                            <div class="d-inline-flex align-items-center justify-content-center bg-primary text-white rounded-circle mb-3 shadow" style="width: 64px; height: 64px; background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%) !important;">
+                                <i class="fas fa-graduation-cap fa-2x"></i>
                             </div>
+                            <h2 class="h4 text-dark font-weight-bold mb-1">Placement Portal</h2>
+                            <p class="text-muted small">Enter your registered mobile number to log in</p>
+                        </div>
+
+                        @if ($errors->any())
+                            <div class="alert alert-danger rounded-lg">
+                                <ul class="mb-0 pl-3 small">
+                                    @foreach ($errors->all() as $error)
+                                        <li>{{ $error }}</li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                        @endif
+
+                        <form method="POST" action="{{ route('placement-officer.login.submit') }}">
+                            @csrf
+                            <div class="form-group mb-4">
+                                <label class="font-weight-bold text-dark small"><i class="fas fa-mobile-alt mr-1 text-primary"></i> Mobile Number</label>
+                                <input type="tel" class="form-control form-control-lg" style="border-radius: 12px; font-size: 1rem;"
+                                    name="phone" placeholder="Enter Mobile Number..." required autofocus value="{{ old('phone') }}">
+                            </div>
+
+                            <button type="submit" class="btn btn-primary btn-lg btn-block shadow-sm" style="border-radius: 12px; font-weight: 600; background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); border: none;">
+                                <i class="fas fa-sign-in-alt mr-2"></i> Log In
+                            </button>
+                        </form>
+
+                        <hr class="my-4">
+                        
+                        <div class="text-center">
+                            <a class="small text-muted font-weight-bold" href="{{ route('login') }}"><i class="fas fa-arrow-left mr-1"></i> Main System Login</a>
                         </div>
                     </div>
                 </div>
@@ -74,9 +62,6 @@
     <!-- Bootstrap core JavaScript-->
     <script src="{{ asset('admin_theme/vendor/jquery/jquery.min.js') }}"></script>
     <script src="{{ asset('admin_theme/vendor/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
-    <!-- Core plugin JavaScript-->
-    <script src="{{ asset('admin_theme/vendor/jquery-easing/jquery.easing.min.js') }}"></script>
-    <!-- Custom scripts for all pages-->
-    <script src="{{ asset('admin_theme/js/sb-admin-2.min.js') }}"></script>
 </body>
 </html>
+

@@ -19,37 +19,37 @@ class PlacementAuthController extends Controller
     {
         $request->validate([
             'phone' => 'required|string',
-            'pin' => 'required|string',
         ]);
 
-        // Clean the phone number input (remove spaces, etc if needed)
-        $phone = trim($request->phone);
-        $pin = trim($request->pin);
+        // Clean the phone number input (extract digits)
+        $rawPhone = trim($request->phone);
+        $cleanPhone = preg_replace('/[^0-9]/', '', $rawPhone);
+        $last10 = strlen($cleanPhone) >= 10 ? substr($cleanPhone, -10) : $cleanPhone;
 
-        // Find user by phone
-        $user = User::where('phone', $phone)->first();
+        // Find user by phone (exact, clean, or matching last 10 digits)
+        $user = User::where(function($q) use ($rawPhone, $cleanPhone, $last10) {
+            $q->where('phone', $rawPhone)
+              ->orWhere('phone', $cleanPhone);
+            if (!empty($last10)) {
+                $q->orWhere('phone', 'like', "%{$last10}");
+            }
+        })->first();
 
         if (!$user) {
-            return back()->withErrors(['phone' => 'No faculty found with this phone number.']);
-        }
-        
-        if ($user->placement_pin !== $pin) {
-            return back()->withErrors(['pin' => 'Invalid PIN.']);
+            return back()->withErrors(['phone' => 'No account found matching this mobile number.']);
         }
 
-        // Check if user has the Placement Officer role.
-        // Also fallback: we check if role exists, if not create it (to avoid crashes for the user initially)
+        // Check if user has Placement Officer or Admin role
         if (!Role::where('name', 'Placement Officer')->exists()) {
             Role::create(['name' => 'Placement Officer']);
         }
 
-        if (!$user->hasRole('Placement Officer')) {
-            // For testing convenience, if they don't have it, we just check if they are staff. 
-            // In a strict environment, we only allow Placement Officers.
-            if ($user->hasRole('super-admin') || $user->hasRole('staff')) {
-                 return back()->withErrors(['phone' => 'This phone number belongs to a staff member, but they are not assigned the "Placement Officer" role. Please ask an admin to assign this role.']);
+        if (!$user->hasRole('Placement Officer') && !$user->hasRole('super-admin')) {
+            if ($user->hasRole('staff') || $user->can('view students')) {
+                $user->assignRole('Placement Officer');
+            } else {
+                return back()->withErrors(['phone' => 'Access denied. You are not authorized for Placement Portal.']);
             }
-            return back()->withErrors(['phone' => 'Access denied. You are not a Placement Officer.']);
         }
 
         // Log the user in
