@@ -23,38 +23,23 @@ class PlacementController extends Controller
 
     public function index(Request $request)
     {
-        $query = Student::withoutGlobalScope('academic_year')
-            ->with(['batch' => function($q) {
-                $q->withoutGlobalScope('academic_year')->with(['course' => function($cq) {
-                    $cq->withoutGlobalScope('academic_year');
-                }]);
-            }])
+        // 1. Build base query for filtered student scope (Course, Batch, Search)
+        $baseQuery = Student::withoutGlobalScope('academic_year')
             ->where('status', '!=', 'dropout');
 
         if ($request->filled('course_id')) {
-            $query->whereHas('batch', function($q) use ($request) {
+            $baseQuery->whereHas('batch', function($q) use ($request) {
                 $q->withoutGlobalScope('academic_year')->where('course_id', $request->course_id);
             });
         }
 
         if ($request->filled('batch_id')) {
-            $query->where('batch_id', $request->batch_id);
-        }
-
-        if ($request->filled('placement_status')) {
-            if ($request->placement_status === 'Not Placed') {
-                $query->where(function($q) {
-                    $q->whereNull('placement_status')
-                      ->orWhere('placement_status', 'Not Placed');
-                });
-            } else {
-                $query->where('placement_status', $request->placement_status);
-            }
+            $baseQuery->where('batch_id', $request->batch_id);
         }
 
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $baseQuery->where(function($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                   ->orWhere('enrollment_number', 'like', "%{$search}%")
                   ->orWhere('student_mobile', 'like', "%{$search}%")
@@ -64,12 +49,12 @@ class PlacementController extends Controller
             });
         }
 
-        // Stats calculations for current query
-        $totalStudents = (clone $query)->count();
-        $jobCount = (clone $query)->where('placement_status', 'Job')->count();
-        $internshipCount = (clone $query)->where('placement_status', 'Internship')->count();
-        $trainingCount = (clone $query)->where('placement_status', 'Training')->count();
-        $notPlacedCount = (clone $query)->where(function($q) {
+        // 2. Compute accurate stats for current filter scope
+        $totalStudents = (clone $baseQuery)->count();
+        $jobCount = (clone $baseQuery)->where('placement_status', 'Job')->count();
+        $internshipCount = (clone $baseQuery)->where('placement_status', 'Internship')->count();
+        $trainingCount = (clone $baseQuery)->where('placement_status', 'Training')->count();
+        $notPlacedCount = (clone $baseQuery)->where(function($q) {
             $q->whereNull('placement_status')->orWhere('placement_status', 'Not Placed');
         })->count();
 
@@ -84,6 +69,24 @@ class PlacementController extends Controller
             'placement_rate' => $placementRate,
         ];
 
+        // 3. Build table pagination query (adding placement_status filter & relationships)
+        $query = (clone $baseQuery)->with(['batch' => function($q) {
+            $q->withoutGlobalScope('academic_year')->with(['course' => function($cq) {
+                $cq->withoutGlobalScope('academic_year');
+            }]);
+        }]);
+
+        if ($request->filled('placement_status')) {
+            if ($request->placement_status === 'Not Placed') {
+                $query->where(function($q) {
+                    $q->whereNull('placement_status')
+                      ->orWhere('placement_status', 'Not Placed');
+                });
+            } else {
+                $query->where('placement_status', $request->placement_status);
+            }
+        }
+
         $students = $query->orderBy('name')->paginate(15)->withQueryString();
 
         $courses = Course::withoutGlobalScope('academic_year')
@@ -93,8 +96,13 @@ class PlacementController extends Controller
             ->orderBy('name')
             ->get();
 
-        // Course Breakdown Statistics
-        $courseStats = Course::withoutGlobalScope('academic_year')
+        // 4. Compute per-course statistics (filtered by selected course if specified)
+        $courseQuery = Course::withoutGlobalScope('academic_year');
+        if ($request->filled('course_id')) {
+            $courseQuery->where('id', $request->course_id);
+        }
+
+        $courseStats = $courseQuery
             ->withCount(['students as total_students' => function($q) {
                 $q->withoutGlobalScope('academic_year')->where('students.status', '!=', 'dropout');
             }])
@@ -103,6 +111,7 @@ class PlacementController extends Controller
                   ->where('students.status', '!=', 'dropout')
                   ->whereIn('students.placement_status', ['Job', 'Internship']);
             }])
+            ->orderBy('name')
             ->get()
             ->map(function($course) {
                 $course->placement_rate = $course->total_students > 0 
