@@ -475,3 +475,171 @@ select.form-control {
 ::-webkit-scrollbar-thumb:hover {
     background: #94a3b8;
 }
+
+/* Modern Modal Styles */
+.modal-backdrop.show {
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    background-color: rgba(15, 23, 42, 0.5);
+    opacity: 1 !important;
+}
+
+.modal-content.modern-modal-content {
+    border-radius: 20px !important;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    overflow: hidden;
+    background: #ffffff;
+}
+
+.modern-modal-header {
+    background: var(--primary-gradient);
+    color: #ffffff;
+    padding: 1.25rem 1.5rem;
+    border-bottom: none;
+    position: relative;
+}
+
+.modern-modal-header.header-bulk {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+}
+
+.modern-modal-header .modal-title {
+    color: #ffffff !important;
+    font-weight: 700;
+    font-size: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.modern-modal-header .modal-subtitle {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.85rem;
+    margin-top: 2px;
+}
+
+.modern-modal-header .close-modern {
+    background: rgba(255, 255, 255, 0.15);
+    border: none;
+    color: #ffffff;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    outline: none;
+}
+
+.modern-modal-header .close-modern:hover {
+    background: rgba(255, 255, 255, 0.3);
+    color: #ffffff;
+    transform: rotate(90deg);
+}
+
+.modal-body.modern-modal-body {
+    padding: 1.5rem;
+}
+
+.student-quick-info {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 0.875rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.student-quick-info img {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #ffffff;
+    box-shadow: var(--shadow-sm);
+}
+
+.status-pills-container {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.5rem;
+    margin-top: 0.35rem;
+}
+
+@media (max-width: 576px) {
+    .status-pills-container {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.status-pill-btn {
+    border: 2px solid #e2e8f0;
+    background: #ffffff;
+    color: var(--text-muted);
+    padding: 0.6rem 0.25rem;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+}
+
+.status-pill-btn i {
+    font-size: 1rem;
+}
+
+.status-pill-btn:hover {
+    border-color: #cbd5e1;
+    background: #f8fafc;
+}
+
+.status-pill-btn.active[data-status="Not Placed"] {
+    border-color: #64748b;
+    background: #f1f5f9;
+    color: #334155;
+}
+
+.status-pill-btn.active[data-status="Training"] {
+    border-color: #f59e0b;
+    background: #fffbeb;
+    color: #b45309;
+}
+
+.status-pill-btn.active[data-status="Internship"] {
+    border-color: #3b82f6;
+    background: #eff6ff;
+    color: #1d4ed8;
+}
+
+.status-pill-btn.active[data-status="Job"] {
+    border-color: #10b981;
+    background: #ecfdf5;
+    color: #047857;
+}
+
+.modern-modal-footer {
+    border-top: 1px solid #f1f5f9;
+    padding: 1rem 1.5rem;
+    background: #f8fafc;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+}
+
+.modern-modal-footer .btn {
+    border-radius: 10px;
+    padding: 0.55rem 1.25rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
