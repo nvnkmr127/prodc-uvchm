@@ -31,6 +31,12 @@ class PlacementController extends Controller
             }])
             ->where('status', '!=', 'dropout');
 
+        if ($request->filled('course_id')) {
+            $query->whereHas('batch', function($q) use ($request) {
+                $q->withoutGlobalScope('academic_year')->where('course_id', $request->course_id);
+            });
+        }
+
         if ($request->filled('batch_id')) {
             $query->where('batch_id', $request->batch_id);
         }
@@ -52,11 +58,34 @@ class PlacementController extends Controller
                 $q->where('name', 'like', "%{$search}%")
                   ->orWhere('enrollment_number', 'like', "%{$search}%")
                   ->orWhere('student_mobile', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%");
+                  ->orWhere('email', 'like', "%{$search}%")
+                  ->orWhere('placed_at', 'like', "%{$search}%")
+                  ->orWhere('placement_designation', 'like', "%{$search}%");
             });
         }
 
+        // Stats calculations for current query
+        $totalStudents = (clone $query)->count();
+        $jobCount = (clone $query)->where('placement_status', 'Job')->count();
+        $internshipCount = (clone $query)->where('placement_status', 'Internship')->count();
+        $trainingCount = (clone $query)->where('placement_status', 'Training')->count();
+        $notPlacedCount = (clone $query)->where(function($q) {
+            $q->whereNull('placement_status')->orWhere('placement_status', 'Not Placed');
+        })->count();
+
+        $placementRate = $totalStudents > 0 ? round((($jobCount + $internshipCount) / $totalStudents) * 100, 1) : 0;
+
+        $stats = [
+            'total' => $totalStudents,
+            'job' => $jobCount,
+            'internship' => $internshipCount,
+            'training' => $trainingCount,
+            'not_placed' => $notPlacedCount,
+            'placement_rate' => $placementRate,
+        ];
+
         $students = $query->orderBy('name')->paginate(15)->withQueryString();
+
         $courses = Course::withoutGlobalScope('academic_year')
             ->with(['batches' => function($q) {
                 $q->withoutGlobalScope('academic_year')->orderBy('name');
@@ -64,7 +93,25 @@ class PlacementController extends Controller
             ->orderBy('name')
             ->get();
 
-        return view('admin.placements.index', compact('students', 'courses'));
+        // Course Breakdown Statistics
+        $courseStats = Course::withoutGlobalScope('academic_year')
+            ->withCount(['students as total_students' => function($q) {
+                $q->withoutGlobalScope('academic_year')->where('status', '!=', 'dropout');
+            }])
+            ->withCount(['students as placed_students' => function($q) {
+                $q->withoutGlobalScope('academic_year')
+                  ->where('status', '!=', 'dropout')
+                  ->whereIn('placement_status', ['Job', 'Internship']);
+            }])
+            ->get()
+            ->map(function($course) {
+                $course->placement_rate = $course->total_students > 0 
+                    ? round(($course->placed_students / $course->total_students) * 100, 1) 
+                    : 0;
+                return $course;
+            });
+
+        return view('admin.placements.index', compact('students', 'courses', 'stats', 'courseStats'));
     }
 
     public function update(Request $request, Student $student)
@@ -115,6 +162,12 @@ class PlacementController extends Controller
             }])
             ->where('status', '!=', 'dropout');
 
+        if ($request->filled('course_id')) {
+            $query->whereHas('batch', function($q) use ($request) {
+                $q->withoutGlobalScope('academic_year')->where('course_id', $request->course_id);
+            });
+        }
+
         if ($request->filled('batch_id')) {
             $query->where('batch_id', $request->batch_id);
         }
@@ -136,7 +189,9 @@ class PlacementController extends Controller
                 $q->where('name', 'like', "%{$search}%")
                   ->orWhere('enrollment_number', 'like', "%{$search}%")
                   ->orWhere('student_mobile', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%");
+                  ->orWhere('email', 'like', "%{$search}%")
+                  ->orWhere('placed_at', 'like', "%{$search}%")
+                  ->orWhere('placement_designation', 'like', "%{$search}%");
             });
         }
 
