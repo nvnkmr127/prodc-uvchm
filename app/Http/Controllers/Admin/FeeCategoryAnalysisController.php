@@ -216,7 +216,78 @@ class FeeCategoryAnalysisController extends Controller
         $feeCategoryId = $request->get('fee_category_id');
         $filters = $this->buildFilters($request);
 
-        if ($type === 'detailed') {
+        if ($type === 'category_single' || ($type === 'detailed' && $feeCategoryId)) {
+            $type = 'category_single';
+
+            $query = StudentFee::withoutGlobalScopes()
+                ->with(['student.batch.course', 'feeCategory', 'payments'])
+                ->join('students', 'student_fees.student_id', '=', 'students.id')
+                ->where('students.status', '!=', 'dropout');
+
+            if ($feeCategoryId) {
+                $query->where('student_fees.fee_category_id', $feeCategoryId);
+            }
+
+            if ($request->filled('search')) {
+                $search = $request->search;
+                $query->whereHas('student', function ($sub) use ($search) {
+                    $sub->where('name', 'like', "%{$search}%")
+                        ->orWhere('enrollment_number', 'like', "%{$search}%")
+                        ->orWhere('id', 'like', "%{$search}%");
+                });
+            }
+
+            $selectedYearId = $request->has('academic_year_filter')
+                ? $request->get('academic_year_filter')
+                : session('selected_academic_year_id');
+            if ($selectedYearId) {
+                $query->whereHas('student.batch', function ($sub) use ($selectedYearId) {
+                    $sub->where('academic_year_id', $selectedYearId);
+                });
+            }
+
+            if ($request->filled('course_id')) {
+                $query->whereHas('student.batch', function ($sub) use ($request) {
+                    $sub->where('course_id', $request->course_id);
+                });
+            }
+
+            if ($request->filled('batch_id')) {
+                $query->whereHas('student', function ($sub) use ($request) {
+                    $sub->where('batch_id', $request->batch_id);
+                });
+            }
+
+            if ($request->filled('start_date')) {
+                $query->where('student_fees.due_date', '>=', $request->start_date);
+            }
+            if ($request->filled('end_date')) {
+                $query->where('student_fees.due_date', '<=', $request->end_date);
+            }
+
+            if ($request->filled('status') && $request->status !== 'all') {
+                if ($request->status === 'paid') {
+                    $query->whereRaw('(student_fees.amount - student_fees.concession_amount - student_fees.paid_amount) <= 0');
+                } elseif ($request->status === 'unpaid') {
+                    $query->where('student_fees.paid_amount', 0)
+                        ->whereRaw('(student_fees.amount - student_fees.concession_amount) > 0');
+                } elseif ($request->status === 'partial') {
+                    $query->where('student_fees.paid_amount', '>', 0)
+                        ->whereRaw('(student_fees.amount - student_fees.concession_amount - student_fees.paid_amount) > 0');
+                }
+            }
+
+            $query->select('student_fees.*')->addSelect([
+                'last_payment_date' => DB::table('payments')
+                    ->select('payment_date')
+                    ->whereColumn('student_id', 'student_fees.student_id')
+                    ->latest('payment_date')
+                    ->limit(1)
+            ]);
+
+            $data = $query->orderBy('students.name')->get();
+
+        } elseif ($type === 'detailed') {
             // Detailed Report Logic
             $query = StudentFee::withoutGlobalScopes()
                 ->with(['student.batch.course', 'feeCategory', 'payments'])
@@ -342,6 +413,9 @@ class FeeCategoryAnalysisController extends Controller
         }
 
         $filename = 'fee_analysis_' . $type . '_' . date('Y-m-d') . '.xlsx';
+        if ($feeCategoryId && $cat = FeeCategory::find($feeCategoryId)) {
+            $filename = 'fee_analysis_' . \Illuminate\Support\Str::slug($cat->name) . '_' . date('Y-m-d') . '.xlsx';
+        }
 
         return \Maatwebsite\Excel\Facades\Excel::download(
             new \App\Exports\FeeCategoryAnalysisExport($data, $type),

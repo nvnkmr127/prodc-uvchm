@@ -35,6 +35,10 @@ class FeeCategoryAnalysisExport implements WithMultipleSheets
                 $sheets[] = new FeeCategoryDetailedSheet($this->data);
                 break;
 
+            case 'category_single':
+                $sheets[] = new FeeCategorySingleSheet($this->data);
+                break;
+
             case 'pending':
                 $sheets[] = new FeeCategoryPendingSheet($this->data);
                 break;
@@ -569,3 +573,95 @@ class SimplePendingSheet implements FromCollection, WithHeadings, WithMapping, W
         ];
     }
 }
+
+class FeeCategorySingleSheet implements FromCollection, WithHeadings, WithMapping, WithStyles, WithTitle
+{
+    protected $data;
+
+    public function __construct($data)
+    {
+        $this->data = collect($data);
+    }
+
+    public function collection()
+    {
+        return $this->data;
+    }
+
+    public function headings(): array
+    {
+        return [
+            'Student Name',
+            'Enrollment Number',
+            'Course',
+            'Batch',
+            'Fee Category',
+            'Total Fee',
+            'Concession',
+            'Net Fee',
+            'Paid Amount',
+            'Due Amount',
+            'Status',
+            'Student Mobile',
+            'Father Mobile',
+            'Last Payment Date',
+        ];
+    }
+
+    public function map($fee): array
+    {
+        $studentName = $fee->student->name ?? 'N/A';
+        $enrollment = $fee->student->enrollment_number ?? 'N/A';
+        $course = $fee->student->batch->course->name ?? 'N/A';
+        $batch = $fee->student->batch->name ?? 'N/A';
+        $categoryName = $fee->feeCategory->name ?? 'N/A';
+
+        $amount = (float)($fee->amount ?? 0);
+        $concession = (float)($fee->concession_amount ?? 0);
+        $netFee = $amount - $concession;
+        $paid = (float)($fee->paid_amount ?? 0);
+        $due = max(0, $netFee - $paid);
+
+        $status = $due <= 0 ? 'Paid' : ($paid > 0 ? 'Partial' : 'Unpaid');
+
+        $studentMobile = $fee->student->student_mobile ?? 'N/A';
+        $fatherMobile = $fee->student->father_mobile ?? 'N/A';
+
+        $lastPaymentDate = 'N/A';
+        if (isset($fee->last_payment_date) && $fee->last_payment_date) {
+            $lastPaymentDate = \Carbon\Carbon::parse($fee->last_payment_date)->format('Y-m-d');
+        }
+
+        return [
+            $studentName,
+            $enrollment,
+            $course,
+            $batch,
+            $categoryName,
+            number_format($amount, 2, '.', ''),
+            number_format($concession, 2, '.', ''),
+            number_format($netFee, 2, '.', ''),
+            number_format($paid, 2, '.', ''),
+            number_format($due, 2, '.', ''),
+            $status,
+            $studentMobile,
+            $fatherMobile,
+            $lastPaymentDate,
+        ];
+    }
+
+    public function title(): string
+    {
+        return 'Category Fee Analysis';
+    }
+
+    public function styles(Worksheet $sheet)
+    {
+        return [
+            1 => ['font' => ['bold' => true, 'size' => 12]],
+            'A:N' => ['alignment' => ['horizontal' => 'left']],
+            'F:J' => ['numberFormat' => ['formatCode' => '#,##0.00']],
+        ];
+    }
+}
+

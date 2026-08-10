@@ -198,7 +198,7 @@ function exportFilteredList() {
     const formData = $('#filterForm').serialize();
     
     // 2. Construct the Export URL
-    const baseUrl = "{{ route('admin.fee-category-analysis.export', 'detailed') }}";
+    const baseUrl = "{{ route('admin.fee-category-analysis.export', 'category_single') }}";
     const feeCategoryId = "{{ $feeCategory->id }}";
     
     // 3. Redirect to download
