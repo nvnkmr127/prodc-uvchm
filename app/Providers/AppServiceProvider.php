@@ -136,6 +136,10 @@ class AppServiceProvider extends ServiceProvider
         // Use Bootstrap 4 for pagination
         Paginator::useBootstrap();
 
+        if (str_starts_with(config('app.url'), 'https://') || request()->header('X-Forwarded-Proto') === 'https') {
+            \Illuminate\Support\Facades\URL::forceScheme('https');
+        }
+
         // Register custom Blade directives
         $this->registerBladeDirectives();
 
