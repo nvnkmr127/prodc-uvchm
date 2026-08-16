@@ -9,7 +9,7 @@
         <h6 class="m-0 font-weight-bold text-primary">Generate a New Certificate</h6>
     </div>
     <div class="card-body">
-        <form action="{{ route('admin.certificate.generator.generate') }}" method="POST" target="_blank">
+        <form action="{{ route('admin.certificate.generator.generate') }}" method="POST" target="_blank" rel="noopener noreferrer">
             @csrf
             <div class="row">
                 <div class="col-md-6 mb-3">

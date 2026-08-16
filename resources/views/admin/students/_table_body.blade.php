@@ -73,31 +73,31 @@
         <td>
             <div class="table-actions">
                 <a href="{{ route('admin.students.show', $student) }}" class="btn btn-info btn-table-action"
-                    title="View Profile">
-                    <i class="fas fa-eye"></i>
+                    title="View Profile" aria-label="View {{ $student->name }}'s profile">
+                    <i class="fas fa-eye" aria-hidden="true"></i>
                 </a>
                 <a href="{{ route('admin.students.edit', $student) }}" class="btn btn-warning btn-table-action"
-                    title="Edit Student">
-                    <i class="fas fa-edit"></i>
+                    title="Edit Student" aria-label="Edit {{ $student->name }}">
+                    <i class="fas fa-edit" aria-hidden="true"></i>
                 </a>
 
                 {{-- DROPOUT MANAGEMENT BUTTONS --}}
                 @if($student->status === 'active')
                     <a href="{{ route('admin.students.confirm-dropout', $student) }}" class="btn btn-warning btn-table-action"
-                        title="Mark as Dropout">
-                        <i class="fas fa-user-times"></i>
+                        title="Mark as Dropout" aria-label="Mark {{ $student->name }} as dropout">
+                        <i class="fas fa-user-times" aria-hidden="true"></i>
                     </a>
                 @elseif($student->status === 'dropout')
-                    <button class="btn btn-success btn-table-action reactivate-student-btn" data-student-id="{{ $student->id }}"
-                        data-student-name="{{ $student->name }}" title="Reactivate Student">
-                        <i class="fas fa-user-check"></i>
+                    <button type="button" class="btn btn-success btn-table-action reactivate-student-btn" data-student-id="{{ $student->id }}"
+                        data-student-name="{{ $student->name }}" title="Reactivate Student" aria-label="Reactivate {{ $student->name }}">
+                        <i class="fas fa-user-check" aria-hidden="true"></i>
                     </button>
                 @endif
 
                 @if(auth()->user()->hasRole('super-admin'))
-                    <button class="btn btn-table-action btn-danger delete-student-btn" data-student-id="{{ $student->id }}"
-                        data-student-name="{{ $student->name }}" title="Delete Student">
-                        <i class="fas fa-trash"></i>
+                    <button type="button" class="btn btn-table-action btn-danger delete-student-btn ml-2" data-student-id="{{ $student->id }}"
+                        data-student-name="{{ $student->name }}" title="Delete Student" aria-label="Delete {{ $student->name }}">
+                        <i class="fas fa-trash" aria-hidden="true"></i>
                     </button>
                 @endif
             </div>
@@ -105,7 +105,7 @@
     </tr>
 @empty
     <tr>
-        <td colspan="7" class="text-center py-5">
+        <td colspan="6" class="text-center py-5">
             <div class="empty-state">
                 <i class="fas fa-users-slash empty-icon"></i>
                 <h5>No students found</h5>

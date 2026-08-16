@@ -8,10 +8,10 @@
     <div class="d-sm-flex align-items-center justify-content-between mb-4">
         <h1 class="h3 mb-0 text-gray-800">📊 Notification Dashboard</h1>
         <div>
-            <button class="btn btn-primary btn-sm" onclick="testNotifications()">
+            <button type="button" class="btn btn-primary btn-sm" onclick="testNotifications()">
                 <i class="fas fa-vial"></i> Test System
             </button>
-            <button class="btn btn-success btn-sm" onclick="window.location.reload()">
+            <button type="button" class="btn btn-success btn-sm" onclick="window.location.reload()">
                 <i class="fas fa-sync"></i> Refresh
             </button>
         </div>
@@ -106,25 +106,25 @@
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-3 mb-3">
-                            <button class="btn btn-outline-primary btn-block" onclick="sendFeeReminders()">
+                            <button type="button" class="btn btn-outline-primary btn-block" onclick="sendFeeReminders()">
                                 <i class="fas fa-money-bill-wave"></i><br>
                                 Send Fee Reminders
                             </button>
                         </div>
                         <div class="col-md-3 mb-3">
-                            <button class="btn btn-outline-info btn-block" onclick="checkAttendance()">
+                            <button type="button" class="btn btn-outline-info btn-block" onclick="checkAttendance()">
                                 <i class="fas fa-calendar-check"></i><br>
                                 Check Attendance
                             </button>
                         </div>
                         <div class="col-md-3 mb-3">
-                            <button class="btn btn-outline-success btn-block" onclick="checkSystemHealth()">
+                            <button type="button" class="btn btn-outline-success btn-block" onclick="checkSystemHealth()">
                                 <i class="fas fa-heartbeat"></i><br>
                                 System Health Check
                             </button>
                         </div>
                         <div class="col-md-3 mb-3">
-                            <button class="btn btn-outline-warning btn-block" onclick="markAllAsRead()">
+                            <button type="button" class="btn btn-outline-warning btn-block" onclick="markAllAsRead()">
                                 <i class="fas fa-check-double"></i><br>
                                 Mark All Read
                             </button>
@@ -204,7 +204,7 @@
                         <div class="text-center py-4">
                             <i class="fas fa-bell-slash fa-3x text-gray-300 mb-3"></i>
                             <p class="text-muted">No notifications yet. Test the system to create some!</p>
-                            <button class="btn btn-primary" onclick="testNotifications()">
+                            <button type="button" class="btn btn-primary" onclick="testNotifications()">
                                 <i class="fas fa-vial"></i> Send Test Notifications
                             </button>
                         </div>

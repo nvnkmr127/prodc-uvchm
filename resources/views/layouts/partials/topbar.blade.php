@@ -339,7 +339,7 @@
                                                 ${title ? `<div class="font-weight-bold">${title}</div>` : ''}
                                                 <div class="${title ? 'small' : ''}">${message}</div>
                                             </div>
-                                            <button class="btn btn-sm btn-link text-gray-600 ml-2" onclick="$(this).closest('.notification-toast').removeClass('show')">
+                                            <button type="button" class="btn btn-sm btn-link text-gray-600 ml-2" onclick="$(this).closest('.notification-toast').removeClass('show')">
                                                 <i class="fas fa-times"></i>
                                             </button>
                                         </div>

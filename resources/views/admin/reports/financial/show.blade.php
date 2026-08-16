@@ -54,7 +54,7 @@
         <h6 class="m-0 font-weight-bold text-primary">Report Results</h6>
         <div class="no-print">
             {{-- NEW PRINT BUTTON ADDED HERE --}}
-            <button onclick="window.print()" class="btn btn-sm btn-secondary shadow-sm"><i class="fas fa-print"></i> Print Report</button>
+            <button type="button" onclick="window.print()" class="btn btn-sm btn-secondary shadow-sm"><i class="fas fa-print"></i> Print Report</button>
             <a href="{{ route('admin.reports.financial.show', array_merge($filterParams, ['export' => 'xlsx'])) }}" class="btn btn-sm btn-success shadow-sm"><i class="fas fa-file-excel"></i> Export to Excel</a>
         </div>
     </div>
@@ -97,7 +97,7 @@
                 <tr>
                     <td>
                         {{-- The student name is now a link to their profile --}}
-                        <a href="{{ route('admin.students.show', $student) }}" target="_blank">
+                        <a href="{{ route('admin.students.show', $student) }}" target="_blank" rel="noopener noreferrer">
                             <strong>{{ $student->name }}</strong>
                         </a>
                         <small class="d-block text-muted">Paid on: {{ \Carbon\Carbon::parse($payment->payment_date)->format('d M, Y') }}</small>

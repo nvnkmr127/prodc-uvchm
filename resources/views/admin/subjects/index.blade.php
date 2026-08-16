@@ -14,7 +14,7 @@
         <a href="{{ route('admin.subjects.create') }}" class="btn btn-primary shadow-sm">
             <i class="fas fa-plus fa-sm mr-1"></i> Add New Subject
         </a>
-        <button class="btn btn-outline-secondary" data-toggle="modal" data-target="#bulkActionsModal">
+        <button type="button" class="btn btn-outline-secondary" data-toggle="modal" data-target="#bulkActionsModal">
             <i class="fas fa-tasks mr-1"></i> Bulk Actions
         </button>
     </div>
@@ -130,7 +130,7 @@
                 </h6>
             </div>
             <div class="col-md-6 text-right">
-                <button class="btn btn-sm btn-outline-primary" onclick="resetFilters()">
+                <button type="button" class="btn btn-sm btn-outline-primary" onclick="resetFilters()">
                     <i class="fas fa-undo mr-1"></i>Reset
                 </button>
             </div>
@@ -268,7 +268,7 @@
                                     @endif
                                     
                                     <div class="mt-2">
-                                        <button class="btn btn-outline-primary btn-sm" 
+                                        <button type="button" class="btn btn-outline-primary btn-sm" 
                                                 onclick="manageFaculty({{ $subject->id }}, '{{ $subject->name }}')"
                                                 data-toggle="modal" data-target="#facultyModal">
                                             <i class="fas fa-users mr-1"></i>Manage Faculty
@@ -301,7 +301,7 @@
                                         <i class="fas fa-edit mr-1"></i>Edit
                                     </a>
                                     
-                                    <button class="btn btn-info btn-sm mb-1" 
+                                    <button type="button" class="btn btn-info btn-sm mb-1" 
                                             onclick="viewSubjectDetails({{ $subject->id }})"
                                             title="View Details">
                                         <i class="fas fa-eye mr-1"></i>Details
@@ -406,7 +406,7 @@
                             
                             <div class="card-footer">
                                 <div class="btn-group btn-group-sm w-100" role="group">
-                                    <button class="btn btn-outline-primary" 
+                                    <button type="button" class="btn btn-outline-primary" 
                                             onclick="manageFaculty({{ $subject->id }}, '{{ $subject->name }}')"
                                             data-toggle="modal" data-target="#facultyModal">
                                         <i class="fas fa-users"></i>
@@ -415,10 +415,10 @@
                                        class="btn btn-outline-warning">
                                         <i class="fas fa-edit"></i>
                                     </a>
-                                    <button class="btn btn-outline-info" onclick="viewSubjectDetails({{ $subject->id }})">
+                                    <button type="button" class="btn btn-outline-info" onclick="viewSubjectDetails({{ $subject->id }})">
                                         <i class="fas fa-eye"></i>
                                     </button>
-                                    <button class="btn btn-outline-danger" 
+                                    <button type="button" class="btn btn-outline-danger" 
                                             onclick="confirmDelete({{ $subject->id }}, '{{ $subject->name }}')">
                                         <i class="fas fa-trash"></i>
                                     </button>
@@ -782,10 +782,10 @@ function createFacultyItem(faculty, type) {
     div.className = 'faculty-item p-2 mb-2 border rounded';
     
     const actionButton = type === 'available' 
-        ? `<button class="btn btn-sm btn-success" onclick="assignFaculty(${faculty.id})">
+        ? `<button type="button" class="btn btn-sm btn-success" onclick="assignFaculty(${faculty.id})">
              <i class="fas fa-plus"></i> Assign
            </button>`
-        : `<button class="btn btn-sm btn-danger" onclick="removeFaculty(${faculty.id})">
+        : `<button type="button" class="btn btn-sm btn-danger" onclick="removeFaculty(${faculty.id})">
              <i class="fas fa-minus"></i> Remove
            </button>`;
     

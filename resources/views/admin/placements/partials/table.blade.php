@@ -28,7 +28,7 @@
                     </td>
                     <td>
                         <div class="d-flex align-items-center">
-                            <img src="{{ $student->photo_url }}" class="rounded-circle mr-2" width="40" height="40" style="object-fit: cover;" onerror="this.src='https://ui-avatars.com/api/?name={{ urlencode($student->name) }}&size=40&background=4e73df&color=fff&rounded=true&bold=true'">
+                            <img alt="{{ ($student->name ?? 'Student') }} photo" src="{{ $student->photo_url }}" class="rounded-circle mr-2" width="40" height="40" style="object-fit: cover;" onerror="this.src='https://ui-avatars.com/api/?name={{ urlencode($student->name) }}&size=40&background=4e73df&color=fff&rounded=true&bold=true'">
                             <div>
                                 <div class="font-weight-bold">{{ $student->name }}</div>
                                 <small class="text-muted">{{ $student->enrollment_number }}</small>

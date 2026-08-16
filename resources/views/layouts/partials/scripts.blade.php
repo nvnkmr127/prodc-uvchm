@@ -266,7 +266,7 @@
                             ${title ? `<div class="font-weight-bold">${title}</div>` : ''}
                             <div class="${title ? 'small' : ''}">${message}</div>
                         </div>
-                        <button class="btn btn-sm btn-link text-gray-600 ml-2" onclick="$(this).closest('.notification-toast').removeClass('show')">
+                        <button type="button" class="btn btn-sm btn-link text-gray-600 ml-2" onclick="$(this).closest('.notification-toast').removeClass('show')">
                             <i class="fas fa-times"></i>
                         </button>
                     </div>
@@ -631,5 +631,18 @@
         // Initialize Global Search
         $(document).ready(function () {
             window.globalSearch = new GlobalSearch();
+        });
+
+        // Prevent wide data tables from breaking the layout on small screens:
+        // wrap any Bootstrap table that isn't already inside a scroll container.
+        $(document).ready(function () {
+            document.querySelectorAll('table.table').forEach(function (t) {
+                if (!t.closest('.table-responsive')) {
+                    var wrap = document.createElement('div');
+                    wrap.className = 'table-responsive';
+                    t.parentNode.insertBefore(wrap, t);
+                    wrap.appendChild(t);
+                }
+            });
         });
     </script>

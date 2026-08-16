@@ -438,7 +438,7 @@
                     <p class="mb-0">This student is eligible for {{ setting('womens_discount_percentage') }}% automatic discount.</p>
                 </div>
                 <div class="col-md-4 text-right">
-                    <button class="btn btn-success btn-modern" onclick="applyAutomaticGenderConcession()">
+                    <button type="button" class="btn btn-success btn-modern" onclick="applyAutomaticGenderConcession()">
                         <i class="fas fa-magic mr-1"></i> Apply Auto Discount
                     </button>
                 </div>
@@ -460,7 +460,7 @@
                         </div>
                         <div class="col-auto">
                             <span class="badge badge-primary">{{ $studentFees->count() }} Components</span>
-                            <button class="btn btn-outline-warning btn-sm ml-2" data-toggle="modal" data-target="#applyConcessionModal">
+                            <button type="button" class="btn btn-outline-warning btn-sm ml-2" data-toggle="modal" data-target="#applyConcessionModal">
                                 <i class="fas fa-percent mr-1"></i> Apply Concession
                             </button>
                         </div>
@@ -639,7 +639,7 @@
                                         <td><strong>{{ setting('currency_symbol','₹') }}{{ number_format($item->amount_paid, 0) }}</strong></td>
                                         <td><span class="badge badge-info">{{ ucfirst($payment->payment_method) }}</span></td>
                                         <td>
-                                            <a href="{{ route('admin.payments.receipt', [$student, $payment]) }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                                            <a href="{{ route('admin.payments.receipt', [$student, $payment]) }}" class="btn btn-sm btn-outline-primary" target="_blank" rel="noopener noreferrer">
                                                 <i class="fas fa-receipt"></i>
                                             </a>
                                         </td>

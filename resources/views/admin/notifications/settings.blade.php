@@ -151,16 +151,16 @@
                 </div>
                 <div class="card-body">
                     <p>Test notification sounds:</p>
-                    <button class="btn btn-outline-success mr-2" onclick="playSound('success')">
+                    <button type="button" class="btn btn-outline-success mr-2" onclick="playSound('success')">
                         <i class="fas fa-check"></i> Success Sound
                     </button>
-                    <button class="btn btn-outline-warning mr-2" onclick="playSound('warning')">
+                    <button type="button" class="btn btn-outline-warning mr-2" onclick="playSound('warning')">
                         <i class="fas fa-exclamation-triangle"></i> Warning Sound
                     </button>
-                    <button class="btn btn-outline-danger mr-2" onclick="playSound('error')">
+                    <button type="button" class="btn btn-outline-danger mr-2" onclick="playSound('error')">
                         <i class="fas fa-times"></i> Error Sound
                     </button>
-                    <button class="btn btn-outline-info mr-2" onclick="playSound('info')">
+                    <button type="button" class="btn btn-outline-info mr-2" onclick="playSound('info')">
                         <i class="fas fa-info"></i> Info Sound
                     </button>
                 </div>

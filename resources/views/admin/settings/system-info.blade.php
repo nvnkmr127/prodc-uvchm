@@ -65,7 +65,7 @@
                             <td class="font-weight-bold">URL:</td>
                             <td>
                                 @php $url = $systemInfo['application']['url'] ?? config('app.url') @endphp
-                                <a href="{{ $url }}" target="_blank">{{ $url }}</a>
+                                <a href="{{ $url }}" target="_blank" rel="noopener noreferrer">{{ $url }}</a>
                             </td>
                         </tr>
                         <tr>

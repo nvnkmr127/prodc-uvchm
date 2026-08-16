@@ -6,10 +6,10 @@
     <h1 class="h3 mb-0 text-gray-800">Lab Group Allocation</h1>
     @if($selectedBatch)
     <div>
-        <button class="btn btn-sm btn-info shadow-sm me-2" onclick="refreshStats()">
+        <button type="button" class="btn btn-sm btn-info shadow-sm me-2" onclick="refreshStats()">
             <i class="fas fa-chart-bar fa-sm text-white-50"></i> View Stats
         </button>
-        <button class="btn btn-sm btn-success shadow-sm" data-toggle="modal" data-target="#automateModal">
+        <button type="button" class="btn btn-sm btn-success shadow-sm" data-toggle="modal" data-target="#automateModal">
             <i class="fas fa-robot fa-sm text-white-50"></i> Run Automated Allocation
         </button>
     </div>
@@ -104,7 +104,7 @@
         </p>
     </div>
     <div class="btn-group" role="group">
-        <button class="btn btn-sm btn-info shadow-sm me-2" onclick="refreshStats()">
+        <button type="button" class="btn btn-sm btn-info shadow-sm me-2" onclick="refreshStats()">
             <i class="fas fa-chart-bar fa-sm text-white-50"></i> View Stats
         </button>
         <div class="btn-group" role="group">
@@ -139,7 +139,7 @@
                 </a>
             </div>
         </div>
-        <button class="btn btn-sm btn-success shadow-sm" data-toggle="modal" data-target="#automateModal">
+        <button type="button" class="btn btn-sm btn-success shadow-sm" data-toggle="modal" data-target="#automateModal">
             <i class="fas fa-robot fa-sm text-white-50"></i> Run Automated Allocation
         </button>
     </div>

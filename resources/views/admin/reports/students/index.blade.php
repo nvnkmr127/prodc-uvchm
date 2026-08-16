@@ -11,7 +11,7 @@
             <p class="text-muted small mb-0">Comprehensive reporting with financial and academic insights</p>
         </div>
         <div class="d-flex">
-            <button onclick="window.print()" class="btn btn-sm btn-outline-primary shadow-sm mr-2">
+            <button type="button" onclick="window.print()" class="btn btn-sm btn-outline-primary shadow-sm mr-2">
                 <i class="fas fa-print fa-sm mr-1"></i> Print Report
             </button>
             <a href="{{ route('admin.reports.students.export', request()->all()) }}" class="btn btn-sm btn-success shadow-sm">

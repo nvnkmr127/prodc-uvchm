@@ -4,10 +4,10 @@
                                             <i class="fas fa-file-invoice-dollar mr-2"></i> Fee Components
                                         </h5>
                                         <div class="btn-group">
-                                            <button class="action-btn btn-success-modern btn-sm" onclick="openPaymentModal()">
+                                            <button type="button" class="action-btn btn-success-modern btn-sm" onclick="openPaymentModal()">
                                                 <i class="fas fa-plus mr-2"></i> Record Payment
                                             </button>
-                                            <button class="btn btn-primary btn-sm" data-toggle="modal"
+                                            <button type="button" class="btn btn-primary btn-sm" data-toggle="modal"
                                                 data-target="#addFeeComponentModal">
                                                 <i class="fas fa-plus-circle mr-2"></i> Add Fee Component
                                             </button>
@@ -105,13 +105,13 @@
                                                         </div>
                                                         <div class="col-md-4 text-right">
                                                             @if($remainingAmount > 0)
-                                                                <button class="btn btn-success btn-sm mb-2"
+                                                                <button type="button" class="btn btn-success btn-sm mb-2"
                                                                     onclick="openPaymentModal({{ $studentFee->id }}, '{{ optional($studentFee->feeCategory)->name ?? 'Unknown' }}', {{ $remainingAmount }})">
                                                                     <i class="fas fa-credit-card mr-1"></i> Pay
                                                                     ₹{{ number_format($remainingAmount, 0) }}
                                                                 </button>
                                                                 <br>
-                                                                <button class="btn btn-warning btn-sm"
+                                                                <button type="button" class="btn btn-warning btn-sm"
                                                                     onclick="openConcessionModal({{ $studentFee->id }}, '{{ optional($studentFee->feeCategory)->name ?? 'Unknown' }}', {{ $remainingAmount }})">
                                                                     <i class="fas fa-percent mr-1"></i> Apply Concession
                                                                 </button>

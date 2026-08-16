@@ -296,7 +296,7 @@
             </div>
             <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
                 <h6 class="m-0 font-weight-bold text-primary">Detailed Certificate Data</h6>
-                <button class="btn btn-sm btn-light border" onclick="window.print()">
+                <button type="button" class="btn btn-sm btn-light border" onclick="window.print()">
                     <i class="fas fa-print mr-1"></i> Print
                 </button>
             </div>

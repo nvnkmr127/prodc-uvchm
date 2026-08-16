@@ -134,7 +134,7 @@
 
                 <div class="bg-dark text-white p-4 rounded-3 mb-4 font-monospace position-relative group shadow-lg">
                   <div class="small text-muted mb-2 text-uppercase font-weight-bold">Request Header</div>
-                  <button class="btn btn-sm btn-outline-light position-absolute top-0 end-0 m-3 copy-btn border-0"
+                  <button type="button" class="btn btn-sm btn-outline-light position-absolute top-0 end-0 m-3 copy-btn border-0"
                     onclick="copyToClipboard('Authorization: Bearer YOUR_API_TOKEN', this)">
                     <i class="fas fa-copy"></i>
                   </button>

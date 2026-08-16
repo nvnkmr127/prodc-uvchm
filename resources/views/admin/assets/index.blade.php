@@ -6,7 +6,7 @@
     <h1 class="h3 mb-0 text-gray-800">Manage Assets</h1>
     <div>
         <button class="btn btn-sm btn-danger shadow-sm" id="bulk-delete-btn" style="display: none;"><i class="fas fa-trash fa-sm text-white-50"></i> Delete Selected</button>
-        <button class="btn btn-sm btn-primary shadow-sm" data-toggle="modal" data-target="#addAssetModal"><i class="fas fa-plus fa-sm text-white-50"></i> Add New Asset</button>
+        <button type="button" class="btn btn-sm btn-primary shadow-sm" data-toggle="modal" data-target="#addAssetModal"><i class="fas fa-plus fa-sm text-white-50"></i> Add New Asset</button>
     <a href="#" class="btn btn-sm btn-success shadow-sm" data-toggle="modal" data-target="#importAssetsModal">
             <i class="fas fa-file-import fa-sm text-white-50"></i> Bulk Import Assets
         </a> </div>

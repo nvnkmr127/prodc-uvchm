@@ -110,7 +110,7 @@
             <h6 class="m-0 font-weight-bold text-success">
                 <i class="fas fa-filter mr-1"></i> Search & Filters
             </h6>
-            <button class="btn btn-sm btn-link text-success p-0 font-weight-bold" onclick="resetFilters()">
+            <button type="button" class="btn btn-sm btn-link text-success p-0 font-weight-bold" onclick="resetFilters()">
                 <i class="fas fa-undo mr-1"></i> Reset
             </button>
         </div>

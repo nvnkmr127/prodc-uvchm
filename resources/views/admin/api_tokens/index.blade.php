@@ -167,7 +167,7 @@
                                         </td>
                                         <td class="text-end pe-4">
                                             <div class="dropdown">
-                                                <button class="btn btn-light btn-sm" data-bs-toggle="dropdown">
+                                                <button type="button" class="btn btn-light btn-sm" data-bs-toggle="dropdown">
                                                     <i class="fas fa-ellipsis-h"></i>
                                                 </button>
                                                 <ul class="dropdown-menu dropdown-menu-end shadow border-0">

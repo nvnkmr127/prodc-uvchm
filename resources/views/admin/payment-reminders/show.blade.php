@@ -307,7 +307,7 @@
                                             </small>
                                         </div>
                                         @if($log->metadata)
-                                            <button class="btn btn-sm btn-outline-info" data-toggle="collapse" data-target="#metadata-{{ $log->id }}">
+                                            <button type="button" class="btn btn-sm btn-outline-info" data-toggle="collapse" data-target="#metadata-{{ $log->id }}">
                                                 <i class="fas fa-info-circle"></i>
                                             </button>
                                         @endif

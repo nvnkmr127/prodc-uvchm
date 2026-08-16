@@ -64,7 +64,7 @@
             @empty
                 <tr>
                     <td colspan="6" class="text-center py-5">
-                        <img src="{{ asset('img/undraw_no_data.svg') }}" style="width: 150px; opacity: 0.5;">
+                        <img alt="" src="{{ asset('img/undraw_no_data.svg') }}" style="width: 150px; opacity: 0.5;">
                         <p class="mt-3 text-gray-500">No student data matching the filters.</p>
                     </td>
                 </tr>

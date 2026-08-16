@@ -23,7 +23,7 @@
                 </a>
                 @if(Route::has('public.receipt.show'))
                     <a href="{{ route('public.receipt.show', $componentPayment->receipt_number) }}"
-                        class="btn btn-primary shadow-sm" target="_blank">
+                        class="btn btn-primary shadow-sm" target="_blank" rel="noopener noreferrer">
                         <i class="fas fa-print fa-sm text-white-50 mr-1"></i> Print Receipt
                     </a>
                 @endif

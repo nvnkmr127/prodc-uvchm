@@ -166,7 +166,7 @@
                                     <label class="custom-file-label" for="background_image">Choose file...</label>
                                 </div>
                                 <small class="form-text text-muted">A locally previewed image will show here.</small>
-                                <img id="bg-preview-img" src="" class="img-fluid mt-2 border d-none"
+                                <img alt="Certificate background preview" id="bg-preview-img" src="" class="img-fluid mt-2 border d-none"
                                     style="max-height: 150px;">
                             </div>
 

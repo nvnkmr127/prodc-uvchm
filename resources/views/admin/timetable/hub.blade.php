@@ -7,16 +7,16 @@
         <i class="fas fa-calendar-alt me-2"></i>Timetable Command Center
     </h1>
     <div>
-        <button class="btn btn-primary shadow-sm" data-toggle="modal" data-target="#generateModal">
+        <button type="button" class="btn btn-primary shadow-sm" data-toggle="modal" data-target="#generateModal">
             <i class="fas fa-cogs fa-sm text-white-50"></i> Generate Schedule
         </button>
-        <button class="btn btn-info shadow-sm" data-toggle="modal" data-target="#quickScheduleModal">
+        <button type="button" class="btn btn-info shadow-sm" data-toggle="modal" data-target="#quickScheduleModal">
             <i class="fas fa-bolt fa-sm text-white-50"></i> Quick Schedule
         </button>
-        <button class="btn btn-warning shadow-sm" data-toggle="modal" data-target="#labTimetableModal">
+        <button type="button" class="btn btn-warning shadow-sm" data-toggle="modal" data-target="#labTimetableModal">
             <i class="fas fa-flask fa-sm text-white-50"></i> Generate Lab Timetable
         </button>
-        <button class="btn btn-secondary shadow-sm" onclick="window.print()">
+        <button type="button" class="btn btn-secondary shadow-sm" onclick="window.print()">
             <i class="fas fa-print fa-sm"></i> Print View
         </button>
         <a href="{{ route('admin.timetable.hub.pdf') }}" id="pdfExportLink" class="btn btn-danger btn-sm shadow-sm">
@@ -50,7 +50,7 @@
                         </div>
                     </div>
                     <div class="col-md-6">
-                        <button class="btn btn-sm btn-outline-primary" data-toggle="collapse" data-target="#fullReport">
+                        <button type="button" class="btn btn-sm btn-outline-primary" data-toggle="collapse" data-target="#fullReport">
                             <i class="fas fa-eye"></i> View Full Report
                         </button>
                         <div class="collapse mt-2" id="fullReport">

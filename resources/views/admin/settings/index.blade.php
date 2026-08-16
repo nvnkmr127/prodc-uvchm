@@ -411,7 +411,7 @@
                                                     </div>
                                                 @else
                                                     <a href="{{ asset('storage/' . $currentValue) }}" 
-                                                       target="_blank" class="text-primary">
+                                                       target="_blank" class="text-primary" rel="noopener noreferrer">
                                                         <i class="fas fa-download mr-1"></i>View Current File
                                                     </a>
                                                 @endif

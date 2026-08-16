@@ -14,7 +14,7 @@
                 <i class="fas fa-arrow-left mr-1"></i> Back to Analysis
             </a>
             <div class="btn-group ml-2">
-                <button class="btn btn-primary btn-sm dropdown-toggle" data-toggle="dropdown">
+                <button type="button" class="btn btn-primary btn-sm dropdown-toggle" data-toggle="dropdown">
                     <i class="fas fa-download mr-1"></i> Export
                 </button>
                 <div class="dropdown-menu dropdown-menu-right">

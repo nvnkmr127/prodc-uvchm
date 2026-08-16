@@ -83,7 +83,7 @@
     <nav class="bg-white border-b border-gray-200 sticky top-0 z-50">
         <div class="px-4 py-3 flex justify-between items-center max-w-lg mx-auto">
             <div class="flex items-center gap-3">
-                <img src="https://ui-avatars.com/api/?name={{ urlencode($student->name) }}&background=4f46e5&color=fff"
+                <img alt="{{ ($student->name ?? 'Student') }} photo" src="https://ui-avatars.com/api/?name={{ urlencode($student->name) }}&background=4f46e5&color=fff"
                     class="w-8 h-8 rounded-full">
                 <div>
                     <h1 class="font-bold text-sm leading-tight">{{ Str::limit($student->name, 20) }}</h1>
@@ -110,7 +110,7 @@
                     <!-- Photo -->
                     <div class="relative">
                         @if($student->photo)
-                            <img src="{{ asset('storage/' . $student->photo) }}"
+                            <img alt="{{ ($student->name ?? 'Student') }} photo" src="{{ asset('storage/' . $student->photo) }}"
                                 class="w-16 h-16 rounded-xl object-cover border border-gray-100">
                         @else
                             <div class="w-16 h-16 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400">
@@ -123,7 +123,7 @@
                                 <i class="fa-solid fa-clock"></i>
                             </div>
                         @else
-                            <button onclick="openModal('photo')"
+                            <button type="button" onclick="openModal('photo')"
                                 class="absolute -bottom-2 -right-2 bg-indigo-600 text-white w-7 h-7 rounded-full flex items-center justify-center text-xs shadow-md border-2 border-white">
                                 <i class="fa-solid fa-camera"></i>
                             </button>
@@ -154,7 +154,7 @@
                         @elseif($student->student_mobile)
                             <span class="font-mono text-gray-700">******{{ substr($student->student_mobile, -3) }}</span>
                         @else
-                            <button onclick="openLinkModal('student')"
+                            <button type="button" onclick="openLinkModal('student')"
                                 class="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-1 rounded font-medium">Add
                                 +</button>
                         @endif
@@ -170,7 +170,7 @@
                         @elseif($student->father_mobile)
                             <span class="font-mono text-gray-700">******{{ substr($student->father_mobile, -3) }}</span>
                         @else
-                            <button onclick="openLinkModal('father')"
+                            <button type="button" onclick="openLinkModal('father')"
                                 class="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-1 rounded font-medium">Add
                                 +</button>
                         @endif
@@ -194,7 +194,7 @@
                             <span
                                 class="text-gray-700">{{ $student->dob ? $student->dob->format('d M, Y') : 'Not recorded' }}</span>
                             @if(!$student->dob)
-                                <button onclick="openModal('dob')" class="text-indigo-600 hover:text-indigo-700 text-xs">
+                                <button type="button" onclick="openModal('dob')" class="text-indigo-600 hover:text-indigo-700 text-xs">
                                     <i class="fa-solid fa-pen"></i>
                                 </button>
                             @endif
@@ -248,7 +248,7 @@
                     @endif
                 </div>
                 @if(!isset($pendingRequests['address']))
-                    <button onclick="openModal('address')" class="text-gray-400 hover:text-indigo-600 text-xs ml-2"><i
+                    <button type="button" onclick="openModal('address')" class="text-gray-400 hover:text-indigo-600 text-xs ml-2"><i
                             class="fa-solid fa-pen"></i></button>
                 @endif
             </div>
@@ -257,9 +257,9 @@
         <!-- TABS -->
         <div>
             <div class="flex gap-6 border-b border-gray-200 mb-4 px-2">
-                <button onclick="switchTab('attendance')" id="btn-attendance"
+                <button type="button" onclick="switchTab('attendance')" id="btn-attendance"
                     class="pb-2 text-sm font-semibold border-b-2 border-indigo-600 text-indigo-600 transition-colors">Attendance</button>
-                <button onclick="switchTab('payments')" id="btn-payments"
+                <button type="button" onclick="switchTab('payments')" id="btn-payments"
                     class="pb-2 text-sm font-semibold border-b-2 border-transparent text-gray-400 hover:text-gray-600 transition-colors">Payments</button>
             </div>
 
@@ -270,7 +270,7 @@
                     <div class="mb-4">
                         <div
                             class="flex justify-between items-center mb-4 bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
-                            <button onclick="changeMonth(-1)"
+                            <button type="button" onclick="changeMonth(-1)"
                                 class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-50 text-gray-400 hover:bg-indigo-50 hover:text-indigo-600 transition-colors">
                                 <i class="fa-solid fa-chevron-left text-xs"></i>
                             </button>
@@ -284,7 +284,7 @@
                                 </select>
                             </div>
 
-                            <button onclick="changeMonth(1)"
+                            <button type="button" onclick="changeMonth(1)"
                                 class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-50 text-gray-400 hover:bg-indigo-50 hover:text-indigo-600 transition-colors">
                                 <i class="fa-solid fa-chevron-right text-xs"></i>
                             </button>
@@ -741,7 +741,7 @@
                         <div class="text-center p-8 bg-white border border-gray-100 rounded-2xl shadow-sm">
                             <i class="fa-solid fa-triangle-exclamation text-red-500 text-2xl mb-3"></i>
                             <p class="text-sm font-bold text-gray-800">Connection Interrupted</p>
-                            <button onclick="PaymentUI.state.loaded=false;loadPayments()" class="mt-4 text-xs text-indigo-600 font-bold uppercase">Try Again</button>
+                            <button type="button" onclick="PaymentUI.state.loaded=false;loadPayments()" class="mt-4 text-xs text-indigo-600 font-bold uppercase">Try Again</button>
                         </div>
                     `;
             }

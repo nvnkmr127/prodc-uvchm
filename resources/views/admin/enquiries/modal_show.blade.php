@@ -102,7 +102,7 @@
                     <a href="tel:{{ $enquiry->phone_number }}" class="btn btn-success btn-sm btn-circle" title="Call">
                         <i class="fas fa-phone"></i>
                     </a>
-                    <a href="https://wa.me/{{ str_replace(['+', ' ', '-'], '', $enquiry->phone_number) }}" target="_blank" class="btn btn-warning btn-sm btn-circle" title="WhatsApp">
+                    <a href="https://wa.me/{{ str_replace(['+', ' ', '-'], '', $enquiry->phone_number) }}" target="_blank" class="btn btn-warning btn-sm btn-circle" title="WhatsApp" rel="noopener noreferrer">
                         <i class="fab fa-whatsapp"></i>
                     </a>
                 </div>

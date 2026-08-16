@@ -5,7 +5,7 @@
 <div class="d-sm-flex align-items-center justify-content-between mb-4">
     <h1 class="h3 mb-0 text-gray-800">Manage Asset Categories</h1>
     {{-- This button now opens the Add modal --}}
-    <button class="btn btn-sm btn-primary shadow-sm" data-toggle="modal" data-target="#addCategoryModal">
+    <button type="button" class="btn btn-sm btn-primary shadow-sm" data-toggle="modal" data-target="#addCategoryModal">
         <i class="fas fa-plus fa-sm text-white-50"></i> Add New Category
     </button>
 </div>

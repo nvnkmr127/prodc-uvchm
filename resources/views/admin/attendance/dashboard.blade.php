@@ -122,7 +122,7 @@
                 <small class="text-muted">{{ $selectedDate->format('F j, Y') }}</small>
             </h1>
             <div class="d-sm-flex">
-                <button class="btn btn-primary btn-sm mr-2" onclick="refreshDashboard()">
+                <button type="button" class="btn btn-primary btn-sm mr-2" onclick="refreshDashboard()">
                     <i class="fas fa-sync" id="refresh-icon"></i> Refresh
                 </button>
                 <span class="badge badge-info" id="last-updated">
@@ -342,15 +342,15 @@
 
                             {{-- Quick Actions --}}
                             <div class="btn-group btn-group-sm mr-2">
-                                <button class="btn btn-light border shadow-sm px-3" onclick="selectAllAbsent()"
+                                <button type="button" class="btn btn-light border shadow-sm px-3" onclick="selectAllAbsent()"
                                     title="Select All">
                                     <i class="fas fa-check-square"></i>
                                 </button>
-                                <button class="btn btn-light border shadow-sm px-3" onclick="markSelectedPresent()"
+                                <button type="button" class="btn btn-light border shadow-sm px-3" onclick="markSelectedPresent()"
                                     title="Mark Selected Present">
                                     <i class="fas fa-user-check text-success"></i>
                                 </button>
-                                <button class="btn btn-light border shadow-sm px-3" onclick="refreshAttendanceData()"
+                                <button type="button" class="btn btn-light border shadow-sm px-3" onclick="refreshAttendanceData()"
                                     title="Refresh List">
                                     <i class="fas fa-sync-alt text-primary" id="refresh-icon-absent"></i>
                                 </button>
@@ -361,11 +361,11 @@
                                     <i class="fas fa-ellipsis-v fa-sm fa-fw text-gray-400"></i>
                                 </button>
                                 <div class="dropdown-menu dropdown-menu-right shadow animated--fade-in">
-                                    <button class="dropdown-item" onclick="exportAbsentList()">
+                                    <button type="button" class="dropdown-item" onclick="exportAbsentList()">
                                         <i class="fas fa-download fa-sm fa-fw mr-2 text-gray-400"></i>
                                         Export CSV
                                     </button>
-                                    <button class="dropdown-item text-danger" onclick="clearSelections()">
+                                    <button type="button" class="dropdown-item text-danger" onclick="clearSelections()">
                                         <i class="fas fa-redo fa-sm fa-fw mr-2"></i>
                                         Reset Filters
                                     </button>
@@ -469,7 +469,7 @@
                                                         @endif
                                                     </td>
                                                     <td class="text-right">
-                                                        <button class="btn btn-sm btn-success shadow-sm"
+                                                        <button type="button" class="btn btn-sm btn-success shadow-sm"
                                                             onclick="markStudentPresent({{ $student['id'] }}, '{{ $student['name'] }}')"
                                                             data-toggle="tooltip" title="Mark Present">
                                                             <i class="fas fa-check"></i>
@@ -609,11 +609,11 @@
                                 <i class="fas fa-ellipsis-v fa-sm fa-fw text-gray-400"></i>
                             </button>
                             <div class="dropdown-menu dropdown-menu-right shadow animated--fade-in">
-                                <button class="dropdown-item" onclick="toggleAutoRefresh()">
+                                <button type="button" class="dropdown-item" onclick="toggleAutoRefresh()">
                                     <i class="fas fa-sync fa-sm fa-fw mr-2 text-gray-400"></i>
                                     <span id="auto-refresh-text">Enable Auto Refresh</span>
                                 </button>
-                                <button class="dropdown-item" onclick="clearActivity()">
+                                <button type="button" class="dropdown-item" onclick="clearActivity()">
                                     <i class="fas fa-eraser fa-sm fa-fw mr-2 text-gray-400"></i>
                                     Clear Activity
                                 </button>
@@ -774,7 +774,7 @@
                                 <option value="last_week">Last Week</option>
                                 <option value="last_30_days">Last 30 Days</option>
                             </select>
-                            <button class="btn btn-sm btn-link text-muted ml-2" onclick="loadLeaderboard()"
+                            <button type="button" class="btn btn-sm btn-link text-muted ml-2" onclick="loadLeaderboard()"
                                 title="Refresh Leaderboard">
                                 <i class="fas fa-sync-alt"></i>
                             </button>
@@ -1312,7 +1312,7 @@
                         }
                                                                                                                 </td>
                                                                                                                 <td>
-                                                                                                                    <button class="btn btn-sm btn-success" onclick="markStudentPresent(${student.id}, '${student.name}')">
+                                                                                                                    <button type="button" class="btn btn-sm btn-success" onclick="markStudentPresent(${student.id}, '${student.name}')">
                                                                                                                         <i class="fas fa-check"></i>
                                                                                                                     </button>
                                                                                                                 </td>
@@ -1640,7 +1640,7 @@
                     if (scrollTop > 100) {
                         if (!$('.scroll-to-top-table').length) {
                             $(this).append(`
-                                                                                                                    <button class="btn btn-sm btn-primary scroll-to-top-table" 
+                                                                                                                    <button type="button" class="btn btn-sm btn-primary scroll-to-top-table" 
                                                                                                                             onclick="scrollTableToTop()" 
                                                                                                                             style="position: absolute; bottom: 10px; right: 10px; z-index: 20; border-radius: 50%; width: 40px; height: 40px;">
                                                                                                                         <i class="fas fa-arrow-up"></i>

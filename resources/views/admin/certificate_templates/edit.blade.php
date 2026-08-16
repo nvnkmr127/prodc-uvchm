@@ -174,7 +174,7 @@
                                 </div>
                                 <small class="form-text text-muted">Previewing:</small>
                                 <!-- Store existing image URL in data attribute for JS -->
-                                <img id="bg-preview-img"
+                                <img alt="Certificate background preview" id="bg-preview-img"
                                     src="{{ $certificateTemplate->background_image ? asset('storage/' . $certificateTemplate->background_image) : '' }}"
                                     data-original-src="{{ $certificateTemplate->background_image ? asset('storage/' . $certificateTemplate->background_image) : '' }}"
                                     class="img-fluid mt-2 border {{ $certificateTemplate->background_image ? '' : 'd-none' }}"

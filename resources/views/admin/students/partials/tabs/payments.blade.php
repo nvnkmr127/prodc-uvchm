@@ -4,10 +4,10 @@
                                             <i class="fas fa-credit-card mr-2"></i> Payment History
                                         </h5>
                                         <div class="btn-group">
-                                            <button class="action-btn btn-success-modern btn-sm" onclick="openPaymentModal()">
+                                            <button type="button" class="action-btn btn-success-modern btn-sm" onclick="openPaymentModal()">
                                                 <i class="fas fa-plus mr-2"></i> Record Payment
                                             </button>
-                                            <button class="btn btn-outline-secondary btn-sm" onclick="refreshPaymentHistory()">
+                                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="refreshPaymentHistory()">
                                                 <i class="fas fa-sync"></i> Refresh
                                             </button>
                                         </div>
@@ -118,7 +118,7 @@
                                                                         @if(Route::has('admin.payments.receipt'))
                                                                             <a href="{{ route('admin.payments.receipt', [$student, $payment]) }}"
                                                                                 class="btn btn-outline-primary btn-sm" title="View Receipt"
-                                                                                target="_blank">
+                                                                                target="_blank" rel="noopener noreferrer">
                                                                                 <i class="fas fa-receipt"></i>
                                                                             </a>
                                                                         @endif
@@ -135,7 +135,7 @@
                                                                     @endif
 
                                                                     {{-- View Details Button --}}
-                                                                    <button class="btn btn-outline-secondary btn-sm"
+                                                                    <button type="button" class="btn btn-outline-secondary btn-sm"
                                                                         onclick="viewPaymentDetails({{ $payment->id }})"
                                                                         title="View Details">
                                                                         <i class="fas fa-eye"></i>
@@ -151,7 +151,7 @@
 
                                                                     {{-- Notes Button --}}
                                                                     @if($payment->notes ?? null)
-                                                                        <button class="btn btn-outline-secondary btn-sm"
+                                                                        <button type="button" class="btn btn-outline-secondary btn-sm"
                                                                             title="{{ $payment->notes }}" data-toggle="tooltip"
                                                                             data-placement="top" data-html="true"
                                                                             data-original-title="{{ $payment->notes }}">
@@ -225,14 +225,14 @@
                                                             <i class="fas fa-tools mr-2"></i>Quick Actions
                                                         </h6>
                                                         <div class="btn-group flex-wrap" role="group">
-                                                            <button class="btn btn-outline-primary btn-sm"
+                                                            <button type="button" class="btn btn-outline-primary btn-sm"
                                                                 onclick="exportPaymentHistory()">
                                                                 <i class="fas fa-download mr-1"></i> Export History
                                                             </button>
-                                                            <button class="btn btn-outline-info btn-sm" onclick="printPaymentHistory()">
+                                                            <button type="button" class="btn btn-outline-info btn-sm" onclick="printPaymentHistory()">
                                                                 <i class="fas fa-print mr-1"></i> Print History
                                                             </button>
-                                                            <button class="btn btn-outline-secondary btn-sm" onclick="filterPayments()">
+                                                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="filterPayments()">
                                                                 <i class="fas fa-filter mr-1"></i> Filter Payments
                                                             </button>
                                                             @if(Route::has('admin.payments.component-dashboard'))
@@ -251,7 +251,7 @@
                                             <i class="fas fa-credit-card fa-3x text-muted mb-3"></i>
                                             <h6 class="text-muted">No Payment History</h6>
                                             <p class="text-muted">No payments have been recorded for this student yet.</p>
-                                            <button class="action-btn btn-success-modern" onclick="openPaymentModal()">
+                                            <button type="button" class="action-btn btn-success-modern" onclick="openPaymentModal()">
                                                 <i class="fas fa-plus mr-2"></i> Record First Payment
                                             </button>
                                         </div>

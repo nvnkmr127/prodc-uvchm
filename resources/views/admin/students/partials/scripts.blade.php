@@ -630,11 +630,6 @@
         }
     }
 
-    function viewReceipt(paymentId) {
-        // Implement receipt viewing
-        alert('Receipt viewing for payment ID: ' + paymentId);
-    }
-
     function animateCounters() {
         $('.amount-counter').each(function() {
             const element = $(this);
@@ -669,14 +664,14 @@
 
             if (amount <= 0) {
                 e.preventDefault();
-                alert('Please enter valid amounts for all selected components.');
+                toastr.warning('Please enter valid amounts for all selected components.');
                 amountInput.focus();
                 return false;
             }
 
             if (amount > maxAmount) {
                 e.preventDefault();
-                alert(`Amount for ${$(this).closest('.payment-component-item').find('.font-weight-bold').first().text()} cannot exceed ₹${maxAmount}`);
+                toastr.warning(`Amount for ${$(this).closest('.payment-component-item').find('.font-weight-bold').first().text()} cannot exceed ₹${maxAmount}`);
                 amountInput.focus();
                 return false;
             }
@@ -686,13 +681,13 @@
 
         if (!hasSelectedComponents) {
             e.preventDefault();
-            alert('Please select at least one fee component.');
+            toastr.warning('Please select at least one fee component.');
             return false;
         }
 
         if (allocatedAmount > paymentAmount) {
             e.preventDefault();
-            alert('Total allocated amount cannot exceed the payment amount.');
+            toastr.warning('Total allocated amount cannot exceed the payment amount.');
             return false;
         }
 

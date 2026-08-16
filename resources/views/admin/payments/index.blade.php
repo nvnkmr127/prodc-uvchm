@@ -199,7 +199,7 @@
                                                 <i class="fas fa-eye"></i>
                                             </a>
                                             <a href="{{ route('public.receipt.show', $payment->receipt_number) }}"
-                                                class="btn btn-outline-info" target="_blank" title="Print Receipt">
+                                                class="btn btn-outline-info" target="_blank" title="Print Receipt" rel="noopener noreferrer">
                                                 <i class="fas fa-receipt"></i>
                                             </a>
                                         </div>

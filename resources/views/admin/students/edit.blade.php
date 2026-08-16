@@ -93,13 +93,13 @@
                             </div>
                             <div class="col-md-6 form-group">
                                 <label for="student_mobile">Student Mobile</label>
-                                <input type="text" id="student_mobile" name="student_mobile" class="form-control"
+                                <input type="tel" inputmode="numeric" autocomplete="tel" id="student_mobile" name="student_mobile" class="form-control"
                                     value="{{ old('student_mobile', $student->student_mobile) }}">
                                 <div class="validation-feedback"></div>
                             </div>
                             <div class="col-md-6 form-group">
                                 <label for="father_mobile">Father Mobile</label>
-                                <input type="text" id="father_mobile" name="father_mobile" class="form-control"
+                                <input type="tel" inputmode="numeric" autocomplete="tel" id="father_mobile" name="father_mobile" class="form-control"
                                     value="{{ old('father_mobile', $student->father_mobile) }}">
                                 <div class="validation-feedback"></div>
                             </div>
@@ -331,6 +331,7 @@
                     input.parentNode.insertBefore(feedbackElement, input.nextSibling);
                 }
 
+                feedbackElement.setAttribute('aria-live', 'polite');
                 feedbackElement.textContent = message;
                 feedbackElement.className = 'validation-feedback';
 
@@ -630,7 +631,7 @@
 
                 var enrollmentNumber = $('#enrollment_number').val();
                 if (!enrollmentNumber) {
-                    alert('Please enter enrollment number first');
+                    toastr.warning('Please enter enrollment number first');
                     return;
                 }
 

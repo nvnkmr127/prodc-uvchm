@@ -80,7 +80,7 @@
                                         </td>
                                         <td>{{ $log->execution_time_ms }}<span class="text-muted small">ms</span></td>
                                         <td class="text-right">
-                                            <button class="btn btn-sm btn-outline-primary" data-toggle="modal"
+                                            <button type="button" class="btn btn-sm btn-outline-primary" data-toggle="modal"
                                                 data-target="#logModal{{ $log->id }}">
                                                 <i class="fas fa-code mr-1"></i> Inspect
                                             </button>

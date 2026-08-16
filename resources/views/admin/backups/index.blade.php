@@ -212,7 +212,7 @@
                     <i class="fas fa-list mr-2"></i>Available Backups
                 </h6>
                 <div>
-                    <button class="btn btn-sm btn-outline-secondary" onclick="refreshBackups()" title="Refresh">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="refreshBackups()" title="Refresh">
                         <i class="fas fa-sync-alt"></i>
                     </button>
                 </div>
@@ -271,13 +271,13 @@
                                                             <i class="fas fa-download"></i>
                                                         </a>
                                                         @if($backup['type'] === 'Database')
-                                                        <button class="btn btn-warning" 
+                                                        <button type="button" class="btn btn-warning" 
                                                                 onclick="restoreDatabase('{{ $backup['filename'] }}')" 
                                                                 title="Restore Database">
                                                             <i class="fas fa-undo"></i>
                                                         </button>
                                                         @endif
-                                                        <button class="btn btn-danger" 
+                                                        <button type="button" class="btn btn-danger" 
                                                                 onclick="deleteBackup('{{ $backup['filename'] }}')" 
                                                                 title="Delete">
                                                             <i class="fas fa-trash"></i>
@@ -330,12 +330,12 @@
                                                            class="btn btn-success" title="Download">
                                                             <i class="fas fa-download"></i>
                                                         </a>
-                                                        <button class="btn btn-info" 
+                                                        <button type="button" class="btn btn-info" 
                                                                 onclick="restoreSettings('{{ $backup['filename'] }}')" 
                                                                 title="Restore">
                                                             <i class="fas fa-undo"></i>
                                                         </button>
-                                                        <button class="btn btn-danger" 
+                                                        <button type="button" class="btn btn-danger" 
                                                                 onclick="deleteBackup('{{ $backup['filename'] }}')" 
                                                                 title="Delete">
                                                             <i class="fas fa-trash"></i>

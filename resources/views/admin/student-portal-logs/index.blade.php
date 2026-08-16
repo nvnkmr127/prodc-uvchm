@@ -160,7 +160,7 @@
                                         </td>
                                         <td class="py-4 align-middle text-right">
                                             @if($log->metadata && count($log->metadata) > 0)
-                                                <button class="btn btn-sm btn-white border shadow-sm rounded-circle" data-toggle="modal" data-target="#metadataModal{{ $log->id }}" style="width: 32px; height: 32px; padding: 0;">
+                                                <button type="button" class="btn btn-sm btn-white border shadow-sm rounded-circle" data-toggle="modal" data-target="#metadataModal{{ $log->id }}" style="width: 32px; height: 32px; padding: 0;">
                                                     <i class="fas fa-microchip text-primary fa-xs"></i>
                                                 </button>
 

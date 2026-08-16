@@ -118,7 +118,7 @@
                                         <i class="fas fa-eye"></i>
                                     </a>
                                     @if(!$notification->read_by)
-                                        <button onclick="markAsRead({{ $notification->id }})" class="btn btn-sm btn-outline-success">
+                                        <button type="button" onclick="markAsRead({{ $notification->id }})" class="btn btn-sm btn-outline-success">
                                             <i class="fas fa-check"></i>
                                         </button>
                                     @endif

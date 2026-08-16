@@ -147,7 +147,7 @@
                     </select>
                 </div>
                 <div class="col-lg-3 col-md-12 text-right d-flex align-items-center justify-content-end gap-2">
-                    <button class="btn btn-light rounded-pill px-3 text-sm" onclick="resetFilters()">
+                    <button type="button" class="btn btn-light rounded-pill px-3 text-sm" onclick="resetFilters()">
                         <i class="fas fa-undo mr-1 text-xs"></i> Reset
                     </button>
                     <div class="btn-group btn-group-sm rounded-pill overflow-hidden border ml-2 shadow-sm" role="group">
@@ -222,7 +222,7 @@
                                     @endif
                                 </div>
                                 <div class="ml-auto dropdown">
-                                    <button class="btn btn-link text-muted p-1" data-toggle="dropdown">
+                                    <button type="button" class="btn btn-link text-muted p-1" data-toggle="dropdown">
                                         <i class="fas fa-ellipsis-v"></i>
                                     </button>
                                     <div class="dropdown-menu dropdown-menu-right shadow-sm border-0">
@@ -300,7 +300,7 @@
                                        class="btn btn-xs btn-outline-success rounded-pill px-3" title="Edit Salary">
                                         <i class="fas fa-dollar-sign text-xs mr-1"></i> Salary
                                     </a>
-                                    <button onclick="viewAttendance('{{ addslashes($faculty->name) }}')" 
+                                    <button type="button" onclick="viewAttendance('{{ addslashes($faculty->name) }}')" 
                                        class="btn btn-xs btn-outline-primary rounded-pill px-3" title="View Attendance">
                                         <i class="fas fa-clock text-xs mr-1"></i> Attendance
                                     </button>

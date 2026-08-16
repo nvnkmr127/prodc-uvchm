@@ -398,15 +398,15 @@
         }
 
         .btn-table-action {
-            width: 35px;
-            height: 35px;
+            width: 44px;
+            height: 44px;
             border-radius: 50%;
             border: none;
             display: flex;
             align-items: center;
             justify-content: center;
             transition: all 0.2s ease;
-            font-size: 0.8rem;
+            font-size: 0.9rem;
         }
 
         .btn-table-action:hover {
@@ -580,6 +580,31 @@
                 transform: rotate(360deg);
             }
         }
+
+        /* Respect users who prefer reduced motion — kill decorative motion,
+           keep the loading spinner (functional feedback). */
+        @media (prefers-reduced-motion: reduce) {
+
+            .btn-modern,
+            .card-modern,
+            .stat-card,
+            .btn-table-action,
+            .animate-fade-in {
+                animation: none !important;
+                transition: none !important;
+            }
+
+            .btn-modern::before {
+                display: none !important;
+            }
+
+            .btn-modern:hover,
+            .card-modern:hover,
+            .stat-card:hover,
+            .btn-table-action:hover {
+                transform: none !important;
+            }
+        }
     </style>
 @endpush
 
@@ -664,7 +689,8 @@
         <!-- Search & Filters -->
         <div class="search-filter-container animate-fade-in">
             <div class="search-bar">
-                <i class="fas fa-search search-icon"></i>
+                <label for="globalSearch" class="sr-only">Search students by name, enrollment, or mobile</label>
+                <i class="fas fa-search search-icon" aria-hidden="true"></i>
                 <input type="text" class="search-input" id="globalSearch"
                     placeholder="Search students by name, enrollment, or mobile...">
             </div>
@@ -705,7 +731,7 @@
                 </div>
 
                 <div class="filter-group d-flex align-items-end">
-                    <button class="btn btn-primary-modern btn-modern w-100" onclick="applyFilters()">
+                    <button type="button" class="btn btn-primary-modern btn-modern w-100" onclick="applyFilters()">
                         <i class="fas fa-filter"></i> Apply Filters
                     </button>
                 </div>

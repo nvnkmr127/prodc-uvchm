@@ -190,7 +190,7 @@
                             <a href="tel:{{ $enquiry->phone_number }}" class="btn btn-outline-success btn-sm mx-1">
                                 <i class="fas fa-phone mr-1"></i> Call
                             </a>
-                            <a href="https://wa.me/{{ str_replace(['+', ' ', '-'], '', $enquiry->phone_number) }}" target="_blank" class="btn btn-outline-success btn-sm mx-1">
+                            <a href="https://wa.me/{{ str_replace(['+', ' ', '-'], '', $enquiry->phone_number) }}" target="_blank" class="btn btn-outline-success btn-sm mx-1" rel="noopener noreferrer">
                                 <i class="fab fa-whatsapp mr-1"></i> WhatsApp
                             </a>
                         </div>

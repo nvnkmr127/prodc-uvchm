@@ -207,7 +207,7 @@
                         <i class="fas fa-calendar-day mr-2"></i>Today's Schedule
                     </h6>
                     <div>
-                        <button class="btn btn-sm btn-outline-primary" onclick="refreshSchedule()">
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="refreshSchedule()">
                             <i class="fas fa-sync-alt"></i> Refresh
                         </button>
                         <a href="{{ route('faculty.dashboard.my-classes') }}" class="btn btn-sm btn-primary">

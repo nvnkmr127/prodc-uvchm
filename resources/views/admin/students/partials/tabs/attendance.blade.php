@@ -230,7 +230,7 @@
                                                     <i class="fas fa-exclamation-triangle mr-2"></i>
                                                     <strong>Error loading attendance data</strong>
                                                     <p class="mb-0 mt-2" id="attendanceErrorMessage"></p>
-                                                    <button class="btn btn-sm btn-outline-danger mt-2"
+                                                    <button type="button" class="btn btn-sm btn-outline-danger mt-2"
                                                         onclick="loadAttendanceData()">
                                                         <i class="fas fa-redo mr-1"></i>Retry
                                                     </button>

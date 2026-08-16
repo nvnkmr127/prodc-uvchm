@@ -7,7 +7,7 @@
     <title>Payment Receipt - {{ $payment->receipt_number }}</title>
     <title>Payment Receipt - {{ $payment->receipt_number }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ asset('admin_theme/vendor/fontawesome-free/css/all.min.css') }}" rel="stylesheet">
     <style>
         .receipt-container {
             max-width: 800px;
@@ -196,7 +196,7 @@
         {{-- Action Buttons --}}
         <div class="text-center no-print">
             <div class="btn-group">
-                <button onclick="window.print()" class="btn btn-primary">
+                <button type="button" onclick="window.print()" class="btn btn-primary">
                     <i class="fas fa-print mr-2"></i> Print Receipt
                 </button>
                 <a href="{{ route('public.receipt.pdf', $payment->receipt_number) }}" class="btn btn-success">
@@ -377,8 +377,6 @@
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- Font Awesome for icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </body>
 
 </html>

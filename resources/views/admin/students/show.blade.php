@@ -95,7 +95,7 @@ $statusColor = match ($student->status) {
                         <div class="col-lg-4 text-lg-right d-flex align-items-end justify-content-lg-end">
                             <div class="action-bar pb-3">
                                 {{-- Primary Action --}}
-                                <button onclick="openPaymentModal()"
+                                <button type="button" onclick="openPaymentModal()"
                                     class="btn btn-success shadow-sm font-weight-bold mb-2">
                                     <i class="fas fa-credit-card mr-1"></i> Pay Fee
                                 </button>
@@ -108,7 +108,7 @@ $statusColor = match ($student->status) {
                                     </a>
                                 @endif
 
-                                <button class="btn btn-warning shadow-sm mb-2" data-toggle="modal"
+                                <button type="button" class="btn btn-warning shadow-sm mb-2" data-toggle="modal"
                                     data-target="#applyConcessionModal">
                                     <i class="fas fa-percent mr-1"></i>
                                 </button>

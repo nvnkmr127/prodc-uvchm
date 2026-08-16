@@ -335,10 +335,10 @@
             <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
                 <h6 class="m-0 font-weight-bold text-gray-800">Detailed Student List (With Financials)</h6>
                 <div>
-                    <button class="btn btn-sm btn-primary shadow-sm mr-2" id="bulkPayBtn" style="display: none;" onclick="openBulkPaymentModal()">
+                    <button type="button" class="btn btn-sm btn-primary shadow-sm mr-2" id="bulkPayBtn" style="display: none;" onclick="openBulkPaymentModal()">
                         <i class="fas fa-money-bill-wave fa-sm"></i> Bulk Pay Selected (<span id="bulkPayCount">0</span>)
                     </button>
-                    <button class="btn btn-sm btn-success shadow-sm" onclick="downloadExcel()">
+                    <button type="button" class="btn btn-sm btn-success shadow-sm" onclick="downloadExcel()">
                         <i class="fas fa-file-excel fa-sm"></i> Download Excel
                     </button>
                 </div>
@@ -770,7 +770,7 @@
                                                                                     <td class="text-center">${checkboxHtml}</td>
                                                                                     <td class="small text-muted">${std.admission_date}</td>
                                                                                     <td>
-                                                                                        <a href="/admin/students/${std.student_id}" target="_blank" class="font-weight-bold text-primary text-decoration-none" title="View Student Profile">
+                                                                                        <a href="/admin/students/${std.student_id}" target="_blank" class="font-weight-bold text-primary text-decoration-none" title="View Student Profile" rel="noopener noreferrer">
                                                                                             ${std.student_name} <i class="fas fa-external-link-alt small ml-1 text-muted"></i>
                                                                                         </a>
                                                                                     </td>
@@ -856,7 +856,7 @@
             // Checks eligibility
             if (std.is_eligible) {
                 return `
-                                                        <button class="btn btn-sm btn-info shadow-sm py-0" style="font-size: 0.8rem;" 
+                                                        <button type="button" class="btn btn-sm btn-info shadow-sm py-0" style="font-size: 0.8rem;" 
                                                             onclick="openPaymentModal(${std.student_id}, '${std.student_name}', '${std.referral_name || ''}', '${std.source}')">
                                                         Pay / Reward
                                                     </button>

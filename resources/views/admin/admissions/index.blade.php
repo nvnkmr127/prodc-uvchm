@@ -141,7 +141,7 @@
             <p class="text-muted small mb-0">Manage student applications and registration workflows</p>
         </div>
         <div class="d-flex gap-2">
-            <button class="btn btn-primary btn-modern shadow-sm" data-toggle="modal" data-target="#shareFormModal">
+            <button type="button" class="btn btn-primary btn-modern shadow-sm" data-toggle="modal" data-target="#shareFormModal">
                 <i class="fas fa-share-alt mr-2"></i> Share Application Form
             </button>
         </div>
@@ -269,7 +269,7 @@
                 @empty
                     <tr>
                         <td colspan="5" class="text-center py-5">
-                            <img src="https://cdni.iconscout.com/illustration/premium/thumb/no-data-found-8867371-7276247.png" style="width: 200px; opacity: 0.6;">
+                            <img alt="" src="https://cdni.iconscout.com/illustration/premium/thumb/no-data-found-8867371-7276247.png" style="width: 200px; opacity: 0.6;">
                             <p class="text-muted mt-3">No admission applications found matching your criteria.</p>
                         </td>
                     </tr>

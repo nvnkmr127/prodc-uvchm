@@ -141,13 +141,13 @@
         </div>
         <div class="col-md-6 text-right">
             <div class="btn-group">
-                <button class="btn btn-sm btn-success" onclick="bulkAction('activate')">
+                <button type="button" class="btn btn-sm btn-success" onclick="bulkAction('activate')">
                     <i class="fas fa-check"></i> Activate
                 </button>
-                <button class="btn btn-sm btn-warning" onclick="bulkAction('deactivate')">
+                <button type="button" class="btn btn-sm btn-warning" onclick="bulkAction('deactivate')">
                     <i class="fas fa-pause"></i> Deactivate
                 </button>
-                <button class="btn btn-sm btn-danger" onclick="bulkAction('delete')">
+                <button type="button" class="btn btn-sm btn-danger" onclick="bulkAction('delete')">
                     <i class="fas fa-trash"></i> Delete
                 </button>
             </div>

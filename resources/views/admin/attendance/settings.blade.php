@@ -1704,7 +1704,7 @@ function showConfigurationProgress(validation) {
                             </div>
                             ${!step.completed && step.field !== 'test_connection' ? `
                                 <div class="step-action">
-                                    <button class="btn btn-sm btn-outline-primary" onclick="focusField('${step.field}')">
+                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="focusField('${step.field}')">
                                         Configure
                                     </button>
                                 </div>

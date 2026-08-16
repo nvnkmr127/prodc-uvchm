@@ -43,7 +43,7 @@
                         </td>
                         <td>{{ number_format($payslip->net_salary, 2) }}</td>
                         <td><span class="badge badge-success">{{ $payslip->status }}</span></td>
-                        <td><a href="{{ route('admin.payslips.show', $payslip) }}" target="_blank" class="btn btn-info btn-sm"><i class="fas fa-eye fa-sm mr-1"></i> View Payslip</a></td>
+                        <td><a href="{{ route('admin.payslips.show', $payslip) }}" target="_blank" class="btn btn-info btn-sm" rel="noopener noreferrer"><i class="fas fa-eye fa-sm mr-1"></i> View Payslip</a></td>
                     </tr>
                 @empty
                     <tr><td colspan="7" class="text-center">No payslips generated yet.</td></tr>

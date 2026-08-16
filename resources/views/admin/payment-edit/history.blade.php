@@ -189,7 +189,7 @@
                                 <div class="ml-auto">
                                     @can('revert payments')
                                         @if($log->action !== 'revert' && $payment->canBeEdited())
-                                            <button class="btn btn-outline-danger btn-sm" 
+                                            <button type="button" class="btn btn-outline-danger btn-sm" 
                                                     onclick="showRevertForm({{ $log->id }}, '{{ $log->created_at->format('Y-m-d H:i:s') }}')">
                                                 <i class="fas fa-undo mr-1"></i> Revert to This
                                             </button>

@@ -356,7 +356,7 @@
                                         <td>
                                             <div class="d-flex align-items-center" title="{{ $webhook->url }}">
                                                 <span class="url-code mr-2">{{ $webhook->url }}</span>
-                                                <button class="btn btn-link btn-sm p-0 text-gray-400"
+                                                <button type="button" class="btn btn-link btn-sm p-0 text-gray-400"
                                                     onclick="copyToClipboard('{{ $webhook->url }}')">
                                                     <i class="fas fa-copy"></i>
                                                 </button>

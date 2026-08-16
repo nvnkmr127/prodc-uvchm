@@ -814,7 +814,7 @@
                                             </a>
                                             
                                             @if(($reminder->status ?? 'pending') == 'pending')
-                                                <button onclick="sendReminder({{ $reminder->id ?? 0 }})" 
+                                                <button type="button" onclick="sendReminder({{ $reminder->id ?? 0 }})" 
                                                         class="btn btn-table-action btn-outline-success" title="Send Now">
                                                     <i class="fas fa-paper-plane"></i>
                                                 </button>
@@ -825,7 +825,7 @@
                                             @endif
                                             
                                             @if(($reminder->status ?? 'pending') != 'sent')
-                                                <button onclick="deleteReminder({{ $reminder->id ?? 0 }})" 
+                                                <button type="button" onclick="deleteReminder({{ $reminder->id ?? 0 }})" 
                                                         class="btn btn-table-action btn-outline-danger" title="Delete">
                                                     <i class="fas fa-trash"></i>
                                                 </button>
@@ -868,19 +868,19 @@
         </div>
         
         <div class="bulk-actions-grid">
-            <button onclick="bulkSendReminders()" class="btn btn-success action-btn-modern" disabled id="bulkSendBtn">
+            <button type="button" onclick="bulkSendReminders()" class="btn btn-success action-btn-modern" disabled id="bulkSendBtn">
                 <i class="fas fa-paper-plane"></i>
                 Send Selected
             </button>
-            <button onclick="bulkCancelReminders()" class="btn btn-warning action-btn-modern" disabled id="bulkCancelBtn">
+            <button type="button" onclick="bulkCancelReminders()" class="btn btn-warning action-btn-modern" disabled id="bulkCancelBtn">
                 <i class="fas fa-ban"></i>
                 Cancel Selected
             </button>
-            <button onclick="showBulkRescheduleModal()" class="btn btn-info action-btn-modern" disabled id="bulkRescheduleBtn">
+            <button type="button" onclick="showBulkRescheduleModal()" class="btn btn-info action-btn-modern" disabled id="bulkRescheduleBtn">
                 <i class="fas fa-calendar"></i>
                 Reschedule Selected
             </button>
-            <button onclick="bulkDeleteReminders()" class="btn btn-danger action-btn-modern" disabled id="bulkDeleteBtn">
+            <button type="button" onclick="bulkDeleteReminders()" class="btn btn-danger action-btn-modern" disabled id="bulkDeleteBtn">
                 <i class="fas fa-trash"></i>
                 Delete Selected
             </button>

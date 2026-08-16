@@ -198,7 +198,7 @@
             <a href="{{ route('admin.students.show', $student) }}" class="btn btn-secondary">
                 <i class="fas fa-arrow-left mr-2"></i> Back to Student
             </a>
-            <button onclick="window.print()" class="btn btn-primary">
+            <button type="button" onclick="window.print()" class="btn btn-primary">
                 <i class="fas fa-print mr-2"></i> Print Receipt
             </button>
             {{-- ✅ FIXED: Using the actual route name from your system --}}

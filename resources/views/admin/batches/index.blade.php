@@ -136,7 +136,7 @@
             <p class="mb-0 text-muted small mt-1">Manage academic batches, enrollments, and statuses.</p>
         </div>
         <div>
-            <button class="btn btn-primary shadow-sm rounded-pill px-4" data-toggle="modal" data-target="#addBatchModal">
+            <button type="button" class="btn btn-primary shadow-sm rounded-pill px-4" data-toggle="modal" data-target="#addBatchModal">
                 <i class="fas fa-plus fa-sm text-white-50 mr-2"></i>Create New Batch
             </button>
         </div>
@@ -404,7 +404,7 @@
                                     <div class="text-gray-500 mb-3">
                                         <i class="fas fa-layer-group fa-3x mb-3 text-gray-300"></i>
                                         <p class="mb-0">No batches found matching your criteria.</p>
-                                        <button class="btn btn-sm btn-primary mt-3" data-toggle="modal"
+                                        <button type="button" class="btn btn-sm btn-primary mt-3" data-toggle="modal"
                                             data-target="#addBatchModal">
                                             Create First Batch
                                         </button>

@@ -62,8 +62,8 @@
                                                     <div class="small text-muted mb-1">New Photo</div>
                                                     @if($req->proof_file)
                                                         <a href="{{ route('admin.student-requests.preview', $req->id) }}"
-                                                            target="_blank">
-                                                            <img src="{{ route('admin.student-requests.preview', $req->id) }}"
+                                                            target="_blank" rel="noopener noreferrer">
+                                                            <img alt="Student request document preview" src="{{ route('admin.student-requests.preview', $req->id) }}"
                                                                 style="width: 80px; height: 80px; object-fit: cover"
                                                                 class="rounded border">
                                                         </a>

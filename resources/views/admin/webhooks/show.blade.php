@@ -145,7 +145,7 @@
                                         <div class="code-box text-muted mr-2">
                                             {{ substr($webhook->signing_secret, 0, 12) }}••••••••
                                         </div>
-                                        <button class="btn btn-sm btn-link pl-0" onclick="copySecret()"
+                                        <button type="button" class="btn btn-sm btn-link pl-0" onclick="copySecret()"
                                             title="Copy Full Secret">
                                             <i class="fas fa-copy"></i>
                                         </button>

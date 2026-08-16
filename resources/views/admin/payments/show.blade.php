@@ -149,7 +149,7 @@
                                                     style="width: {{ $paymentPercentage }}%"></div>
                                             </div>
                                             @if($dueAmount > 0)
-                                                <button class="btn btn-{{ $statusColor }} btn-sm btn-block mt-2"
+                                                <button type="button" class="btn btn-{{ $statusColor }} btn-sm btn-block mt-2"
                                                     onclick="quickPayComponent('{{ $studentFee->id }}', '{{ $studentFee->feeCategory->name }}', {{ $dueAmount }})">
                                                     <i class="fas fa-bolt"></i> Quick Pay
                                                 </button>
@@ -227,7 +227,7 @@
                             <i class="fas fa-percent fa-2x text-warning mb-2"></i>
                             <h6 class="text-warning">Manage Concessions</h6>
                             <p class="small text-muted mb-3">Apply discounts to fee components</p>
-                            <button class="btn btn-warning btn-sm" data-toggle="modal" data-target="#applyConcessionModal">
+                            <button type="button" class="btn btn-warning btn-sm" data-toggle="modal" data-target="#applyConcessionModal">
                                 <i class="fas fa-percent"></i> Apply Concession
                             </button>
                         </div>
@@ -239,7 +239,7 @@
                             <i class="fas fa-file-download fa-2x text-primary mb-2"></i>
                             <h6 class="text-primary">Generate Reports</h6>
                             <p class="small text-muted mb-3">Download financial statements</p>
-                            <button class="btn btn-primary btn-sm" onclick="printFinancialStatement()">
+                            <button type="button" class="btn btn-primary btn-sm" onclick="printFinancialStatement()">
                                 <i class="fas fa-file-pdf"></i> Print Statement
                             </button>
                         </div>
@@ -309,11 +309,11 @@
                                         </a>
                                         @if(isset($payment->receipt_number))
                                             <a href="{{ route('public.receipt.show', $payment->receipt_number) }}"
-                                                class="btn btn-outline-info btn-sm" target="_blank">
+                                                class="btn btn-outline-info btn-sm" target="_blank" rel="noopener noreferrer">
                                                 <i class="fas fa-receipt"></i>
                                             </a>
                                         @else
-                                            <button class="btn btn-outline-info btn-sm" onclick="window.print()" title="Print Page">
+                                            <button type="button" class="btn btn-outline-info btn-sm" onclick="window.print()" title="Print Page">
                                                 <i class="fas fa-print"></i>
                                             </button>
                                         @endif

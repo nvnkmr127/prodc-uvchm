@@ -61,7 +61,7 @@
                 <a href="{{ route('admin.inbound-webhooks.show', $inboundWebhook) }}" class="btn btn-outline-primary shadow-sm mr-2">
                     <i class="fas fa-cog mr-1"></i> Configure Mapping
                 </a>
-                <button onclick="window.location.reload()" class="btn btn-white border shadow-sm">
+                <button type="button" onclick="window.location.reload()" class="btn btn-white border shadow-sm">
                     <i class="fas fa-sync-alt"></i>
                 </button>
             </div>
@@ -123,7 +123,7 @@
                                             @endif
                                         </td>
                                         <td class="text-right pr-4">
-                                            <button class="btn btn-sm btn-white border shadow-sm" data-toggle="modal"
+                                            <button type="button" class="btn btn-sm btn-white border shadow-sm" data-toggle="modal"
                                                 data-target="#logModal{{ $log->id }}">
                                                 <i class="fas fa-eye mr-1"></i> Inspect
                                             </button>
@@ -172,7 +172,7 @@
                         <div class="mb-4">
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <label class="small font-weight-bold text-gray-600 mb-0 uppercase">Request Data (JSON)</label>
-                                <button class="btn btn-sm btn-link text-primary p-0" onclick="copyModalCode(this, 'payload-{{ $log->id }}')">
+                                <button type="button" class="btn btn-sm btn-link text-primary p-0" onclick="copyModalCode(this, 'payload-{{ $log->id }}')">
                                     <i class="fas fa-copy mr-1"></i> Copy
                                 </button>
                             </div>

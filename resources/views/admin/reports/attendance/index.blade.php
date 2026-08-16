@@ -286,10 +286,10 @@
             <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
                 <h6 class="m-0 font-weight-bold text-primary">Detailed Attendance Data</h6>
                 <div>
-                    <button class="btn btn-sm btn-success shadow-sm mr-2" onclick="exportReport()">
+                    <button type="button" class="btn btn-sm btn-success shadow-sm mr-2" onclick="exportReport()">
                         <i class="fas fa-file-excel mr-1"></i> Export Excel
                     </button>
-                    <button class="btn btn-sm btn-light border mr-2" onclick="window.print()">
+                    <button type="button" class="btn btn-sm btn-light border mr-2" onclick="window.print()">
                         <i class="fas fa-print mr-1"></i> Print
                     </button>
                 </div>

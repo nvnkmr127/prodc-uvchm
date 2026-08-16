@@ -76,7 +76,7 @@
                                 </td>
                                 <td>
                                     <code>{{ $webhook->url }}</code>
-                                    <button class="btn btn-sm p-0 ml-1" onclick="copyToClipboard('{{ $webhook->url }}')" title="Copy URL">
+                                    <button type="button" class="btn btn-sm p-0 ml-1" onclick="copyToClipboard('{{ $webhook->url }}')" title="Copy URL">
                                         <i class="fas fa-copy text-muted"></i>
                                     </button>
                                 </td>

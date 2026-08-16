@@ -72,7 +72,7 @@
                 <p class="mb-0 text-muted">Real-time status of webhook delivery infrastructure.</p>
             </div>
             <div class="d-flex gap-2">
-                <button onclick="window.location.reload()" class="btn btn-primary shadow-sm">
+                <button type="button" onclick="window.location.reload()" class="btn btn-primary shadow-sm">
                     <i class="fas fa-sync-alt mr-2"></i>Refresh Status
                 </button>
                 <a href="{{ route('admin.webhooks.index') }}" class="btn btn-light border shadow-sm text-gray-700">
@@ -274,7 +274,7 @@
                     <div class="card-body text-center">
                         <i class="fas fa-life-ring fa-2x text-primary mb-2"></i>
                         <p class="small text-muted">Need help debugging?</p>
-                        <a href="https://webhook.site" target="_blank" class="btn btn-sm btn-outline-primary">Use Webhook
+                        <a href="https://webhook.site" target="_blank" class="btn btn-sm btn-outline-primary" rel="noopener noreferrer">Use Webhook
                             Tester</a>
                     </div>
                 </div>

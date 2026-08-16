@@ -84,7 +84,7 @@
                     <i class="fas fa-user-edit"></i>
                 </button>
                 <a href="https://wa.me/{{ str_replace(['+', ' ', '-'], '', $enquiry->phone_number) }}" target="_blank"
-                    class="btn btn-outline-success btn-sm rounded-circle px-2" title="WhatsApp Message">
+                    class="btn btn-outline-success btn-sm rounded-circle px-2" title="WhatsApp Message" rel="noopener noreferrer">
                     <i class="fab fa-whatsapp"></i>
                 </a>
                 <button type="button"
