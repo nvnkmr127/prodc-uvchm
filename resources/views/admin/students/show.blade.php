@@ -4,6 +4,43 @@
 
 @include('admin.students.partials.styles')
 
+@push('styles')
+    <style>
+        /* Clean print output for the student profile: drop app chrome,
+           expand every tab so the full record prints, not just the open tab. */
+        @media print {
+
+            .sidebar,
+            .topbar,
+            footer.sticky-footer,
+            .breadcrumb,
+            .quick-action-card,
+            .nav-tabs,
+            .btn,
+            .modal {
+                display: none !important;
+            }
+
+            .tab-pane {
+                display: block !important;
+                opacity: 1 !important;
+            }
+
+            .card {
+                box-shadow: none !important;
+                border: 1px solid #dee2e6 !important;
+                break-inside: avoid;
+            }
+
+            #content-wrapper,
+            #content {
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+        }
+    </style>
+@endpush
+
 @section('content')
 
     @php
@@ -25,6 +62,18 @@ if (!isset($attendanceData)) {
     ];
 }
     @endphp
+
+    {{-- Breadcrumb / back navigation --}}
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb bg-transparent p-0 mb-0">
+            <li class="breadcrumb-item">
+                <a href="{{ route('admin.students.index') }}">
+                    <i class="fas fa-arrow-left mr-1" aria-hidden="true"></i>Students
+                </a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">{{ $student->name }}</li>
+        </ol>
+    </nav>
 
     {{-- Modern Cover Profile Header --}}
     <div class="card modern-card mb-4 border-0 overflow-hidden">
@@ -321,23 +370,23 @@ $statusColor = match ($student->status) {
                         <div class="card-header bg-white py-3">
                             <ul class="nav nav-tabs nav-tabs-modern" id="profileTabs" role="tablist">
                                 <li class="nav-item">
-                                    <a class="nav-link active" id="overview-tab" data-toggle="tab" href="#overview" role="tab">
-                                        <i class="fas fa-tachometer-alt mr-2"></i> Overview
+                                    <a class="nav-link active" id="overview-tab" data-toggle="tab" href="#overview" role="tab" aria-controls="overview" aria-selected="true">
+                                        <i class="fas fa-tachometer-alt mr-2" aria-hidden="true"></i> Overview
                                     </a>
                                 </li>
                                 <li class="nav-item">
-                                    <a class="nav-link" id="fees-tab" data-toggle="tab" href="#fees" role="tab">
-                                        <i class="fas fa-money-bill-wave mr-2"></i> Fee Components
+                                    <a class="nav-link" id="fees-tab" data-toggle="tab" href="#fees" role="tab" aria-controls="fees" aria-selected="false">
+                                        <i class="fas fa-money-bill-wave mr-2" aria-hidden="true"></i> Fee Components
                                     </a>
                                 </li>
                                 <li class="nav-item">
-                                    <a class="nav-link" id="payments-tab" data-toggle="tab" href="#payments" role="tab">
-                                        <i class="fas fa-credit-card mr-2"></i> Payment History
+                                    <a class="nav-link" id="payments-tab" data-toggle="tab" href="#payments" role="tab" aria-controls="payments" aria-selected="false">
+                                        <i class="fas fa-credit-card mr-2" aria-hidden="true"></i> Payment History
                                     </a>
                                 </li>
                                 <li class="nav-item">
-                                    <a class="nav-link" id="attendance-tab" data-toggle="tab" href="#attendance" role="tab">
-                                        <i class="fas fa-calendar-check mr-2"></i> Attendance
+                                    <a class="nav-link" id="attendance-tab" data-toggle="tab" href="#attendance" role="tab" aria-controls="attendance" aria-selected="false">
+                                        <i class="fas fa-calendar-check mr-2" aria-hidden="true"></i> Attendance
                                     </a>
                                 </li>
                             </ul>
@@ -532,7 +581,7 @@ $statusColor = match ($student->status) {
                             </h6>
                         </div>
                         <div class="card-body p-2">
-                            <div class="quick-action-card" onclick="openPaymentModal()">
+                            <div class="quick-action-card" role="button" tabindex="0" onclick="openPaymentModal()">
                                 <div class="d-flex align-items-center">
                                     <div class="quick-action-icon bg-success text-white">
                                         <i class="fas fa-credit-card"></i>
@@ -544,7 +593,7 @@ $statusColor = match ($student->status) {
                                 </div>
                             </div>
 
-                            <div class="quick-action-card" data-toggle="modal" data-target="#applyConcessionModal">
+                            <div class="quick-action-card" role="button" tabindex="0" data-toggle="modal" data-target="#applyConcessionModal">
                                 <div class="d-flex align-items-center">
                                     <div class="quick-action-icon bg-warning text-white">
                                         <i class="fas fa-percent"></i>
@@ -563,7 +612,7 @@ $statusColor = match ($student->status) {
                                 </div>
                             </div>
 
-                            <div class="quick-action-card"
+                            <div class="quick-action-card" role="button" tabindex="0"
                                 onclick="window.location.href='{{ route('admin.students.edit', $student) }}'">
                                 <div class="d-flex align-items-center">
                                     <div class="quick-action-icon bg-primary text-white">
@@ -577,7 +626,7 @@ $statusColor = match ($student->status) {
                             </div>
 
                             @if(Route::has('admin.payments.component-dashboard'))
-                                <div class="quick-action-card"
+                                <div class="quick-action-card" role="button" tabindex="0"
                                     onclick="window.location.href='{{ route('admin.payments.component-dashboard', $student) }}'">
                                     <div class="d-flex align-items-center">
                                         <div class="quick-action-icon bg-info text-white">
@@ -591,7 +640,7 @@ $statusColor = match ($student->status) {
                                 </div>
                             @endif
 
-                            <div class="quick-action-card" onclick="window.print()">
+                            <div class="quick-action-card" role="button" tabindex="0" onclick="window.print()">
                                 <div class="d-flex align-items-center">
                                     <div class="quick-action-icon bg-secondary text-white">
                                         <i class="fas fa-print"></i>

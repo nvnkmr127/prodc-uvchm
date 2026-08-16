@@ -1,5 +1,5 @@
                                 {{-- Overview Tab --}}
-                                <div class="tab-pane fade show active" id="overview" role="tabpanel">
+                                <div class="tab-pane fade show active" id="overview" role="tabpanel" aria-labelledby="overview-tab">
                                     <div class="row">
                                         {{-- Personal Information Column --}}
                                         <div class="col-md-6">

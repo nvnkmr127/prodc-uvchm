@@ -1,13 +1,13 @@
             {{-- Enhanced Apply Concession Modal - REPLACE the existing one --}}
-            <div class="modal fade" id="applyConcessionModal" tabindex="-1" role="dialog">
+            <div class="modal fade" id="applyConcessionModal" tabindex="-1" role="dialog" aria-labelledby="applyConcessionModalLabel">
                 <div class="modal-dialog modal-lg" role="document">
                     <div class="modal-content" style="border-radius: 20px; border: none; box-shadow: 0 20px 60px rgba(0,0,0,0.2);">
                         <div class="modal-header" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: #8b4513; border-radius: 20px 20px 0 0; border: none;">
-                            <h5 class="modal-title font-weight-bold">
+                            <h5 id="applyConcessionModalLabel" class="modal-title font-weight-bold">
                                 <i class="fas fa-percent mr-2"></i>
                                 Apply Concession - {{ $student->name }}
                             </h5>
-                            <button type="button" class="close" data-dismiss="modal" style="color: #8b4513; opacity: 0.8;">
+                            <button type="button" class="close" data-dismiss="modal" style="color: #8b4513; opacity: 0.8;" aria-label="Close">
                                 <span aria-hidden="true">&times;</span>
                             </button>
                         </div>

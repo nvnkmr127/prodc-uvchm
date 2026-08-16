@@ -1,14 +1,14 @@
             {{-- Add Fee Component Modal --}}
-            <div class="modal fade" id="addFeeComponentModal" tabindex="-1" role="dialog">
+            <div class="modal fade" id="addFeeComponentModal" tabindex="-1" role="dialog" aria-labelledby="addFeeComponentModalLabel">
                 <div class="modal-dialog modal-lg" role="document">
                     <div class="modal-content" style="border-radius: 20px;">
                         <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 20px 20px 0 0;">
-                            <h5 class="modal-title font-weight-bold">
+                            <h5 id="addFeeComponentModalLabel" class="modal-title font-weight-bold">
                                 <i class="fas fa-plus-circle mr-2"></i>
                                 Add Fee Component to {{ $student->name }}
                             </h5>
-                            <button type="button" class="close text-white" data-dismiss="modal">
-                                <span>&times;</span>
+                            <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
                             </button>
                         </div>
                         <div class="modal-body">

@@ -311,6 +311,21 @@
             border-color: #4e73df;
         }
 
+        .quick-action-card:focus-visible {
+            outline: 3px solid #4e73df;
+            outline-offset: 2px;
+        }
+
+        /* Reduced motion: drop the card lift for users who ask for it. */
+        @media (prefers-reduced-motion: reduce) {
+
+            .quick-action-card,
+            .quick-action-card:hover {
+                transition: none;
+                transform: none;
+            }
+        }
+
         .quick-action-icon {
             width: 50px;
             height: 50px;

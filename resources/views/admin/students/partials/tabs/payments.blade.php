@@ -1,4 +1,4 @@
-                                <div class="tab-pane fade" id="payments" role="tabpanel">
+                                <div class="tab-pane fade" id="payments" role="tabpanel" aria-labelledby="payments-tab">
                                     <div class="d-flex justify-content-between align-items-center mb-4">
                                         <h5 class="mb-0 text-primary">
                                             <i class="fas fa-credit-card mr-2"></i> Payment History
@@ -18,14 +18,14 @@
                                             <table class="table table-hover" id="payment-history-table">
                                                 <thead class="bg-light">
                                                     <tr>
-                                                        <th><i class="fas fa-receipt mr-2"></i>Receipt #</th>
-                                                        <th><i class="fas fa-calendar mr-2"></i>Date</th>
-                                                        <th><i class="fas fa-rupee-sign mr-2"></i>Amount</th>
-                                                        <th><i class="fas fa-credit-card mr-2"></i>Method</th>
-                                                        <th><i class="fas fa-list mr-2"></i>Components</th>
-                                                        <th><i class="fas fa-user mr-2"></i>Created By</th>
-                                                        <th><i class="fas fa-info-circle mr-2"></i>Status</th>
-                                                        <th>Actions</th>
+                                                        <th scope="col"><i class="fas fa-receipt mr-2"></i>Receipt #</th>
+                                                        <th scope="col"><i class="fas fa-calendar mr-2"></i>Date</th>
+                                                        <th scope="col"><i class="fas fa-rupee-sign mr-2"></i>Amount</th>
+                                                        <th scope="col"><i class="fas fa-credit-card mr-2"></i>Method</th>
+                                                        <th scope="col"><i class="fas fa-list mr-2"></i>Components</th>
+                                                        <th scope="col"><i class="fas fa-user mr-2"></i>Created By</th>
+                                                        <th scope="col"><i class="fas fa-info-circle mr-2"></i>Status</th>
+                                                        <th scope="col">Actions</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>

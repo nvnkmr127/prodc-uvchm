@@ -768,8 +768,8 @@
                  style="top: 20px; right: 20px; z-index: 9999; min-width: 300px; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.1);">
                 <i class="fas ${icon[type]} mr-2"></i>
                 ${message}
-                <button type="button" class="close" data-dismiss="alert">
-                    <span>&times;</span>
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
                 </button>
             </div>
         `);
@@ -1136,13 +1136,13 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>Receipt #</th>
-                            <th>Date</th>
-                            <th>Amount</th>
-                            <th>Method</th>
-                            <th>Components</th>
-                            <th>Created By</th>
-                            <th>Status</th>
+                            <th scope="col">Receipt #</th>
+                            <th scope="col">Date</th>
+                            <th scope="col">Amount</th>
+                            <th scope="col">Method</th>
+                            <th scope="col">Components</th>
+                            <th scope="col">Created By</th>
+                            <th scope="col">Status</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1188,15 +1188,15 @@
         }
 
         const modalHtml = `
-            <div class="modal fade" id="paymentDetailsModal" tabindex="-1" role="dialog">
+            <div class="modal fade" id="paymentDetailsModal" tabindex="-1" role="dialog" aria-labelledby="paymentDetailsModalLabel">
                 <div class="modal-dialog modal-lg" role="document">
                     <div class="modal-content">
                         <div class="modal-header bg-primary text-white">
-                            <h5 class="modal-title">
-                                <i class="fas fa-receipt mr-2"></i>Payment Details
+                            <h5 class="modal-title" id="paymentDetailsModalLabel">
+                                <i class="fas fa-receipt mr-2" aria-hidden="true"></i>Payment Details
                             </h5>
-                            <button type="button" class="close text-white" data-dismiss="modal">
-                                <span>&times;</span>
+                            <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
                             </button>
                         </div>
                         <div class="modal-body" id="paymentDetailsContent">
@@ -2244,5 +2244,16 @@
             }
         });
     }
+
+    // Make the div-based quick-action cards operable by keyboard (Enter / Space),
+    // matching their click behaviour. They carry role="button" tabindex="0".
+    document.addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+        const card = e.target.closest('.quick-action-card');
+        if (card) {
+            e.preventDefault();
+            card.click();
+        }
+    });
     </script>
 @endpush

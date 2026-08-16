@@ -671,7 +671,7 @@
         @if(session('success'))
             <div class="alert alert-success alert-dismissible fade show animate-fade-in">
                 <i class="fas fa-check-circle mr-2"></i>{{ session('success') }}
-                <button type="button" class="close" data-dismiss="alert">
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
@@ -680,7 +680,7 @@
         @if(session('error'))
             <div class="alert alert-danger alert-dismissible fade show animate-fade-in">
                 <i class="fas fa-exclamation-triangle mr-2"></i>{{ session('error') }}
-                <button type="button" class="close" data-dismiss="alert">
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
@@ -767,14 +767,14 @@
             <table class="table table-modern" id="studentsTable">
                 <thead>
                     <tr>
-                        <th style="width: 50px;">
+                        <th scope="col" style="width: 50px;">
                             <input type="checkbox" class="custom-checkbox" id="selectAll">
                         </th>
-                        <th>Student Details</th>
-                        <th>Course & Batch</th>
-                        <th>Contact Info</th>
-                        <th>Status</th>
-                        <th class="text-center">Actions</th>
+                        <th scope="col">Student Details</th>
+                        <th scope="col">Course & Batch</th>
+                        <th scope="col">Contact Info</th>
+                        <th scope="col">Status</th>
+                        <th scope="col" class="text-center">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -796,11 +796,11 @@
 
 
         <!-- Bulk Actions Modal -->
-        <div class="modal fade" id="bulkActionsModal" tabindex="-1">
+        <div class="modal fade" id="bulkActionsModal" tabindex="-1" aria-labelledby="bulkActionsModalLabel">
             <div class="modal-dialog modal-lg">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title">
+                        <h5 id="bulkActionsModalLabel" class="modal-title">
                             <i class="fas fa-tasks mr-2"></i>Bulk Actions
                         </h5>
                         <button type="button" class="close" data-dismiss="modal" aria-label="Close">
@@ -885,11 +885,11 @@
         </div>
 
         <!-- Import Students Modal -->
-        <div class="modal fade" id="importModal" tabindex="-1">
+        <div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel">
             <div class="modal-dialog modal-lg">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title">
+                        <h5 id="importModalLabel" class="modal-title">
                             <i class="fas fa-file-import mr-2"></i>Import Students
                         </h5>
                         <button type="button" class="close" data-dismiss="modal" aria-label="Close">
@@ -959,11 +959,11 @@
         </div>
 
         <!-- Delete Confirmation Modal -->
-        <div class="modal fade" id="deleteModal" tabindex="-1">
+        <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel">
             <div class="modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title text-danger">
+                        <h5 id="deleteModalLabel" class="modal-title text-danger">
                             <i class="fas fa-trash mr-2"></i>Confirm Deletion
                         </h5>
                         <button type="button" class="close" data-dismiss="modal" aria-label="Close">
@@ -988,14 +988,14 @@
             </div>
         </div>
         <!-- Reactivation Confirmation Modal -->
-        <div class="modal fade" id="reactivateModal" tabindex="-1">
+        <div class="modal fade" id="reactivateModal" tabindex="-1" aria-labelledby="reactivateModalLabel">
             <div class="modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title text-success">
+                        <h5 id="reactivateModalLabel" class="modal-title text-success">
                             <i class="fas fa-user-check mr-2"></i>Reactivate Student
                         </h5>
-                        <button type="button" class="close" data-dismiss="modal">
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                             <span aria-hidden="true">&times;</span>
                         </button>
                     </div>

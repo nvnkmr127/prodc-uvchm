@@ -1,4 +1,4 @@
-                                <div class="tab-pane fade" id="fees" role="tabpanel">
+                                <div class="tab-pane fade" id="fees" role="tabpanel" aria-labelledby="fees-tab">
                                     <div class="d-flex justify-content-between align-items-center mb-4">
                                         <h5 class="mb-0 text-primary">
                                             <i class="fas fa-file-invoice-dollar mr-2"></i> Fee Components

@@ -1,13 +1,13 @@
             {{-- Payment Filter Modal --}}
-            <div class="modal fade" id="paymentFilterModal" tabindex="-1" role="dialog">
+            <div class="modal fade" id="paymentFilterModal" tabindex="-1" role="dialog" aria-labelledby="paymentFilterModalLabel">
                 <div class="modal-dialog" role="document">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h5 class="modal-title">
+                            <h5 id="paymentFilterModalLabel" class="modal-title">
                                 <i class="fas fa-filter mr-2"></i>Filter Payment History
                             </h5>
-                            <button type="button" class="close" data-dismiss="modal">
-                                <span>&times;</span>
+                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
                             </button>
                         </div>
                         <div class="modal-body">

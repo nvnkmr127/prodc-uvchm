@@ -615,6 +615,16 @@
                 console.log('Referral name:', referralInput.value);
                 console.log('Referral field required:', sourcesRequiringName.includes(sourceSelect.value));
             });
+
+            // Prevent double-submit: once validation has passed, lock the Save button.
+            form.addEventListener('submit', function (e) {
+                if (e.defaultPrevented) return;
+                const submitBtn = form.querySelector('button[type="submit"]');
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1" aria-hidden="true"></i> Saving...';
+                }
+            });
         });
     </script>
     <script>

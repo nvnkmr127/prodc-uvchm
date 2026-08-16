@@ -1,4 +1,4 @@
-                                <div class="tab-pane fade" id="attendance" role="tabpanel">
+                                <div class="tab-pane fade" id="attendance" role="tabpanel" aria-labelledby="attendance-tab">
                                     <div class="row">
                                         <div class="col-md-12">
                                             {{-- Month Selector --}}
@@ -211,8 +211,8 @@
                                                             <table class="table table-sm" id="attendanceRecordsTable">
                                                                 <thead>
                                                                     <tr>
-                                                                        <th>Date</th>
-                                                                        <th>Status</th>
+                                                                        <th scope="col">Date</th>
+                                                                        <th scope="col">Status</th>
                                                                     </tr>
                                                                 </thead>
                                                                 <tbody>

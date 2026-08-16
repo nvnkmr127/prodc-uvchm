@@ -22,21 +22,21 @@
                         <div class="col-md-6">
                             <h5>Student Information</h5>
                             <table class="table table-bordered">
-                                <tr><th>Name:</th><td>{{ $student->name }}</td></tr>
-                                <tr><th>Enrollment Number:</th><td>{{ $student->enrollment_number }}</td></tr>
-                                <tr><th>Course:</th><td>{{ $student->course->name ?? 'N/A' }}</td></tr>
-                                <tr><th>Batch:</th><td>{{ $student->batch->name ?? 'N/A' }}</td></tr>
-                                <tr><th>Admission Date:</th><td>{{ $student->admission_date->format('d M Y') }}</td></tr>
+                                <tr><th scope="col">Name:</th><td>{{ $student->name }}</td></tr>
+                                <tr><th scope="col">Enrollment Number:</th><td>{{ $student->enrollment_number }}</td></tr>
+                                <tr><th scope="col">Course:</th><td>{{ $student->course->name ?? 'N/A' }}</td></tr>
+                                <tr><th scope="col">Batch:</th><td>{{ $student->batch->name ?? 'N/A' }}</td></tr>
+                                <tr><th scope="col">Admission Date:</th><td>{{ $student->admission_date->format('d M Y') }}</td></tr>
                             </table>
                         </div>
                         
                         <div class="col-md-6">
                             <h5>Financial Summary</h5>
                             <table class="table table-bordered">
-                                <tr><th>Total Fees:</th><td>₹{{ number_format($financialSummary['total_fees'], 2) }}</td></tr>
-                                <tr><th>Amount Paid:</th><td class="text-success">₹{{ number_format($financialSummary['total_paid'], 2) }}</td></tr>
-                                <tr><th>Outstanding:</th><td class="text-danger">₹{{ number_format($financialSummary['total_outstanding'], 2) }}</td></tr>
-                                <tr><th>Concessions:</th><td class="text-info">₹{{ number_format($financialSummary['total_concession'] ?? 0, 2) }}</td></tr>
+                                <tr><th scope="col">Total Fees:</th><td>₹{{ number_format($financialSummary['total_fees'], 2) }}</td></tr>
+                                <tr><th scope="col">Amount Paid:</th><td class="text-success">₹{{ number_format($financialSummary['total_paid'], 2) }}</td></tr>
+                                <tr><th scope="col">Outstanding:</th><td class="text-danger">₹{{ number_format($financialSummary['total_outstanding'], 2) }}</td></tr>
+                                <tr><th scope="col">Concessions:</th><td class="text-info">₹{{ number_format($financialSummary['total_concession'] ?? 0, 2) }}</td></tr>
                             </table>
                             
                             <div class="alert alert-info">

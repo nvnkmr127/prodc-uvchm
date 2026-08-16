@@ -618,6 +618,13 @@
                             firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
                             firstInvalid.focus();
                         }
+                    } else {
+                        // Prevent double-submit: lock the Update button once validation passes.
+                        const submitBtn = form.querySelector('button[type="submit"]');
+                        if (submitBtn) {
+                            submitBtn.disabled = true;
+                            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1" aria-hidden="true"></i> Saving...';
+                        }
                     }
                 });
             }

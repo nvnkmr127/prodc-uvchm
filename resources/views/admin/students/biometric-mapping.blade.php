@@ -141,16 +141,16 @@
             <table class="table table-bordered" id="studentsTable" width="100%" cellspacing="0">
                 <thead>
                     <tr>
-                        <th width="5%">
+                        <th scope="col" width="5%">
                             <input type="checkbox" id="selectAll" class="form-check-input">
                         </th>
-                        <th>Name</th>
-                        <th>Enrollment Number</th>
-                        <th>Batch</th>
-                        <th>Course</th>
-                        <th>Current Code</th>
-                        <th width="20%">New Biometric Code</th>
-                        <th width="10%">Actions</th>
+                        <th scope="col">Name</th>
+                        <th scope="col">Enrollment Number</th>
+                        <th scope="col">Batch</th>
+                        <th scope="col">Course</th>
+                        <th scope="col">Current Code</th>
+                        <th scope="col" width="20%">New Biometric Code</th>
+                        <th scope="col" width="10%">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -203,17 +203,17 @@
 </div>
 
 {{-- Import Modal --}}
-<div class="modal fade" id="importModal" tabindex="-1" role="dialog">
+<div class="modal fade" id="importModal" tabindex="-1" role="dialog" aria-labelledby="importModalLabel">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
             <form action="{{ route('admin.students.biometric-mapping.import') }}" method="POST" enctype="multipart/form-data">
                 @csrf
                 <div class="modal-header">
-                    <h5 class="modal-title">
+                    <h5 id="importModalLabel" class="modal-title">
                         <i class="fas fa-upload mr-2"></i>Import Biometric Mappings
                     </h5>
-                    <button type="button" class="close" data-dismiss="modal">
-                        <span>&times;</span>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
                     </button>
                 </div>
                 <div class="modal-body">
@@ -579,8 +579,8 @@ function showAlert(type, message) {
              style="top: 20px; right: 20px; z-index: 9999; min-width: 350px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
             <i class="fas ${icon[type]} mr-2"></i>
             ${message}
-            <button type="button" class="close" data-dismiss="alert">
-                <span>&times;</span>
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
             </button>
         </div>
     `;
