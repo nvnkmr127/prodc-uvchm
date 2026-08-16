@@ -110,6 +110,19 @@
             background-color: #d1d3e2;
             border-radius: 3px;
         }
+
+        /* Respect users who prefer reduced motion: stop the pulsing
+           activity dot and the refresh-icon spin. */
+        @media (prefers-reduced-motion: reduce) {
+
+            #activity-indicator {
+                animation: none !important;
+            }
+
+            .fa-spin {
+                animation: none !important;
+            }
+        }
     </style>
 @endpush
 
@@ -123,9 +136,9 @@
             </h1>
             <div class="d-sm-flex">
                 <button type="button" class="btn btn-primary btn-sm mr-2" onclick="refreshDashboard()">
-                    <i class="fas fa-sync" id="refresh-icon"></i> Refresh
+                    <i class="fas fa-sync" id="refresh-icon" aria-hidden="true"></i> Refresh
                 </button>
-                <span class="badge badge-info" id="last-updated">
+                <span class="badge badge-info" id="last-updated" role="status" aria-live="polite">
                     Last updated: {{ now()->format('H:i:s') }}
                 </span>
             </div>
@@ -870,7 +883,21 @@
                         </h6>
                     </div>
                     <div class="card-body">
-                        <canvas id="weeklyTrendChart" width="400" height="100"></canvas>
+                        @php
+                            $trend = collect($weeklyTrend);
+                            $trendSummary = $trend
+                                ->map(fn($d) => data_get($d, 'day') . ' ' . data_get($d, 'percentage') . '%')
+                                ->implode(', ');
+                        @endphp
+                        @if ($trend->isNotEmpty())
+                            <canvas id="weeklyTrendChart" width="400" height="100" role="img"
+                                aria-label="Weekly attendance trend. {{ $trendSummary }}"></canvas>
+                        @else
+                            <div class="text-center text-muted py-5">
+                                <i class="fas fa-chart-line fa-2x mb-2" aria-hidden="true"></i>
+                                <p class="mb-0">No attendance data available for this period.</p>
+                            </div>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -882,8 +909,8 @@
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title">Bulk Mark Present</h5>
-                        <button type="button" class="close" data-dismiss="modal">
-                            <span>&times;</span>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
                         </button>
                     </div>
                     <div class="modal-body">
@@ -1185,13 +1212,23 @@
                     $('#activity-indicator').removeClass('text-success').addClass('text-primary');
                 } else {
                     autoRefreshInterval = setInterval(function () {
-                        refreshAttendanceData();
+                        // Skip polling while the tab is backgrounded to avoid needless server load.
+                        if (!document.hidden) {
+                            refreshAttendanceData();
+                        }
                     }, 30000); // Refresh every 30 seconds
                     isAutoRefreshEnabled = true;
                     $('#auto-refresh-text').text('Disable Auto Refresh');
                     $('#activity-indicator').removeClass('text-primary').addClass('text-success');
                 }
             };
+
+            // When the user returns to a backgrounded tab, refresh once so data isn't stale.
+            document.addEventListener('visibilitychange', function () {
+                if (!document.hidden && isAutoRefreshEnabled) {
+                    refreshAttendanceData();
+                }
+            });
 
             // Refresh dashboard
             window.refreshDashboard = function () {
@@ -1206,6 +1243,15 @@
                     course_id: $('#course_id').val()
                 };
 
+                // Show at most one failure toast per refresh cycle (avoids 3 stacked toasts).
+                let refreshErrorShown = false;
+                const notifyRefreshError = function () {
+                    if (!refreshErrorShown) {
+                        refreshErrorShown = true;
+                        showNotification('error', 'Could not refresh dashboard data. Showing the last loaded values.');
+                    }
+                };
+
                 $('#refresh-icon, #refresh-icon-absent').addClass('fa-spin');
 
                 // Refresh stats
@@ -1218,6 +1264,7 @@
                     })
                     .fail(function (xhr, status, error) {
                         console.error('Stats refresh failed:', error);
+                        notifyRefreshError();
                     });
 
                 // Refresh absent students
@@ -1230,6 +1277,7 @@
                     })
                     .fail(function (xhr, status, error) {
                         console.error('Absent students refresh failed:', error);
+                        notifyRefreshError();
                     });
 
                 // Refresh activity
@@ -1241,6 +1289,7 @@
                     })
                     .fail(function (xhr, status, error) {
                         console.error('Activity refresh failed:', error);
+                        notifyRefreshError();
                     })
                     .always(function () {
                         $('#refresh-icon, #refresh-icon-absent').removeClass('fa-spin');
@@ -1549,6 +1598,7 @@
                         },
                         options: {
                             responsive: true,
+                            animation: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? false : {},
                             plugins: {
                                 legend: {
                                     display: false
