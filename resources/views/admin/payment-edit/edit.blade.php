@@ -180,6 +180,21 @@
         </div>
         @endif
 
+        @if($errors->any())
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="fas fa-exclamation-triangle mr-2"></i>
+            <strong>Please correct the following errors:</strong>
+            <ul class="mb-0 mt-2 pl-3">
+                @foreach($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+            </button>
+        </div>
+        @endif
+
         {{-- Current Payment Info --}}
         <div class="payment-info-card">
             <div class="row">
@@ -471,17 +486,30 @@ $(document).ready(function() {
             const amountInput = $('#amount');
             const componentCheckboxes = $('.component-checkbox');
             const componentAmounts = $('.component-amount');
-            const saveBtn = $('#save-changes-btn');
-            const validationMessage = $('#validation-message');
             
             // Ensure elements exist
             if (!amountInput.length) {
                 console.error('Amount input not found');
                 return;
             }
+
+            // Sync initial disabled state for all component inputs
+            componentCheckboxes.each(function() {
+                const isChecked = $(this).is(':checked');
+                const componentItem = $(this).closest('.component-item');
+                componentItem.find('.component-amount').prop('disabled', !isChecked);
+                componentItem.find('input[type="hidden"]').prop('disabled', !isChecked);
+            });
             
             // Amount input change handler
-            amountInput.on('input change', function() {
+            amountInput.on('input change blur', function() {
+                const checked = $('.component-checkbox:checked');
+                if (checked.length === 1) {
+                    const val = parseFloat($(this).val()) || 0;
+                    if (val > 0) {
+                        checked.closest('.component-item').find('.component-amount').val(val.toFixed(2));
+                    }
+                }
                 updateSummary();
                 validateForm();
             });
@@ -491,24 +519,30 @@ $(document).ready(function() {
                 const checkbox = $(this);
                 const componentItem = checkbox.closest('.component-item');
                 const amountInput = componentItem.find('.component-amount');
+                const hiddenInput = componentItem.find('input[type="hidden"]');
                 
                 if (checkbox.is(':checked')) {
                     amountInput.prop('disabled', false);
+                    hiddenInput.prop('disabled', false);
                     componentItem.addClass('selected');
+                    if (!parseFloat(amountInput.val())) {
+                        const maxAmount = parseFloat(componentItem.data('max-amount')) || 0;
+                        amountInput.val(maxAmount > 0 ? maxAmount.toFixed(2) : '');
+                    }
                     amountInput.focus();
                 } else {
                     amountInput.prop('disabled', true);
+                    hiddenInput.prop('disabled', true);
                     componentItem.removeClass('selected');
                     amountInput.val('');
                 }
                 
-                updateComponentAllocation();
                 updateSummary();
                 validateForm();
             });
             
             // Component amount change handler
-            componentAmounts.on('input change', function() {
+            componentAmounts.on('input change blur', function() {
                 updateSummary();
                 validateForm();
             });
@@ -654,6 +688,14 @@ $(document).ready(function() {
                 return false;
             }
             
+            // Ensure only checked components are submitted
+            $('.component-checkbox').each(function() {
+                const isChecked = $(this).is(':checked');
+                const item = $(this).closest('.component-item');
+                item.find('.component-amount').prop('disabled', !isChecked);
+                item.find('input[type="hidden"]').prop('disabled', !isChecked);
+            });
+
             // Show loading state
             const saveBtn = $('#save-changes-btn');
             saveBtn.html('<i class="fas fa-spinner fa-spin mr-2"></i>Saving Changes...')
@@ -672,22 +714,12 @@ $(document).ready(function() {
         }
     });
     
-    // Auto-distribute amount when it changes
-    $('#amount').on('blur', function() {
-        updateComponentAllocation();
-    });
-    
-    // Component item click handler (make entire item clickable)
-    $('.component-item').on('click', function(e) {
-        if (e.target.type !== 'checkbox' && e.target.type !== 'number') {
-            const checkbox = $(this).find('.component-checkbox');
-            checkbox.prop('checked', !checkbox.is(':checked')).trigger('change');
+    // Format number inputs on blur
+    $('.component-amount, #amount').on('blur', function() {
+        const value = parseFloat($(this).val());
+        if (!isNaN(value)) {
+            $(this).val(value.toFixed(2));
         }
-    });
-    
-    // Prevent component item click when clicking on input fields
-    $('.component-amount, .component-checkbox').on('click', function(e) {
-        e.stopPropagation();
     });
     
     // Format number inputs on blur

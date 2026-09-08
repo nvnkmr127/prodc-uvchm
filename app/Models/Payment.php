@@ -32,14 +32,16 @@ class Payment extends Model
         'transaction_id',      // NULLABLE - External transaction ID
         'receipt_number',      // NULLABLE - Auto-generated receipt number
         'academic_year',       // NULLABLE - Academic year
+        'academic_year_id',
         'notes',              // NULLABLE - Additional notes
         'status',
+        'updated_by',
     ];
 
     /**
      * Attributes that are not mass assignable (for security)
      */
-    protected $guarded = ['id', 'created_by', 'updated_by'];
+    protected $guarded = ['id', 'created_by'];
 
     /**
      * The attributes that should be cast to native types.

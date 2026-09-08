@@ -55,6 +55,20 @@ class PaymentEditController extends Controller
             return redirect()->back()->with('error', 'This payment cannot be edited.');
         }
 
+        // Clean components: only keep items with positive amounts
+        if ($request->has('components')) {
+            $cleanedComponents = collect($request->input('components', []))
+                ->filter(function ($component) {
+                    return ! empty($component['student_fee_id'])
+                        && isset($component['amount'])
+                        && (float) $component['amount'] > 0;
+                })
+                ->values()
+                ->all();
+
+            $request->merge(['components' => $cleanedComponents]);
+        }
+
         // Validate request
         $validated = $request->validate([
             'amount' => 'required|numeric|min:0.01',
@@ -67,6 +81,17 @@ class PaymentEditController extends Controller
             'components.*.student_fee_id' => 'required|exists:student_fees,id',
             'components.*.amount' => 'required|numeric|min:0.01',
         ]);
+
+        // Ensure allocated component amounts match the total payment amount
+        $totalComponentAmount = collect($validated['components'])->sum(function ($c) {
+            return (float) ($c['amount'] ?? 0);
+        });
+
+        if (abs($totalComponentAmount - (float) $validated['amount']) > 0.05) {
+            return back()->withInput()->withErrors([
+                'amount' => 'Component allocation (₹'.number_format($totalComponentAmount, 2).') must equal payment amount (₹'.number_format((float) $validated['amount'], 2).').',
+            ]);
+        }
 
         try {
             DB::beginTransaction();
@@ -81,8 +106,8 @@ class PaymentEditController extends Controller
                 'payment_date' => $validated['payment_date'],
                 'transaction_id' => $validated['transaction_id'],
                 'notes' => $validated['notes'],
-                'academic_year' => $payment->student->batch->academicYear->name ?? $payment->academic_year,
-                'academic_year_id' => $payment->student->batch->academic_year_id ?? $payment->academic_year_id,
+                'academic_year' => $payment->student?->batch?->academicYear?->name ?? $payment->academic_year,
+                'academic_year_id' => $payment->student?->batch?->academic_year_id ?? $payment->academic_year_id,
                 'updated_by' => auth()->id(),
             ]);
 
@@ -103,7 +128,7 @@ class PaymentEditController extends Controller
 
             DB::commit();
 
-            return redirect()->route('admin.students.show', $payment->student)
+            return redirect()->route('admin.students.show', $payment->student_id)
                 ->with('success', 'Payment updated successfully.');
 
         } catch (\Exception $e) {
@@ -243,6 +268,13 @@ class PaymentEditController extends Controller
      */
     private function updateComponentItems(Payment $payment, array $components, array $originalComponents)
     {
+        // Track all affected fee IDs so removed components also get their paid amount refreshed
+        $affectedFeeIds = collect($originalComponents)
+            ->pluck('student_fee_id')
+            ->merge(collect($components)->pluck('student_fee_id'))
+            ->filter()
+            ->unique();
+
         // Delete existing component items
         $payment->componentItems()->delete();
 
@@ -254,10 +286,12 @@ class PaymentEditController extends Controller
                     'student_fee_id' => $component['student_fee_id'],
                     'amount_paid' => $component['amount'],
                 ]);
-
-                // Update the student fee paid amount
-                $this->updateStudentFeePaidAmount($component['student_fee_id']);
             }
+        }
+
+        // Update paid amount and status for all affected student fees
+        foreach ($affectedFeeIds as $feeId) {
+            $this->updateStudentFeePaidAmount($feeId);
         }
     }
 
