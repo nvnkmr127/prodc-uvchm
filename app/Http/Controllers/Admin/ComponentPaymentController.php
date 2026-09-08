@@ -1536,12 +1536,14 @@ class ComponentPaymentController extends Controller
             });
         }
 
+        $totalCollected = (clone $query)->sum('amount');
+
         $payments = $query->orderBy('created_at', 'desc')->paginate(15)->withQueryString();
 
         // [NEW] Get Fee Categories for the dropdown
         $feeCategories = FeeCategory::orderBy('name')->get();
 
-        return view('admin.payments.index', compact('payments', 'feeCategories'));
+        return view('admin.payments.index', compact('payments', 'feeCategories', 'totalCollected'));
     }
 
     /**

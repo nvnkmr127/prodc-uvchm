@@ -35,9 +35,9 @@ class PaymentEditController extends Controller
         ]);
 
         // Get available fee categories for this student
-        $availableFees = $payment->student->studentFees()
-            ->with('feeCategory')
-            ->get();
+        $availableFees = $payment->student
+            ? $payment->student->studentFees()->with('feeCategory')->get()
+            : collect();
 
         return view('admin.payment-edit.edit', compact('payment', 'availableFees'));
     }

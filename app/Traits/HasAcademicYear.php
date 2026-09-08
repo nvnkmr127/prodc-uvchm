@@ -112,4 +112,13 @@ trait HasAcademicYear
     {
         return $query->withoutGlobalScope('academic_year');
     }
+
+    /**
+     * Retrieve the model for a bound value without academic year scope.
+     */
+    public function resolveRouteBindingQuery($query, $value, $field = null)
+    {
+        return parent::resolveRouteBindingQuery($query, $value, $field)
+            ->withoutGlobalScope('academic_year');
+    }
 }

@@ -26,7 +26,7 @@
                             <div class="col mr-2">
                                 <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Collected</div>
                                 <div class="h5 mb-0 font-weight-bold text-gray-800">
-                                    ₹{{ number_format($payments->sum('amount'), 2) }}</div>
+                                    ₹{{ number_format($totalCollected ?? $payments->sum('amount'), 2) }}</div>
                             </div>
                             <div class="col-auto">
                                 <i class="fas fa-rupee-sign fa-2x text-gray-300"></i>
