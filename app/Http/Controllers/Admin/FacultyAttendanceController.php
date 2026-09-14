@@ -114,12 +114,15 @@ class FacultyAttendanceController extends Controller
         $totalHours = 0.0;
         $totalRecordsCount = 0;
 
+        $leaderboard = [];
+
         foreach ($faculties as $faculty) {
             $facultyRecords = [];
             $facultyPresentDays = 0.0;
             $facultyAbsentDays = 0.0;
             $facultyLeaveDays = 0.0;
             $facultyLateCount = 0;
+            $facultyHalfDayCount = 0;
             $facultyTotalHours = 0.0;
 
             // Group leaves by date for this user
@@ -163,6 +166,9 @@ class FacultyAttendanceController extends Controller
                     if ($status === 'late') {
                         $facultyLateCount++;
                     }
+                    if ($presentValue == 0.5 || $status === 'half_day') {
+                        $facultyHalfDayCount++;
+                    }
                     $facultyTotalHours += $hours;
 
                     // If it was half day due to hours or single punch, status is half_day
@@ -184,7 +190,6 @@ class FacultyAttendanceController extends Controller
                 $recordData = [
                     'faculty_id' => $faculty->id,
                     'faculty_name' => $faculty->name,
-                    'faculty_email' => $faculty->email ?? null,
                     'employee_id' => $faculty->employee_id,
                     'department' => $faculty->department,
                     'date' => $dateStr,
@@ -224,12 +229,42 @@ class FacultyAttendanceController extends Controller
             }
 
             $records = array_merge($records, $facultyRecords);
+
+            $facultyAttendanceRate = $totalWorkingDaysCount > 0 
+                ? min(100.0, round(($facultyPresentDays / $totalWorkingDaysCount) * 100, 1)) 
+                : 0.0;
+
+            $leaderboard[] = [
+                'faculty_id' => $faculty->id,
+                'faculty_name' => $faculty->name,
+                'department' => $faculty->department ?? 'General',
+                'employee_id' => $faculty->employee_id ?? ('EMP-' . str_pad($faculty->id, 4, '0', STR_PAD_LEFT)),
+                'present_days' => $facultyPresentDays,
+                'late_days' => $facultyLateCount,
+                'half_day_days' => $facultyHalfDayCount,
+                'absent_days' => $facultyAbsentDays,
+                'leave_days' => $facultyLeaveDays,
+                'total_hours' => round($facultyTotalHours, 1),
+                'attendance_rate' => $facultyAttendanceRate,
+            ];
         }
+
+        // Sort leaderboard by attendance rate desc, then present days desc, then late days asc
+        usort($leaderboard, function ($a, $b) {
+            if ($b['attendance_rate'] != $a['attendance_rate']) {
+                return $b['attendance_rate'] <=> $a['attendance_rate'];
+            }
+            if ($b['present_days'] != $a['present_days']) {
+                return $b['present_days'] <=> $a['present_days'];
+            }
+            return $a['late_days'] <=> $b['late_days'];
+        });
 
         // Format stats for view (dynamic based on selected range and filters)
         $isSingleDay = $startDate->toDateString() === $endDate->toDateString();
         $isToday = $isSingleDay && $startDate->isToday();
-        $totalHolidaysCount = collect($workingDaysList)->where('is_working', false)->count();
+        $totalWeekendDays = collect($workingDaysList)->where('is_working', false)->filter(fn($d) => ($d['reason'] ?? '') === 'Weekend')->count();
+        $totalHolidayDays = collect($workingDaysList)->where('is_working', false)->filter(fn($d) => ($d['reason'] ?? '') !== 'Weekend')->count();
         $totalFacultyCount = $faculties->count();
         $totalPossibleAttendanceDays = $totalWorkingDaysCount * max(1, $totalFacultyCount);
         $attendancePercentage = ($totalWorkingDaysCount > 0 && $totalFacultyCount > 0)
@@ -244,7 +279,9 @@ class FacultyAttendanceController extends Controller
                 : ($startDate->format('d M Y') . ' — ' . $endDate->format('d M Y')),
             'total_faculty' => $totalFacultyCount,
             'total_working_days' => $totalWorkingDaysCount,
-            'total_holidays' => $totalHolidaysCount,
+            'total_holidays' => $totalHolidayDays,
+            'total_weekends' => $totalWeekendDays,
+            'total_off_days' => $totalHolidayDays + $totalWeekendDays,
             'attendance_percentage' => $attendancePercentage,
             'checked_in_today' => count($realtimeCheckedIn),
             'present_count' => $totalPresent,
@@ -290,10 +327,27 @@ class FacultyAttendanceController extends Controller
 
         $records = $paginatedRecords;
 
+        if ($request->ajax()) {
+            return view('admin.faculty.attendance.partials.content', compact(
+                'records',
+                'stats',
+                'departments',
+                'leaderboard',
+                'realtimeCheckedIn',
+                'startDate',
+                'endDate',
+                'dateRange',
+                'departmentFilter',
+                'statusFilter',
+                'searchQuery'
+            ));
+        }
+
         return view('admin.faculty.attendance.index', compact(
             'records',
             'stats',
             'departments',
+            'leaderboard',
             'realtimeCheckedIn',
             'startDate',
             'endDate',
