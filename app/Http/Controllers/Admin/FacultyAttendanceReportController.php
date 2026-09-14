@@ -71,6 +71,20 @@ class FacultyAttendanceReportController extends Controller
             ->get()
             ->groupBy('faculty_id');
 
+        // Calculate unique logins per date across faculty
+        $loginsPerDate = FacultyAttendance::whereIn('faculty_id', $allFaculties->pluck('id'))
+            ->whereBetween('attendance_date', [$startDate, $endDate])
+            ->where(function ($q) {
+                $q->whereNotNull('check_in_time')
+                    ->orWhereNotNull('check_out_time')
+                    ->orWhereIn('status', ['present', 'late', 'half_day']);
+            })
+            ->selectRaw('attendance_date, COUNT(DISTINCT faculty_id) as login_count')
+            ->groupBy('attendance_date')
+            ->pluck('login_count', 'attendance_date')
+            ->mapWithKeys(fn ($val, $k) => [is_string($k) ? substr($k, 0, 10) : $k->format('Y-m-d') => (int) $val])
+            ->toArray();
+
         // 3a. Fetch first biometric record for all faculty to avoid N+1
         $firstPunches = FacultyAttendance::whereIn('faculty_id', $allFaculties->pluck('id'))
             ->whereIn('status', ['present', 'late', 'half_day'])
@@ -87,7 +101,7 @@ class FacultyAttendanceReportController extends Controller
         }
 
         // 4. Process Data & Calculate Percentages Per Faculty
-        $processedFaculties = $allFaculties->map(function ($faculty) use ($attendanceRecords, $startDate, $endDate, $holidays, $months, $firstPunches, $isSingleDay) {
+        $processedFaculties = $allFaculties->map(function ($faculty) use ($attendanceRecords, $startDate, $endDate, $holidays, $months, $firstPunches, $isSingleDay, $loginsPerDate) {
 
             // Get Faculty Records indexed by date
             $facultyRecords = $attendanceRecords->get($faculty->id, collect())->mapWithKeys(function ($item) {
@@ -109,11 +123,11 @@ class FacultyAttendanceReportController extends Controller
                     $monthEnd = Carbon::parse($endDate);
                 }
 
-                $monthlyStats[$monthDt->format('M_Y')] = $this->calculateFacultyStats($faculty, $monthStart, $monthEnd, $holidays, $facultyRecords, $firstPunches);
+                $monthlyStats[$monthDt->format('M_Y')] = $this->calculateFacultyStats($faculty, $monthStart, $monthEnd, $holidays, $facultyRecords, $firstPunches, $loginsPerDate);
             }
 
             // Calculate Overall Stats
-            $overall = $this->calculateFacultyStats($faculty, Carbon::parse($startDate), Carbon::parse($endDate), $holidays, $facultyRecords, $firstPunches);
+            $overall = $this->calculateFacultyStats($faculty, Carbon::parse($startDate), Carbon::parse($endDate), $holidays, $facultyRecords, $firstPunches, $loginsPerDate);
 
             $dailyRecord = null;
             if ($isSingleDay) {
@@ -242,12 +256,13 @@ class FacultyAttendanceReportController extends Controller
     /**
      * Helper to calculate stats for a specific range and faculty
      */
-    private function calculateFacultyStats($faculty, $start, $end, $holidays, $facultyRecords, $firstPunches = [])
+    private function calculateFacultyStats($faculty, $start, $end, $holidays, $facultyRecords, $firstPunches = [], $loginsPerDate = [])
     {
         $profileStartDate = $faculty->created_at->startOfDay();
         $firstBiometricUse = $firstPunches[$faculty->id] ?? null;
 
         $todayStr = Carbon::now()->format('Y-m-d');
+        $today = Carbon::today();
 
         $presentCount = 0;
         $lateCount = 0;
@@ -263,7 +278,9 @@ class FacultyAttendanceReportController extends Controller
             $isExplicitHoliday = in_array($dateStr, $holidays);
             $isFuture = $dateStr > $todayStr;
 
-            $isHoliday = $isSunday || $isExplicitHoliday;
+            $hasFewerThanTwoLogins = isset($loginsPerDate[$dateStr]) ? ($loginsPerDate[$dateStr] < 2) : true;
+            $isLowLoginHoliday = (!$isFuture && $current->lt($today) && $hasFewerThanTwoLogins);
+            $isHoliday = $isSunday || $isExplicitHoliday || $isLowLoginHoliday;
 
             $status = 'none';
             if (isset($facultyRecords[$dateStr])) {
@@ -278,11 +295,23 @@ class FacultyAttendanceReportController extends Controller
                     } elseif ($status === 'half_day') {
                         $halfDayCount++;
                     } elseif ($status === 'absent') {
-                        $absentCount++;
+                        if ($isHoliday) {
+                            $holidaysCount++;
+                            $status = 'holiday';
+                        } else {
+                            $absentCount++;
+                        }
                     } elseif ($status === 'excused') {
                         $excusedCount++;
+                    } elseif ($status === 'holiday') {
+                        $holidaysCount++;
                     } else {
-                        $absentCount++;
+                        if ($isHoliday) {
+                            $holidaysCount++;
+                            $status = 'holiday';
+                        } else {
+                            $absentCount++;
+                        }
                     }
                 }
             } else {

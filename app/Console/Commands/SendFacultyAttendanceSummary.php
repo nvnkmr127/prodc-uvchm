@@ -17,7 +17,7 @@ class SendFacultyAttendanceSummary extends Command
      *
      * @var string
      */
-    protected $signature = 'attendance:faculty-summary {type : "morning" or "evening"}';
+    protected $signature = 'attendance:faculty-summary {type : "morning" or "evening"} {--date= : The date to process (Y-m-d format, defaults to today)}';
 
     /**
      * The console command description.
@@ -38,13 +38,25 @@ class SendFacultyAttendanceSummary extends Command
             return 1;
         }
 
-        $date = Carbon::now();
+        $date = $this->option('date') ? Carbon::parse($this->option('date')) : Carbon::now();
         $dateStr = $date->format('Y-m-d');
         $displayDateStr = $date->format('l, d F Y');
 
         $this->info("Preparing {$type} faculty attendance summary for {$displayDateStr}...");
 
-        // 1. Get all active faculty
+        // 1. Check Working Day vs Holiday Condition (< 2 logins = Holiday, >= 2 logins = Working Day)
+        $facultyAttendanceService = app(\App\Services\Attendance\FacultyAttendanceService::class);
+        $isHoliday = $facultyAttendanceService->checkAndMarkHoliday($date);
+
+        if ($isHoliday) {
+            $uniqueLogins = $facultyAttendanceService->getUniqueLoginsCount($date);
+            $this->warn("Faculty Attendance {$type} summary: {$displayDateStr} is determined as a Holiday ({$uniqueLogins} unique faculty logins, fewer than 2 required).");
+            $this->info("Attendance records explicitly marked as 'Holiday' in database. Attendance summary emails suppressed.");
+            Log::info("Faculty Attendance {$type} summary skipped: {$dateStr} is a Holiday ({$uniqueLogins} unique faculty logins).");
+            return 0;
+        }
+
+        // 2. Get all active faculty
         $faculties = User::whereHas('roles', function($q) {
             $q->whereIn('name', ['staff', 'faculty']);
         })
@@ -52,7 +64,7 @@ class SendFacultyAttendanceSummary extends Command
             ->orderBy('name')
             ->get();
 
-        // 2. Get today's attendance records
+        // 3. Get today's attendance records
         $records = FacultyAttendance::whereIn('faculty_id', $faculties->pluck('id'))
             ->where('attendance_date', $dateStr)
             ->get()
@@ -101,6 +113,8 @@ class SendFacultyAttendanceSummary extends Command
                 $attendanceData['half_day_count']++;
             } elseif ($status === 'excused') {
                 $attendanceData['excused_count']++;
+            } elseif ($status === 'holiday') {
+                // Do not count holiday as absent
             } else {
                 $attendanceData['absent_count']++;
             }

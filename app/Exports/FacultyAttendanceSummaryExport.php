@@ -71,6 +71,19 @@ class FacultyAttendanceSummaryExport implements FromCollection, ShouldAutoSize, 
             ->get()
             ->groupBy('faculty_id');
 
+        $loginsPerDate = FacultyAttendance::whereIn('faculty_id', $faculties->pluck('id'))
+            ->whereBetween('attendance_date', [$this->startDate->format('Y-m-d'), $this->endDate->format('Y-m-d')])
+            ->where(function ($q) {
+                $q->whereNotNull('check_in_time')
+                    ->orWhereNotNull('check_out_time')
+                    ->orWhereIn('status', ['present', 'late', 'half_day']);
+            })
+            ->selectRaw('attendance_date, COUNT(DISTINCT faculty_id) as login_count')
+            ->groupBy('attendance_date')
+            ->pluck('login_count', 'attendance_date')
+            ->mapWithKeys(fn ($val, $k) => [is_string($k) ? substr($k, 0, 10) : $k->format('Y-m-d') => (int) $val])
+            ->toArray();
+
         // 3a. Fetch first biometric record for all faculty to avoid N+1
         $firstPunches = FacultyAttendance::whereIn('faculty_id', $faculties->pluck('id'))
             ->whereIn('status', ['present', 'late', 'half_day'])
@@ -97,11 +110,19 @@ class FacultyAttendanceSummaryExport implements FromCollection, ShouldAutoSize, 
 
             if ($this->isSingleDay) {
                 $dailyRecordStr = $this->startDate->format('Y-m-d');
+                $isSunday = $this->startDate->isSunday();
+                $isExplicitHoliday = in_array($dailyRecordStr, $holidays);
+                $hasFewerThanTwoLogins = ($loginsPerDate[$dailyRecordStr] ?? 0) < 2;
+                $isHolidayDay = $isSunday || $isExplicitHoliday || ($this->startDate->lte(Carbon::today()) && $hasFewerThanTwoLogins);
+
                 $record = $facultyRecordsMap->get($dailyRecordStr);
-                $status = $record ? strtolower(trim($record->status)) : 'absent';
+                $status = $record ? strtolower(trim($record->status)) : ($isHolidayDay ? 'holiday' : 'absent');
+                if ($isHolidayDay && ($status === 'absent' || !$record)) {
+                    $status = 'holiday';
+                }
                 $checkIn = $record && $record->check_in_time ? Carbon::parse($record->check_in_time)->format('h:i A') : '--';
                 $checkOut = $record && $record->check_out_time ? Carbon::parse($record->check_out_time)->format('h:i A') : '--';
-                $notes = $record->notes ?? '';
+                $notes = $record->notes ?? ($isHolidayDay ? 'Holiday (< 2 logins)' : '');
                 
                 $row[] = $checkIn;
                 $row[] = $checkOut;
@@ -135,7 +156,7 @@ class FacultyAttendanceSummaryExport implements FromCollection, ShouldAutoSize, 
                     continue;
                 }
 
-                $stats = $this->calculateStats($monthStart, $monthEnd, $holidays, $facultyRecordsMap, $faculty, $firstPunches);
+                $stats = $this->calculateStats($monthStart, $monthEnd, $holidays, $facultyRecordsMap, $faculty, $firstPunches, $loginsPerDate);
 
                 $row[] = $stats['working_days'];
                 $row[] = $stats['present'];
@@ -147,7 +168,7 @@ class FacultyAttendanceSummaryExport implements FromCollection, ShouldAutoSize, 
             }
 
             // Overall Stats
-            $overallStats = $this->calculateStats($this->startDate, $this->endDate, $holidays, $facultyRecordsMap, $faculty, $firstPunches);
+            $overallStats = $this->calculateStats($this->startDate, $this->endDate, $holidays, $facultyRecordsMap, $faculty, $firstPunches, $loginsPerDate);
             $row[] = $overallStats['working_days'];
             $row[] = $overallStats['present'];
             $row[] = $overallStats['late'];
@@ -161,12 +182,13 @@ class FacultyAttendanceSummaryExport implements FromCollection, ShouldAutoSize, 
         return $output;
     }
 
-    private function calculateStats($start, $end, $allHolidays, $recordMap, $faculty, $firstPunches = [])
+    private function calculateStats($start, $end, $allHolidays, $recordMap, $faculty, $firstPunches = [], $loginsPerDate = [])
     {
         $profileStartDate = $faculty->created_at->startOfDay();
         $firstBiometricUse = $firstPunches[$faculty->id] ?? null;
 
         $todayStr = Carbon::now()->format('Y-m-d');
+        $today = Carbon::today();
 
         $presentCount = 0;
         $lateCount = 0;
@@ -182,7 +204,9 @@ class FacultyAttendanceSummaryExport implements FromCollection, ShouldAutoSize, 
             $isExplicitHoliday = in_array($dateStr, $allHolidays);
             $isFuture = $dateStr > $todayStr;
 
-            $isHoliday = $isSunday || $isExplicitHoliday;
+            $hasFewerThanTwoLogins = isset($loginsPerDate[$dateStr]) ? ($loginsPerDate[$dateStr] < 2) : true;
+            $isLowLoginHoliday = (!$isFuture && $current->lt($today) && $hasFewerThanTwoLogins);
+            $isHoliday = $isSunday || $isExplicitHoliday || $isLowLoginHoliday;
 
             if ($isHoliday) {
                 $holidaysCount++;
@@ -202,6 +226,8 @@ class FacultyAttendanceSummaryExport implements FromCollection, ShouldAutoSize, 
                             $absentCount++;
                         } elseif ($status === 'excused') {
                             $excusedCount++;
+                        } elseif ($status === 'holiday') {
+                            $holidaysCount++;
                         } else {
                             $absentCount++;
                         }

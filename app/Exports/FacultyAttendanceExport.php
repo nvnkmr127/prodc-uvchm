@@ -96,6 +96,10 @@ class FacultyAttendanceExport implements FromArray, WithHeadings, WithStyles, Wi
                     case 'on leave':
                         $color = 'D9E1F2'; // Light purple/indigo
                         break;
+                    case 'holiday':
+                    case 'weekend/holiday':
+                        $color = 'E2E3E5'; // Light gray
+                        break;
                 }
 
                 if ($color) {

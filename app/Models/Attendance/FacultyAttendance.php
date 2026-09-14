@@ -88,10 +88,15 @@ class FacultyAttendance extends Model
         return $query->where('status', 'excused');
     }
 
+    public function scopeHoliday($query)
+    {
+        return $query->where('status', 'holiday');
+    }
+
     // Accessors
     public function getPresentValueAttribute(): float
     {
-        if ($this->status === 'absent' || $this->status === 'excused') {
+        if ($this->status === 'absent' || $this->status === 'excused' || $this->status === 'holiday') {
             return 0.0;
         }
         
@@ -121,6 +126,7 @@ class FacultyAttendance extends Model
             'late' => 'Late',
             'half_day' => 'Half Day',
             'excused' => 'On Leave',
+            'holiday' => 'Holiday',
             default => 'Unknown'
         };
     }
@@ -133,6 +139,7 @@ class FacultyAttendance extends Model
             'late' => 'warning',
             'half_day' => 'info',
             'excused' => 'primary',
+            'holiday' => 'secondary',
             default => 'secondary'
         };
     }

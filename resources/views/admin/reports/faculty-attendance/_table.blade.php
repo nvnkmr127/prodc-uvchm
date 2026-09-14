@@ -27,6 +27,7 @@
                     elseif ($status === 'late') $badge = 'warning';
                     elseif ($status === 'half_day') $badge = 'info';
                     elseif ($status === 'excused') $badge = 'secondary';
+                    elseif ($status === 'holiday') $badge = 'secondary';
                     else $badge = 'danger';
                 @endphp
                 <tr>

@@ -161,7 +161,7 @@ class FacultyAttendanceController extends Controller
                     $facultyTotalHours += $hours;
 
                     // If it was half day due to hours or single punch, status is half_day
-                    if ($presentValue == 0.5 && $status !== 'half_day') {
+                    if ($presentValue == 0.5 && $status !== 'half_day' && $status !== 'holiday') {
                         $status = 'half_day';
                     }
                 } elseif ($onLeave && $isWorking) {
@@ -172,8 +172,8 @@ class FacultyAttendanceController extends Controller
                     $status = 'absent';
                     $facultyAbsentDays += 1.0;
                 } else {
-                    $status = 'weekend/holiday';
-                    $notes = $day['reason'] ?? 'Non-working day';
+                    $status = ($attendanceRecord && $attendanceRecord->status === 'holiday') ? 'holiday' : 'weekend/holiday';
+                    $notes = $attendanceRecord?->notes ?? ($day['reason'] ?? 'Non-working day');
                 }
 
                 $recordData = [
@@ -201,11 +201,13 @@ class FacultyAttendanceController extends Controller
                 // Accumulate overall stats if it is a working day
                 if ($isWorking) {
                     if ($attendanceRecord) {
-                        $totalPresent += $attendanceRecord->present_value;
-                        if ($attendanceRecord->status === 'late') {
-                            $totalLate++;
+                        if ($attendanceRecord->status !== 'holiday') {
+                            $totalPresent += $attendanceRecord->present_value;
+                            if ($attendanceRecord->status === 'late') {
+                                $totalLate++;
+                            }
+                            $totalHours += $hours;
                         }
-                        $totalHours += $hours;
                     } elseif ($onLeave) {
                         // ignore leave
                     } else {
@@ -346,7 +348,7 @@ class FacultyAttendanceController extends Controller
                     $checkOut = $attendanceRecord->check_out_time;
                     $hours = $attendanceRecord->working_hours;
                     
-                    if ($attendanceRecord->present_value == 0.5 && $rawStatus !== 'half_day') {
+                    if ($attendanceRecord->present_value == 0.5 && $rawStatus !== 'half_day' && $rawStatus !== 'holiday') {
                         $rawStatus = 'half_day';
                         $status = 'Half Day';
                     }
@@ -357,8 +359,8 @@ class FacultyAttendanceController extends Controller
                     $rawStatus = 'absent';
                     $status = 'Absent';
                 } else {
-                    $rawStatus = 'weekend/holiday';
-                    $status = $day['reason'] ?? 'Weekend/Holiday';
+                    $rawStatus = ($attendanceRecord && $attendanceRecord->status === 'holiday') ? 'holiday' : 'weekend/holiday';
+                    $status = ($attendanceRecord && $attendanceRecord->status === 'holiday') ? 'Holiday' : ($day['reason'] ?? 'Weekend/Holiday');
                 }
 
                 // Filter status
@@ -423,11 +425,39 @@ class FacultyAttendanceController extends Controller
                 ->toArray();
         }
 
+        // Count unique faculty logins per date in the range
+        $loginsPerDate = FacultyAttendance::whereBetween('attendance_date', [$start->toDateString(), $end->toDateString()])
+            ->where(function ($query) {
+                $query->whereNotNull('check_in_time')
+                    ->orWhereNotNull('check_out_time')
+                    ->orWhereIn('status', ['present', 'late', 'half_day']);
+            })
+            ->selectRaw('attendance_date, COUNT(DISTINCT faculty_id) as login_count')
+            ->groupBy('attendance_date')
+            ->pluck('login_count', 'attendance_date')
+            ->mapWithKeys(fn ($val, $k) => [is_string($k) ? substr($k, 0, 10) : $k->format('Y-m-d') => (int) $val])
+            ->toArray();
+
+        // Check if dates have records explicitly marked as holiday
+        $explicitHolidayDates = FacultyAttendance::whereBetween('attendance_date', [$start->toDateString(), $end->toDateString()])
+            ->where('status', 'holiday')
+            ->pluck('attendance_date')
+            ->map(fn ($d) => is_string($d) ? substr($d, 0, 10) : $d->format('Y-m-d'))
+            ->unique()
+            ->toArray();
+
         $temp = $start->copy();
+        $today = Carbon::today();
+
         while ($temp->lte($end)) {
             $dateStr = $temp->toDateString();
             $isWeekend = $temp->isWeekend();
-            $isHoliday = in_array($dateStr, $holidays);
+            $isExplicitHoliday = in_array($dateStr, $holidays) || in_array($dateStr, $explicitHolidayDates);
+            $hasFewerThanTwoLogins = ($loginsPerDate[$dateStr] ?? 0) < 2;
+
+            // Past dates with < 2 logins or any date explicitly marked is a holiday
+            $isLowLoginHoliday = ($temp->lt($today) && $hasFewerThanTwoLogins);
+            $isHoliday = $isExplicitHoliday || $isLowLoginHoliday;
 
             if (!$isWeekend && !$isHoliday) {
                 $dates[] = [
@@ -435,10 +465,14 @@ class FacultyAttendanceController extends Controller
                     'is_working' => true,
                 ];
             } else {
+                $reason = $isWeekend ? 'Weekend' : 'Holiday';
+                if (!$isWeekend && $isLowLoginHoliday && !in_array($dateStr, $holidays)) {
+                    $reason = 'Holiday (< 2 logins)';
+                }
                 $dates[] = [
                     'date' => $dateStr,
                     'is_working' => false,
-                    'reason' => $isWeekend ? 'Weekend' : 'Holiday',
+                    'reason' => $reason,
                 ];
             }
             $temp->addDay();

@@ -52,6 +52,19 @@ class SendFacultyMonthlyAttendanceSummary extends Command
             ->get()
             ->groupBy('faculty_id');
 
+        $loginsPerDate = FacultyAttendance::whereIn('faculty_id', $faculties->pluck('id'))
+            ->whereBetween('attendance_date', [$startOfMonth, $endOfMonth])
+            ->where(function ($q) {
+                $q->whereNotNull('check_in_time')
+                    ->orWhereNotNull('check_out_time')
+                    ->orWhereIn('status', ['present', 'late', 'half_day']);
+            })
+            ->selectRaw('attendance_date, COUNT(DISTINCT faculty_id) as login_count')
+            ->groupBy('attendance_date')
+            ->pluck('login_count', 'attendance_date')
+            ->mapWithKeys(fn ($val, $k) => [is_string($k) ? substr($k, 0, 10) : $k->format('Y-m-d') => (int) $val])
+            ->toArray();
+
         $holidays = \App\Models\Holiday::whereBetween('date', [$startOfMonth, $endOfMonth])
             ->get()
             ->map(fn ($h) => (is_string($h->date) ? substr($h->date, 0, 10) : $h->date->format('Y-m-d')))
@@ -84,7 +97,10 @@ class SendFacultyMonthlyAttendanceSummary extends Command
             while ($current->lte($trackingEnd)) {
                 $dateStr = $current->format('Y-m-d');
                 $isSunday = $current->isSunday();
-                $isHoliday = in_array($dateStr, $holidays);
+                $isExplicitHoliday = in_array($dateStr, $holidays);
+                $hasFewerThanTwoLogins = ($loginsPerDate[$dateStr] ?? 0) < 2;
+                $isLowLoginHoliday = ($current->lt(today()) && $hasFewerThanTwoLogins);
+                $isHoliday = $isSunday || $isExplicitHoliday || $isLowLoginHoliday;
 
                 if (!$isSunday && !$isHoliday) {
                     $totalDaysTracked++;
@@ -104,6 +120,8 @@ class SendFacultyMonthlyAttendanceSummary extends Command
                         } elseif ($status === 'excused') {
                             $excusedCount++;
                             $totalDaysTracked--; // Don't count excused days as required working days
+                        } elseif ($status === 'holiday') {
+                            $totalDaysTracked--; // Don't count holiday days as required working days
                         } else {
                             $absentCount++; // Default any weird status to absent
                         }

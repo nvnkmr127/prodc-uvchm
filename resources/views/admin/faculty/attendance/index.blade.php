@@ -144,6 +144,7 @@
                             <option value="half_day" {{ $statusFilter == 'half_day' ? 'selected' : '' }}>Half Day</option>
                             <option value="absent" {{ $statusFilter == 'absent' ? 'selected' : '' }}>Absent</option>
                             <option value="excused" {{ $statusFilter == 'excused' ? 'selected' : '' }}>On Leave</option>
+                            <option value="holiday" {{ $statusFilter == 'holiday' ? 'selected' : '' }}>Holiday</option>
                         </select>
                     </div>
 
@@ -249,6 +250,7 @@
                                                     'half_day' => 'badge-info',
                                                     'absent' => 'badge-danger',
                                                     'excused' => 'badge-primary',
+                                                    'holiday' => 'badge-secondary',
                                                     default => 'badge-secondary'
                                                 };
                                                 $label = match($rec['status']) {
@@ -257,6 +259,7 @@
                                                     'half_day' => 'Half Day',
                                                     'absent' => 'Absent',
                                                     'excused' => 'On Leave',
+                                                    'holiday' => 'Holiday',
                                                     default => 'Weekend/Holiday'
                                                 };
                                             @endphp

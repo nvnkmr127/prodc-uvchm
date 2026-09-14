@@ -229,6 +229,9 @@ class FacultyAttendanceService
             }
         }
 
+        // If this punch brings unique logins >= 2, clean up any previous holiday status on this date
+        $this->cleanupHolidayIfWorkingDay($attendanceDate, $settings);
+
         return $attendance;
     }
 
@@ -260,6 +263,139 @@ class FacultyAttendanceService
                 'status' => 'half_day',
                 'reason' => 'Checked in after late cutoff',
             ];
+        }
+    }
+
+    /**
+     * Count unique faculty logins for a given date.
+     * A login is counted if the faculty has a recorded check_in_time, check_out_time,
+     * or active punch status ('present', 'late', 'half_day').
+     */
+    public function getUniqueLoginsCount(Carbon|string $date): int
+    {
+        $dateStr = $date instanceof Carbon ? $date->toDateString() : Carbon::parse($date)->toDateString();
+
+        $activeFacultyIds = User::whereHas('roles', function ($q) {
+            $q->whereIn('name', ['staff', 'faculty']);
+        })->where('status', 'active')->pluck('id');
+
+        if ($activeFacultyIds->isEmpty()) {
+            return 0;
+        }
+
+        return FacultyAttendance::whereIn('faculty_id', $activeFacultyIds)
+            ->whereDate('attendance_date', $dateStr)
+            ->where(function ($query) {
+                $query->whereNotNull('check_in_time')
+                    ->orWhereNotNull('check_out_time')
+                    ->orWhereIn('status', ['present', 'late', 'half_day']);
+            })
+            ->distinct('faculty_id')
+            ->count('faculty_id');
+    }
+
+    /**
+     * Check if a given date is a working day (at least 2 unique faculty logins).
+     */
+    public function isWorkingDay(Carbon|string $date): bool
+    {
+        return $this->getUniqueLoginsCount($date) >= 2;
+    }
+
+    /**
+     * Check Working Day vs Holiday condition for a date:
+     * - Count total unique faculty logins.
+     * - If < 2 logins, consider the day a "Holiday" and explicitly mark status as "Holiday" in attendance logs/database.
+     * - If >= 2 logins, consider the day a "Working Day".
+     *
+     * @return bool True if holiday (< 2 logins), false if working day (>= 2 logins).
+     */
+    public function checkAndMarkHoliday(Carbon|string $date): bool
+    {
+        $dateStr = $date instanceof Carbon ? $date->toDateString() : Carbon::parse($date)->toDateString();
+
+        $activeFaculties = User::whereHas('roles', function ($q) {
+            $q->whereIn('name', ['staff', 'faculty']);
+        })->where('status', 'active')->get();
+
+        if ($activeFaculties->isEmpty()) {
+            return true;
+        }
+
+        $records = FacultyAttendance::whereIn('faculty_id', $activeFaculties->pluck('id'))
+            ->whereDate('attendance_date', $dateStr)
+            ->get()
+            ->keyBy('faculty_id');
+
+        $uniqueLogins = $records->filter(function ($r) {
+            return !empty($r->check_in_time)
+                || !empty($r->check_out_time)
+                || in_array(strtolower(trim($r->status ?? '')), ['present', 'late', 'half_day']);
+        })->count();
+
+        if ($uniqueLogins < 2) {
+            // Explicitly mark status as "Holiday" in attendance logs/database for all active faculty
+            foreach ($activeFaculties as $faculty) {
+                $record = $records->get($faculty->id);
+                if ($record) {
+                    if ($record->status !== 'holiday') {
+                        $newNotes = $record->notes
+                            ? $record->notes . ' | Marked as Holiday (< 2 faculty logins)'
+                            : 'Holiday (fewer than 2 faculty logins)';
+                        $record->update([
+                            'status' => 'holiday',
+                            'notes' => $newNotes,
+                        ]);
+                    }
+                } else {
+                    FacultyAttendance::create([
+                        'faculty_id' => $faculty->id,
+                        'attendance_date' => $dateStr,
+                        'status' => 'holiday',
+                        'notes' => 'Holiday (fewer than 2 faculty logins)',
+                        'marked_at' => now(),
+                        'marked_by' => auth()->id() ?? $faculty->id,
+                    ]);
+                }
+            }
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * If attendance records on a date have >= 2 logins, ensure any temporary holiday status is resolved.
+     */
+    public function cleanupHolidayIfWorkingDay(string $dateStr, array $settings): void
+    {
+        $uniqueLogins = FacultyAttendance::whereDate('attendance_date', $dateStr)
+            ->where(function ($query) {
+                $query->whereNotNull('check_in_time')
+                    ->orWhereNotNull('check_out_time')
+                    ->orWhereIn('status', ['present', 'late', 'half_day']);
+            })
+            ->distinct('faculty_id')
+            ->count('faculty_id');
+
+        if ($uniqueLogins >= 2) {
+            // Restore status for any punched faculty that were marked holiday
+            $punchedHolidayRecords = FacultyAttendance::whereDate('attendance_date', $dateStr)
+                ->where('status', 'holiday')
+                ->whereNotNull('check_in_time')
+                ->get();
+
+            foreach ($punchedHolidayRecords as $att) {
+                $statusData = $this->determineStatus($att->check_in_time, $settings);
+                $att->update(['status' => $statusData['status']]);
+            }
+
+            // Remove placeholder holiday records that had no punches
+            FacultyAttendance::whereDate('attendance_date', $dateStr)
+                ->where('status', 'holiday')
+                ->whereNull('check_in_time')
+                ->whereNull('check_out_time')
+                ->delete();
         }
     }
 }
