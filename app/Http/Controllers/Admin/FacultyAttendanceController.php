@@ -115,6 +115,12 @@ class FacultyAttendanceController extends Controller
         $totalRecordsCount = 0;
 
         $leaderboard = [];
+        $today = Carbon::today();
+        $todayStr = $today->toDateString();
+
+        $elapsedWorkingDaysList = collect($workingDaysList)->filter(fn($d) => $d['date'] <= $todayStr);
+        $elapsedWorkingDaysCount = $elapsedWorkingDaysList->where('is_working', true)->count();
+        $evalWorkingDaysCount = ($endDate->isFuture() || $endDate->isToday()) ? $elapsedWorkingDaysCount : $totalWorkingDaysCount;
 
         foreach ($faculties as $faculty) {
             $facultyRecords = [];
@@ -131,6 +137,7 @@ class FacultyAttendanceController extends Controller
             foreach ($workingDaysList as $day) {
                 $dateStr = $day['date'];
                 $isWorking = $day['is_working'];
+                $isFuture = ($dateStr > $todayStr);
                 $key = $faculty->id . '_' . $dateStr;
 
                 $attendanceRecord = $attendances->get($key)?->first();
@@ -163,13 +170,20 @@ class FacultyAttendanceController extends Controller
 
                     $presentValue = $attendanceRecord->present_value;
                     $facultyPresentDays += $presentValue;
-                    if ($status === 'late') {
-                        $facultyLateCount++;
-                    }
-                    if ($presentValue == 0.5 || $status === 'half_day') {
-                        $facultyHalfDayCount++;
-                    }
                     $facultyTotalHours += $hours;
+
+                    if ($isWorking && $attendanceRecord->status !== 'holiday') {
+                        $totalPresent += $presentValue;
+                        $totalHours += $hours;
+
+                        if ($attendanceRecord->status === 'late' || $lateMinutes > 0) {
+                            $facultyLateCount++;
+                            $totalLate++;
+                        }
+                        if ($presentValue == 0.5 || $status === 'half_day') {
+                            $facultyHalfDayCount++;
+                        }
+                    }
 
                     // If it was half day due to hours or single punch, status is half_day
                     if ($presentValue == 0.5 && $status !== 'half_day' && $status !== 'holiday') {
@@ -179,12 +193,19 @@ class FacultyAttendanceController extends Controller
                     $status = 'excused';
                     $facultyLeaveDays += $leaveWeight;
                     $notes = 'Approved Leave';
-                } elseif ($isWorking) {
+                    if (!$isFuture) {
+                        $totalLeave += $leaveWeight;
+                    }
+                } elseif ($isWorking && !$isFuture) {
                     $status = 'absent';
                     $facultyAbsentDays += 1.0;
-                } else {
+                    $totalAbsent += 1.0;
+                } elseif (!$isWorking) {
                     $status = ($attendanceRecord && $attendanceRecord->status === 'holiday') ? 'holiday' : 'weekend/holiday';
                     $notes = $attendanceRecord?->notes ?? ($day['reason'] ?? 'Non-working day');
+                } else {
+                    // Future working day with no punches or leaves: do not mark absent
+                    continue;
                 }
 
                 $recordData = [
@@ -208,30 +229,13 @@ class FacultyAttendanceController extends Controller
                 }
 
                 $facultyRecords[] = $recordData;
-
-                // Accumulate overall stats if it is a working day
-                if ($isWorking) {
-                    if ($attendanceRecord) {
-                        if ($attendanceRecord->status !== 'holiday') {
-                            $totalPresent += $attendanceRecord->present_value;
-                            if ($attendanceRecord->status === 'late') {
-                                $totalLate++;
-                            }
-                            $totalHours += $hours;
-                        }
-                    } elseif ($onLeave) {
-                        $totalLeave += $leaveWeight;
-                    } else {
-                        $totalAbsent += 1.0;
-                    }
-                    $totalRecordsCount++;
-                }
+                $totalRecordsCount++;
             }
 
             $records = array_merge($records, $facultyRecords);
 
-            $facultyAttendanceRate = $totalWorkingDaysCount > 0 
-                ? min(100.0, round(($facultyPresentDays / $totalWorkingDaysCount) * 100, 1)) 
+            $facultyAttendanceRate = $evalWorkingDaysCount > 0 
+                ? min(100.0, round(($facultyPresentDays / $evalWorkingDaysCount) * 100, 1)) 
                 : 0.0;
 
             $leaderboard[] = [
@@ -266,9 +270,10 @@ class FacultyAttendanceController extends Controller
         $totalWeekendDays = collect($workingDaysList)->where('is_working', false)->filter(fn($d) => ($d['reason'] ?? '') === 'Weekend')->count();
         $totalHolidayDays = collect($workingDaysList)->where('is_working', false)->filter(fn($d) => ($d['reason'] ?? '') !== 'Weekend')->count();
         $totalFacultyCount = $faculties->count();
-        $totalPossibleAttendanceDays = $totalWorkingDaysCount * max(1, $totalFacultyCount);
-        $attendancePercentage = ($totalWorkingDaysCount > 0 && $totalFacultyCount > 0)
-            ? min(100.0, round(($totalPresent / $totalPossibleAttendanceDays) * 100, 1))
+        
+        $evalPossibleAttendanceDays = $evalWorkingDaysCount * max(1, $totalFacultyCount);
+        $attendancePercentage = ($evalWorkingDaysCount > 0 && $totalFacultyCount > 0)
+            ? min(100.0, round(($totalPresent / $evalPossibleAttendanceDays) * 100, 1))
             : 0.0;
 
         $stats = [
@@ -279,6 +284,7 @@ class FacultyAttendanceController extends Controller
                 : ($startDate->format('d M Y') . ' — ' . $endDate->format('d M Y')),
             'total_faculty' => $totalFacultyCount,
             'total_working_days' => $totalWorkingDaysCount,
+            'elapsed_working_days' => $evalWorkingDaysCount,
             'total_holidays' => $totalHolidayDays,
             'total_weekends' => $totalWeekendDays,
             'total_off_days' => $totalHolidayDays + $totalWeekendDays,
@@ -296,7 +302,7 @@ class FacultyAttendanceController extends Controller
             'total_present_days' => $totalPresent,
             'total_absent_days' => $totalAbsent,
             'total_late_arrivals' => $totalLate,
-            'avg_hours_summary' => $totalWorkingDaysCount > 0 && $totalFacultyCount > 0 
+            'avg_hours_summary' => $evalWorkingDaysCount > 0 && $totalFacultyCount > 0 
                 ? round($totalHours / $totalFacultyCount, 2) 
                 : 0.0,
             'is_holiday_today' => $isSingleDay && !($workingDaysList[0]['is_working'] ?? true),
@@ -411,12 +417,14 @@ class FacultyAttendanceController extends Controller
         }
 
         $exportData = [];
+        $todayStr = Carbon::today()->toDateString();
         foreach ($faculties as $faculty) {
             $userLeaves = $leaves->where('user_id', $faculty->id);
 
             foreach ($workingDaysList as $day) {
                 $dateStr = $day['date'];
                 $isWorking = $day['is_working'];
+                $isFuture = ($dateStr > $todayStr);
                 $key = $faculty->id . '_' . $dateStr;
 
                 $attendanceRecord = $attendances->get($key)?->first();
@@ -444,12 +452,14 @@ class FacultyAttendanceController extends Controller
                 } elseif ($onLeave && $isWorking) {
                     $rawStatus = 'excused';
                     $status = 'On Leave';
-                } elseif ($isWorking) {
+                } elseif ($isWorking && !$isFuture) {
                     $rawStatus = 'absent';
                     $status = 'Absent';
-                } else {
+                } elseif (!$isWorking) {
                     $rawStatus = ($attendanceRecord && $attendanceRecord->status === 'holiday') ? 'holiday' : 'weekend/holiday';
                     $status = ($attendanceRecord && $attendanceRecord->status === 'holiday') ? 'Holiday' : ($day['reason'] ?? 'Weekend/Holiday');
+                } else {
+                    continue;
                 }
 
                 // Filter status

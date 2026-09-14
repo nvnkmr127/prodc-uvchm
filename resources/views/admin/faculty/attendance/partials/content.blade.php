@@ -18,6 +18,9 @@
             <span class="mx-2 d-none d-sm-inline">&bull;</span>
             <span class="badge badge-light text-dark px-2 py-1 font-weight-bold">
                 <i class="fas fa-briefcase text-success mr-1"></i>{{ $stats['total_working_days'] }} Working Days
+                @if(isset($stats['elapsed_working_days']) && $stats['elapsed_working_days'] < $stats['total_working_days'])
+                    ({{ $stats['elapsed_working_days'] }} to date)
+                @endif
             </span>
             <span class="badge badge-warning text-dark px-2 py-1 font-weight-bold">
                 <i class="fas fa-umbrella-beach text-warning mr-1"></i>{{ $stats['total_holidays'] }} Holidays
@@ -92,6 +95,11 @@
                         @else
                             {{ $stats['total_working_days'] }}
                             <span class="text-xs text-muted font-weight-normal" style="font-size: 0.85rem;">work days</span>
+                            @if(isset($stats['elapsed_working_days']) && $stats['elapsed_working_days'] < $stats['total_working_days'])
+                                <div class="text-xs text-info font-weight-semibold mt-1">
+                                    <i class="fas fa-history mr-1"></i>{{ $stats['elapsed_working_days'] }} elapsed to date
+                                </div>
+                            @endif
                         @endif
                     </div>
                     <div class="stats-subtext mt-2 d-flex flex-wrap gap-1">
@@ -130,7 +138,7 @@
                         @if($stats['is_single_day'])
                             <strong>{{ $stats['attendance_percentage'] }}%</strong> turn-out rate
                         @else
-                            <strong>{{ $stats['total_present_days'] }}</strong> total present person-days
+                            <strong>{{ $stats['total_present_days'] }}</strong> present / {{ ($stats['elapsed_working_days'] ?? $stats['total_working_days']) * max(1, $stats['total_faculty']) }} person-days
                         @endif
                     </div>
                 </div>
