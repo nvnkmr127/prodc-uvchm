@@ -398,4 +398,57 @@ class FacultyAttendanceService
                 ->delete();
         }
     }
+
+    /**
+     * Backfill/update historical attendance data for a date range:
+     * - Evaluates unique logins for each date.
+     * - If < 2 logins, marks status as 'holiday' for active faculty on that date.
+     * - If >= 2 logins, restores status for punched faculty and cleans up placeholder holidays.
+     *
+     * @return array Summary of processed dates, holidays marked, and working days.
+     */
+    public function updateHistoricalHolidays(?Carbon $startDate = null, ?Carbon $endDate = null): array
+    {
+        $start = $startDate ?? Carbon::now()->startOfMonth();
+        $end = $endDate ?? Carbon::now();
+
+        $collegeStartTime = Setting::where('key', 'attendance_faculty_college_start_time')->value('value') ?? '09:00:00';
+        $presentCutoff = Setting::where('key', 'attendance_faculty_present_cutoff_time')->value('value') ?? '10:30:00';
+        $lateCutoff = Setting::where('key', 'attendance_faculty_late_cutoff_time')->value('value') ?? '11:00:00';
+        $collegeEndTime = Setting::where('key', 'attendance_college_end_time')->value('value') ?? '17:00:00';
+
+        $settings = [
+            'college_start_time' => $collegeStartTime,
+            'present_cutoff_time' => $presentCutoff,
+            'late_cutoff_time' => $lateCutoff,
+            'college_end_time' => $collegeEndTime,
+        ];
+
+        $summary = [
+            'total_dates' => 0,
+            'holidays_marked' => 0,
+            'working_days' => 0,
+            'dates_processed' => [],
+        ];
+
+        $current = $start->copy();
+        while ($current->lte($end)) {
+            $dateStr = $current->toDateString();
+            $summary['total_dates']++;
+
+            $isHoliday = $this->checkAndMarkHoliday($current);
+            if ($isHoliday) {
+                $summary['holidays_marked']++;
+                $summary['dates_processed'][$dateStr] = 'holiday';
+            } else {
+                $summary['working_days']++;
+                $summary['dates_processed'][$dateStr] = 'working_day';
+                $this->cleanupHolidayIfWorkingDay($dateStr, $settings);
+            }
+
+            $current->addDay();
+        }
+
+        return $summary;
+    }
 }
