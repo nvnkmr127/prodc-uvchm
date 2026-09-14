@@ -7,6 +7,7 @@ use App\Models\Attendance\FacultyAttendance;
 use App\Models\User;
 use App\Models\Holiday;
 use App\Models\LeaveApplication;
+use App\Models\Setting;
 use App\Exports\FacultyAttendanceExport;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -146,7 +147,9 @@ class FacultyAttendanceController extends Controller
                 $onLeave = false;
                 $leaveWeight = 0.0;
                 $leaveApp = $userLeaves->first(function($l) use ($dateStr) {
-                    return $dateStr >= $l->start_date && $dateStr <= $l->end_date;
+                    $startStr = is_string($l->start_date) ? substr($l->start_date, 0, 10) : $l->start_date->toDateString();
+                    $endStr = is_string($l->end_date) ? substr($l->end_date, 0, 10) : $l->end_date->toDateString();
+                    return $dateStr >= $startStr && $dateStr <= $endStr;
                 });
                 if ($leaveApp) {
                     $onLeave = true;
@@ -169,24 +172,36 @@ class FacultyAttendanceController extends Controller
                     $lateMinutes = intval($attendanceRecord->late_minutes);
 
                     $presentValue = $attendanceRecord->present_value;
-                    $facultyPresentDays += $presentValue;
-                    $facultyTotalHours += $hours;
 
                     if ($isWorking && $attendanceRecord->status !== 'holiday') {
-                        $totalPresent += $presentValue;
-                        $totalHours += $hours;
+                        if ($status === 'excused') {
+                            $facultyLeaveDays += 1.0;
+                            if (!$isFuture) {
+                                $totalLeave += 1.0;
+                            }
+                        } else {
+                            $facultyPresentDays += $presentValue;
+                            $totalPresent += $presentValue;
+                            $facultyTotalHours += $hours;
+                            $totalHours += $hours;
 
-                        if ($attendanceRecord->status === 'late' || $lateMinutes > 0) {
-                            $facultyLateCount++;
-                            $totalLate++;
+                            if ($status === 'late') {
+                                $facultyLateCount++;
+                                $totalLate++;
+                            }
+                            if ($presentValue == 0.5 || $status === 'half_day') {
+                                $facultyHalfDayCount++;
+                            }
                         }
-                        if ($presentValue == 0.5 || $status === 'half_day') {
-                            $facultyHalfDayCount++;
+                    } else {
+                        // Activity on non-working day (weekend/holiday)
+                        if ($presentValue > 0) {
+                            $facultyTotalHours += $hours;
                         }
                     }
 
                     // If it was half day due to hours or single punch, status is half_day
-                    if ($presentValue == 0.5 && $status !== 'half_day' && $status !== 'holiday') {
+                    if ($presentValue == 0.5 && $status !== 'half_day' && $status !== 'holiday' && $status !== 'excused') {
                         $status = 'half_day';
                     }
                 } elseif ($onLeave && $isWorking) {
@@ -429,7 +444,9 @@ class FacultyAttendanceController extends Controller
 
                 $attendanceRecord = $attendances->get($key)?->first();
                 $onLeave = $userLeaves->first(function($l) use ($dateStr) {
-                    return $dateStr >= $l->start_date && $dateStr <= $l->end_date;
+                    $startStr = is_string($l->start_date) ? substr($l->start_date, 0, 10) : $l->start_date->toDateString();
+                    $endStr = is_string($l->end_date) ? substr($l->end_date, 0, 10) : $l->end_date->toDateString();
+                    return $dateStr >= $startStr && $dateStr <= $endStr;
                 });
 
                 $status = 'Absent';
@@ -545,12 +562,22 @@ class FacultyAttendanceController extends Controller
             ->unique()
             ->toArray();
 
+        // Fetch working days configured in settings (default: Monday to Saturday)
+        $workingDaysSetting = Setting::where('key', 'working_days')->value('value');
+        $configuredWorkingDays = $workingDaysSetting ? json_decode($workingDaysSetting, true) : null;
+        if (empty($configuredWorkingDays) || !is_array($configuredWorkingDays)) {
+            $configuredWorkingDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        }
+        $configuredWorkingDays = array_map('strtolower', $configuredWorkingDays);
+
         $temp = $start->copy();
         $today = Carbon::today();
 
         while ($temp->lte($end)) {
             $dateStr = $temp->toDateString();
-            $isWeekend = $temp->isWeekend();
+            $dayName = strtolower($temp->format('l'));
+            $isConfiguredWorkingDay = in_array($dayName, $configuredWorkingDays);
+            $isWeekend = !$isConfiguredWorkingDay;
             $isExplicitHoliday = in_array($dateStr, $holidays) || in_array($dateStr, $explicitHolidayDates);
             $hasFewerThanTwoLogins = ($loginsPerDate[$dateStr] ?? 0) < 2;
 
@@ -558,20 +585,26 @@ class FacultyAttendanceController extends Controller
             $isLowLoginHoliday = ($temp->lt($today) && $hasFewerThanTwoLogins);
             $isHoliday = $isExplicitHoliday || $isLowLoginHoliday;
 
-            if (!$isWeekend && !$isHoliday) {
+            if ($isWeekend) {
                 $dates[] = [
                     'date' => $dateStr,
-                    'is_working' => true,
+                    'is_working' => false,
+                    'reason' => 'Weekend',
                 ];
-            } else {
-                $reason = $isWeekend ? 'Weekend' : 'Holiday';
-                if (!$isWeekend && $isLowLoginHoliday && !in_array($dateStr, $holidays)) {
+            } elseif ($isHoliday) {
+                $reason = 'Holiday';
+                if ($isLowLoginHoliday && !in_array($dateStr, $holidays)) {
                     $reason = 'Holiday (< 2 logins)';
                 }
                 $dates[] = [
                     'date' => $dateStr,
                     'is_working' => false,
                     'reason' => $reason,
+                ];
+            } else {
+                $dates[] = [
+                    'date' => $dateStr,
+                    'is_working' => true,
                 ];
             }
             $temp->addDay();
