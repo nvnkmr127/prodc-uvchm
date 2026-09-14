@@ -32,7 +32,9 @@ class FacultyAttendanceController extends Controller
         [$startDate, $endDate] = $this->parseDateRange($dateRange, $startDateStr, $endDateStr);
 
         // Fetch active departments for filter dropdown
-        $departments = User::role('staff')
+        $departments = User::whereHas('roles', function ($q) {
+                $q->whereIn('name', ['staff', 'faculty']);
+            })
             ->where('status', 'active')
             ->whereNotNull('department')
             ->distinct()
@@ -41,7 +43,9 @@ class FacultyAttendanceController extends Controller
             ->values();
 
         // 2. Fetch Faculty Users
-        $facultyQuery = User::role(['staff', 'faculty'])
+        $facultyQuery = User::whereHas('roles', function ($q) {
+                $q->whereIn('name', ['staff', 'faculty']);
+            })
             ->where('status', 'active')
             ->orderBy('name');
 
@@ -103,10 +107,11 @@ class FacultyAttendanceController extends Controller
         }
 
         // Statistics
-        $totalPresent = 0;
+        $totalPresent = 0.0;
         $totalLate = 0;
-        $totalAbsent = 0;
-        $totalHours = 0;
+        $totalAbsent = 0.0;
+        $totalLeave = 0.0;
+        $totalHours = 0.0;
         $totalRecordsCount = 0;
 
         foreach ($faculties as $faculty) {
@@ -179,6 +184,7 @@ class FacultyAttendanceController extends Controller
                 $recordData = [
                     'faculty_id' => $faculty->id,
                     'faculty_name' => $faculty->name,
+                    'faculty_email' => $faculty->email ?? null,
                     'employee_id' => $faculty->employee_id,
                     'department' => $faculty->department,
                     'date' => $dateStr,
@@ -209,9 +215,9 @@ class FacultyAttendanceController extends Controller
                             $totalHours += $hours;
                         }
                     } elseif ($onLeave) {
-                        // ignore leave
+                        $totalLeave += $leaveWeight;
                     } else {
-                        $totalAbsent++;
+                        $totalAbsent += 1.0;
                     }
                     $totalRecordsCount++;
                 }
@@ -220,19 +226,44 @@ class FacultyAttendanceController extends Controller
             $records = array_merge($records, $facultyRecords);
         }
 
-        // Format stats for view
+        // Format stats for view (dynamic based on selected range and filters)
+        $isSingleDay = $startDate->toDateString() === $endDate->toDateString();
+        $isToday = $isSingleDay && $startDate->isToday();
+        $totalHolidaysCount = collect($workingDaysList)->where('is_working', false)->count();
+        $totalFacultyCount = $faculties->count();
+        $totalPossibleAttendanceDays = $totalWorkingDaysCount * max(1, $totalFacultyCount);
+        $attendancePercentage = ($totalWorkingDaysCount > 0 && $totalFacultyCount > 0)
+            ? min(100.0, round(($totalPresent / $totalPossibleAttendanceDays) * 100, 1))
+            : 0.0;
+
         $stats = [
-            'total_faculty' => $faculties->count(),
-            'present_today' => FacultyAttendance::whereDate('attendance_date', today())->present()->count(),
-            'late_today' => FacultyAttendance::whereDate('attendance_date', today())->late()->count(),
+            'is_single_day' => $isSingleDay,
+            'is_today' => $isToday,
+            'date_range_label' => $isSingleDay 
+                ? $startDate->format('D, d M Y') 
+                : ($startDate->format('d M Y') . ' — ' . $endDate->format('d M Y')),
+            'total_faculty' => $totalFacultyCount,
+            'total_working_days' => $totalWorkingDaysCount,
+            'total_holidays' => $totalHolidaysCount,
+            'attendance_percentage' => $attendancePercentage,
             'checked_in_today' => count($realtimeCheckedIn),
-            'avg_working_hours' => FacultyAttendance::whereBetween('attendance_date', [$startDate->toDateString(), $endDate->toDateString()])
-                ->whereNotNull('check_out_time')
-                ->avg('working_hours') ?? 0.0,
+            'present_count' => $totalPresent,
+            'late_count' => $totalLate,
+            'absent_count' => $totalAbsent,
+            'leave_count' => $totalLeave,
+            'present_today' => $totalPresent,
+            'late_today' => $totalLate,
+            'avg_working_hours' => $totalPresent > 0 
+                ? round($totalHours / max(1, $totalPresent), 2) 
+                : 0.0,
             'total_present_days' => $totalPresent,
             'total_absent_days' => $totalAbsent,
             'total_late_arrivals' => $totalLate,
-            'avg_hours_summary' => $totalWorkingDaysCount > 0 && $faculties->count() > 0 ? round($totalHours / $faculties->count(), 2) : 0,
+            'avg_hours_summary' => $totalWorkingDaysCount > 0 && $totalFacultyCount > 0 
+                ? round($totalHours / $totalFacultyCount, 2) 
+                : 0.0,
+            'is_holiday_today' => $isSingleDay && !($workingDaysList[0]['is_working'] ?? true),
+            'holiday_reason' => $isSingleDay ? ($workingDaysList[0]['reason'] ?? 'Holiday') : null,
         ];
 
         // Sort records by date desc, then name asc
@@ -287,7 +318,11 @@ class FacultyAttendanceController extends Controller
 
         [$startDate, $endDate] = $this->parseDateRange($dateRange, $startDateStr, $endDateStr);
 
-        $facultyQuery = User::role(['staff', 'faculty'])->where('status', 'active');
+        $facultyQuery = User::whereHas('roles', function ($q) {
+                $q->whereIn('name', ['staff', 'faculty']);
+            })
+            ->where('status', 'active')
+            ->orderBy('name');
         if ($departmentFilter) {
             $facultyQuery->where('department', $departmentFilter);
         }

@@ -193,7 +193,8 @@
                                 <a class="collapse-item" href="{{ route('admin.faculty.biometric-mapping') }}">
                                     <i class="fas fa-fingerprint text-success"></i> Faculty Mapping
                                     @php
-                                        $unmappedFacultyCount = \App\Models\User::role('staff')->where('status', 'active')
+                                        $unmappedFacultyCount = \App\Models\User::whereHas('roles', fn($q) => $q->whereIn('name', ['faculty', 'staff']))
+                                            ->where('status', 'active')
                                             ->whereNull('biometric_employee_code')->count();
                                     @endphp
                                     @if($unmappedFacultyCount > 0)
@@ -227,7 +228,8 @@
                                         <a class="collapse-item" href="{{ route('admin.faculty.biometric-mapping') }}">
                                             <i class="fas fa-fingerprint text-success"></i> Faculty Mapping
                                             @php
-                                                $unmappedFacultyCount = \App\Models\User::role('staff')->where('status', 'active')
+                                                $unmappedFacultyCount = \App\Models\User::whereHas('roles', fn($q) => $q->whereIn('name', ['faculty', 'staff']))
+                                                    ->where('status', 'active')
                                                     ->whereNull('biometric_employee_code')->count();
                                             @endphp
                                             @if($unmappedFacultyCount > 0)
