@@ -441,6 +441,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
         Route::post('mentor-groups', [\App\Http\Controllers\Admin\MentorAllocationController::class, 'storeGroup'])->name('mentor-groups.store');
         Route::put('mentor-groups/{group}', [\App\Http\Controllers\Admin\MentorAllocationController::class, 'updateGroup'])->name('mentor-groups.update');
         Route::get('mentor-groups/{group}/export', [\App\Http\Controllers\Admin\MentorAllocationController::class, 'exportGroupCsv'])->name('mentor-groups.export');
+        Route::get('mentor-allocations/escalations/export', [\App\Http\Controllers\Admin\MentorAllocationController::class, 'exportEscalations'])->name('mentor-allocations.escalations.export');
         Route::delete('mentor-groups/{group}', [\App\Http\Controllers\Admin\MentorAllocationController::class, 'destroyGroup'])->name('mentor-groups.destroy');
 
         // ===== RESOURCE ROUTE MUST COME AFTER SPECIFIC ROUTES =====
@@ -1293,6 +1294,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('my-mentees', [\App\Http\Controllers\MenteeController::class, 'index'])->name('my-mentees.index');
     Route::get('my-mentees/{student}', [\App\Http\Controllers\MenteeController::class, 'show'])->name('my-mentees.show');
     Route::post('my-mentees/{student}/notes', [\App\Http\Controllers\MenteeController::class, 'addNote'])->name('my-mentees.notes.store');
+    Route::post('my-mentees/{student}/escalate', [\App\Http\Controllers\MenteeController::class, 'toggleEscalation'])->name('my-mentees.escalate');
+    Route::post('my-availability', [\App\Http\Controllers\MenteeController::class, 'toggleAvailability'])->name('my-availability.toggle');
 });
 
 // Student Routes

@@ -124,6 +124,12 @@ class MenteeController extends Controller
             $menteesData = $menteesData->filter(fn ($item) => $item['total_outstanding'] <= 0);
         }
 
+        // Sort by attention needed (R6): escalated first, then lowest attendance.
+        $menteesData = $menteesData->sortBy(fn ($item) => [
+            $item['student']->needs_escalation ? 0 : 1,
+            $item['attendance_percentage'],
+        ])->values();
+
         // 5. Aggregate KPIs
         $totalMentees = $allMentees->count();
         $totalOutstandingFees = $menteesData->sum('total_outstanding');
@@ -231,14 +237,67 @@ class MenteeController extends Controller
         $validated = $request->validate([
             'notes' => 'required|string|max:1000',
             'outcome' => 'nullable|string|max:100',
+            'interaction_type' => 'nullable|string|max:50',
+            'follow_up_date' => 'nullable|date',
         ]);
 
         $student->followUps()->create([
             'user_id' => $currentUser->id,
             'notes' => $validated['notes'],
             'outcome' => $validated['outcome'] ?? null,
+            'interaction_type' => $validated['interaction_type'] ?? null,
+            'follow_up_date' => $validated['follow_up_date'] ?? null,
         ]);
 
-        return redirect()->back()->with('success', 'Parent coordination note saved successfully.');
+        return redirect()->back()->with('success', 'Mentoring interaction logged successfully.');
+    }
+
+    /**
+     * Toggle the at-risk escalation flag on a mentee (R8).
+     * Faculty mentor, counselor, group staff, or admins may flag.
+     */
+    public function toggleEscalation(Request $request, Student $student)
+    {
+        $currentUser = auth()->user();
+        $isElevatedUser = $currentUser->hasRole('super-admin') || $currentUser->can('manage students');
+
+        $isAssigned = $student->mentor_id === $currentUser->id
+            || $student->counselor_id === $currentUser->id
+            || ($student->mentorGroup && ($student->mentorGroup->faculty_id === $currentUser->id || $student->mentorGroup->counselor_id === $currentUser->id));
+
+        if (! $isAssigned && ! $isElevatedUser) {
+            abort(403, 'Unauthorized.');
+        }
+
+        if ($student->needs_escalation) {
+            $student->update([
+                'needs_escalation' => false,
+                'escalated_at' => null,
+                'escalated_by' => null,
+            ]);
+            $msg = "{$student->name} cleared from the escalation queue.";
+        } else {
+            $student->update([
+                'needs_escalation' => true,
+                'escalated_at' => now(),
+                'escalated_by' => $currentUser->id,
+            ]);
+            $msg = "{$student->name} flagged for escalation.";
+        }
+
+        return redirect()->back()->with('success', $msg);
+    }
+
+    /**
+     * Mentor toggles their own availability for new allocations (R2).
+     */
+    public function toggleAvailability(Request $request)
+    {
+        $user = auth()->user();
+        $user->update(['is_available' => ! $user->is_available]);
+
+        $state = $user->is_available ? 'available' : 'unavailable';
+
+        return redirect()->back()->with('success', "You are now marked {$state} for new mentee allocations.");
     }
 }

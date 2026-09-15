@@ -32,8 +32,14 @@ class FollowUp extends Model
         'user_id',
         'notes',
         'outcome',
+        'interaction_type',
+        'follow_up_date',
         'followable_id',
         'followable_type',
+    ];
+
+    protected $casts = [
+        'follow_up_date' => 'date',
     ];
 
     /**

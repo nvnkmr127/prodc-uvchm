@@ -113,6 +113,9 @@ class Student extends Model
         'mentor_id',
         'mentor_group_id',
         'counselor_id',
+        'needs_escalation',
+        'escalated_at',
+        'escalated_by',
     ];
 
     protected $casts = [
@@ -127,6 +130,8 @@ class Student extends Model
         'referral_commission_paid_at' => 'datetime',
         'is_active' => 'boolean',
         'is_certificate_received' => 'boolean',
+        'needs_escalation' => 'boolean',
+        'escalated_at' => 'datetime',
     ];
 
     /**
@@ -337,6 +342,14 @@ class Student extends Model
     public function counselor(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(User::class, 'counselor_id');
+    }
+
+    /**
+     * Staff member who flagged this student for escalation (R8)
+     */
+    public function escalatedBy(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(User::class, 'escalated_by');
     }
 
     /**

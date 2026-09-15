@@ -61,6 +61,18 @@
                     </span>
                 @endif
             </p>
+            @if($mentor->id === auth()->id())
+                <form method="POST" action="{{ route('my-availability.toggle') }}" class="mt-2">
+                    @csrf
+                    @if(auth()->user()->is_available)
+                        <span class="badge badge-success mr-1"><i class="fas fa-circle mr-1" style="font-size:.5rem;"></i>Available for allocations</span>
+                        <button type="submit" class="btn btn-xs btn-outline-secondary">Mark unavailable</button>
+                    @else
+                        <span class="badge badge-warning mr-1"><i class="fas fa-pause mr-1"></i>Unavailable for new allocations</span>
+                        <button type="submit" class="btn btn-xs btn-outline-success">Mark available</button>
+                    @endif
+                </form>
+            @endif
         </div>
 
         @if($isElevatedUser && $allMentors->count() > 1)

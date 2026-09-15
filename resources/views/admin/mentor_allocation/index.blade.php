@@ -338,6 +338,9 @@
                            class="mentor-chip text-decoration-none {{ request('allocation_status') == $ms->id ? 'active' : '' }}">
                             <span>{{ $ms->name }}</span>
                             <span class="text-muted ml-1" style="font-size:0.75rem;">({{ $ms->roles->pluck('name')->first() ?? 'Staff' }})</span>
+                            @unless($ms->is_available)
+                                <span class="badge badge-warning ml-1" style="font-size:0.62rem;" title="Marked unavailable for new allocations">Unavailable</span>
+                            @endunless
                             <span class="badge-count">{{ $ms->mentees_count }}</span>
                         </a>
                     @endforeach
@@ -436,6 +439,20 @@
                 <i class="fas fa-user-friends text-primary mr-1"></i> Student Allocation List
                 <span class="badge badge-light border ml-2">{{ $students->total() }} Students Found</span>
             </h6>
+            <div class="d-flex align-items-center">
+                @if(request()->boolean('needs_escalation'))
+                    <a href="{{ request()->fullUrlWithQuery(['needs_escalation' => null, 'page' => 1]) }}" class="btn btn-sm btn-danger font-weight-bold mr-2">
+                        <i class="fas fa-exclamation-triangle mr-1"></i> Escalation Queue (Clear)
+                    </a>
+                    <a href="{{ route('admin.mentor-allocations.escalations.export') }}" class="btn btn-sm btn-outline-success font-weight-bold">
+                        <i class="fas fa-file-csv mr-1"></i> Export Queue
+                    </a>
+                @else
+                    <a href="{{ request()->fullUrlWithQuery(['needs_escalation' => 1, 'page' => 1]) }}" class="btn btn-sm btn-outline-danger font-weight-bold">
+                        <i class="fas fa-exclamation-triangle mr-1"></i> Escalation Queue
+                    </a>
+                @endif
+            </div>
         </div>
 
         <div class="card-body p-0">
@@ -863,6 +880,14 @@
                     <div class="form-group">
                         <label class="font-weight-bold small">Description (Optional)</label>
                         <textarea name="description" id="editGroupDescription" class="form-control" rows="2"></textarea>
+                    </div>
+
+                    <div class="custom-control custom-checkbox mt-2">
+                        <input type="checkbox" class="custom-control-input" id="applyToMembers" name="apply_to_members" value="1">
+                        <label class="custom-control-label small" for="applyToMembers">
+                            Apply changed Faculty / Counselor to <strong>current members</strong> of this group
+                            <span class="d-block text-muted">Re-points existing students and records allocation history. Leave unchecked to edit group details only.</span>
+                        </label>
                     </div>
                 </div>
                 <div class="modal-footer">

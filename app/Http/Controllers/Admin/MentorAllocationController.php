@@ -50,8 +50,10 @@ class MentorAllocationController extends Controller
             ->orderBy('name')
             ->get();
 
-        // Anyone is allowed to be a mentor (not only faculty)
+        // Anyone is allowed to be a mentor (not only faculty), but only those
+        // marked available can receive new allocations (R2).
         $potentialMentors = User::where('status', 'active')
+            ->where('is_available', true)
             ->with('roles')
             ->orderBy('name')
             ->get();
@@ -90,6 +92,11 @@ class MentorAllocationController extends Controller
                     ->orWhere('student_mobile', 'like', "%{$search}%")
                     ->orWhere('father_mobile', 'like', "%{$search}%");
             });
+        }
+
+        // At-risk escalation queue filter (R8)
+        if ($request->boolean('needs_escalation')) {
+            $studentsQuery->where('needs_escalation', true);
         }
 
         // Filter by allocation status
@@ -168,6 +175,12 @@ class MentorAllocationController extends Controller
         ]);
 
         $mentor = User::findOrFail($validated['mentor_id']);
+
+        // R2: a mentor marked unavailable cannot receive new allocations.
+        if (! $mentor->is_available) {
+            return redirect()->back()->with('error', "Mentor {$mentor->name} is marked unavailable for new allocations.");
+        }
+
         $academicYearId = $validated['academic_year_id'] ?? null;
 
         if (! $academicYearId) {
@@ -331,9 +344,9 @@ class MentorAllocationController extends Controller
     /**
      * Update an existing Mentor Group's details (name, year, faculty, counselor).
      *
-     * ponytail: edits the group record only. Existing students keep the mentor/
-     * counselor they were given at assign-group time; re-run "assign to group"
-     * to push a changed faculty/counselor onto already-assigned students.
+     * When "apply_to_members" is set (R4), a changed faculty/counselor is pushed
+     * onto the group's current students and mentor allocation history is written,
+     * mirroring assignGroup(). Otherwise only the group record changes.
      */
     public function updateGroup(Request $request, MentorGroup $group)
     {
@@ -345,9 +358,107 @@ class MentorAllocationController extends Controller
             'description' => 'nullable|string|max:500',
         ]);
 
-        $group->update($validated);
+        $applyToMembers = $request->boolean('apply_to_members');
 
-        return redirect()->back()->with('success', "Mentor Group '{$group->name}' updated successfully.");
+        DB::beginTransaction();
+        try {
+            $group->update($validated);
+
+            if ($applyToMembers) {
+                $studentIds = Student::where('mentor_group_id', $group->id)->pluck('id')->all();
+
+                if (! empty($studentIds)) {
+                    $updates = [];
+                    if ($group->faculty_id) {
+                        $updates['mentor_id'] = $group->faculty_id;
+                    }
+                    if ($group->counselor_id) {
+                        $updates['counselor_id'] = $group->counselor_id;
+                    }
+
+                    if (! empty($updates)) {
+                        Student::whereIn('id', $studentIds)->update($updates);
+                    }
+
+                    // Record faculty allocation history when a faculty mentor is set.
+                    if (! empty($updates['mentor_id'])) {
+                        MentorAllocation::whereIn('student_id', $studentIds)
+                            ->when($group->academic_year_id, fn ($q) => $q->where('academic_year_id', $group->academic_year_id))
+                            ->update(['is_active' => false]);
+
+                        foreach ($studentIds as $sid) {
+                            MentorAllocation::create([
+                                'academic_year_id' => $group->academic_year_id,
+                                'student_id' => $sid,
+                                'mentor_id' => $updates['mentor_id'],
+                                'assigned_by' => auth()->id(),
+                                'is_active' => true,
+                                'notes' => 'Updated via Mentor Group: '.$group->name,
+                            ]);
+                        }
+                    }
+                }
+            }
+
+            DB::commit();
+
+            $suffix = $applyToMembers ? ' Changes applied to current members.' : '';
+
+            return redirect()->back()->with('success', "Mentor Group '{$group->name}' updated successfully.".$suffix);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return redirect()->back()->with('error', 'Failed to update group: '.$e->getMessage());
+        }
+    }
+
+    /**
+     * Export the at-risk escalation queue to CSV (R8).
+     */
+    public function exportEscalations(Request $request)
+    {
+        $students = Student::where('needs_escalation', true)
+            ->where('status', 'active')
+            ->with(['batch.course', 'mentor', 'counselor', 'escalatedBy'])
+            ->orderBy('escalated_at', 'desc')
+            ->get();
+
+        $fileName = 'escalation_queue_'.date('Y-m-d').'.csv';
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$fileName}\"",
+            'Pragma' => 'no-cache',
+            'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
+            'Expires' => '0',
+        ];
+
+        $callback = function () use ($students) {
+            $file = fopen('php://output', 'w');
+            fputs($file, "\xEF\xBB\xBF");
+            fputcsv($file, [
+                'S.No', 'Student Name', 'Enrollment Number', 'Course', 'Batch',
+                'Mentor', 'Counselor', 'Flagged By', 'Flagged At', 'Student Mobile',
+            ]);
+
+            $index = 1;
+            foreach ($students as $s) {
+                fputcsv($file, [
+                    $index++,
+                    $s->name,
+                    $s->enrollment_number ?? '',
+                    $s->batch?->course?->name ?? '',
+                    $s->batch?->name ?? '',
+                    $s->mentor?->name ?? 'Unassigned',
+                    $s->counselor?->name ?? 'Unassigned',
+                    $s->escalatedBy?->name ?? '',
+                    $s->escalated_at ? $s->escalated_at->format('Y-m-d H:i') : '',
+                    $s->student_mobile ?? '',
+                ]);
+            }
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 
     /**

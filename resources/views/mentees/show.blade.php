@@ -73,6 +73,18 @@
             </h1>
         </div>
         <div class="d-flex align-items-center">
+            <form method="POST" action="{{ route('my-mentees.escalate', $student->id) }}" class="d-inline mr-2">
+                @csrf
+                @if($student->needs_escalation)
+                    <button type="submit" class="btn btn-sm btn-danger shadow-sm" title="Clear escalation flag">
+                        <i class="fas fa-exclamation-triangle mr-1"></i> Escalated — Clear
+                    </button>
+                @else
+                    <button type="submit" class="btn btn-sm btn-outline-danger shadow-sm" title="Flag this mentee for escalation">
+                        <i class="fas fa-exclamation-triangle mr-1"></i> Flag Escalation
+                    </button>
+                @endif
+            </form>
             <a href="{{ route('admin.students.show', $student->id) }}" class="btn btn-sm btn-primary shadow-sm mr-2" title="Open Full Student Record">
                 <i class="fas fa-user-circle mr-1"></i> Full Student Profile
             </a>
@@ -294,6 +306,22 @@
                                     </h6>
                                     <form id="showNoteForm" method="POST" action="{{ route('my-mentees.notes.store', $student->id) }}">
                                         @csrf
+                                        <div class="form-row">
+                                            <div class="form-group col-7">
+                                                <label class="font-weight-bold small">Interaction Type</label>
+                                                <select name="interaction_type" class="form-control form-control-sm">
+                                                    <option value="Phone Call">Phone Call</option>
+                                                    <option value="In-Person Meeting">In-Person Meeting</option>
+                                                    <option value="WhatsApp / Message">WhatsApp / Message</option>
+                                                    <option value="Parent Meeting">Parent Meeting</option>
+                                                    <option value="Other">Other</option>
+                                                </select>
+                                            </div>
+                                            <div class="form-group col-5">
+                                                <label class="font-weight-bold small">Follow-up Date</label>
+                                                <input type="date" name="follow_up_date" class="form-control form-control-sm">
+                                            </div>
+                                        </div>
                                         <div class="form-group">
                                             <label class="font-weight-bold small">Call / Interaction Outcome</label>
                                             <select name="outcome" class="form-control form-control-sm" required>
