@@ -267,17 +267,24 @@
                                         <p class="small text-muted mb-2 font-italic">{{ \Illuminate\Support\Str::limit($group->description, 70) }}</p>
                                     @endif
                                     <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
-                                        @if(request('mentor_group_id') == $group->id)
-                                            <a href="{{ request()->fullUrlWithQuery(['mentor_group_id' => null, 'page' => 1]) }}"
-                                               class="btn btn-xs btn-primary font-weight-bold">
-                                                <i class="fas fa-check mr-1"></i> Filtered (Clear)
+                                        <div>
+                                            @if(request('mentor_group_id') == $group->id)
+                                                <a href="{{ request()->fullUrlWithQuery(['mentor_group_id' => null, 'page' => 1]) }}"
+                                                   class="btn btn-xs btn-primary font-weight-bold">
+                                                    <i class="fas fa-check mr-1"></i> Filtered (Clear)
+                                                </a>
+                                            @else
+                                                <a href="{{ request()->fullUrlWithQuery(['mentor_group_id' => $group->id, 'page' => 1]) }}"
+                                                   class="btn btn-xs btn-outline-primary">
+                                                    <i class="fas fa-filter mr-1"></i> View Students
+                                                </a>
+                                            @endif
+                                            <a href="{{ route('admin.mentor-groups.export', $group->id) }}"
+                                               class="btn btn-xs btn-success font-weight-bold ml-1"
+                                               title="Export CSV (Name, Enroll No, Student Mobile, Father Mobile)">
+                                                <i class="fas fa-file-csv mr-1"></i> Export CSV
                                             </a>
-                                        @else
-                                            <a href="{{ request()->fullUrlWithQuery(['mentor_group_id' => $group->id, 'page' => 1]) }}"
-                                               class="btn btn-xs btn-outline-primary">
-                                                <i class="fas fa-filter mr-1"></i> View Students
-                                            </a>
-                                        @endif
+                                        </div>
                                         <form method="POST" action="{{ route('admin.mentor-groups.destroy', $group->id) }}" onsubmit="return confirm('Delete group {{ addslashes($group->name) }}? (Students will be detached from this group)');" class="d-inline">
                                             @csrf
                                             @method('DELETE')

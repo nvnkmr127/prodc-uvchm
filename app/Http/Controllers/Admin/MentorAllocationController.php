@@ -340,4 +340,72 @@ class MentorAllocationController extends Controller
 
         return redirect()->back()->with('success', "Mentor Group '{$name}' deleted successfully.");
     }
+
+    /**
+     * Export students of a specific mentor group to CSV.
+     */
+    public function exportGroupCsv(MentorGroup $group)
+    {
+        $group->load(['faculty', 'counselor']);
+        $students = Student::where('mentor_group_id', $group->id)
+            ->with(['batch.course'])
+            ->orderBy('name')
+            ->get();
+
+        $slugName = \Illuminate\Support\Str::slug($group->name);
+        $fileName = "mentor_group_{$slugName}_" . date('Y-m-d') . '.csv';
+
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$fileName}\"",
+            'Pragma' => 'no-cache',
+            'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
+            'Expires' => '0',
+        ];
+
+        $callback = function () use ($group, $students) {
+            $file = fopen('php://output', 'w');
+            
+            // Add UTF-8 BOM for Excel compatibility
+            fputs($file, "\xEF\xBB\xBF");
+
+            // CSV Header Row
+            fputcsv($file, [
+                'S.No',
+                'Mentor Group Name',
+                'Faculty Mentor',
+                'Counselor',
+                'Student Name',
+                'Enrollment Number',
+                'Course',
+                'Batch',
+                'Student Mobile',
+                'Father Name',
+                'Father Mobile',
+                'Mother Mobile',
+            ]);
+
+            $index = 1;
+            foreach ($students as $s) {
+                fputcsv($file, [
+                    $index++,
+                    $group->name,
+                    $group->faculty?->name ?? 'Unassigned',
+                    $group->counselor?->name ?? 'Unassigned',
+                    $s->name,
+                    $s->enrollment_number ?? '',
+                    $s->batch?->course?->name ?? '',
+                    $s->batch?->name ?? '',
+                    $s->student_mobile ?? '',
+                    $s->father_name ?? '',
+                    $s->father_mobile ?? '',
+                    $s->mother_mobile ?? '',
+                ]);
+            }
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
 }

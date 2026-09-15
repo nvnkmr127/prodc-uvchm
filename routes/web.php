@@ -439,6 +439,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
         Route::post('mentor-allocations/unassign', [\App\Http\Controllers\Admin\MentorAllocationController::class, 'unassign'])->name('mentor-allocations.unassign');
         Route::post('mentor-allocations/assign-group', [\App\Http\Controllers\Admin\MentorAllocationController::class, 'assignGroup'])->name('mentor-allocations.assign-group');
         Route::post('mentor-groups', [\App\Http\Controllers\Admin\MentorAllocationController::class, 'storeGroup'])->name('mentor-groups.store');
+        Route::get('mentor-groups/{group}/export', [\App\Http\Controllers\Admin\MentorAllocationController::class, 'exportGroupCsv'])->name('mentor-groups.export');
         Route::delete('mentor-groups/{group}', [\App\Http\Controllers\Admin\MentorAllocationController::class, 'destroyGroup'])->name('mentor-groups.destroy');
 
         // ===== RESOURCE ROUTE MUST COME AFTER SPECIFIC ROUTES =====
