@@ -194,4 +194,21 @@ class User extends Authenticatable
     {
         return $this->hasMany(Enquiry::class, 'assigned_to_user_id');
     }
+
+    /**
+     * Get students assigned to this user as mentor.
+     */
+    public function mentees(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Student::class, 'mentor_id');
+    }
+
+    /**
+     * Get mentor allocation records for this user across academic years.
+     */
+    public function mentorAllocations(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(MentorAllocation::class, 'mentor_id');
+    }
 }
+

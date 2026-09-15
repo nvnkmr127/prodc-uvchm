@@ -31,6 +31,7 @@ class FollowUp extends Model
     protected $fillable = [
         'user_id',
         'notes',
+        'outcome',
         'followable_id',
         'followable_type',
     ];

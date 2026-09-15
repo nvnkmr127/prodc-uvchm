@@ -433,6 +433,11 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
         Route::get('students/export', [StudentController::class, 'export'])->name('students.export');
         Route::post('students/bulk-actions', [StudentController::class, 'bulkActions'])->name('students.bulk-actions');
 
+        // Mentor Allocation Routes
+        Route::get('mentor-allocations', [\App\Http\Controllers\Admin\MentorAllocationController::class, 'index'])->name('mentor-allocations.index');
+        Route::post('mentor-allocations/assign', [\App\Http\Controllers\Admin\MentorAllocationController::class, 'assign'])->name('mentor-allocations.assign');
+        Route::post('mentor-allocations/unassign', [\App\Http\Controllers\Admin\MentorAllocationController::class, 'unassign'])->name('mentor-allocations.unassign');
+
         // ===== RESOURCE ROUTE MUST COME AFTER SPECIFIC ROUTES =====
         Route::resource('students', StudentController::class);
 
@@ -1276,6 +1281,13 @@ Route::prefix('faculty')->name('faculty.')->middleware(['auth', 'role:faculty|st
     Route::get('my-leave', [LeaveApplicationController::class, 'facultyIndex'])->name('my-leave.index');
     Route::post('my-leave', [LeaveApplicationController::class, 'store'])->name('my-leave.store');
 
+});
+
+// Mentee Portal Routes (Universal: any staff/mentor can access their assigned mentees)
+Route::middleware(['auth'])->group(function () {
+    Route::get('my-mentees', [\App\Http\Controllers\MenteeController::class, 'index'])->name('my-mentees.index');
+    Route::get('my-mentees/{student}', [\App\Http\Controllers\MenteeController::class, 'show'])->name('my-mentees.show');
+    Route::post('my-mentees/{student}/notes', [\App\Http\Controllers\MenteeController::class, 'addNote'])->name('my-mentees.notes.store');
 });
 
 // Student Routes

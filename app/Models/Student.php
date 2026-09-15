@@ -110,6 +110,7 @@ class Student extends Model
         'referral_payment_remarks',
         'is_certificate_received',
         'certificate_type',
+        'mentor_id',
     ];
 
     protected $casts = [
@@ -310,6 +311,30 @@ class Student extends Model
     public function attendances()
     {
         return $this->hasMany(Attendance::class);
+    }
+
+    /**
+     * Mentor assigned to this student
+     */
+    public function mentor(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(User::class, 'mentor_id');
+    }
+
+    /**
+     * Mentor allocation records across academic years
+     */
+    public function mentorAllocations(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(MentorAllocation::class);
+    }
+
+    /**
+     * Follow-up notes and parent coordination records
+     */
+    public function followUps(): \Illuminate\Database\Eloquent\Relations\MorphMany
+    {
+        return $this->morphMany(FollowUp::class, 'followable');
     }
 
     /**

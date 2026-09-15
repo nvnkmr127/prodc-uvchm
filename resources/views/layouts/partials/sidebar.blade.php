@@ -31,6 +31,21 @@
                 </li>
             @endif
 
+            @if(auth()->user()?->mentees()->exists() || auth()->user()?->hasRole('super-admin'))
+                <li class="nav-item {{ request()->routeIs('my-mentees.*') ? 'active' : '' }}">
+                    <a class="nav-link" href="{{ route('my-mentees.index') }}">
+                        <i class="fas fa-fw fa-user-graduate"></i>
+                        <span>My Mentees</span>
+                        @php
+                            $myMenteesCount = auth()->user()->mentees()->where('status', 'active')->count();
+                        @endphp
+                        @if($myMenteesCount > 0)
+                            <span class="badge badge-info ml-1">{{ $myMenteesCount }}</span>
+                        @endif
+                    </a>
+                </li>
+            @endif
+
             <!-- Quick Actions Section -->
             <hr class="sidebar-divider">
             <div class="sidebar-heading">Quick Actions</div>
@@ -176,6 +191,9 @@
                             @if(auth()->user()?->hasRole('super-admin'))
                                 <a class="collapse-item" href="{{ route('admin.admissions.index') }}">Admissions</a>
                                 <a class="collapse-item" href="{{ route('admin.students.index') }}">Students</a>
+                                <a class="collapse-item {{ request()->routeIs('admin.mentor-allocations.*') ? 'active' : '' }}" href="{{ route('admin.mentor-allocations.index') }}">
+                                    <i class="fas fa-chalkboard-teacher text-primary mr-1"></i> Mentor Allocation
+                                </a>
                                 <a class="collapse-item" href="{{ route('admin.faculty.index') }}">Faculty</a>
                                 <a class="collapse-item" href="{{ route('admin.alumni.index') }}">Alumni Network</a>
                                 <div class="dropdown-divider"></div>
@@ -209,6 +227,9 @@
                                 @can('view students')
                                     <a class="collapse-item" href="{{ route('admin.students.index') }}">Students</a>
                                     @can('manage students')
+                                        <a class="collapse-item {{ request()->routeIs('admin.mentor-allocations.*') ? 'active' : '' }}" href="{{ route('admin.mentor-allocations.index') }}">
+                                            <i class="fas fa-chalkboard-teacher text-primary mr-1"></i> Mentor Allocation
+                                        </a>
                                         <a class="collapse-item" href="{{ route('admin.students.biometric-mapping') }}">
                                             <i class="fas fa-fingerprint text-primary"></i> Biometric Mapping
                                             @php

@@ -138,6 +138,21 @@ $statusColor = match ($student->status) {
                                 <div class="meta-pill mb-2">
                                     <i class="fas fa-phone text-success"></i> {{ $student->student_mobile ?? 'N/A' }}
                                 </div>
+
+                                <div class="meta-pill mb-2" title="Assigned Mentor">
+                                    <i class="fas fa-chalkboard-teacher text-info"></i>
+                                    @if($student->mentor)
+                                        Mentor: <strong>{{ $student->mentor->name }}</strong>
+                                        <a href="{{ route('admin.mentor-allocations.index', ['allocation_status' => $student->mentor_id]) }}" class="ml-1 text-primary" title="View in Mentor Allocation">
+                                            <i class="fas fa-external-link-alt fa-xs"></i>
+                                        </a>
+                                    @else
+                                        Mentor: <span class="text-warning">Not Assigned</span>
+                                        <a href="{{ route('admin.mentor-allocations.index', ['search' => $student->enrollment_number]) }}" class="ml-1 text-primary font-weight-bold" title="Assign Mentor">
+                                            Assign
+                                        </a>
+                                    @endif
+                                </div>
                             </div>
                         </div>
 

@@ -139,6 +139,20 @@
                                 <option value="">-- Select a course first --</option>
                             </select>
                         </div>
+                        <div class="form-group">
+                            <label for="mentor_id">Assign Mentor (Optional)</label>
+                            <select id="mentor_id" name="mentor_id" class="form-control select2">
+                                <option value="">-- No Mentor Assigned --</option>
+                                @foreach($mentors as $mentor)
+                                    <option value="{{ $mentor->id }}" {{ old('mentor_id') == $mentor->id ? 'selected' : '' }}>
+                                        {{ $mentor->name }} ({{ $mentor->roles->pluck('name')->first() ?? 'Staff' }})
+                                    </option>
+                                @endforeach
+                            </select>
+                            <small class="form-text text-muted">
+                                Mentor monitors attendance, fee dues, and coordinates with parents.
+                            </small>
+                        </div>
                         <div class="form-group col-md-6">
                             <label for="biometric_employee_code">Biometric Employee Code</label>
                             <input type="text" class="form-control @error('biometric_employee_code') is-invalid @enderror"

@@ -37,6 +37,14 @@
                         @endif
                     </div>
                 @endif
+
+                @if($student->mentor)
+                    <div class="mt-1">
+                        <span class="badge badge-light border text-primary" style="font-size: 0.72rem;" title="Assigned Mentor: {{ $student->mentor->name }}">
+                            <i class="fas fa-chalkboard-teacher mr-1"></i>{{ $student->mentor->name }}
+                        </span>
+                    </div>
+                @endif
             @else
                 <span class="text-muted">
                     <i class="fas fa-exclamation-triangle text-warning"></i>

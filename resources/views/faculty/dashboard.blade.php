@@ -153,6 +153,11 @@
                         <a href="{{ route('faculty.attendance.create') }}" class="btn btn-light btn-lg">
                             <i class="fas fa-check mr-2"></i>Take Attendance
                         </a>
+                        @if(Route::has('my-mentees.index'))
+                            <a href="{{ route('my-mentees.index') }}" class="btn btn-outline-light btn-lg ml-2">
+                                <i class="fas fa-user-graduate mr-2"></i>My Mentees
+                            </a>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -277,6 +282,14 @@
                 </div>
                 <div class="card-body">
                     <div class="row">
+                        @if(Route::has('my-mentees.index'))
+                        <div class="col-6 mb-3">
+                            <a href="{{ route('my-mentees.index') }}" class="quick-action-card d-block text-decoration-none" style="background: linear-gradient(45deg, #4e73df, #224abe);">
+                                <i class="fas fa-user-graduate fa-2x mb-2"></i>
+                                <div>My Mentees</div>
+                            </a>
+                        </div>
+                        @endif
                         <div class="col-6 mb-3">
                             <a href="{{ route('faculty.my-leave.index') }}" class="quick-action-card d-block text-decoration-none">
                                 <i class="fas fa-calendar-minus fa-2x mb-2"></i>

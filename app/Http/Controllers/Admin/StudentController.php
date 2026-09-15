@@ -82,6 +82,14 @@ class StudentController extends Controller
             $query->where('batch_id', $request->batch_id);
         }
 
+        if ($request->filled('mentor_id')) {
+            if ($request->mentor_id === 'unassigned') {
+                $query->whereNull('mentor_id');
+            } else {
+                $query->where('mentor_id', $request->mentor_id);
+            }
+        }
+
         // Search functionality
         if ($request->filled('search')) {
             $search = $request->search;
@@ -165,7 +173,9 @@ class StudentController extends Controller
             return $query->get();
         });
 
-        return view('admin.students.index', compact('students', 'courses', 'batches', 'stats'));
+        $mentors = User::where('status', 'active')->orderBy('name')->get();
+
+        return view('admin.students.index', compact('students', 'courses', 'batches', 'stats', 'mentors'));
     }
 
     /**
@@ -175,7 +185,7 @@ class StudentController extends Controller
     {
         // UPDATED: Remove 'create_installments' from allowed actions
         $request->validate([
-            'action' => 'required|string|in:delete,change_status,assign_batch',
+            'action' => 'required|in:delete,change_status,assign_batch,assign_mentor,remove_mentor',
             'student_ids' => 'required|array',
             'student_ids.*' => 'required|exists:students,id',
         ]);
@@ -190,6 +200,12 @@ class StudentController extends Controller
         if ($request->action === 'change_status') {
             $request->validate([
                 'status' => 'required|in:active,graduated,dropout',
+            ]);
+        }
+
+        if ($request->action === 'assign_mentor') {
+            $request->validate([
+                'mentor_id' => 'required|exists:users,id',
             ]);
         }
 
@@ -219,6 +235,32 @@ class StudentController extends Controller
                             $successCount++;
                             break;
 
+                        case 'assign_mentor':
+                            $student->update(['mentor_id' => $request->mentor_id]);
+                            try {
+                                $currentYearId = session('selected_academic_year_id') ?? app(\App\Services\AcademicYearService::class)->getActiveAcademicYearId();
+                            } catch (\Exception $e) {
+                                $currentYearId = null;
+                            }
+                            \App\Models\MentorAllocation::where('student_id', $student->id)
+                                ->when($currentYearId, fn ($q) => $q->where('academic_year_id', $currentYearId))
+                                ->update(['is_active' => false]);
+                            \App\Models\MentorAllocation::create([
+                                'academic_year_id' => $currentYearId,
+                                'student_id' => $student->id,
+                                'mentor_id' => $request->mentor_id,
+                                'assigned_by' => auth()->id(),
+                                'is_active' => true,
+                            ]);
+                            $successCount++;
+                            break;
+
+                        case 'remove_mentor':
+                            $student->update(['mentor_id' => null]);
+                            \App\Models\MentorAllocation::where('student_id', $student->id)->update(['is_active' => false]);
+                            $successCount++;
+                            break;
+
                         default:
                             throw new \Exception("Unknown action: {$request->action}");
                     }
@@ -233,33 +275,24 @@ class StudentController extends Controller
             $message = "Bulk action completed. Success: {$successCount}, Errors: {$errorCount}";
 
             if ($errorCount > 0) {
-                return response()->json([
-                    'success' => false,
-                    'message' => $message,
-                    'errors' => $errors,
-                ], 422);
+                return back()->with('warning', $message)->withErrors($errors);
             }
 
-            return response()->json([
-                'success' => true,
-                'message' => $message,
-            ]);
+            return back()->with('success', $message);
 
         } catch (\Exception $e) {
-            DB::rollback();
+            DB::rollBack();
 
-            return response()->json([
-                'success' => false,
-                'message' => 'Bulk action failed: '.$e->getMessage(),
-            ], 500);
+            return back()->with('error', 'Bulk action failed: '.$e->getMessage());
         }
     }
 
     public function create()
     {
         $batches = Batch::with('course')->get();
+        $mentors = User::where('status', 'active')->orderBy('name')->get();
 
-        return view('admin.students.create', compact('batches'));
+        return view('admin.students.create', compact('batches', 'mentors'));
     }
 
     /**
@@ -304,6 +337,7 @@ class StudentController extends Controller
             'source' => 'required|string|in:Website,Social Media,Agent,Referrals,pro,list,Student Refer,Walk-in,Other',
             'referral_name' => 'nullable|string|max:255',
             'batch_id' => 'required|exists:batches,id', // REQUIRED for fee generation
+            'mentor_id' => 'nullable|exists:users,id',
             'gender' => 'required|in:Male,Female,Other',
             'photo' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
             'is_certificate_received' => 'boolean',
@@ -350,6 +384,7 @@ class StudentController extends Controller
                 'village' => $validated['village'],
                 'admission_date' => $validated['admission_date'],
                 'batch_id' => $validated['batch_id'],
+                'mentor_id' => $validated['mentor_id'] ?? null,
                 'gender' => $validated['gender'],
                 'photo' => $photoPath,
                 'enrollment_number' => $enrollmentNumber,
@@ -359,6 +394,23 @@ class StudentController extends Controller
                 'is_certificate_received' => $request->has('is_certificate_received'),
                 'certificate_type' => $request->certificate_type,
             ]);
+
+            // Create mentor allocation if mentor assigned
+            if (!empty($validated['mentor_id'])) {
+                try {
+                    $currentYearId = session('selected_academic_year_id') ?? app(AcademicYearService::class)->getActiveAcademicYearId();
+                } catch (\Exception $e) {
+                    $currentYearId = null;
+                }
+
+                \App\Models\MentorAllocation::create([
+                    'academic_year_id' => $currentYearId,
+                    'student_id' => $student->id,
+                    'mentor_id' => $validated['mentor_id'],
+                    'assigned_by' => auth()->id(),
+                    'is_active' => true,
+                ]);
+            }
 
             // 🎯 AUTOMATIC FEE STRUCTURE ASSIGNMENT (Using Service for installment support)
             $this->componentPaymentService->createFeeComponentsForStudent(
@@ -625,8 +677,9 @@ class StudentController extends Controller
     public function edit(Student $student)
     {
         $batches = Batch::with('course')->get();
+        $mentors = User::where('status', 'active')->orderBy('name')->get();
 
-        return view('admin.students.edit', compact('student', 'batches'));
+        return view('admin.students.edit', compact('student', 'batches', 'mentors'));
     }
 
     // âœ… SINGLE update() method with enhanced mobile validation
@@ -653,11 +706,19 @@ class StudentController extends Controller
                 'regex:/^[6-9]\d{9}$/',
             ],
             'village' => 'nullable|string|max:255',
+            'current_employer' => 'nullable|string|max:255',
+            'job_title' => 'nullable|string|max:255',
+            'placement_status' => 'required|in:Placed,Looking for job,Not interested,Self Employed,Higher Studies,other',
+            'placed_at' => 'nullable|string|max:255',
+            'placement_designation' => 'nullable|string|max:255',
             'admission_date' => 'required|date_format:Y-m-d',
-            'source' => 'required|string|in:Website,Social Media,Agent,Referrals,pro,list,Student Refer,Walk-in,Other',
-            'referral_name' => 'nullable|string|max:255',
             'batch_id' => 'nullable|exists:batches,id',
+            'mentor_id' => 'nullable|exists:users,id',
+            'status' => 'required|in:active,dropout,graduated',
             'photo' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'payment_terms' => 'nullable|integer|in:1,2,3',
+            'source' => 'nullable|string|in:Website,Social Media,Agent,Referrals,pro,list,Student Refer,Walk-in,Other',
+            'referral_name' => 'nullable|string|max:255',
             'is_certificate_received' => 'boolean',
             'certificate_type' => 'nullable|string|in:10th,Inter|required_if:is_certificate_received,true',
         ], [
@@ -702,6 +763,7 @@ class StudentController extends Controller
         }
 
         $originalBatchId = $student->getOriginal('batch_id');
+        $originalMentorId = $student->getOriginal('mentor_id');
 
         if ($request->hasFile('photo')) {
             if ($student->photo) {
@@ -724,6 +786,29 @@ class StudentController extends Controller
         $validated['certificate_type'] = $request->certificate_type;
 
         $student->update($validated);
+
+        // Sync mentor allocation if mentor changed
+        if (array_key_exists('mentor_id', $validated) && $validated['mentor_id'] != $originalMentorId) {
+            try {
+                $currentYearId = session('selected_academic_year_id') ?? app(AcademicYearService::class)->getActiveAcademicYearId();
+            } catch (\Exception $e) {
+                $currentYearId = null;
+            }
+
+            \App\Models\MentorAllocation::where('student_id', $student->id)
+                ->when($currentYearId, fn ($q) => $q->where('academic_year_id', $currentYearId))
+                ->update(['is_active' => false]);
+
+            if ($validated['mentor_id']) {
+                \App\Models\MentorAllocation::create([
+                    'academic_year_id' => $currentYearId,
+                    'student_id' => $student->id,
+                    'mentor_id' => $validated['mentor_id'],
+                    'assigned_by' => auth()->id(),
+                    'is_active' => true,
+                ]);
+            }
+        }
 
         return redirect()->route('admin.students.index')->with('success', 'Student details updated successfully.');
     }

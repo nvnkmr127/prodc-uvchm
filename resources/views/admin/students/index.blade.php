@@ -730,6 +730,19 @@
                     </select>
                 </div>
 
+                <div class="filter-group">
+                    <label class="form-label">Mentor</label>
+                    <select class="filter-select" id="mentorFilter">
+                        <option value="">All Mentors</option>
+                        <option value="unassigned" {{ request('mentor_id') === 'unassigned' ? 'selected' : '' }}>Without Mentor</option>
+                        @foreach($mentors as $mentor)
+                            <option value="{{ $mentor->id }}" {{ request('mentor_id') == $mentor->id ? 'selected' : '' }}>
+                                {{ $mentor->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
                 <div class="filter-group d-flex align-items-end">
                     <button type="button" class="btn btn-primary-modern btn-modern w-100" onclick="applyFilters()">
                         <i class="fas fa-filter"></i> Apply Filters
@@ -830,6 +843,14 @@
                                     <i class="fas fa-users text-primary fa-2x mb-2"></i>
                                     <h6>Assign to Batch</h6>
                                 </div>
+                                <div class="bulk-action-item" data-action="mentor">
+                                    <i class="fas fa-chalkboard-teacher text-info fa-2x mb-2"></i>
+                                    <h6>Assign Mentor</h6>
+                                </div>
+                                <div class="bulk-action-item" data-action="remove_mentor">
+                                    <i class="fas fa-user-slash text-secondary fa-2x mb-2"></i>
+                                    <h6>Remove Mentor</h6>
+                                </div>
                                 <div class="bulk-action-item" data-action="export">
                                     <i class="fas fa-download text-secondary fa-2x mb-2"></i>
                                     <h6>Export Selected</h6>
@@ -868,6 +889,26 @@
                                             <i class="fas fa-info-circle"></i>
                                             <strong>Note:</strong> This will generate new enrollment numbers and fee
                                             structures.
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Mentor Assignment Section -->
+                            <div id="mentorAssignmentSection" class="mt-3" style="display: none;">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <h6>Select Mentor</h6>
+                                        <div class="row">
+                                            <div class="col-md-12">
+                                                <label class="form-label">Mentor (Any Staff/User)</label>
+                                                <select class="custom-select" id="bulkStudentMentorSelect">
+                                                    <option value="">Select Mentor</option>
+                                                    @foreach($mentors as $mentor)
+                                                        <option value="{{ $mentor->id }}">{{ $mentor->name }} ({{ $mentor->roles->pluck('name')->first() ?? 'Staff' }})</option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -1160,6 +1201,9 @@
                 const status = $('#statusFilter').val();
                 if (status) params.append('status', status);
 
+                const mentorId = $('#mentorFilter').val();
+                if (mentorId) params.append('mentor_id', mentorId);
+
                 const search = $('#globalSearch').val();
                 if (search) params.append('search', search);
 
@@ -1264,9 +1308,14 @@
             }
 
             handleBulkActionSelection(action) {
-                $('.bulk-action-options').addClass('d-none');
+                $('#batchAssignmentSection').hide();
+                $('#mentorAssignmentSection').hide();
+                $('#executeBulkAction').prop('disabled', false);
+
                 if (action === 'batch') {
-                    $('#batchChangeOptions').removeClass('d-none');
+                    $('#batchAssignmentSection').show();
+                } else if (action === 'mentor') {
+                    $('#mentorAssignmentSection').show();
                 }
             }
 
@@ -1322,6 +1371,15 @@
                     }
                 } else if (action === 'status') {
                     action = 'change_status';
+                } else if (action === 'mentor') {
+                    action = 'assign_mentor';
+                    value = $('#bulkStudentMentorSelect').val();
+                    if (!value) {
+                        this.showToast('Please select a mentor.', 'error');
+                        return;
+                    }
+                } else if (action === 'remove_mentor') {
+                    action = 'remove_mentor';
                 }
 
                 const selectedIds = this.getSelectedStudentIds();
@@ -1346,6 +1404,7 @@
                     value: value,
                     batch_id: action === 'assign_batch' ? value : null,
                     status: action === 'change_status' ? value : null,
+                    mentor_id: action === 'assign_mentor' ? value : null,
                     student_ids: selectedIds
                 }, (res) => {
                     if (res.success) {
