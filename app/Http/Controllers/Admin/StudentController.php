@@ -15,6 +15,7 @@ use App\Models\Payment;
 use App\Models\Student;
 use App\Models\StudentConcession;
 use App\Models\StudentFee;
+use App\Models\User;
 use App\Services\AcademicYearService;
 use App\Services\Attendance\AttendanceService;
 use App\Services\BiometricMappingService;
