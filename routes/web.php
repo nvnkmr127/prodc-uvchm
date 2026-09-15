@@ -789,13 +789,18 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
     // --- System & Settings ---
     Route::middleware(['permission:manage settings'])->group(function () {
         // User & Access Control
+        // Specific user routes MUST come before the resource route, otherwise
+        // users/{user} (show) captures literal paths like "export".
         Route::patch('users/{user}/status', [UserController::class, 'updateStatus'])
             ->name('users.update-status')
             ->middleware('permission:manage users');
+        Route::get('users/export', [UserController::class, 'export'])
+            ->name('users.export')->middleware('permission:manage users');
+        Route::post('users/bulk-actions', [UserController::class, 'bulkActions'])
+            ->name('users.bulk-actions')->middleware('permission:manage users');
+        Route::post('users/bulk-destroy', [UserController::class, 'bulkDestroy'])
+            ->name('users.bulk-destroy')->middleware('permission:manage users');
         Route::resource('users', UserController::class)->middleware('permission:manage users');
-        Route::get('users/export', [UserController::class, 'export'])->name('users.export');
-        Route::post('users/bulk-actions', [UserController::class, 'bulkActions'])->name('users.bulk-actions');
-        Route::post('users/bulk-destroy', [UserController::class, 'bulkDestroy'])->name('users.bulk-destroy');
 
         Route::resource('roles', RoleController::class)->middleware('permission:manage roles');
         Route::resource('permissions', PermissionController::class)->middleware('permission:manage permissions');

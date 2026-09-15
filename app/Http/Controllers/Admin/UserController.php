@@ -73,6 +73,24 @@ class UserController extends Controller
             'status' => 'sometimes|in:active,inactive',
         ]);
 
+        $currentUser = Auth::user();
+        if (! $currentUser instanceof User) {
+            abort(403);
+        }
+
+        // Authorization: prevent privilege escalation via new accounts.
+        $requestedRoles = Role::whereIn('name', $request->roles)->get();
+
+        if ($requestedRoles->contains('name', 'super-admin') && ! $currentUser->hasRole('super-admin')) {
+            return back()->withInput()->with('error', 'You cannot assign the super-admin role.');
+        }
+
+        foreach ($requestedRoles as $role) {
+            if (! $currentUser->hasRole('super-admin') && ! $currentUser->hasRole($role->name)) {
+                return back()->withInput()->with('error', 'You cannot assign roles that you do not have.');
+            }
+        }
+
         try {
             DB::beginTransaction();
 
@@ -190,6 +208,9 @@ class UserController extends Controller
                 }
             }
 
+            // Capture the pre-update status before Eloquent re-syncs original on save.
+            $previousStatus = $user->status;
+
             // Update user basic info
             $userData = [
                 'name' => $request->name,
@@ -209,7 +230,7 @@ class UserController extends Controller
                     ->causedBy($currentUser)
                     ->performedOn($user)
                     ->withProperties([
-                        'from' => $user->getOriginal('status'),
+                        'from' => $previousStatus,
                         'to' => $user->status,
                     ])
                     ->log('User status changed');
@@ -226,7 +247,6 @@ class UserController extends Controller
                 $roleIds = array_map('intval', $roleIds);
 
                 // Authorization check: Prevent privilege escalation
-                $currentUser = $currentUser;
                 $requestedRoles = Role::whereIn('id', $roleIds)->get();
 
                 // Check if user is trying to assign super-admin role
@@ -245,6 +265,13 @@ class UserController extends Controller
                     }
                 }
 
+                // Prevent stripping the admin role from the last active admin.
+                if ($this->removesLastActiveAdmin($user, $requestedRoles->pluck('name')->all())) {
+                    return redirect()->back()
+                        ->withInput()
+                        ->with('error', 'You cannot remove the admin role from the last active admin user.');
+                }
+
                 // Sync roles using role IDs
                 $user->syncRoles($roleIds);
 
@@ -253,6 +280,12 @@ class UserController extends Controller
             } else {
                 // Remove all roles if none selected (only if user has permission)
                 if ($currentUser->hasRole('super-admin') || $currentUser->can('manage users')) {
+                    if ($this->removesLastActiveAdmin($user)) {
+                        return redirect()->back()
+                            ->withInput()
+                            ->with('error', 'You cannot remove all roles from the last active admin user.');
+                    }
+
                     $user->syncRoles([]);
 
                     // Clear Spatie permission cache
@@ -295,6 +328,12 @@ class UserController extends Controller
         if ($user->hasRole('super-admin') && ! $currentUser->hasRole('super-admin')) {
             return redirect()->route('admin.users.index')
                 ->with('error', 'Cannot delete super-admin users.');
+        }
+
+        // Prevent deleting the last active admin (would lock everyone out).
+        if ($this->removesLastActiveAdmin($user)) {
+            return redirect()->route('admin.users.index')
+                ->with('error', 'You cannot delete the last active admin user.');
         }
 
         try {
@@ -497,6 +536,10 @@ class UserController extends Controller
                         $count++;
                         break;
                     case 'delete':
+                        if ($this->removesLastActiveAdmin($user)) {
+                            $errors[] = "Skipped last active admin: {$user->name}";
+                            break;
+                        }
                         $user->syncRoles([]);
                         $user->syncPermissions([]);
                         $user->delete();
@@ -549,6 +592,31 @@ class UserController extends Controller
     }
 
     /**
+     * True if changing $user's roles to $newRoleNames (or, with the default empty
+     * array, deleting/deactivating them) would remove the last active admin.
+     */
+    private function removesLastActiveAdmin(User $user, array $newRoleNames = []): bool
+    {
+        $adminRoles = ['admin', 'super-admin'];
+
+        if ($user->status !== 'active' || ! $user->hasAnyRole($adminRoles)) {
+            return false;
+        }
+
+        // Still an admin after the change → safe.
+        if (array_intersect($newRoleNames, $adminRoles)) {
+            return false;
+        }
+
+        $activeAdminCount = User::query()
+            ->where('status', 'active')
+            ->whereHas('roles', fn ($q) => $q->whereIn('name', $adminRoles))
+            ->count();
+
+        return $activeAdminCount <= 1;
+    }
+
+    /**
      * Export users data
      */
     public function export(Request $request)
@@ -571,7 +639,8 @@ class UserController extends Controller
         foreach ($users as $user) {
             $roles = $user->roles->pluck('name')->implode('; ');
             $status = ucfirst($user->status ?? 'inactive');
-            $csvData .= "\"{$user->name}\",\"{$user->email}\",\"{$roles}\",\"{$status}\",\"{$user->created_at->format('Y-m-d H:i:s')}\"\n";
+            $createdAt = optional($user->created_at)->format('Y-m-d H:i:s') ?? '';
+            $csvData .= "\"{$user->name}\",\"{$user->email}\",\"{$roles}\",\"{$status}\",\"{$createdAt}\"\n";
         }
 
         return response($csvData)
