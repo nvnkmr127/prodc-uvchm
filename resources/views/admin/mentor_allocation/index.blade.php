@@ -278,7 +278,7 @@
                                                 <i class="fas fa-filter mr-1"></i> View Students
                                             </a>
                                         @endif
-                                        <form method="POST" action="{{ route('mentor-groups.destroy', $group->id) }}" onsubmit="return confirm('Delete group {{ addslashes($group->name) }}? (Students will be detached from this group)');" class="d-inline">
+                                        <form method="POST" action="{{ route('admin.mentor-groups.destroy', $group->id) }}" onsubmit="return confirm('Delete group {{ addslashes($group->name) }}? (Students will be detached from this group)');" class="d-inline">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="btn btn-xs btn-outline-danger" title="Delete Group">
@@ -635,7 +635,7 @@
                 <div class="tab-content" id="pills-tabContent">
                     <!-- Assign to Group Tab -->
                     <div class="tab-pane fade show active" id="pills-group" role="tabpanel">
-                        <form method="POST" action="{{ route('mentor-allocations.assign-group') }}">
+                        <form method="POST" action="{{ route('admin.mentor-allocations.assign-group') }}">
                             @csrf
                             <input type="hidden" name="student_ids[]" id="singleGroupStudentId">
                             <div class="form-group">
@@ -703,7 +703,7 @@
 <!-- Create Mentor Group Modal -->
 <div class="modal fade" id="createMentorGroupModal" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered" role="document">
-        <form method="POST" action="{{ route('mentor-groups.store') }}">
+        <form method="POST" action="{{ route('admin.mentor-groups.store') }}">
             @csrf
             <div class="modal-content">
                 <div class="modal-header bg-primary text-white">
@@ -828,7 +828,7 @@
         }
         groupInput.value = groupId;
 
-        bulkForm.action = "{{ route('mentor-allocations.assign-group') }}";
+        bulkForm.action = "{{ route('admin.mentor-allocations.assign-group') }}";
         bulkForm.submit();
     }
 
