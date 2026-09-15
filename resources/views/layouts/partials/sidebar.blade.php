@@ -31,14 +31,17 @@
                 </li>
             @endif
 
-            @if(auth()->user()?->mentees()->exists() || auth()->user()?->hasRole('super-admin'))
+            @php
+                $myMenteesCount = auth()->user()?->assignedMentees()->count() ?? 0;
+                $canSeeMentees = $myMenteesCount > 0
+                    || auth()->user()?->hasRole('super-admin')
+                    || auth()->user()?->can('manage students');
+            @endphp
+            @if($canSeeMentees)
                 <li class="nav-item {{ request()->routeIs('my-mentees.*') ? 'active' : '' }}">
                     <a class="nav-link" href="{{ route('my-mentees.index') }}">
                         <i class="fas fa-fw fa-user-graduate"></i>
                         <span>My Mentees</span>
-                        @php
-                            $myMenteesCount = auth()->user()->mentees()->where('status', 'active')->count();
-                        @endphp
                         @if($myMenteesCount > 0)
                             <span class="badge badge-info ml-1">{{ $myMenteesCount }}</span>
                         @endif

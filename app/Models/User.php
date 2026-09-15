@@ -214,6 +214,25 @@ class User extends Authenticatable
     }
 
     /**
+     * Active students this user mentors through ANY path: direct faculty mentor,
+     * counselor, or via a Mentor Group they run. Mirrors MenteeController::index
+     * so the sidebar link and badge match what the portal actually shows.
+     */
+    public function assignedMentees(): \Illuminate\Database\Eloquent\Builder
+    {
+        return Student::query()
+            ->where('status', 'active')
+            ->where(function ($q) {
+                $q->where('mentor_id', $this->id)
+                    ->orWhere('counselor_id', $this->id)
+                    ->orWhereHas('mentorGroup', function ($gq) {
+                        $gq->where('faculty_id', $this->id)
+                            ->orWhere('counselor_id', $this->id);
+                    });
+            });
+    }
+
+    /**
      * Get mentor groups where this user is the Faculty Mentor.
      */
     public function facultyMentorGroups(): \Illuminate\Database\Eloquent\Relations\HasMany
