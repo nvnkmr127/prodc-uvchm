@@ -329,6 +329,28 @@ class MentorAllocationController extends Controller
     }
 
     /**
+     * Update an existing Mentor Group's details (name, year, faculty, counselor).
+     *
+     * ponytail: edits the group record only. Existing students keep the mentor/
+     * counselor they were given at assign-group time; re-run "assign to group"
+     * to push a changed faculty/counselor onto already-assigned students.
+     */
+    public function updateGroup(Request $request, MentorGroup $group)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:191',
+            'academic_year_id' => 'required|exists:academic_years,id',
+            'faculty_id' => 'nullable|exists:users,id',
+            'counselor_id' => 'nullable|exists:users,id',
+            'description' => 'nullable|string|max:500',
+        ]);
+
+        $group->update($validated);
+
+        return redirect()->back()->with('success', "Mentor Group '{$group->name}' updated successfully.");
+    }
+
+    /**
      * Delete a Mentor Group.
      */
     public function destroyGroup(MentorGroup $group)

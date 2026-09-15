@@ -285,13 +285,26 @@
                                                 <i class="fas fa-file-csv mr-1"></i> Export CSV
                                             </a>
                                         </div>
-                                        <form method="POST" action="{{ route('admin.mentor-groups.destroy', $group->id) }}" onsubmit="return confirm('Delete group {{ addslashes($group->name) }}? (Students will be detached from this group)');" class="d-inline">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="btn btn-xs btn-outline-danger" title="Delete Group">
-                                                <i class="fas fa-trash-alt"></i>
+                                        <div class="d-inline">
+                                            <button type="button" class="btn btn-xs btn-outline-secondary"
+                                                    title="Edit Group"
+                                                    onclick="openEditGroupModal(this)"
+                                                    data-id="{{ $group->id }}"
+                                                    data-name="{{ $group->name }}"
+                                                    data-academic-year-id="{{ $group->academic_year_id }}"
+                                                    data-faculty-id="{{ $group->faculty_id }}"
+                                                    data-counselor-id="{{ $group->counselor_id }}"
+                                                    data-description="{{ $group->description }}">
+                                                <i class="fas fa-edit"></i>
                                             </button>
-                                        </form>
+                                            <form method="POST" action="{{ route('admin.mentor-groups.destroy', $group->id) }}" onsubmit="return confirm('Delete group {{ addslashes($group->name) }}? (Students will be detached from this group)');" class="d-inline">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="btn btn-xs btn-outline-danger" title="Delete Group">
+                                                    <i class="fas fa-trash-alt"></i>
+                                                </button>
+                                            </form>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -786,6 +799,82 @@
         </form>
     </div>
 </div>
+
+<!-- Edit Mentor Group Modal -->
+<div class="modal fade" id="editMentorGroupModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <form method="POST" id="editGroupForm" action="">
+            @csrf
+            @method('PUT')
+            <div class="modal-content">
+                <div class="modal-header bg-secondary text-white">
+                    <h5 class="modal-title font-weight-bold">
+                        <i class="fas fa-edit mr-1"></i> Edit Mentor Group
+                    </h5>
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="font-weight-bold small">Group Name*</label>
+                        <input type="text" name="name" id="editGroupName" class="form-control" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="font-weight-bold small">Academic Year*</label>
+                        <select name="academic_year_id" id="editGroupAcademicYear" class="form-control" required>
+                            @foreach($allAcademicYears as $ay)
+                                <option value="{{ $ay->id }}">
+                                    {{ $ay->name }} {{ $ay->is_current ? '(Current)' : '' }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="font-weight-bold small">
+                            <i class="fas fa-chalkboard-teacher text-success mr-1"></i> Faculty Mentor (Teacher)
+                        </label>
+                        <select name="faculty_id" id="editGroupFaculty" class="form-control">
+                            <option value="">-- Select Faculty Mentor --</option>
+                            @foreach($potentialMentors as $pm)
+                                <option value="{{ $pm->id }}">
+                                    {{ $pm->name }} ({{ $pm->roles->pluck('name')->first() ?? 'Staff' }}{{ $pm->department ? ' - ' . $pm->department : '' }})
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="font-weight-bold small">
+                            <i class="fas fa-user-shield text-info mr-1"></i> Counselor (Staff)
+                        </label>
+                        <select name="counselor_id" id="editGroupCounselor" class="form-control">
+                            <option value="">-- Select Counselor --</option>
+                            @foreach($potentialMentors as $pm)
+                                <option value="{{ $pm->id }}">
+                                    {{ $pm->name }} ({{ $pm->roles->pluck('name')->first() ?? 'Staff' }}{{ $pm->department ? ' - ' . $pm->department : '' }})
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="font-weight-bold small">Description (Optional)</label>
+                        <textarea name="description" id="editGroupDescription" class="form-control" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm font-weight-bold">
+                        <i class="fas fa-save mr-1"></i> Save Changes
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
 @endsection
 
 @push('scripts')
@@ -886,6 +975,18 @@
         }
 
         $('#singleAssignModal').modal('show');
+    }
+
+    function openEditGroupModal(btn) {
+        var d = btn.dataset;
+        document.getElementById('editGroupForm').action = "{{ url('admin/mentor-groups') }}/" + d.id;
+        document.getElementById('editGroupName').value = d.name || '';
+        document.getElementById('editGroupAcademicYear').value = d.academicYearId || '';
+        document.getElementById('editGroupFaculty').value = d.facultyId || '';
+        document.getElementById('editGroupCounselor').value = d.counselorId || '';
+        document.getElementById('editGroupDescription').value = d.description || '';
+
+        $('#editMentorGroupModal').modal('show');
     }
 </script>
 @endpush
