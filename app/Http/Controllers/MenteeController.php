@@ -56,13 +56,24 @@ class MenteeController extends Controller
         $startDate = $academicYear?->start_date ? Carbon::parse($academicYear->start_date) : now()->startOfYear();
         $endDate = now();
 
-        // 3. Query Mentees
-        $menteesQuery = Student::where('mentor_id', $mentor->id)
-            ->where('students.status', 'active')
-            ->with(['batch.course', 'studentFees', 'followUps' => fn ($q) => $q->latest()]);
+        // 3. Query Mentees (Faculty mentor, Counselor, or via MentorGroup)
+        $menteesQuery = Student::where('students.status', 'active')
+            ->where(function ($q) use ($mentor) {
+                $q->where('mentor_id', $mentor->id)
+                    ->orWhere('counselor_id', $mentor->id)
+                    ->orWhereHas('mentorGroup', function ($gq) use ($mentor) {
+                        $gq->where('faculty_id', $mentor->id)
+                           ->orWhere('counselor_id', $mentor->id);
+                    });
+            })
+            ->with(['batch.course', 'mentorGroup.faculty', 'mentorGroup.counselor', 'mentor', 'counselor', 'studentFees', 'followUps' => fn ($q) => $q->latest()]);
 
         if ($request->filled('batch_id')) {
             $menteesQuery->where('batch_id', $request->batch_id);
+        }
+
+        if ($request->filled('mentor_group_id')) {
+            $menteesQuery->where('mentor_group_id', $request->mentor_group_id);
         }
 
         if ($request->filled('search')) {
@@ -113,21 +124,26 @@ class MenteeController extends Controller
             $menteesData = $menteesData->filter(fn ($item) => $item['total_outstanding'] <= 0);
         }
 
-        // Summary Statistics
+        // 5. Aggregate KPIs
         $totalMentees = $allMentees->count();
         $totalOutstandingFees = $menteesData->sum('total_outstanding');
-        $lowAttendanceCount = $allMentees->filter(fn ($s) => $s->getAttendancePercentage($startDate, $endDate, true) < 75)->count();
-        $avgAttendance = $totalMentees > 0
-            ? round($allMentees->avg(fn ($s) => $s->getAttendancePercentage($startDate, $endDate, true)), 1)
-            : 0;
+        $lowAttendanceCount = $menteesData->where('attendance_percentage', '<', 75)->count();
+        $avgAttendance = $totalMentees > 0 ? round($menteesData->avg('attendance_percentage'), 1) : 0;
 
-        // Filter dropdowns
-        $batches = Batch::whereIn('id', $allMentees->pluck('batch_id')->filter()->unique())
-            ->orderBy('name')
-            ->get();
+        // Distinct Batches and Mentor Groups for Filtering
+        $batches = Batch::with('course')->orderBy('name')->get();
+        $mentorGroups = \App\Models\MentorGroup::when(! $isElevatedUser, function ($q) use ($mentor) {
+            $q->where('faculty_id', $mentor->id)->orWhere('counselor_id', $mentor->id);
+        })->orderBy('name')->get();
 
+        // For elevated users, all mentors/counselors dropdown
         $allMentors = $isElevatedUser
-            ? User::whereHas('mentees')->orderBy('name')->get()
+            ? User::where(function ($q) {
+                $q->whereHas('mentees')
+                  ->orWhereHas('counseledStudents')
+                  ->orWhereHas('facultyMentorGroups')
+                  ->orWhereHas('counselorMentorGroups');
+            })->orderBy('name')->get()
             : collect([$mentor]);
 
         return view('mentees.index', compact(
@@ -138,6 +154,7 @@ class MenteeController extends Controller
             'lowAttendanceCount',
             'avgAttendance',
             'batches',
+            'mentorGroups',
             'allMentors',
             'isElevatedUser',
             'academicYear'
@@ -147,17 +164,26 @@ class MenteeController extends Controller
     /**
      * Show detailed mentee profile with attendance breakdown, fees, and coordination timeline.
      */
-    public function show(Student $student)
+    public function show(Request $request, Student $student)
     {
         $currentUser = auth()->user();
-        $isElevatedUser = $currentUser->hasRole('super-admin') || $currentUser->can('manage students');
-
-        // Verify access: only the assigned mentor or admins can view
-        if ($student->mentor_id !== $currentUser->id && ! $isElevatedUser) {
-            abort(403, 'Unauthorized. You are not assigned as mentor to this student.');
+        $isElevatedUser = false;
+        try {
+            $isElevatedUser = $currentUser->hasRole('super-admin') || $currentUser->can('manage students');
+        } catch (\Throwable $e) {
+            $isElevatedUser = $currentUser->roles()->where('name', 'super-admin')->exists();
         }
 
-        $student->load(['batch.course', 'studentFees.feeCategory', 'followUps.user']);
+        // Verify access: assigned faculty, counselor, group staff, or admins
+        $isAssigned = $student->mentor_id === $currentUser->id
+            || $student->counselor_id === $currentUser->id
+            || ($student->mentorGroup && ($student->mentorGroup->faculty_id === $currentUser->id || $student->mentorGroup->counselor_id === $currentUser->id));
+
+        if (! $isAssigned && ! $isElevatedUser) {
+            abort(403, 'Unauthorized. You are not assigned as faculty mentor or counselor to this student.');
+        }
+
+        $student->load(['batch.course', 'mentorGroup.faculty', 'mentorGroup.counselor', 'mentor', 'counselor', 'studentFees.feeCategory', 'followUps.user']);
 
         // Academic Year context
         try {

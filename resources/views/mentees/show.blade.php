@@ -72,10 +72,13 @@
                 Mentee Profile: {{ $student->name }}
             </h1>
         </div>
-        <div>
+        <div class="d-flex align-items-center">
+            <a href="{{ route('admin.students.show', $student->id) }}" class="btn btn-sm btn-primary shadow-sm mr-2" title="Open Full Student Record">
+                <i class="fas fa-user-circle mr-1"></i> Full Student Profile
+            </a>
             @if($academicYear)
                 <span class="badge badge-light border text-primary p-2">
-                    <i class="fas fa-calendar-alt mr-1"></i> Academic Year: {{ $academicYear->name }}
+                    <i class="fas fa-calendar-alt mr-1"></i> {{ $academicYear->name }}
                 </span>
             @endif
         </div>
@@ -105,24 +108,34 @@
                     @endif
                 </div>
                 <div class="col">
-                    <h4 class="font-weight-bold text-gray-900 mb-1">{{ $student->name }}</h4>
+                    <div class="d-flex align-items-center justify-content-between">
+                        <h4 class="font-weight-bold text-gray-900 mb-1">{{ $student->name }}</h4>
+                        <a href="{{ route('admin.students.show', $student->id) }}" class="btn btn-sm btn-outline-primary py-0 px-2" title="Full ERP Profile">
+                            <i class="fas fa-external-link-alt mr-1"></i> Full ERP Profile
+                        </a>
+                    </div>
                     <div class="text-muted small mb-2">
                         <span>Roll: <strong>{{ $student->enrollment_number ?? 'N/A' }}</strong></span>
                         <span class="mx-2">&bull;</span>
-                        <span>Course: <strong>{{ $student->batch?->course?->name ?? 'N/A' }}</strong></span>
+                        <span>Department/Course: <strong>{{ $student->batch?->course?->name ?? 'N/A' }}</strong></span>
                         <span class="mx-2">&bull;</span>
                         <span>Batch: <strong>{{ $student->batch?->name ?? 'N/A' }}</strong></span>
                     </div>
-                    <div class="d-flex flex-wrap gap-2">
+                    <div class="d-flex flex-wrap gap-2 align-items-center">
                         <span class="badge badge-pill badge-{{ $student->status === 'active' ? 'success' : 'secondary' }} mr-2">
                             {{ ucfirst($student->status) }}
                         </span>
-                        @if($student->gender)
-                            <span class="badge badge-pill badge-light border mr-2">{{ $student->gender }}</span>
+                        @if($student->mentorGroup)
+                            <span class="badge badge-pill badge-primary mr-2" title="Mentor Group">
+                                <i class="fas fa-users mr-1"></i> Group: {{ $student->mentorGroup->name }}
+                            </span>
                         @endif
-                        @if($student->age)
-                            <span class="badge badge-pill badge-light border mr-2">{{ $student->age }}</span>
-                        @endif
+                        <span class="badge badge-pill badge-info mr-2" title="Faculty Mentor">
+                            <i class="fas fa-chalkboard-teacher mr-1"></i> Faculty: {{ $student->faculty?->name ?? $student->mentorGroup?->faculty?->name ?? 'Unassigned' }}
+                        </span>
+                        <span class="badge badge-pill badge-success mr-2" title="Counselor">
+                            <i class="fas fa-user-shield mr-1"></i> Counselor: {{ $student->counselor?->name ?? $student->mentorGroup?->counselor?->name ?? 'Unassigned' }}
+                        </span>
                         @if($student->village)
                             <span class="badge badge-pill badge-light border"><i class="fas fa-map-marker-alt mr-1"></i>{{ $student->village }}</span>
                         @endif

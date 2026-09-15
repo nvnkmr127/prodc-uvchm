@@ -196,11 +196,35 @@ class User extends Authenticatable
     }
 
     /**
-     * Get students assigned to this user as mentor.
+     * Get students assigned to this user as mentor (Faculty).
      */
     public function mentees(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(Student::class, 'mentor_id');
+    }
+
+    /**
+     * Get students assigned to this user as counselor.
+     */
+    public function counseledStudents(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Student::class, 'counselor_id');
+    }
+
+    /**
+     * Get mentor groups where this user is the Faculty Mentor.
+     */
+    public function facultyMentorGroups(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(MentorGroup::class, 'faculty_id');
+    }
+
+    /**
+     * Get mentor groups where this user is the Counselor.
+     */
+    public function counselorMentorGroups(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(MentorGroup::class, 'counselor_id');
     }
 
     /**

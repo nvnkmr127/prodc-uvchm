@@ -196,18 +196,46 @@
                             </select>
                         </div>
                         <div class="form-group">
-                            <label for="mentor_id">Assign Mentor</label>
-                            <select id="mentor_id" name="mentor_id" class="form-control select2">
-                                <option value="">-- No Mentor Assigned --</option>
-                                @foreach($mentors as $mentor)
-                                    <option value="{{ $mentor->id }}" {{ (old('mentor_id', $student->mentor_id) == $mentor->id) ? 'selected' : '' }}>
-                                        {{ $mentor->name }} ({{ $mentor->roles->pluck('name')->first() ?? 'Staff' }})
+                            <label for="mentor_group_id">Assign Mentor Group (Optional)</label>
+                            <select id="mentor_group_id" name="mentor_group_id" class="form-control select2">
+                                <option value="">-- No Mentor Group Assigned --</option>
+                                @foreach($mentorGroups as $mg)
+                                    <option value="{{ $mg->id }}" 
+                                            data-faculty="{{ $mg->faculty_id }}" 
+                                            data-counselor="{{ $mg->counselor_id }}"
+                                            {{ old('mentor_group_id', $student->mentor_group_id) == $mg->id ? 'selected' : '' }}>
+                                        {{ $mg->name }} (Faculty: {{ $mg->faculty?->name ?? 'None' }} | Counselor: {{ $mg->counselor?->name ?? 'None' }})
                                     </option>
                                 @endforeach
                             </select>
                             <small class="form-text text-muted">
-                                Mentor monitors attendance, fee dues, and coordinates with parents.
+                                Groups contain students across all departments, assigned to a Faculty and a Counselor.
                             </small>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 form-group">
+                                <label for="mentor_id">Faculty Mentor</label>
+                                <select id="mentor_id" name="mentor_id" class="form-control select2">
+                                    <option value="">-- No Faculty Mentor Assigned --</option>
+                                    @foreach($mentors as $mentor)
+                                        <option value="{{ $mentor->id }}" {{ (old('mentor_id', $student->mentor_id) == $mentor->id) ? 'selected' : '' }}>
+                                            {{ $mentor->name }} ({{ $mentor->roles->pluck('name')->first() ?? 'Staff' }})
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-6 form-group">
+                                <label for="counselor_id">Counselor</label>
+                                <select id="counselor_id" name="counselor_id" class="form-control select2">
+                                    <option value="">-- No Counselor Assigned --</option>
+                                    @foreach($counselors as $counselor)
+                                        <option value="{{ $counselor->id }}" {{ (old('counselor_id', $student->counselor_id) == $counselor->id) ? 'selected' : '' }}>
+                                            {{ $counselor->name }} ({{ $counselor->roles->pluck('name')->first() ?? 'Staff' }})
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -233,6 +261,19 @@
             $('.custom-file-input').on('change', function () {
                 let fileName = $(this).val().split('\\').pop();
                 $(this).next('.custom-file-label').addClass("selected").html(fileName);
+            });
+
+            // Auto-select faculty and counselor when mentor group is chosen
+            $('#mentor_group_id').on('change', function () {
+                const selected = $(this).find(':selected');
+                const facultyId = selected.data('faculty');
+                const counselorId = selected.data('counselor');
+                if (facultyId) {
+                    $('#mentor_id').val(facultyId).trigger('change');
+                }
+                if (counselorId) {
+                    $('#counselor_id').val(counselorId).trigger('change');
+                }
             });
 
             // ==========================================

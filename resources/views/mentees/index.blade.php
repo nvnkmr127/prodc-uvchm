@@ -184,7 +184,7 @@
                 @endif
                 <div class="row align-items-center">
                     <!-- Batch Filter -->
-                    <div class="col-md-3 mb-2 mb-md-0">
+                    <div class="col-md-2 mb-2 mb-md-0">
                         <select name="batch_id" class="form-control form-control-sm" onchange="this.form.submit()">
                             <option value="">All Batches</option>
                             @foreach($batches as $b)
@@ -193,8 +193,18 @@
                         </select>
                     </div>
 
+                    <!-- Mentor Group Filter -->
+                    <div class="col-md-2 mb-2 mb-md-0">
+                        <select name="mentor_group_id" class="form-control form-control-sm" onchange="this.form.submit()">
+                            <option value="">All Mentor Groups</option>
+                            @foreach($mentorGroups as $mg)
+                                <option value="{{ $mg->id }}" {{ request('mentor_group_id') == $mg->id ? 'selected' : '' }}>{{ $mg->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
                     <!-- Attendance Filter -->
-                    <div class="col-md-3 mb-2 mb-md-0">
+                    <div class="col-md-2 mb-2 mb-md-0">
                         <select name="attendance_filter" class="form-control form-control-sm" onchange="this.form.submit()">
                             <option value="">All Attendance Levels</option>
                             <option value="low" {{ request('attendance_filter') === 'low' ? 'selected' : '' }}>Below 75% (Needs Warning)</option>
@@ -203,7 +213,7 @@
                     </div>
 
                     <!-- Fee Status Filter -->
-                    <div class="col-md-3 mb-2 mb-md-0">
+                    <div class="col-md-2 mb-2 mb-md-0">
                         <select name="fee_filter" class="form-control form-control-sm" onchange="this.form.submit()">
                             <option value="">All Fee Statuses</option>
                             <option value="pending" {{ request('fee_filter') === 'pending' ? 'selected' : '' }}>Pending Fee Dues</option>
@@ -212,12 +222,12 @@
                     </div>
 
                     <!-- Search -->
-                    <div class="col-md-3">
+                    <div class="col-md-4">
                         <div class="input-group input-group-sm">
-                            <input type="text" name="search" class="form-control" placeholder="Search student or parent..." value="{{ request('search') }}">
+                            <input type="text" name="search" class="form-control" placeholder="Search student, roll, or parent..." value="{{ request('search') }}">
                             <div class="input-group-append">
                                 <button class="btn btn-primary" type="submit"><i class="fas fa-search"></i></button>
-                                @if(request()->hasAny(['batch_id', 'attendance_filter', 'fee_filter', 'search']))
+                                @if(request()->hasAny(['batch_id', 'mentor_group_id', 'attendance_filter', 'fee_filter', 'search']))
                                     <a href="{{ route('my-mentees.index', array_filter(['mentor_id' => request('mentor_id')])) }}" class="btn btn-secondary">
                                         <i class="fas fa-times"></i>
                                     </a>
@@ -234,7 +244,7 @@
     <div class="card shadow-sm mb-4">
         <div class="card-header py-3 bg-white d-flex justify-content-between align-items-center">
             <h6 class="m-0 font-weight-bold text-gray-800">
-                <i class="fas fa-list text-primary mr-1"></i> Mentee Students Roster
+                <i class="fas fa-list text-primary mr-1"></i> Mentee Students Roster (All Departments)
                 <span class="badge badge-light border ml-1">{{ $menteesData->count() }} Students</span>
             </h6>
         </div>
@@ -245,7 +255,8 @@
                     <thead class="thead-light">
                         <tr>
                             <th>Student</th>
-                            <th>Course & Batch</th>
+                            <th>Mentor Group & Team</th>
+                            <th>Department & Batch</th>
                             <th>Attendance</th>
                             <th>Fee Status</th>
                             <th>Parent Coordination</th>
@@ -271,8 +282,9 @@
                                             </div>
                                         @endif
                                         <div>
-                                            <a href="{{ route('my-mentees.show', $student->id) }}" class="font-weight-bold text-gray-900 text-decoration-none">
+                                            <a href="{{ route('admin.students.show', $student->id) }}" class="font-weight-bold text-gray-900 text-decoration-none" title="Open Full Student Profile">
                                                 {{ $student->name }}
+                                                <i class="fas fa-external-link-alt fa-xs text-primary ml-1"></i>
                                             </a>
                                             <div class="small text-muted">Roll: {{ $student->enrollment_number ?? 'N/A' }}</div>
                                             @if($student->student_mobile)
@@ -281,6 +293,19 @@
                                                 </div>
                                             @endif
                                         </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    @if($student->mentorGroup)
+                                        <span class="badge badge-primary font-weight-bold mb-1">
+                                            <i class="fas fa-users mr-1"></i>{{ $student->mentorGroup->name }}
+                                        </span>
+                                    @else
+                                        <span class="badge badge-light border text-muted mb-1">Direct Assignment</span>
+                                    @endif
+                                    <div class="text-muted" style="font-size: 0.73rem; line-height: 1.3;">
+                                        <div><i class="fas fa-chalkboard-teacher text-info mr-1"></i>Faculty: <strong>{{ $student->faculty?->name ?? $student->mentorGroup?->faculty?->name ?? '-' }}</strong></div>
+                                        <div><i class="fas fa-user-shield text-success mr-1"></i>Counselor: <strong>{{ $student->counselor?->name ?? $student->mentorGroup?->counselor?->name ?? '-' }}</strong></div>
                                     </div>
                                 </td>
                                 <td>
@@ -371,11 +396,14 @@
                                 <td class="text-right">
                                     <div class="btn-group">
                                         <button type="button" class="btn btn-sm btn-outline-success shadow-sm"
-                                                onclick="openNoteModal('{{ $student->id }}', '{{ addslashes($student->name) }}', '{{ $student->father_mobile }}', '{{ $attPct }}', '{{ $outstanding }}')">
-                                            <i class="fas fa-phone-volume mr-1"></i> Log Call
+                                                onclick="openNoteModal('{{ $student->id }}', '{{ addslashes($student->name) }}', '{{ $student->father_mobile }}', '{{ $attPct }}', '{{ $outstanding }}')" title="Log Parent Call">
+                                            <i class="fas fa-phone-volume"></i> Log Call
                                         </button>
-                                        <a href="{{ route('my-mentees.show', $student->id) }}" class="btn btn-sm btn-primary shadow-sm">
-                                            <i class="fas fa-eye mr-1"></i> View
+                                        <a href="{{ route('my-mentees.show', $student->id) }}" class="btn btn-sm btn-outline-info shadow-sm" title="Mentee Interaction History">
+                                            <i class="fas fa-comments"></i> Notes
+                                        </a>
+                                        <a href="{{ route('admin.students.show', $student->id) }}" class="btn btn-sm btn-primary shadow-sm" title="Full Student Profile">
+                                            <i class="fas fa-user"></i> Profile
                                         </a>
                                     </div>
                                 </td>

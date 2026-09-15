@@ -843,13 +843,17 @@
                                     <i class="fas fa-users text-primary fa-2x mb-2"></i>
                                     <h6>Assign to Batch</h6>
                                 </div>
+                                <div class="bulk-action-item" data-action="group">
+                                    <i class="fas fa-layer-group text-primary fa-2x mb-2"></i>
+                                    <h6>Assign Mentor Group</h6>
+                                </div>
                                 <div class="bulk-action-item" data-action="mentor">
                                     <i class="fas fa-chalkboard-teacher text-info fa-2x mb-2"></i>
-                                    <h6>Assign Mentor</h6>
+                                    <h6>Assign Faculty Mentor</h6>
                                 </div>
                                 <div class="bulk-action-item" data-action="remove_mentor">
                                     <i class="fas fa-user-slash text-secondary fa-2x mb-2"></i>
-                                    <h6>Remove Mentor</h6>
+                                    <h6>Remove Mentor / Group</h6>
                                 </div>
                                 <div class="bulk-action-item" data-action="export">
                                     <i class="fas fa-download text-secondary fa-2x mb-2"></i>
@@ -898,14 +902,39 @@
                             <div id="mentorAssignmentSection" class="mt-3" style="display: none;">
                                 <div class="card">
                                     <div class="card-body">
-                                        <h6>Select Mentor</h6>
+                                        <h6>Select Faculty Mentor</h6>
                                         <div class="row">
                                             <div class="col-md-12">
-                                                <label class="form-label">Mentor (Any Staff/User)</label>
+                                                <label class="form-label">Faculty Mentor</label>
                                                 <select class="custom-select" id="bulkStudentMentorSelect">
-                                                    <option value="">Select Mentor</option>
+                                                    <option value="">Select Faculty Mentor</option>
                                                     @foreach($mentors as $mentor)
                                                         <option value="{{ $mentor->id }}">{{ $mentor->name }} ({{ $mentor->roles->pluck('name')->first() ?? 'Staff' }})</option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Mentor Group Assignment Section -->
+                            <div id="groupAssignmentSection" class="mt-3" style="display: none;">
+                                <div class="card border-left-primary shadow-sm">
+                                    <div class="card-body">
+                                        <h6><i class="fas fa-layer-group text-primary mr-1"></i> Select Mentor Group</h6>
+                                        <p class="small text-muted mb-2">
+                                            Students from <strong>all departments</strong> can belong to a group. Assigning a group automatically assigns its <strong>Faculty Mentor</strong> and <strong>Counselor</strong>.
+                                        </p>
+                                        <div class="row">
+                                            <div class="col-md-12">
+                                                <label class="form-label">Mentor Group</label>
+                                                <select class="custom-select" id="bulkStudentGroupSelect">
+                                                    <option value="">-- Choose Mentor Group --</option>
+                                                    @foreach($mentorGroups as $mg)
+                                                        <option value="{{ $mg->id }}">
+                                                            {{ $mg->name }} (Faculty: {{ $mg->faculty?->name ?? 'None' }} | Counselor: {{ $mg->counselor?->name ?? 'None' }})
+                                                        </option>
                                                     @endforeach
                                                 </select>
                                             </div>
@@ -1310,12 +1339,15 @@
             handleBulkActionSelection(action) {
                 $('#batchAssignmentSection').hide();
                 $('#mentorAssignmentSection').hide();
+                $('#groupAssignmentSection').hide();
                 $('#executeBulkAction').prop('disabled', false);
 
                 if (action === 'batch') {
                     $('#batchAssignmentSection').show();
                 } else if (action === 'mentor') {
                     $('#mentorAssignmentSection').show();
+                } else if (action === 'group') {
+                    $('#groupAssignmentSection').show();
                 }
             }
 
@@ -1378,6 +1410,13 @@
                         this.showToast('Please select a mentor.', 'error');
                         return;
                     }
+                } else if (action === 'group') {
+                    action = 'assign_group';
+                    value = $('#bulkStudentGroupSelect').val();
+                    if (!value) {
+                        this.showToast('Please select a mentor group.', 'error');
+                        return;
+                    }
                 } else if (action === 'remove_mentor') {
                     action = 'remove_mentor';
                 }
@@ -1405,6 +1444,7 @@
                     batch_id: action === 'assign_batch' ? value : null,
                     status: action === 'change_status' ? value : null,
                     mentor_id: action === 'assign_mentor' ? value : null,
+                    mentor_group_id: action === 'assign_group' ? value : null,
                     student_ids: selectedIds
                 }, (res) => {
                     if (res.success) {

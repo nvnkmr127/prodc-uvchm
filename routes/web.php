@@ -433,10 +433,13 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'permission:view bac
         Route::get('students/export', [StudentController::class, 'export'])->name('students.export');
         Route::post('students/bulk-actions', [StudentController::class, 'bulkActions'])->name('students.bulk-actions');
 
-        // Mentor Allocation Routes
+        // Mentor Allocation & Group Routes
         Route::get('mentor-allocations', [\App\Http\Controllers\Admin\MentorAllocationController::class, 'index'])->name('mentor-allocations.index');
         Route::post('mentor-allocations/assign', [\App\Http\Controllers\Admin\MentorAllocationController::class, 'assign'])->name('mentor-allocations.assign');
         Route::post('mentor-allocations/unassign', [\App\Http\Controllers\Admin\MentorAllocationController::class, 'unassign'])->name('mentor-allocations.unassign');
+        Route::post('mentor-allocations/assign-group', [\App\Http\Controllers\Admin\MentorAllocationController::class, 'assignGroup'])->name('mentor-allocations.assign-group');
+        Route::post('mentor-groups', [\App\Http\Controllers\Admin\MentorAllocationController::class, 'storeGroup'])->name('mentor-groups.store');
+        Route::delete('mentor-groups/{group}', [\App\Http\Controllers\Admin\MentorAllocationController::class, 'destroyGroup'])->name('mentor-groups.destroy');
 
         // ===== RESOURCE ROUTE MUST COME AFTER SPECIFIC ROUTES =====
         Route::resource('students', StudentController::class);

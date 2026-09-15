@@ -139,25 +139,36 @@ $statusColor = match ($student->status) {
                                     <i class="fas fa-phone text-success"></i> {{ $student->student_mobile ?? 'N/A' }}
                                 </div>
 
-                                <div class="meta-pill mb-2" title="Assigned Mentor">
-                                    <i class="fas fa-chalkboard-teacher text-info"></i>
-                                    @if($student->mentor)
-                                        Mentor: <strong>{{ $student->mentor->name }}</strong>
-                                        <a href="{{ route('admin.mentor-allocations.index', ['allocation_status' => $student->mentor_id]) }}" class="ml-1 text-primary" title="View in Mentor Allocation">
-                                            <i class="fas fa-external-link-alt fa-xs"></i>
-                                        </a>
-                                    @else
-                                        Mentor: <span class="text-warning">Not Assigned</span>
-                                        <a href="{{ route('admin.mentor-allocations.index', ['search' => $student->enrollment_number]) }}" class="ml-1 text-primary font-weight-bold" title="Assign Mentor">
-                                            Assign
-                                        </a>
+                                <div class="meta-pill mb-2" title="Mentor Group & Guidance Team">
+                                    <i class="fas fa-users text-primary"></i>
+                                    @if($student->mentorGroup)
+                                        Group: <strong>{{ $student->mentorGroup->name }}</strong>
                                     @endif
+                                    <span class="ml-1">
+                                        Faculty: <strong>{{ $student->faculty?->name ?? $student->mentorGroup?->faculty?->name ?? 'None' }}</strong>
+                                    </span>
+                                    <span class="mx-1">&bull;</span>
+                                    <span>
+                                        Counselor: <strong>{{ $student->counselor?->name ?? $student->mentorGroup?->counselor?->name ?? 'None' }}</strong>
+                                    </span>
+                                    <a href="{{ route('admin.mentor-allocations.index') }}" class="ml-1 text-primary" title="Manage Allocations">
+                                        <i class="fas fa-external-link-alt fa-xs"></i>
+                                    </a>
                                 </div>
                             </div>
                         </div>
 
                         <div class="col-lg-4 text-lg-right d-flex align-items-end justify-content-lg-end">
                             <div class="action-bar pb-3">
+                                {{-- Mentee Coordination Button --}}
+                                @if(Route::has('my-mentees.show'))
+                                    <a href="{{ route('my-mentees.show', $student->id) }}"
+                                        class="btn btn-outline-info shadow-sm font-weight-bold mb-2 mr-1"
+                                        title="View Parent Coordination Notes & Calls">
+                                        <i class="fas fa-comments mr-1"></i> Mentee Notes
+                                    </a>
+                                @endif
+
                                 {{-- Primary Action --}}
                                 <button type="button" onclick="openPaymentModal()"
                                     class="btn btn-success shadow-sm font-weight-bold mb-2">

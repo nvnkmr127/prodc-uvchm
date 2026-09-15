@@ -8,6 +8,7 @@ use App\Models\AcademicYear;
 use App\Models\Batch;
 use App\Models\Course;
 use App\Models\MentorAllocation;
+use App\Models\MentorGroup;
 use App\Models\Student;
 use App\Models\User;
 use App\Services\AcademicYearService;
@@ -55,9 +56,16 @@ class MentorAllocationController extends Controller
             ->orderBy('name')
             ->get();
 
+        // Mentor Groups for the academic year
+        $mentorGroups = MentorGroup::with(['faculty.roles', 'counselor.roles', 'academicYear'])
+            ->withCount('students')
+            ->when($selectedAcademicYearId, fn ($q) => $q->where('academic_year_id', $selectedAcademicYearId))
+            ->orderBy('name')
+            ->get();
+
         // 3. Query Students for Allocation
         $studentsQuery = Student::query()
-            ->with(['batch.course', 'mentor.roles'])
+            ->with(['batch.course', 'mentor.roles', 'counselor.roles', 'mentorGroup.faculty', 'mentorGroup.counselor'])
             ->where('students.status', 'active');
 
         if ($selectedAcademicYearId) {
@@ -92,6 +100,10 @@ class MentorAllocationController extends Controller
             $studentsQuery->whereNotNull('mentor_id');
         } elseif ($statusFilter !== 'all' && is_numeric($statusFilter)) {
             $studentsQuery->where('mentor_id', $statusFilter);
+        }
+
+        if ($request->filled('mentor_group_id')) {
+            $studentsQuery->where('mentor_group_id', $request->mentor_group_id);
         }
 
         // Stats calculation for the selected academic year
@@ -137,6 +149,7 @@ class MentorAllocationController extends Controller
             'unassignedCount',
             'activeMentorsCount',
             'mentorSummaries',
+            'mentorGroups',
             'statusFilter'
         ));
     }
@@ -236,5 +249,95 @@ class MentorAllocationController extends Controller
 
             return redirect()->back()->with('error', 'Failed to unassign students: '.$e->getMessage());
         }
+    }
+
+    /**
+     * Bulk assign students (across any courses/departments) to a Mentor Group.
+     */
+    public function assignGroup(Request $request)
+    {
+        $validated = $request->validate([
+            'student_ids' => 'required|array|min:1',
+            'student_ids.*' => 'required|exists:students,id',
+            'mentor_group_id' => 'required|exists:mentor_groups,id',
+        ]);
+
+        $group = MentorGroup::with(['faculty', 'counselor'])->findOrFail($validated['mentor_group_id']);
+
+        DB::beginTransaction();
+        try {
+            $updates = [
+                'mentor_group_id' => $group->id,
+            ];
+            if ($group->faculty_id) {
+                $updates['mentor_id'] = $group->faculty_id;
+            }
+            if ($group->counselor_id) {
+                $updates['counselor_id'] = $group->counselor_id;
+            }
+
+            Student::whereIn('id', $validated['student_ids'])->update($updates);
+
+            // Record faculty allocation history if faculty is present
+            if (! empty($updates['mentor_id'])) {
+                MentorAllocation::whereIn('student_id', $validated['student_ids'])
+                    ->when($group->academic_year_id, fn ($q) => $q->where('academic_year_id', $group->academic_year_id))
+                    ->update(['is_active' => false]);
+
+                foreach ($validated['student_ids'] as $sid) {
+                    MentorAllocation::create([
+                        'academic_year_id' => $group->academic_year_id,
+                        'student_id' => $sid,
+                        'mentor_id' => $updates['mentor_id'],
+                        'assigned_by' => auth()->id(),
+                        'is_active' => true,
+                        'notes' => 'Allocated via Mentor Group: ' . $group->name,
+                    ]);
+                }
+            }
+
+            DB::commit();
+
+            $count = count($validated['student_ids']);
+            $facultyName = $group->faculty?->name ?? 'None';
+            $counselorName = $group->counselor?->name ?? 'None';
+
+            return redirect()->back()->with('success', "Successfully assigned {$count} students to {$group->name} (Faculty: {$facultyName}, Counselor: {$counselorName}).");
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return redirect()->back()->with('error', 'Failed to assign students to group: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Create a new Mentor Group with Faculty and Counselor.
+     */
+    public function storeGroup(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:191',
+            'academic_year_id' => 'required|exists:academic_years,id',
+            'faculty_id' => 'nullable|exists:users,id',
+            'counselor_id' => 'nullable|exists:users,id',
+            'description' => 'nullable|string|max:500',
+        ]);
+
+        $group = MentorGroup::create($validated);
+
+        return redirect()->back()->with('success', "Mentor Group '{$group->name}' created successfully.");
+    }
+
+    /**
+     * Delete a Mentor Group.
+     */
+    public function destroyGroup(MentorGroup $group)
+    {
+        // Unlink students from this group
+        Student::where('mentor_group_id', $group->id)->update(['mentor_group_id' => null]);
+        $name = $group->name;
+        $group->delete();
+
+        return redirect()->back()->with('success', "Mentor Group '{$name}' deleted successfully.");
     }
 }

@@ -175,8 +175,10 @@ class StudentController extends Controller
         });
 
         $mentors = User::where('status', 'active')->orderBy('name')->get();
+        $counselors = $mentors;
+        $mentorGroups = \App\Models\MentorGroup::active()->with(['faculty', 'counselor'])->orderBy('name')->get();
 
-        return view('admin.students.index', compact('students', 'courses', 'batches', 'stats', 'mentors'));
+        return view('admin.students.index', compact('students', 'courses', 'batches', 'stats', 'mentors', 'counselors', 'mentorGroups'));
     }
 
     /**
@@ -184,9 +186,9 @@ class StudentController extends Controller
      */
     public function bulkActions(Request $request)
     {
-        // UPDATED: Remove 'create_installments' from allowed actions
+        // Allowed actions including mentor groups
         $request->validate([
-            'action' => 'required|in:delete,change_status,assign_batch,assign_mentor,remove_mentor',
+            'action' => 'required|in:delete,change_status,assign_batch,assign_mentor,remove_mentor,assign_group,remove_group,assign_counselor',
             'student_ids' => 'required|array',
             'student_ids.*' => 'required|exists:students,id',
         ]);
@@ -207,6 +209,18 @@ class StudentController extends Controller
         if ($request->action === 'assign_mentor') {
             $request->validate([
                 'mentor_id' => 'required|exists:users,id',
+            ]);
+        }
+
+        if ($request->action === 'assign_group') {
+            $request->validate([
+                'mentor_group_id' => 'required|exists:mentor_groups,id',
+            ]);
+        }
+
+        if ($request->action === 'assign_counselor') {
+            $request->validate([
+                'counselor_id' => 'required|exists:users,id',
             ]);
         }
 
@@ -262,6 +276,47 @@ class StudentController extends Controller
                             $successCount++;
                             break;
 
+                        case 'assign_group':
+                            $group = \App\Models\MentorGroup::find($request->mentor_group_id);
+                            $updates = ['mentor_group_id' => $request->mentor_group_id];
+                            if ($group && $group->faculty_id) {
+                                $updates['mentor_id'] = $group->faculty_id;
+                            }
+                            if ($group && $group->counselor_id) {
+                                $updates['counselor_id'] = $group->counselor_id;
+                            }
+                            $student->update($updates);
+
+                            if (! empty($updates['mentor_id'])) {
+                                try {
+                                    $currentYearId = session('selected_academic_year_id') ?? app(\App\Services\AcademicYearService::class)->getActiveAcademicYearId();
+                                } catch (\Exception $e) {
+                                    $currentYearId = null;
+                                }
+                                \App\Models\MentorAllocation::where('student_id', $student->id)
+                                    ->when($currentYearId, fn ($q) => $q->where('academic_year_id', $currentYearId))
+                                    ->update(['is_active' => false]);
+                                \App\Models\MentorAllocation::create([
+                                    'academic_year_id' => $currentYearId,
+                                    'student_id' => $student->id,
+                                    'mentor_id' => $updates['mentor_id'],
+                                    'assigned_by' => auth()->id(),
+                                    'is_active' => true,
+                                ]);
+                            }
+                            $successCount++;
+                            break;
+
+                        case 'remove_group':
+                            $student->update(['mentor_group_id' => null]);
+                            $successCount++;
+                            break;
+
+                        case 'assign_counselor':
+                            $student->update(['counselor_id' => $request->counselor_id]);
+                            $successCount++;
+                            break;
+
                         default:
                             throw new \Exception("Unknown action: {$request->action}");
                     }
@@ -292,8 +347,10 @@ class StudentController extends Controller
     {
         $batches = Batch::with('course')->get();
         $mentors = User::where('status', 'active')->orderBy('name')->get();
+        $mentorGroups = \App\Models\MentorGroup::active()->with(['faculty', 'counselor'])->orderBy('name')->get();
+        $counselors = $mentors;
 
-        return view('admin.students.create', compact('batches', 'mentors'));
+        return view('admin.students.create', compact('batches', 'mentors', 'mentorGroups', 'counselors'));
     }
 
     /**
@@ -339,6 +396,8 @@ class StudentController extends Controller
             'referral_name' => 'nullable|string|max:255',
             'batch_id' => 'required|exists:batches,id', // REQUIRED for fee generation
             'mentor_id' => 'nullable|exists:users,id',
+            'mentor_group_id' => 'nullable|exists:mentor_groups,id',
+            'counselor_id' => 'nullable|exists:users,id',
             'gender' => 'required|in:Male,Female,Other',
             'photo' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
             'is_certificate_received' => 'boolean',
@@ -372,6 +431,19 @@ class StudentController extends Controller
                 $photoPath = $this->processPhoto($request->file('photo'), 'students');
             }
 
+            // If mentor group selected, auto-inherit group faculty and counselor if not explicitly chosen
+            if (! empty($validated['mentor_group_id'])) {
+                $group = \App\Models\MentorGroup::find($validated['mentor_group_id']);
+                if ($group) {
+                    if (empty($validated['mentor_id']) && $group->faculty_id) {
+                        $validated['mentor_id'] = $group->faculty_id;
+                    }
+                    if (empty($validated['counselor_id']) && $group->counselor_id) {
+                        $validated['counselor_id'] = $group->counselor_id;
+                    }
+                }
+            }
+
             // Generate enrollment number
             $enrollmentNumber = $this->generateEnrollmentNumber($batch);
 
@@ -386,6 +458,8 @@ class StudentController extends Controller
                 'admission_date' => $validated['admission_date'],
                 'batch_id' => $validated['batch_id'],
                 'mentor_id' => $validated['mentor_id'] ?? null,
+                'mentor_group_id' => $validated['mentor_group_id'] ?? null,
+                'counselor_id' => $validated['counselor_id'] ?? null,
                 'gender' => $validated['gender'],
                 'photo' => $photoPath,
                 'enrollment_number' => $enrollmentNumber,
@@ -679,8 +753,10 @@ class StudentController extends Controller
     {
         $batches = Batch::with('course')->get();
         $mentors = User::where('status', 'active')->orderBy('name')->get();
+        $counselors = $mentors;
+        $mentorGroups = \App\Models\MentorGroup::active()->with(['faculty', 'counselor'])->orderBy('name')->get();
 
-        return view('admin.students.edit', compact('student', 'batches', 'mentors'));
+        return view('admin.students.edit', compact('student', 'batches', 'mentors', 'counselors', 'mentorGroups'));
     }
 
     // âœ… SINGLE update() method with enhanced mobile validation
@@ -715,6 +791,8 @@ class StudentController extends Controller
             'admission_date' => 'required|date_format:Y-m-d',
             'batch_id' => 'nullable|exists:batches,id',
             'mentor_id' => 'nullable|exists:users,id',
+            'mentor_group_id' => 'nullable|exists:mentor_groups,id',
+            'counselor_id' => 'nullable|exists:users,id',
             'status' => 'required|in:active,dropout,graduated',
             'photo' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
             'payment_terms' => 'nullable|integer|in:1,2,3',

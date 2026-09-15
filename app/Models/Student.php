@@ -111,6 +111,8 @@ class Student extends Model
         'is_certificate_received',
         'certificate_type',
         'mentor_id',
+        'mentor_group_id',
+        'counselor_id',
     ];
 
     protected $casts = [
@@ -314,11 +316,35 @@ class Student extends Model
     }
 
     /**
-     * Mentor assigned to this student
+     * Mentor assigned to this student (Faculty Mentor)
      */
     public function mentor(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(User::class, 'mentor_id');
+    }
+
+    /**
+     * Alias for mentor (Faculty Mentor)
+     */
+    public function faculty(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(User::class, 'mentor_id');
+    }
+
+    /**
+     * Counselor assigned to this student
+     */
+    public function counselor(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(User::class, 'counselor_id');
+    }
+
+    /**
+     * Mentor Group this student belongs to
+     */
+    public function mentorGroup(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(MentorGroup::class, 'mentor_group_id');
     }
 
     /**
