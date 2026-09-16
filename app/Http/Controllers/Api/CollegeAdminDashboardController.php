@@ -199,6 +199,8 @@ class CollegeAdminDashboardController extends Controller
     private function getStudentsWithBirthdayOn($date)
     {
         return Student::where('status', 'active')
+            ->whereNotIn('status', ['graduated', 'dropout', 'completed', 'alumni'])
+            ->whereNull('dropout_date')
             ->whereMonth('dob', $date->month)
             ->whereDay('dob', $date->day)
             ->with(['batch.course'])
@@ -208,6 +210,8 @@ class CollegeAdminDashboardController extends Controller
     private function getStudentsWithBirthdayInRange($start, $end)
     {
         $query = Student::where('status', 'active')
+            ->whereNotIn('status', ['graduated', 'dropout', 'completed', 'alumni'])
+            ->whereNull('dropout_date')
             ->with(['batch.course']);
 
         $startMonth = $start->month;

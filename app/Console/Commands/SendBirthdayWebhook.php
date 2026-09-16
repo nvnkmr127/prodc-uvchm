@@ -34,8 +34,10 @@ class SendBirthdayWebhook extends Command
 
         $this->info('Checking for birthdays on: '.$date->format('M d'));
 
-        // Find active students with birthday today
+        // Find active students with birthday today (excluding completed, graduated, alumni, dropout)
         $students = Student::active()
+            ->whereNotIn('status', ['graduated', 'dropout', 'completed', 'alumni'])
+            ->whereNull('dropout_date')
             ->whereMonth('dob', $date->month)
             ->whereDay('dob', $date->day)
             ->get();
@@ -49,6 +51,10 @@ class SendBirthdayWebhook extends Command
         $this->info('Found '.$students->count().' active student(s) with birthday today.');
 
         foreach ($students as $student) {
+            // Guard against completed, graduated, alumni, or dropout students
+            if ($student->status !== 'active' || $student->isDropout() || $student->isGraduated() || in_array($student->status, ['completed', 'alumni']) || $student->dropout_date) {
+                continue;
+            }
             try {
                 // Add student name and number to webhook data
                 $student->addWebhookData('student_name', $student->name);

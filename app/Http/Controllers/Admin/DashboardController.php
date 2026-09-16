@@ -432,6 +432,8 @@ class DashboardController extends Controller
     private function getStudentsWithBirthdayOn($date)
     {
         return Student::active()
+            ->whereNotIn('status', ['graduated', 'dropout', 'completed', 'alumni'])
+            ->whereNull('dropout_date')
             ->whereMonth('dob', $date->month)
             ->whereDay('dob', $date->day)
             ->with(['batch.course'])
@@ -441,6 +443,8 @@ class DashboardController extends Controller
     private function getStudentsWithBirthdayInRange($start, $end)
     {
         $query = Student::active()
+            ->whereNotIn('status', ['graduated', 'dropout', 'completed', 'alumni'])
+            ->whereNull('dropout_date')
             ->with(['batch.course']);
 
         // MySQL specific optimization for birthday range ignoring year
