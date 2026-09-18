@@ -237,6 +237,32 @@
                                 </select>
                             </div>
                         </div>
+
+                        <div class="row">
+                            <div class="col-md-6 form-group">
+                                <label for="status">Student Status</label>
+                                <select id="status" name="status" class="form-control">
+                                    <option value="active" {{ old('status', $student->status) == 'active' ? 'selected' : '' }}>Active</option>
+                                    <option value="dropout" {{ old('status', $student->status) == 'dropout' ? 'selected' : '' }}>Dropout</option>
+                                    <option value="graduated" {{ old('status', $student->status) == 'graduated' ? 'selected' : '' }}>Graduated</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 form-group">
+                                <label for="placement_status">Placement Status</label>
+                                <select id="placement_status" name="placement_status" class="form-control">
+                                    <option value="Not Placed" {{ old('placement_status', $student->placement_status) == 'Not Placed' ? 'selected' : '' }}>Not Placed</option>
+                                    <option value="Placed" {{ old('placement_status', $student->placement_status) == 'Placed' ? 'selected' : '' }}>Placed</option>
+                                    <option value="Job" {{ old('placement_status', $student->placement_status) == 'Job' ? 'selected' : '' }}>Job</option>
+                                    <option value="Internship" {{ old('placement_status', $student->placement_status) == 'Internship' ? 'selected' : '' }}>Internship</option>
+                                    <option value="Training" {{ old('placement_status', $student->placement_status) == 'Training' ? 'selected' : '' }}>Training</option>
+                                    <option value="Looking for job" {{ old('placement_status', $student->placement_status) == 'Looking for job' ? 'selected' : '' }}>Looking for job</option>
+                                    <option value="Higher Studies" {{ old('placement_status', $student->placement_status) == 'Higher Studies' ? 'selected' : '' }}>Higher Studies</option>
+                                    <option value="Self Employed" {{ old('placement_status', $student->placement_status) == 'Self Employed' ? 'selected' : '' }}>Self Employed</option>
+                                    <option value="Not interested" {{ old('placement_status', $student->placement_status) == 'Not interested' ? 'selected' : '' }}>Not interested</option>
+                                    <option value="other" {{ old('placement_status', $student->placement_status) == 'other' ? 'selected' : '' }}>Other</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
